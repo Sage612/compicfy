@@ -264,7 +264,7 @@ const user = session?.user ?? null
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <a
-                      href="https://discord.gg/FxQUqEdcQr"
+                      href="https://discord.com/FxQUqEdcQr"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="gap-2 cursor-pointer"

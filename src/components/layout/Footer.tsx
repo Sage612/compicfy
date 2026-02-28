@@ -10,7 +10,7 @@ const footerLinks = {
   ],
   Community: [
     { label: 'Submit a Comic', href: '/dashboard/recommendations/new' },
-    { label: 'Discord', href: 'https://discord.gg/FxQUqEdcQr/' },
+    { label: 'Discord', href: 'https://discord.com/FxQUqEdcQr/' },
   ],
   Company: [
     { label: 'About', href: '/about' },
