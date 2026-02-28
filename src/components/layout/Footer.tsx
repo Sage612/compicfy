@@ -9,9 +9,8 @@ const footerLinks = {
     { label: 'New Releases', href: '/browse?sort=recent' },
   ],
   Community: [
-    { label: 'Sign Up', href: '/signup' },
-    { label: 'Log In', href: '/login' },
     { label: 'Submit a Comic', href: '/dashboard/recommendations/new' },
+    { label: 'Discord', href: 'https://discord.gg/FxQUqEdcQr/' },
   ],
   Company: [
     { label: 'About', href: '/about' },
