@@ -1,26 +1,34 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   images: {
-    domains: [
-      "localhost",
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.replace("https://", "") || "",
-      "lh3.googleusercontent.com", // Google avatars
-      "avatars.githubusercontent.com", // GitHub avatars
-    ],
     remotePatterns: [
       {
-        protocol: "https",
-        hostname: "**.supabase.co",
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'placehold.co',
+      },
+      {
+        protocol: 'https',
+        hostname: 'us-a.tapas.io',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.webtoons.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.comix.to',
       },
     ],
   },
-  typescript: {
-    ignoreBuildErrors: false,
-  },
-  eslint: {
-    ignoreDuringBuilds: false,
-  },
-  swcMinify: true,
-};
+  // Turbopack is enabled via --turbopack flag or next.config
+  // No special config needed — it's the default dev server in Next 15
+}
 
-module.exports = nextConfig;
+export default nextConfig
