@@ -17,7 +17,7 @@ async function callOpenRouter(prompt: string): Promise<string> {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY!}`,
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000/',
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.vercel.app/',
           'X-Title': 'Compicfy',
         },
         body: JSON.stringify({
