@@ -9,6 +9,7 @@ import {
   Star,
   Settings,
   Bell,
+  BookMarked,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
@@ -16,6 +17,7 @@ const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/recommendations', label: 'My Recommendations', icon: BookOpen },
   { href: '/dashboard/saved', label: 'Saved Comics', icon: Bookmark },
+   { href: '/dashboard/lists', label: 'Reading Lists', icon: BookMarked },
   { href: '/dashboard/reviews', label: 'My Reviews', icon: Star },
   { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },

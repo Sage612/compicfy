@@ -9,26 +9,23 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/storage/v1/object/public/**',
       },
-      {
-        protocol: 'https',
-        hostname: 'placehold.co',
-      },
-      {
-        protocol: 'https',
-        hostname: 'us-a.tapas.io',
-      },
-      {
-        protocol: 'https',
-        hostname: '*.webtoons.com',
-      },
-      {
-        protocol: 'https',
-        hostname: '*.comix.to',
-      },
+      { protocol: 'https', hostname: 'placehold.co' },
+      { protocol: 'https', hostname: 'us-a.tapas.io' },
+      { protocol: 'https', hostname: '*.webtoons.com' },
+      { protocol: 'https', hostname: '*.comix.to' },
+      { protocol: 'https', hostname: 'uploads.mangadex.org' },
+      { protocol: 'https', hostname: 'cdn.myanimelist.net' },
+      { protocol: 'https', hostname: 's4.anilist.co' },
     ],
   },
-  // Turbopack is enabled via --turbopack flag or next.config
-  // No special config needed — it's the default dev server in Next 15
+  async headers() {
+    return [
+      {
+        source: '/api/manga-search',
+        headers: [{ key: 'Cache-Control', value: 'public, s-maxage=3600, stale-while-revalidate=86400' }],
+      },
+    ]
+  },
 }
 
 export default nextConfig

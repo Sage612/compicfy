@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin, logAction } from '@/lib/utils/admin'
+import { sendApprovedEmail, sendRejectedEmail, sendAppealResolvedEmail } from '@/lib/email/send'
 
 export async function PATCH(
   request: Request,
@@ -65,6 +66,29 @@ export async function PATCH(
       reject: `Your recommendation "${rec.title}" was rejected. Reason: ${reason}`,
       resolve_appeal: `Your appeal for "${rec.title}" has been ${appeal_status}.`,
     }
+    if (action === 'approve' && rec?.user_id) {
+  const { data: userProfile } = await (supabase! as any)
+    .from('profiles')
+    .select('username')
+    .eq('id', rec.user_id)
+    .single() as { data: { username: string } | null }
+  const { data: authUser } = await supabase!.auth.admin.getUserById(rec.user_id)
+  if (authUser?.user?.email && userProfile?.username) {
+    await sendApprovedEmail(authUser.user.email, userProfile.username, rec.title, id)
+  }
+}
+
+if (action === 'reject' && rec?.user_id) {
+  const { data: userProfile } = await (supabase! as any)
+    .from('profiles')
+    .select('username')
+    .eq('id', rec.user_id)
+    .single() as { data: { username: string } | null }
+  const { data: authUser } = await supabase!.auth.admin.getUserById(rec.user_id)
+  if (authUser?.user?.email && userProfile?.username) {
+    await sendRejectedEmail(authUser.user.email, userProfile.username, rec.title, reason, id)
+  }
+}
     await (supabase! as any).from('notifications').insert({
       user_id: rec.user_id,
       type: `recommendation_${action}`,

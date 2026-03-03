@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin, logAction } from '@/lib/utils/admin'
+import { sendBannedEmail, sendUnbannedEmail, sendAppealResolvedEmail } from '@/lib/email/send'
 
 export async function PATCH(
   request: Request,
@@ -8,11 +9,12 @@ export async function PATCH(
   const { id } = await params
   const { error, status, user, supabase } = await requireAdmin()
   if (error) return NextResponse.json({ error }, { status })
-const db = supabase as any  
+  const db = supabase as any
+
   const body = await request.json()
   const { action, reason, role } = body
 
- const { data: target } = await db.from('profiles').select('username, role').eq('id', id).single()
+  const { data: target } = await db.from('profiles').select('username, role').eq('id', id).single()
 
   let updates: Record<string, any> = {}
   let logMsg = ''
@@ -38,25 +40,34 @@ const db = supabase as any
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   }
 
- const { data, error: updateError } = await db.from('profiles').update(updates).eq('id', id).select().single()
-
+  const { data, error: updateError } = await db.from('profiles').update(updates).eq('id', id).select().single()
   if (updateError) return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
 
   await logAction(db, user!.id, logMsg, 'user', id, target?.username ?? id, { reason, action, role })
 
-  // Notify user
   if (['ban', 'unban', 'resolve_appeal'].includes(action)) {
     const messages: Record<string, string> = {
       ban: `Your account has been suspended. Reason: ${reason}`,
       unban: 'Your account suspension has been lifted.',
       resolve_appeal: `Your ban appeal has been ${body.appeal_status}.`,
     }
-    await db.from('notifications').insert.insert({
+    await db.from('notifications').insert({
       user_id: id,
       type: `account_${action}`,
       title: messages[action],
       data: { reason },
     })
+  }
+
+  const { data: authUser } = await db.auth.admin.getUserById(id)
+  const email = authUser?.user?.email
+
+  if (email && target?.username) {
+    if (action === 'ban') await sendBannedEmail(email, target.username, reason)
+    if (action === 'unban') await sendUnbannedEmail(email, target.username)
+    if (action === 'resolve_appeal') {
+      await sendAppealResolvedEmail(email, target.username, 'ban', body.appeal_status)
+    }
   }
 
   return NextResponse.json({ user: data })

@@ -16,6 +16,7 @@ import { PlatformSelector } from './PlatformSelector'
 import { toast } from 'sonner'
 import { Loader2, BookOpen, Info } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MangaSearch } from './MangaSearch'
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Max 200 characters'),
@@ -29,7 +30,6 @@ const formSchema = z.object({
   why_recommend: z.string().max(1000).default(''),
   author: z.string().max(100).default(''),
   artist: z.string().max(100).default(''),
-  // ✅ Zod v4 fix — preprocess instead of coerce for proper number typing
   year_released: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
     z.number().min(1900).max(new Date().getFullYear() + 1).optional()
@@ -73,25 +73,26 @@ export function RecommendationForm({ userId }: Props) {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
 
-  // ✅ Explicitly pass FormValues as generic to fix SubmitHandler mismatch
-const {
-  register,
-  handleSubmit,
-  control,
-  watch,
-  formState: { errors },
-} = useForm<FormValues>({
-  resolver: zodResolver(formSchema) as any,
-  defaultValues: {
-    genres: [],
-    official_platforms: [],
-    cover_url: '',
-    content_rating: 'all',
-    why_recommend: '',
-    author: '',
-    artist: '',
-  },
-})
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = useForm<FormValues>({
+    resolver: zodResolver(formSchema) as any,
+    defaultValues: {
+      genres: [],
+      official_platforms: [],
+      cover_url: '',
+      content_rating: 'all',
+      why_recommend: '',
+      author: '',
+      artist: '',
+    },
+  })
 
   const descValue = watch('description') || ''
   const whyValue = watch('why_recommend') || ''
@@ -128,8 +129,41 @@ const {
     }
   }
 
+  const handleMangaSelect = (result: any) => {
+    setValue('title', result.title || '')
+    setValue('author', result.author || '')
+    setValue('artist', result.artist || '')
+    setValue('description', result.description?.slice(0, 2000) || '')
+    setValue('type', result.type || 'manga')
+    setValue('status', result.status || 'ongoing')
+    if (result.year) setValue('year_released', result.year)
+    if (result.chapters) setValue('chapter_count', result.chapters)
+
+    const validGenres = [
+      'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror',
+      'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports',
+      'Supernatural', 'Thriller', 'Isekai', 'Martial Arts', 'School Life',
+      'Historical', 'Psychological', 'Shounen', 'Shoujo', 'Seinen', 'Josei',
+    ]
+    const matchedGenres = result.genres
+      .filter((g: string) => validGenres.includes(g))
+      .slice(0, 5)
+    setValue('genres', matchedGenres)
+
+    if (result.coverUrl && !getValues('cover_url')) {
+      setValue('cover_url', result.coverUrl)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+
+      {/* Manga API Search */}
+      <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-4">
+        <MangaSearch onSelect={handleMangaSelect} />
+      </div>
+
+      <Separator />
 
       {/* Cover + Title row */}
       <div className="flex flex-col sm:flex-row gap-6">
