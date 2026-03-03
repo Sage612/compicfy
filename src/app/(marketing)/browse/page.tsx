@@ -4,6 +4,7 @@ import { ComicCard } from '@/components/recommendations/ComicCard'
 import { FilterBar } from '@/components/recommendations/FilterBar'
 import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
+import { AgeFilterWrapper } from '@/components/recommendations/AgeFilterWrapper'
 import { BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -22,7 +23,6 @@ interface Props {
   searchParams: Promise<SearchParams>
 }
 
-// Fetch featured comics (top daily votes)
 async function getFeatured(): Promise<Recommendation[]> {
   const supabase = await createClient()
   const { data } = await supabase
@@ -34,7 +34,6 @@ async function getFeatured(): Promise<Recommendation[]> {
   return (data as Recommendation[]) ?? []
 }
 
-// Fetch trending (daily votes)
 async function getTrending(): Promise<Recommendation[]> {
   const supabase = await createClient()
   const { data } = await supabase
@@ -46,7 +45,6 @@ async function getTrending(): Promise<Recommendation[]> {
   return (data as Recommendation[]) ?? []
 }
 
-// Fetch recently added
 async function getRecent(): Promise<Recommendation[]> {
   const supabase = await createClient()
   const { data } = await supabase
@@ -58,7 +56,6 @@ async function getRecent(): Promise<Recommendation[]> {
   return (data as Recommendation[]) ?? []
 }
 
-// Fetch admin picks (featured flagged by admin)
 async function getAdminPicks(): Promise<Recommendation[]> {
   const supabase = await createClient()
   const { data } = await supabase
@@ -71,7 +68,6 @@ async function getAdminPicks(): Promise<Recommendation[]> {
   return (data as Recommendation[]) ?? []
 }
 
-// Fetch community favourites (top all-time score)
 async function getCommunityFavourites(): Promise<Recommendation[]> {
   const supabase = await createClient()
   const { data } = await supabase
@@ -82,12 +78,11 @@ async function getCommunityFavourites(): Promise<Recommendation[]> {
     .limit(12)
   return (data as Recommendation[]) ?? []
 }
-// Fetch personalised picks based on user's fav genres
+
 async function getYouMightLike(userId: string | null): Promise<Recommendation[]> {
   const supabase = await createClient()
 
   if (!userId) {
-    // Not logged in — return random approved comics
     const { data } = await supabase
       .from('recommendations')
       .select('*')
@@ -97,7 +92,6 @@ async function getYouMightLike(userId: string | null): Promise<Recommendation[]>
     return (data as Recommendation[]) ?? []
   }
 
-  // Get user's favourite genres
   const { data: profile } = await supabase
     .from('profiles')
     .select('favorite_genres')
@@ -116,7 +110,6 @@ async function getYouMightLike(userId: string | null): Promise<Recommendation[]>
     return (data as Recommendation[]) ?? []
   }
 
-  // Fetch comics matching any of user's genres
   const { data } = await supabase
     .from('recommendations')
     .select('*')
@@ -128,7 +121,6 @@ async function getYouMightLike(userId: string | null): Promise<Recommendation[]>
   return (data as Recommendation[]) ?? []
 }
 
-// Fetch hidden gems (high save count, lower vote count)
 async function getHiddenGems(): Promise<Recommendation[]> {
   const supabase = await createClient()
   const { data } = await supabase
@@ -140,7 +132,6 @@ async function getHiddenGems(): Promise<Recommendation[]> {
   return (data as Recommendation[]) ?? []
 }
 
-// Comic grid with filters
 async function ComicGrid({ searchParams }: { searchParams: SearchParams }) {
   const supabase = await createClient()
 
@@ -153,18 +144,10 @@ async function ComicGrid({ searchParams }: { searchParams: SearchParams }) {
     .select('*', { count: 'exact' })
     .eq('is_approved', true)
 
-  if (searchParams.q) {
-    query = query.ilike('title', `%${searchParams.q}%`)
-  }
-  if (searchParams.type) {
-    query = query.eq('type', searchParams.type)
-  }
-  if (searchParams.genre) {
-    query = query.contains('genres', [searchParams.genre])
-  }
-  if (searchParams.status) {
-    query = query.eq('status', searchParams.status)
-  }
+  if (searchParams.q) query = query.ilike('title', `%${searchParams.q}%`)
+  if (searchParams.type) query = query.eq('type', searchParams.type)
+  if (searchParams.genre) query = query.contains('genres', [searchParams.genre])
+  if (searchParams.status) query = query.eq('status', searchParams.status)
 
   switch (searchParams.sort) {
     case 'trending':
@@ -213,7 +196,9 @@ async function ComicGrid({ searchParams }: { searchParams: SearchParams }) {
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
         {recommendations.map((rec) => (
-          <ComicCard key={rec.id} recommendation={rec} />
+          <AgeFilterWrapper key={rec.id} contentRating={rec.content_rating}>
+            <ComicCard recommendation={rec} />
+          </AgeFilterWrapper>
         ))}
       </div>
       {totalPages > 1 && (
@@ -237,7 +222,6 @@ async function ComicGrid({ searchParams }: { searchParams: SearchParams }) {
   )
 }
 
-// Check if any filters are active
 function hasActiveFilters(params: SearchParams) {
   return !!(params.q || params.type || params.genre || params.status || params.sort)
 }
@@ -246,11 +230,9 @@ export default async function BrowsePage({ searchParams }: Props) {
   const params = await searchParams
   const isFiltering = hasActiveFilters(params)
 
-  // Get current user for personalisation
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Only fetch sections when NOT filtering
   const [featured, trending, recent, adminPicks, communityFavs, hiddenGems, youMightLike] =
     isFiltering
       ? [[], [], [], [], [], [], []]
@@ -283,7 +265,7 @@ export default async function BrowsePage({ searchParams }: Props) {
         </Link>
       </div>
 
-      {/* Featured Carousel — only when not filtering */}
+      {/* Featured Carousel */}
       {!isFiltering && featured.length > 0 && (
         <Suspense fallback={
           <div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />
@@ -292,7 +274,7 @@ export default async function BrowsePage({ searchParams }: Props) {
         </Suspense>
       )}
 
-      {/* Horizontal sections — only when not filtering */}
+      {/* Horizontal sections */}
       {!isFiltering && (
         <div className="space-y-8">
           <HorizontalSection
@@ -301,14 +283,12 @@ export default async function BrowsePage({ searchParams }: Props) {
             recommendations={trending}
             viewAllHref="/browse?sort=trending"
           />
-
           <HorizontalSection
             title="Recently Added"
             emoji="✨"
             recommendations={recent}
             viewAllHref="/browse?sort=recent"
           />
-
           {adminPicks.length > 0 && (
             <HorizontalSection
               title="Admin Picks"
@@ -316,33 +296,30 @@ export default async function BrowsePage({ searchParams }: Props) {
               recommendations={adminPicks}
             />
           )}
-
           <HorizontalSection
             title="Community Favourites"
             emoji="❤️"
             recommendations={communityFavs}
             viewAllHref="/browse?sort=score"
           />
-
           {hiddenGems.length > 0 && (
-  <HorizontalSection
-    title="Hidden Gems"
-    emoji="💎"
-    recommendations={hiddenGems}
-  />
-)}
-
-{youMightLike.length > 0 && (
-  <HorizontalSection
-    title={user ? 'You Might Like' : 'Popular Picks'}
-    emoji="🎯"
-    recommendations={youMightLike}
-  />
-)}
+            <HorizontalSection
+              title="Hidden Gems"
+              emoji="💎"
+              recommendations={hiddenGems}
+            />
+          )}
+          {youMightLike.length > 0 && (
+            <HorizontalSection
+              title={user ? 'You Might Like' : 'Popular Picks'}
+              emoji="🎯"
+              recommendations={youMightLike}
+            />
+          )}
         </div>
       )}
 
-      {/* Divider before filter grid */}
+      {/* Divider */}
       {!isFiltering && (
         <div className="flex items-center gap-4">
           <div className="flex-1 h-px bg-border" />

@@ -9,10 +9,11 @@ const footerLinks = {
     { label: 'New Releases', href: '/browse?sort=recent' },
   ],
   Community: [
+    { label: 'Community Guidelines', href: '/guidelines' },
     { label: 'Submit a Comic', href: '/dashboard/recommendations/new' },
-    { label: 'Discord', href: 'https://discord.com/FxQUqEdcQr/' },
+    { label: 'Discord', href: 'https://discord.gg/7WPGMb696N' },
   ],
-  Company: [
+  Legal: [
     { label: 'About', href: '/about' },
     { label: 'FAQ', href: '/faq' },
     { label: 'Terms of Service', href: '/terms' },

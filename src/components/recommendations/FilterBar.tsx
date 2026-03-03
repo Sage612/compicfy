@@ -5,7 +5,7 @@ import { useCallback, useTransition } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Search, X, SlidersHorizontal } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
+import { cn } from '@/lib/utils'
 import { GENRES } from '@/lib/utils/constants'
 import {
   Sheet,

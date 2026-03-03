@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ReviewSection } from '@/components/recommendations/ReviewSection'
+import { AddToListButton } from '@/components/recommendations/AddToListButton'
 import {
   BookOpen,
   Calendar,
@@ -138,6 +139,7 @@ export default async function ComicDetailPage({ params }: Props) {
             initialSaved={isSaved}
             isLoggedIn={!!user}
           />
+          {user && <AddToListButton recommendationId={id} userId={user.id} />}
 
           {/* Platform links */}
           {rec.official_platforms?.length > 0 && (
