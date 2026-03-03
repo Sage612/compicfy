@@ -7,23 +7,24 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { data: profile } = await supabase
+    const { data: profile } = await (supabase as any)
       .from('profiles')
       .select('role')
       .eq('id', user.id)
-      .single() as { data: { role: string } | null }
+      .single()
 
     if (!profile || !['admin', 'moderator'].includes(profile.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const { article_text, source_url, source_name } = await request.json()
+
     if (!article_text?.trim()) {
       return NextResponse.json({ error: 'Article text required' }, { status: 400 })
     }
 
     if (!process.env.OPENROUTER_API_KEY) {
-      return NextResponse.json({ error: 'OPENROUTER_API_KEY not set in environment' }, { status: 500 })
+      return NextResponse.json({ error: 'OPENROUTER_API_KEY not set' }, { status: 500 })
     }
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -31,15 +32,18 @@ export async function POST(request: Request) {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com',
+        'X-Title': 'Compicfy',
       },
       body: JSON.stringify({
-        model: 'arcee-ai/arcee-trinity',
-        max_tokens: 1024,
+        model: 'meta-llama/llama-3.1-8b-instruct:free',
         messages: [
           {
             role: 'user',
             content: `You are a news editor for Compicfy, a manga/manhwa/webtoon community platform.
-Summarise the following article into a news post. Return ONLY a raw JSON object with NO markdown, NO backticks, NO preamble — just the JSON:
+
+Summarise the following article. Return ONLY a raw JSON object with NO markdown, NO backticks, NO extra text — just the JSON:
+
 {
   "title": "engaging headline under 100 chars",
   "excerpt": "2-3 sentence summary under 300 chars",
@@ -47,8 +51,10 @@ Summarise the following article into a news post. Return ONLY a raw JSON object 
   "category": "one of: industry, release, adaptation, event, creator, announcement",
   "tags": ["tag1", "tag2", "tag3"]
 }
+
 Article:
 ${article_text.slice(0, 4000)}
+
 Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`,
           },
         ],
@@ -57,11 +63,8 @@ Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`,
 
     if (!response.ok) {
       const errText = await response.text()
-      console.error('OpenRouter API error:', errText)
-      return NextResponse.json(
-        { error: `AI API error: ${response.status}` },
-        { status: 500 }
-      )
+      console.error('OpenRouter error:', errText)
+      return NextResponse.json({ error: `AI API error: ${response.status} - ${errText}` }, { status: 500 })
     }
 
     const aiData = await response.json()
@@ -71,6 +74,7 @@ Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`,
       return NextResponse.json({ error: 'Empty AI response' }, { status: 500 })
     }
 
+    // Strip accidental markdown backticks
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
 
     let summary
