@@ -1,6 +1,54 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+const FREE_MODELS = [
+  'meta-llama/llama-3.1-8b-instruct:free',
+  'meta-llama/llama-3.2-3b-instruct:free',
+  'meta-llama/llama-3.2-1b-instruct:free',
+  'mistralai/mistral-7b-instruct:free',
+  'google/gemma-2-9b-it:free',
+  'google/gemma-3-1b-it:free',
+  'google/gemma-3-4b-it:free',
+  'qwen/qwen-2.5-7b-instruct:free',
+  'qwen/qwen2.5-vl-3b-instruct:free',
+  'deepseek/deepseek-r1-0528-qwen3-8b:free',
+  'microsoft/phi-3-mini-128k-instruct:free',
+  'huggingfaceh4/zephyr-7b-beta:free',
+]
+
+async function tryModel(model: string, prompt: string, apiKey: string): Promise<string | null> {
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com',
+        'X-Title': 'Compicfy',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 1024,
+      }),
+    })
+
+    if (!response.ok) {
+      console.warn(`Model ${model} failed with ${response.status}`)
+      return null
+    }
+
+    const data = await response.json()
+    const text = data.choices?.[0]?.message?.content ?? ''
+    if (!text) return null
+
+    return text
+  } catch (err) {
+    console.warn(`Model ${model} threw error:`, err)
+    return null
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
@@ -27,20 +75,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'OPENROUTER_API_KEY not set' }, { status: 500 })
     }
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com',
-        'X-Title': 'Compicfy',
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct:free',
-        messages: [
-          {
-            role: 'user',
-            content: `You are a news editor for Compicfy, a manga/manhwa/webtoon community platform.
+    const prompt = `You are a news editor for Compicfy, a manga/manhwa/webtoon community platform.
 
 Summarise the following article. Return ONLY a raw JSON object with NO markdown, NO backticks, NO extra text — just the JSON:
 
@@ -55,27 +90,31 @@ Summarise the following article. Return ONLY a raw JSON object with NO markdown,
 Article:
 ${article_text.slice(0, 4000)}
 
-Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`,
-          },
-        ],
-      }),
-    })
+Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`
 
-    if (!response.ok) {
-      const errText = await response.text()
-      console.error('OpenRouter error:', errText)
-      return NextResponse.json({ error: `AI API error: ${response.status} - ${errText}` }, { status: 500 })
+    // Try each model in order until one works
+    let rawText: string | null = null
+    let usedModel = ''
+
+    for (const model of FREE_MODELS) {
+      console.log(`Trying model: ${model}`)
+      rawText = await tryModel(model, prompt, process.env.OPENROUTER_API_KEY)
+      if (rawText) {
+        usedModel = model
+        console.log(`Success with model: ${model}`)
+        break
+      }
     }
 
-    const aiData = await response.json()
-    const text = aiData.choices?.[0]?.message?.content ?? ''
-
-    if (!text) {
-      return NextResponse.json({ error: 'Empty AI response' }, { status: 500 })
+    if (!rawText) {
+      return NextResponse.json(
+        { error: 'All AI models failed. Try again later.' },
+        { status: 500 }
+      )
     }
 
     // Strip accidental markdown backticks
-    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+    const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
 
     let summary
     try {
@@ -86,10 +125,18 @@ Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`,
         console.error('Could not parse AI response:', cleaned)
         return NextResponse.json({ error: 'AI returned invalid JSON' }, { status: 500 })
       }
-      summary = JSON.parse(match[0])
+      try {
+        summary = JSON.parse(match[0])
+      } catch {
+        return NextResponse.json({ error: 'AI returned malformed JSON' }, { status: 500 })
+      }
     }
 
-    return NextResponse.json({ summary, is_ai_generated: true })
+    return NextResponse.json({
+      summary,
+      is_ai_generated: true,
+      model_used: usedModel,
+    })
   } catch (error) {
     console.error('Summarise error:', error)
     return NextResponse.json(
