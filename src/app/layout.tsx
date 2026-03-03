@@ -3,8 +3,8 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { Toaster } from 'sonner'
-import './globals.css'
 import { AgeGateProvider } from '@/components/ui/AgeGateProvider'
+import './globals.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'),
@@ -43,12 +43,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
-          <Toaster richColors position="top-right" />
           <AgeGateProvider>
-    {children}
-    <Toaster richColors position="top-right" />
-  </AgeGateProvider>
+            {children}
+            <Toaster richColors position="top-right" />
+          </AgeGateProvider>
         </ThemeProvider>
       </body>
     </html>
