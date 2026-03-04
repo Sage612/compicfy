@@ -44,15 +44,15 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col">
 
-      {/* Hero Section */}
+{/* Hero Section */}
 <section className="relative overflow-hidden min-h-[520px] flex items-center">
   {/* Base gradient */}
   <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-background" />
   
-  {/* Manga-style speed lines */}
+  {/* Manga-style decorations — desktop only */}
   <div className="absolute inset-0 overflow-hidden pointer-events-none">
-    {/* Speed lines radiating from top-right */}
-    <svg className="absolute inset-0 w-full h-full opacity-[0.04] dark:opacity-[0.06]" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
+    {/* Speed lines — hidden on mobile */}
+    <svg className="absolute inset-0 w-full h-full opacity-[0.04] dark:opacity-[0.06] hidden md:block" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
       {Array.from({ length: 40 }).map((_, i) => {
         const angle = (i / 40) * 360
         const rad = (angle * Math.PI) / 180
@@ -70,8 +70,8 @@ export default async function HomePage() {
       })}
     </svg>
 
-    {/* Halftone dots pattern */}
-    <svg className="absolute bottom-0 right-0 w-96 h-96 opacity-[0.05] dark:opacity-[0.08]" viewBox="0 0 200 200">
+    {/* Halftone dots — hidden on mobile */}
+    <svg className="absolute bottom-0 right-0 w-96 h-96 opacity-[0.05] dark:opacity-[0.08] hidden md:block" viewBox="0 0 200 200">
       {Array.from({ length: 10 }).map((_, row) =>
         Array.from({ length: 10 }).map((_, col) => (
           <circle
@@ -85,35 +85,35 @@ export default async function HomePage() {
       )}
     </svg>
 
-    {/* Large faded circle — manga panel feel */}
-    <div className="absolute -top-32 -right-32 w-[600px] h-[600px] rounded-full border-[40px] border-primary/5 dark:border-primary/10" />
-    <div className="absolute -top-16 -right-16 w-[400px] h-[400px] rounded-full border-[20px] border-primary/5 dark:border-primary/10" />
+    {/* Large faded circles — smaller on mobile */}
+    <div className="absolute -top-32 -right-32 w-[300px] h-[300px] md:w-[600px] md:h-[600px] rounded-full border-[40px] border-primary/5 dark:border-primary/10" />
+    <div className="absolute -top-16 -right-16 w-[200px] h-[200px] md:w-[400px] md:h-[400px] rounded-full border-[20px] border-primary/5 dark:border-primary/10" />
 
-    {/* Floating manga panel shapes */}
-    <div className="absolute top-12 right-8 md:right-24 w-28 h-36 rounded-lg border-2 border-primary/10 dark:border-primary/20 rotate-6 bg-primary/3" />
-    <div className="absolute top-6 right-20 md:right-40 w-20 h-28 rounded-lg border-2 border-primary/10 dark:border-primary/15 -rotate-3 bg-primary/3" />
-    <div className="absolute top-24 right-2 md:right-16 w-16 h-20 rounded-lg border border-primary/10 dark:border-primary/15 rotate-12 bg-primary/3" />
-    <div className="absolute bottom-8 right-32 md:right-56 w-24 h-32 rounded-lg border-2 border-primary/8 dark:border-primary/12 -rotate-6 bg-primary/2" />
+    {/* Floating manga panel shapes — desktop only */}
+    <div className="absolute top-12 right-24 w-28 h-36 rounded-lg border-2 border-primary/10 dark:border-primary/20 rotate-6 hidden md:block" />
+    <div className="absolute top-6 right-40 w-20 h-28 rounded-lg border-2 border-primary/10 dark:border-primary/15 -rotate-3 hidden md:block" />
+    <div className="absolute top-24 right-16 w-16 h-20 rounded-lg border border-primary/10 dark:border-primary/15 rotate-12 hidden md:block" />
+    <div className="absolute bottom-8 right-56 w-24 h-32 rounded-lg border-2 border-primary/8 dark:border-primary/12 -rotate-6 hidden md:block" />
 
-    {/* Exclamation / action marks — manga style */}
-    <div className="absolute top-16 left-[55%] text-primary/10 dark:text-primary/15 text-6xl font-black select-none rotate-12">!!</div>
-    <div className="absolute bottom-20 left-[45%] text-primary/8 dark:text-primary/12 text-4xl font-black select-none -rotate-6">★</div>
-    <div className="absolute top-1/2 right-4 md:right-12 text-primary/8 dark:text-primary/12 text-3xl font-black select-none rotate-45">◆</div>
+    {/* Action marks — desktop only */}
+    <div className="absolute top-16 left-[60%] text-primary/10 dark:text-primary/15 text-6xl font-black select-none rotate-12 hidden md:block">!!</div>
+    <div className="absolute bottom-20 left-[50%] text-primary/8 dark:text-primary/12 text-4xl font-black select-none -rotate-6 hidden md:block">★</div>
+    <div className="absolute top-1/2 right-12 text-primary/8 dark:text-primary/12 text-3xl font-black select-none rotate-45 hidden md:block">◆</div>
 
-    {/* Diagonal accent stripe */}
-    <div className="absolute -top-10 right-64 w-2 h-[120%] bg-primary/5 dark:bg-primary/8 rotate-12 rounded-full" />
-    <div className="absolute -top-10 right-72 w-1 h-[120%] bg-primary/4 dark:bg-primary/6 rotate-12 rounded-full" />
-    <div className="absolute -top-10 right-56 w-1 h-[120%] bg-primary/3 dark:bg-primary/5 rotate-12 rounded-full" />
+    {/* Diagonal stripes — desktop only */}
+    <div className="absolute -top-10 right-64 w-2 h-[120%] bg-primary/5 dark:bg-primary/8 rotate-12 rounded-full hidden md:block" />
+    <div className="absolute -top-10 right-72 w-1 h-[120%] bg-primary/4 dark:bg-primary/6 rotate-12 rounded-full hidden md:block" />
+    <div className="absolute -top-10 right-56 w-1 h-[120%] bg-primary/3 dark:bg-primary/5 rotate-12 rounded-full hidden md:block" />
 
-    {/* Bottom left decorative text blocks — like manga sound effects */}
-    <div className="absolute bottom-12 left-4 md:left-12 opacity-[0.04] dark:opacity-[0.06] text-[80px] font-black text-foreground leading-none select-none tracking-tighter">
+    {/* Japanese kanji — desktop only */}
+    <div className="absolute bottom-12 left-12 opacity-[0.04] dark:opacity-[0.06] text-[80px] font-black text-foreground leading-none select-none tracking-tighter hidden md:block">
       読む
     </div>
   </div>
 
-  {/* Primary color glow */}
-  <div className="absolute top-0 right-0 w-96 h-96 bg-primary/8 dark:bg-primary/12 rounded-full blur-3xl pointer-events-none" />
-  <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/5 dark:bg-primary/8 rounded-full blur-3xl pointer-events-none" />
+  {/* Glows — smaller on mobile */}
+  <div className="absolute top-0 right-0 w-48 h-48 md:w-96 md:h-96 bg-primary/8 dark:bg-primary/12 rounded-full blur-3xl pointer-events-none" />
+  <div className="absolute bottom-0 left-0 w-32 h-32 md:w-64 md:h-64 bg-primary/5 dark:bg-primary/8 rounded-full blur-3xl pointer-events-none" />
 
   {/* Content */}
   <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24 w-full">
@@ -129,7 +129,6 @@ export default async function HomePage() {
         Discover Your Next{' '}
         <span className="text-primary relative">
           Favorite Comic
-          {/* Underline accent */}
           <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 8" preserveAspectRatio="none">
             <path d="M0,6 Q75,0 150,4 Q225,8 300,2" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" className="text-primary opacity-60"/>
           </svg>
@@ -151,7 +150,7 @@ export default async function HomePage() {
           </Button>
         </Link>
         <Link href="/signup">
-          <Button size="lg" variant="outline" className="gap-2 h-12 px-6">
+          <Button size="lg" variant="outline" className="gap-2 h-12 px-6 bg-background">
             <Users size={18} />
             Join Community
           </Button>
@@ -161,7 +160,7 @@ export default async function HomePage() {
       {/* Social proof */}
       <div className="flex flex-wrap gap-6 pt-2">
         {[
-        { label: 'Members', value: (memberCount ?? 0) > 0 ? `${memberCount}+` : 'Growing', icon: Users },
+          { label: 'Members', value: (memberCount ?? 0) > 0 ? `${memberCount}+` : 'Growing', icon: Users },
           { label: 'Comics', value: `${topComics.length}+`, icon: BookOpen },
           { label: 'Community Picks', value: 'Daily', icon: TrendingUp },
         ].map(({ label, value, icon: Icon }) => (
@@ -175,7 +174,6 @@ export default async function HomePage() {
     </div>
   </div>
 </section>
-
       {/* Trending Comics Section */}
       {topComics.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 py-12 space-y-6 w-full">
