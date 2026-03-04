@@ -23,31 +23,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Article text required' }, { status: 400 })
     }
 
-    if (!process.env.OPENROUTER_API_KEY) {
-      return NextResponse.json({ error: 'OPENROUTER_API_KEY not set' }, { status: 500 })
+    if (!process.env.GROQ_API_KEY) {
+      return NextResponse.json({ error: 'GROQ_API_KEY not set' }, { status: 500 })
     }
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com',
-        'X-Title': 'Compicfy',
+        'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-       model: 'mistralai/mistral-7b-instruct:free',
+        model: 'llama-3.1-8b-instant',
+        max_tokens: 1024,
         messages: [
           {
+            role: 'system',
+            content: 'You are a news editor for Compicfy, a manga/manhwa/webtoon community platform. You only respond with raw JSON, no markdown, no backticks, no extra text.',
+          },
+          {
             role: 'user',
-            content: `You are a news editor for Compicfy, a manga/manhwa/webtoon community platform.
+            content: `Summarise the following article into a news post for the Compicfy community.
 
-Summarise the following article. Return ONLY a raw JSON object with NO markdown, NO backticks, NO extra text — just the JSON:
+Return ONLY this raw JSON structure with no extra text:
 
 {
   "title": "engaging headline under 100 chars",
   "excerpt": "2-3 sentence summary under 300 chars",
-  "content": "3-4 paragraph article",
+  "content": "3-4 paragraph article written for manga/comic fans",
   "category": "one of: industry, release, adaptation, event, creator, announcement",
   "tags": ["tag1", "tag2", "tag3"]
 }
@@ -58,15 +61,14 @@ ${article_text.slice(0, 4000)}
 Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`,
           },
         ],
-        max_tokens: 1024,
       }),
     })
 
     if (!response.ok) {
       const errText = await response.text()
-      console.error('OpenRouter error:', errText)
+      console.error('Groq error:', errText)
       return NextResponse.json(
-        { error: `AI API error: ${response.status} - ${errText}` },
+        { error: `Groq API error: ${response.status} - ${errText}` },
         { status: 500 }
       )
     }
@@ -86,7 +88,7 @@ Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`,
     } catch {
       const match = cleaned.match(/\{[\s\S]*\}/)
       if (!match) {
-        console.error('Could not parse AI response:', cleaned)
+        console.error('Could not parse Groq response:', cleaned)
         return NextResponse.json({ error: 'AI returned invalid JSON' }, { status: 500 })
       }
       try {
@@ -99,7 +101,7 @@ Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`,
     return NextResponse.json({
       summary,
       is_ai_generated: true,
-      model_used: aiData.model ?? 'openrouter/auto',
+      model_used: 'llama-3.1-8b-instant',
     })
   } catch (error) {
     console.error('Summarise error:', error)
