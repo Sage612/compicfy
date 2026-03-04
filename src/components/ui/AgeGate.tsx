@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,11 +8,10 @@ import { Shield, AlertTriangle, BookOpen } from 'lucide-react'
 
 const STORAGE_KEY = 'compicfy_age_verified'
 const STORAGE_DATE_KEY = 'compicfy_age_verified_date'
-const STORAGE_AGE_KEY = 'compicfy_user_age'
-const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000
+const ONE_YEAR = 365 * 24 * 60 * 60 * 1000
 
 interface AgeGateProps {
-  onVerified: (canSeeAdult: boolean) => void
+  onVerified: () => void
 }
 
 export function AgeGate({ onVerified }: AgeGateProps) {
@@ -21,11 +20,11 @@ export function AgeGate({ onVerified }: AgeGateProps) {
   const [error, setError] = useState('')
 
   const handleUnder18 = () => {
-    // Remember for 1 year that they are under 18
     localStorage.setItem(STORAGE_KEY, 'under18')
     localStorage.setItem(STORAGE_DATE_KEY, Date.now().toString())
-    localStorage.setItem(STORAGE_AGE_KEY, 'under18')
-    onVerified(false)
+    const expires = new Date(Date.now() + ONE_YEAR).toUTCString()
+    document.cookie = `compicfy_age=under18; expires=${expires}; path=/; SameSite=Lax`
+    onVerified()
   }
 
   const handleOver18Click = () => {
@@ -53,9 +52,12 @@ export function AgeGate({ onVerified }: AgeGateProps) {
 
     localStorage.setItem(STORAGE_KEY, canSeeAdult ? 'adult' : canSeeMature ? 'mature' : 'teen')
     localStorage.setItem(STORAGE_DATE_KEY, Date.now().toString())
-    localStorage.setItem(STORAGE_AGE_KEY, String(age))
 
-    onVerified(canSeeAdult)
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString()
+    const ageValue = canSeeAdult ? 'adult' : canSeeMature ? 'mature' : 'teen'
+    document.cookie = `compicfy_age=${ageValue}; expires=${expires}; path=/; SameSite=Lax`
+
+    onVerified()
   }
 
   return (
@@ -83,17 +85,10 @@ export function AgeGate({ onVerified }: AgeGateProps) {
             </div>
 
             <div className="space-y-2">
-              <Button
-                className="w-full"
-                onClick={handleOver18Click}
-              >
+              <Button className="w-full" onClick={handleOver18Click}>
                 I am 18 or older
               </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={handleUnder18}
-              >
+              <Button variant="outline" className="w-full" onClick={handleUnder18}>
                 I am under 18
               </Button>
             </div>

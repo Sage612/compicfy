@@ -3,15 +3,16 @@
 import { useAge } from '@/components/ui/AgeGateProvider'
 
 interface Props {
-  contentRating: string
+  contentRating: string | null
   children: React.ReactNode
 }
 
 export function AgeFilterWrapper({ contentRating, children }: Props) {
-  const { canSeeAdult, canSeeMature } = useAge()
+  const { isAllowedRating } = useAge()
 
-  if (contentRating === 'adult' && !canSeeAdult) return null
-  if (contentRating === 'mature' && !canSeeMature) return null
+  const rating = contentRating ?? 'all_ages'
+
+  if (!isAllowedRating(rating)) return null
 
   return <>{children}</>
 }

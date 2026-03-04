@@ -26,7 +26,7 @@ const formSchema = z.object({
   genres: z.array(z.string()).min(1, 'Select at least one genre').max(5),
   official_platforms: z.array(z.string()).min(1, 'Select at least one platform'),
   cover_url: z.string().default(''),
-  content_rating: z.enum(['all', 'teen', 'mature', 'adult']).default('all'),
+  content_rating: z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
   why_recommend: z.string().max(1000).default(''),
   author: z.string().max(100).default(''),
   artist: z.string().max(100).default(''),
@@ -59,7 +59,7 @@ const STATUSES = [
 ] as const
 
 const RATINGS = [
-  { value: 'all', label: 'All Ages' },
+  { value: 'all_ages', label: 'All Ages' },
   { value: 'teen', label: 'Teen (13+)' },
   { value: 'mature', label: 'Mature (17+)' },
   { value: 'adult', label: 'Adult (18+)' },
@@ -87,7 +87,7 @@ export function RecommendationForm({ userId }: Props) {
       genres: [],
       official_platforms: [],
       cover_url: '',
-      content_rating: 'all',
+      content_rating: 'all_ages',
       why_recommend: '',
       author: '',
       artist: '',
@@ -143,7 +143,7 @@ export function RecommendationForm({ userId }: Props) {
       'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror',
       'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports',
       'Supernatural', 'Thriller', 'Isekai', 'Martial Arts', 'School Life',
-      'Historical', 'Psychological', 'Shounen', 'Shoujo', 'Seinen', 'Josei',
+      'Historical', 'Psychological', 'Shounen', 'Shoujo', 'Seinen', 'Josei','Yuri', 'Yaoi',
     ]
     const matchedGenres = result.genres
       .filter((g: string) => validGenres.includes(g))

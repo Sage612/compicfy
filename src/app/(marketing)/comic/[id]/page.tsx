@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ReviewSection } from '@/components/recommendations/ReviewSection'
@@ -20,6 +20,7 @@ import { VoteButtons } from '@/components/recommendations/VoteButtons'
 import { SaveButton } from '@/components/recommendations/SaveButton'
 import type { Metadata } from 'next'
 import type { Recommendation } from '@/types/database.types'
+import { cookies } from 'next/headers'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -55,20 +56,33 @@ export default async function ComicDetailPage({ params }: Props) {
   await (supabase as any).rpc('increment_view_count', { rec_id: id }).maybeSingle()
 
   const { data: rawRec } = await supabase
-  .from('recommendations')
-  .select('*')
-  .eq('id', id)
-  .eq('is_approved', true)
-  .single()
+    .from('recommendations')
+    .select('*')
+    .eq('id', id)
+    .eq('is_approved', true)
+    .single()
 
   if (!rawRec) notFound()
   const rec = rawRec as Recommendation
 
+  // Age gate check
+  const contentRating = rec.content_rating ?? 'all_ages'
+  if (contentRating === 'adult' || contentRating === 'mature') {
+    const cookieStore = await cookies()
+    const ageCookie = cookieStore.get('compicfy_age')?.value
+    if (contentRating === 'adult' && ageCookie !== 'adult') {
+      redirect('/browse?blocked=adult')
+    }
+    if (contentRating === 'mature' && !['adult', 'mature'].includes(ageCookie ?? '')) {
+      redirect('/browse?blocked=mature')
+    }
+  }
+
   const { data: profileData } = await supabase
-  .from('profiles')
-  .select('username, display_name, avatar_url')
-  .eq('id', rec.user_id)
-  .single()
+    .from('profiles')
+    .select('username, display_name, avatar_url')
+    .eq('id', rec.user_id)
+    .single()
 
   const profile = profileData as { username: string; display_name: string; avatar_url: string | null } | null
 
@@ -155,16 +169,15 @@ export default async function ComicDetailPage({ params }: Props) {
                   <Globe size={13} className="text-muted-foreground shrink-0" />
                   <span className="truncate flex-1">{platform}</span>
                   {rec.official_links?.[i] && (
-                    <a
-                     
-  href={rec.official_links[i]}
-  target="_blank"
-  rel="noopener noreferrer"
-  aria-label={`Read ${platform} externally`}
-  onClick={(e) => e.stopPropagation()}
->
-  <ExternalLink size={12} className="text-muted-foreground hover:text-primary" />
-</a>
+                    
+                      <a href={rec.official_links[i]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Read ${platform} externally`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink size={12} className="text-muted-foreground hover:text-primary" />
+                    </a>
                   )}
                 </div>
               ))}
@@ -277,13 +290,14 @@ export default async function ComicDetailPage({ params }: Props) {
             </span>
             <span>{formatDate(rec.created_at)}</span>
           </div>
-                {/* Reviews */}
-      <Separator />
-      <ReviewSection
-        recommendationId={id}
-        currentUserId={user?.id ?? null}
-        isLoggedIn={!!user}
-      />
+
+          {/* Reviews */}
+          <Separator />
+          <ReviewSection
+            recommendationId={id}
+            currentUserId={user?.id ?? null}
+            isLoggedIn={!!user}
+          />
         </div>
       </div>
     </div>

@@ -8,28 +8,32 @@ const STORAGE_DATE_KEY = 'compicfy_age_verified_date'
 const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000
 const ONE_YEAR = 365 * 24 * 60 * 60 * 1000
 
+export type AgeStatus = 'adult' | 'mature' | 'teen' | 'under18' | 'unknown'
+
 interface AgeContextType {
   canSeeAdult: boolean
   canSeeMature: boolean
-  ageStatus: 'adult' | 'mature' | 'teen' | 'under18' | 'unknown'
+  ageStatus: AgeStatus
+  isAllowedRating: (rating: string) => boolean
 }
 
 const AgeContext = createContext<AgeContextType>({
   canSeeAdult: false,
   canSeeMature: false,
   ageStatus: 'unknown',
+  isAllowedRating: () => true,
 })
 
 export const useAge = () => useContext(AgeContext)
 
 export function AgeGateProvider({ children }: { children: React.ReactNode }) {
   const [showGate, setShowGate] = useState(false)
-  const [ageStatus, setAgeStatus] = useState<AgeContextType['ageStatus']>('unknown')
+  const [ageStatus, setAgeStatus] = useState<AgeStatus>('unknown')
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    const status = localStorage.getItem(STORAGE_KEY)
+    const status = localStorage.getItem(STORAGE_KEY) as AgeStatus | null
     const verifiedAt = localStorage.getItem(STORAGE_DATE_KEY)
 
     if (!status || !verifiedAt) {
@@ -39,7 +43,6 @@ export function AgeGateProvider({ children }: { children: React.ReactNode }) {
 
     const elapsed = Date.now() - parseInt(verifiedAt)
 
-    // Under-18 users: ask again after 1 year
     if (status === 'under18') {
       if (elapsed > ONE_YEAR) {
         setShowGate(true)
@@ -49,29 +52,33 @@ export function AgeGateProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    // Adult/mature/teen users: ask again after 30 days
     if (elapsed > THIRTY_DAYS) {
       setShowGate(true)
       return
     }
 
-    setAgeStatus(status as AgeContextType['ageStatus'])
+    setAgeStatus(status)
   }, [])
 
-  const handleVerified = (canSeeAdult: boolean) => {
-    const status = localStorage.getItem(STORAGE_KEY) as AgeContextType['ageStatus']
-    setAgeStatus(status || (canSeeAdult ? 'adult' : 'teen'))
+  const handleVerified = () => {
+    const status = localStorage.getItem(STORAGE_KEY) as AgeStatus
+    setAgeStatus(status ?? 'teen')
     setShowGate(false)
+  }
+
+  const canSeeAdult = ageStatus === 'adult'
+  const canSeeMature = ageStatus === 'adult' || ageStatus === 'mature'
+
+  const isAllowedRating = (rating: string): boolean => {
+    if (rating === 'adult') return canSeeAdult
+    if (rating === 'mature') return canSeeMature
+    return true // all_ages and teen are always visible
   }
 
   if (!mounted) return <>{children}</>
 
   return (
-    <AgeContext.Provider value={{
-      canSeeAdult: ageStatus === 'adult',
-      canSeeMature: ageStatus === 'adult' || ageStatus === 'mature',
-      ageStatus,
-    }}>
+    <AgeContext.Provider value={{ canSeeAdult, canSeeMature, ageStatus, isAllowedRating }}>
       {showGate && <AgeGate onVerified={handleVerified} />}
       {children}
     </AgeContext.Provider>
