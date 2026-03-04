@@ -36,7 +36,7 @@ export async function POST(request: Request) {
         'X-Title': 'Compicfy',
       },
       body: JSON.stringify({
-        model: 'openrouter/auto',
+       model: 'mistralai/mistral-7b-instruct:free',
         messages: [
           {
             role: 'user',
