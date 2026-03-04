@@ -45,10 +45,11 @@ export default async function HomePage() {
     <div className="flex flex-col">
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden min-h-[520px] flex items-center">
+      <section className="relative overflow-hidden flex flex-col">
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-background" />
 
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Desktop: speed lines */}
           <svg className="absolute inset-0 w-full h-full opacity-[0.04] dark:opacity-[0.06] hidden md:block" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
             {Array.from({ length: 40 }).map((_, i) => {
               const angle = (i / 40) * 360
@@ -56,33 +57,25 @@ export default async function HomePage() {
               const x2 = 700 + Math.cos(rad) * 1200
               const y2 = 80 + Math.sin(rad) * 1200
               return (
-                <line
-                  key={i}
-                  x1="700" y1="80"
-                  x2={x2} y2={y2}
-                  stroke="currentColor"
-                  strokeWidth={i % 4 === 0 ? '3' : '1'}
-                />
+                <line key={i} x1="700" y1="80" x2={x2} y2={y2}
+                  stroke="currentColor" strokeWidth={i % 4 === 0 ? '3' : '1'} />
               )
             })}
           </svg>
 
+          {/* Desktop: halftone dots */}
           <svg className="absolute bottom-0 right-0 w-96 h-96 opacity-[0.05] dark:opacity-[0.08] hidden md:block" viewBox="0 0 200 200">
             {Array.from({ length: 10 }).map((_, row) =>
               Array.from({ length: 10 }).map((_, col) => (
-                <circle
-                  key={`${row}-${col}`}
-                  cx={col * 20 + 10}
-                  cy={row * 20 + 10}
-                  r={3 + (row + col) * 0.3}
-                  fill="currentColor"
-                />
+                <circle key={`${row}-${col}`}
+                  cx={col * 20 + 10} cy={row * 20 + 10}
+                  r={3 + (row + col) * 0.3} fill="currentColor" />
               ))
             )}
           </svg>
 
-          <div className="absolute -top-32 -right-32 w-[300px] h-[300px] md:w-[600px] md:h-[600px] rounded-full border-[40px] border-primary/5 dark:border-primary/10" />
-          <div className="absolute -top-16 -right-16 w-[200px] h-[200px] md:w-[400px] md:h-[400px] rounded-full border-[20px] border-primary/5 dark:border-primary/10" />
+          <div className="absolute -top-32 -right-32 w-[600px] h-[600px] rounded-full border-[40px] border-primary/5 dark:border-primary/10 hidden md:block" />
+          <div className="absolute -top-16 -right-16 w-[400px] h-[400px] rounded-full border-[20px] border-primary/5 dark:border-primary/10 hidden md:block" />
 
           <div className="absolute top-12 right-24 w-28 h-36 rounded-lg border-2 border-primary/10 dark:border-primary/20 rotate-6 hidden md:block" />
           <div className="absolute top-6 right-40 w-20 h-28 rounded-lg border-2 border-primary/10 dark:border-primary/15 -rotate-3 hidden md:block" />
@@ -102,10 +95,12 @@ export default async function HomePage() {
           </div>
         </div>
 
+        {/* Glows */}
         <div className="absolute top-0 right-0 w-48 h-48 md:w-96 md:h-96 bg-primary/8 dark:bg-primary/12 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-32 h-32 md:w-64 md:h-64 bg-primary/5 dark:bg-primary/8 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24 w-full">
+        {/* Text Content */}
+        <div className="relative max-w-7xl mx-auto px-4 pt-16 pb-8 md:py-24 w-full">
           <div className="max-w-3xl space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
               <Sparkles size={14} />
@@ -156,6 +151,42 @@ export default async function HomePage() {
               ))}
             </div>
           </div>
+        </div>
+
+        {/* Mobile Illustration */}
+        <div className="relative md:hidden w-full px-4 pb-10 overflow-hidden">
+          <svg viewBox="0 0 360 120" className="w-full opacity-60 dark:opacity-40" preserveAspectRatio="xMidYMid meet">
+            {Array.from({ length: 18 }).map((_, i) => {
+              const angle = 160 + (i / 18) * 100
+              const rad = (angle * Math.PI) / 180
+              const x2 = 340 + Math.cos(rad) * 400
+              const y2 = 10 + Math.sin(rad) * 400
+              return (
+                <line key={i} x1="340" y1="10" x2={x2} y2={y2}
+                  stroke="currentColor" strokeWidth={i % 3 === 0 ? '1.5' : '0.5'} opacity="0.08" />
+              )
+            })}
+            {Array.from({ length: 5 }).map((_, row) =>
+              Array.from({ length: 6 }).map((_, col) => (
+                <circle key={`${row}-${col}`}
+                  cx={col * 14 + 8} cy={row * 14 + 60}
+                  r={1.5 + (row + col) * 0.2} fill="currentColor" opacity="0.1" />
+              ))
+            )}
+            <rect x="248" y="8" width="36" height="48" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.15" transform="rotate(5 266 32)" />
+            <rect x="292" y="4" width="28" height="38" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.12" transform="rotate(-3 306 23)" />
+            <rect x="260" y="62" width="32" height="44" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.10" transform="rotate(8 276 84)" />
+            <rect x="300" y="55" width="24" height="34" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.10" transform="rotate(-5 312 72)" />
+            <line x1="254" y1="22" x2="278" y2="22" stroke="currentColor" strokeWidth="0.8" opacity="0.12" transform="rotate(5 266 32)" />
+            <line x1="254" y1="30" x2="278" y2="30" stroke="currentColor" strokeWidth="0.8" opacity="0.12" transform="rotate(5 266 32)" />
+            <line x1="254" y1="38" x2="270" y2="38" stroke="currentColor" strokeWidth="0.8" opacity="0.12" transform="rotate(5 266 32)" />
+            <text x="200" y="45" fontSize="22" fontWeight="900" fill="currentColor" opacity="0.08" transform="rotate(10 200 45)">!!</text>
+            <text x="170" y="90" fontSize="16" fontWeight="900" fill="currentColor" opacity="0.07" transform="rotate(-5 170 90)">★</text>
+            <text x="225" y="95" fontSize="12" fontWeight="900" fill="currentColor" opacity="0.07" transform="rotate(20 225 95)">◆</text>
+            <line x1="130" y1="0" x2="160" y2="120" stroke="currentColor" strokeWidth="1.5" opacity="0.06" />
+            <line x1="145" y1="0" x2="175" y2="120" stroke="currentColor" strokeWidth="1" opacity="0.04" />
+            <text x="18" y="108" fontSize="28" fontWeight="900" fill="currentColor" opacity="0.06" fontFamily="serif">読</text>
+          </svg>
         </div>
       </section>
 
@@ -263,50 +294,49 @@ export default async function HomePage() {
       )}
 
       {/* CTA Banner */}
-  {/* CTA Banner */}
-<section className="max-w-7xl mx-auto px-4 py-12 w-full">
-  <div className="relative overflow-hidden rounded-2xl p-8 md:p-12 bg-gradient-to-br from-primary to-primary/85">
-    <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/10 pointer-events-none" />
-    <div className="absolute -bottom-20 -left-10 w-72 h-72 rounded-full bg-white/5 pointer-events-none" />
-    <div className="absolute top-4 right-32 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
+      <section className="max-w-7xl mx-auto px-4 py-12 w-full">
+        <div className="relative overflow-hidden rounded-2xl p-8 md:p-12 bg-gradient-to-br from-primary to-primary/85">
+          <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/10 pointer-events-none" />
+          <div className="absolute -bottom-20 -left-10 w-72 h-72 rounded-full bg-white/5 pointer-events-none" />
+          <div className="absolute top-4 right-32 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
 
-    <div className="relative max-w-2xl space-y-5">
-      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 dark:bg-black/20 text-white dark:text-primary-foreground text-sm font-medium">
-        <BookOpen size={14} />
-        Share Your Favorites
-      </div>
+          <div className="relative max-w-2xl space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 dark:bg-black/20 text-white dark:text-primary-foreground text-sm font-medium">
+              <BookOpen size={14} />
+              Share Your Favorites
+            </div>
 
-      <h2 className="text-2xl md:text-3xl font-bold text-white dark:text-primary-foreground drop-shadow-sm">
-        Have a comic to recommend?
-      </h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-white dark:text-primary-foreground drop-shadow-sm">
+              Have a comic to recommend?
+            </h2>
 
-      <p className="text-white/90 dark:text-primary-foreground/90 leading-relaxed text-base font-medium drop-shadow-sm">
-        Share your favorite manga, manhwa, or webtoon with thousands of readers. Help others discover their next obsession.
-      </p>
+            <p className="text-white/90 dark:text-primary-foreground/90 leading-relaxed text-base font-medium drop-shadow-sm">
+              Share your favorite manga, manhwa, or webtoon with thousands of readers. Help others discover their next obsession.
+            </p>
 
-      <div className="flex flex-wrap gap-3 pt-1">
-        <Link href="/dashboard/recommendations/new">
-          <Button
-            size="lg"
-            className="gap-2 h-11 bg-white dark:bg-primary-foreground text-primary hover:bg-white/95 dark:hover:bg-primary-foreground/90 font-semibold shadow-lg"
-          >
-            <BookOpen size={16} />
-            Submit a Recommendation
-          </Button>
-        </Link>
-        <Link href="/browse">
-          <Button
-            size="lg"
-            className="gap-2 h-11 bg-white/20 dark:bg-black/20 text-white dark:text-primary-foreground hover:bg-white/30 dark:hover:bg-black/30 border border-white/40 dark:border-primary-foreground/40 font-semibold backdrop-blur-sm"
-          >
-            Browse First
-            <ArrowRight size={16} />
-          </Button>
-        </Link>
-      </div>
-    </div>
-  </div>
-</section>
+            <div className="flex flex-wrap gap-3 pt-1">
+              <Link href="/dashboard/recommendations/new">
+                <Button
+                  size="lg"
+                  className="gap-2 h-11 bg-white dark:bg-primary-foreground text-primary hover:bg-white/95 dark:hover:bg-primary-foreground/90 font-semibold shadow-lg"
+                >
+                  <BookOpen size={16} />
+                  Submit a Recommendation
+                </Button>
+              </Link>
+              <Link href="/browse">
+                <Button
+                  size="lg"
+                  className="gap-2 h-11 bg-white/20 dark:bg-black/20 text-white dark:text-primary-foreground hover:bg-white/30 dark:hover:bg-black/30 border border-white/40 dark:border-primary-foreground/40 font-semibold backdrop-blur-sm"
+                >
+                  Browse First
+                  <ArrowRight size={16} />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
 
     </div>
   )
