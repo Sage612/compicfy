@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react' // Added useRef and useEffect
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link' // Added Link
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,7 +15,7 @@ import { CoverUpload } from './CoverUpload'
 import { GenreSelector } from './GenreSelector'
 import { PlatformSelector } from './PlatformSelector'
 import { toast } from 'sonner'
-import { Loader2, BookOpen, Info } from 'lucide-react'
+import { Loader2, BookOpen, Info, AlertTriangle } from 'lucide-react' // Added AlertTriangle
 import { cn } from '@/lib/utils'
 import { MangaSearch } from './MangaSearch'
 
@@ -72,6 +73,11 @@ interface Props {
 export function RecommendationForm({ userId }: Props) {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
+  
+  // New Duplicate Check State
+  const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false)
+  const duplicateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const {
     register,
@@ -97,7 +103,34 @@ export function RecommendationForm({ userId }: Props) {
   const descValue = watch('description') || ''
   const whyValue = watch('why_recommend') || ''
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current)
+    }
+  }, [])
+
+  const checkDuplicate = async (title: string) => {
+    if (title.trim().length < 2) {
+      setDuplicateWarning(null)
+      return
+    }
+    setCheckingDuplicate(true)
+    try {
+      const res = await fetch(
+        `/api/recommendations/check-duplicate?title=${encodeURIComponent(title.trim())}`
+      )
+      const data = await res.json()
+      setDuplicateWarning(data.duplicate ?? null)
+    } catch {
+      // silent fail
+    } finally {
+      setCheckingDuplicate(false)
+    }
+  }
+
   const onSubmit = async (data: FormValues) => {
+    if (duplicateWarning) return; // Guard clause
     setSubmitting(true)
     try {
       const response = await fetch('/api/recommendations', {
@@ -107,6 +140,22 @@ export function RecommendationForm({ userId }: Props) {
       })
 
       const result = await response.json()
+
+      if (response.status === 409 && result.error === 'duplicate') {
+        toast.error(result.message, {
+          description: result.is_approved
+            ? 'View the existing recommendation instead.'
+            : 'This comic is already pending review.',
+          action: result.is_approved
+            ? {
+                label: 'View Comic',
+                onClick: () => router.push(`/comic/${result.existing_id}`),
+              }
+            : undefined,
+          duration: 6000,
+        })
+        return
+      }
 
       if (!response.ok) {
         toast.error(result.error || 'Failed to submit')
@@ -139,6 +188,9 @@ export function RecommendationForm({ userId }: Props) {
     if (result.year) setValue('year_released', result.year)
     if (result.chapters) setValue('chapter_count', result.chapters)
 
+    // Run duplicate check on the selected title
+    if (result.title) checkDuplicate(result.title)
+
     const validGenres = [
       'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror',
       'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports',
@@ -146,8 +198,8 @@ export function RecommendationForm({ userId }: Props) {
       'Historical', 'Psychological', 'Shounen', 'Shoujo', 'Seinen', 'Josei','Yuri', 'Yaoi',
     ]
     const matchedGenres = result.genres
-      .filter((g: string) => validGenres.includes(g))
-      .slice(0, 5)
+      ?.filter((g: string) => validGenres.includes(g))
+      .slice(0, 5) || []
     setValue('genres', matchedGenres)
 
     if (result.coverUrl && !getValues('cover_url')) {
@@ -157,7 +209,6 @@ export function RecommendationForm({ userId }: Props) {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-
       {/* Manga API Search */}
       <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-4">
         <MangaSearch onSelect={handleMangaSelect} />
@@ -167,7 +218,6 @@ export function RecommendationForm({ userId }: Props) {
 
       {/* Cover + Title row */}
       <div className="flex flex-col sm:flex-row gap-6">
-        {/* Cover upload */}
         <div className="shrink-0">
           <Controller
             name="cover_url"
@@ -182,7 +232,6 @@ export function RecommendationForm({ userId }: Props) {
           />
         </div>
 
-        {/* Title + basic info */}
         <div className="flex-1 space-y-4">
           <div className="space-y-2">
             <Label htmlFor="title">
@@ -193,33 +242,62 @@ export function RecommendationForm({ userId }: Props) {
               {...register('title')}
               placeholder="e.g. One Piece, Solo Leveling, Tower of God..."
               className="text-base"
+              onChange={(e) => {
+                register('title').onChange(e) // Vital: keeps react-hook-form in sync
+                if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current)
+                duplicateDebounceRef.current = setTimeout(() => checkDuplicate(e.target.value), 600)
+              }}
             />
+            
+            {/* Checking status */}
+            {checkingDuplicate && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Loader2 size={11} className="animate-spin" />
+                Checking for duplicates...
+              </p>
+            )}
+
+            {/* Duplicate warning block */}
+            {duplicateWarning && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
+                <AlertTriangle size={14} className="text-destructive shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="text-xs text-destructive font-medium">
+                    This comic has already been recommended!
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    "{duplicateWarning.title}" already exists.{' '}
+                    {duplicateWarning.is_approved ? (
+                      <Link
+                        href={`/comic/${duplicateWarning.id}`}
+                        className="text-primary hover:underline font-medium"
+                      >
+                        View it here →
+                      </Link>
+                    ) : (
+                      'It is currently pending review.'
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {errors.title && (
               <p className="text-xs text-destructive">{errors.title.message}</p>
             )}
           </div>
 
-          {/* Author + Artist */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="author">Author</Label>
-              <Input
-                id="author"
-                {...register('author')}
-                placeholder="Author name"
-              />
+              <Input id="author" {...register('author')} placeholder="Author name" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="artist">Artist</Label>
-              <Input
-                id="artist"
-                {...register('artist')}
-                placeholder="Artist name"
-              />
+              <Input id="artist" {...register('artist')} placeholder="Artist name" />
             </div>
           </div>
 
-          {/* Year + Chapters */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="year_released">Year Released</Label>
@@ -228,8 +306,6 @@ export function RecommendationForm({ userId }: Props) {
                 type="number"
                 {...register('year_released')}
                 placeholder="e.g. 2020"
-                min={1900}
-                max={new Date().getFullYear() + 1}
               />
             </div>
             <div className="space-y-2">
@@ -239,7 +315,6 @@ export function RecommendationForm({ userId }: Props) {
                 type="number"
                 {...register('chapter_count')}
                 placeholder="e.g. 100"
-                min={1}
               />
             </div>
           </div>
@@ -250,9 +325,7 @@ export function RecommendationForm({ userId }: Props) {
 
       {/* Type selection */}
       <div className="space-y-3">
-        <Label>
-          Type <span className="text-destructive">*</span>
-        </Label>
+        <Label>Type <span className="text-destructive">*</span></Label>
         <Controller
           name="type"
           control={control}
@@ -282,18 +355,13 @@ export function RecommendationForm({ userId }: Props) {
             </div>
           )}
         />
-        {errors.type && (
-          <p className="text-xs text-destructive">{errors.type.message}</p>
-        )}
+        {errors.type && <p className="text-xs text-destructive">{errors.type.message}</p>}
       </div>
 
-      {/* Status + Rating row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {/* Status */}
         <div className="space-y-3">
-          <Label>
-            Status <span className="text-destructive">*</span>
-          </Label>
+          <Label>Status <span className="text-destructive">*</span></Label>
           <Controller
             name="status"
             control={control}
@@ -321,9 +389,7 @@ export function RecommendationForm({ userId }: Props) {
               </div>
             )}
           />
-          {errors.status && (
-            <p className="text-xs text-destructive">{errors.status.message}</p>
-          )}
+          {errors.status && <p className="text-xs text-destructive">{errors.status.message}</p>}
         </div>
 
         {/* Content Rating */}
@@ -357,11 +423,8 @@ export function RecommendationForm({ userId }: Props) {
 
       <Separator />
 
-      {/* Genres */}
       <div className="space-y-3">
-        <Label>
-          Genres <span className="text-destructive">*</span>
-        </Label>
+        <Label>Genres <span className="text-destructive">*</span></Label>
         <Controller
           name="genres"
           control={control}
@@ -377,43 +440,30 @@ export function RecommendationForm({ userId }: Props) {
 
       <Separator />
 
-      {/* Description */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="description">
-            Description <span className="text-destructive">*</span>
-          </Label>
-          <span className="text-xs text-muted-foreground">
-            {descValue.length}/2000
-          </span>
+          <Label htmlFor="description">Description <span className="text-destructive">*</span></Label>
+          <span className="text-xs text-muted-foreground">{descValue.length}/2000</span>
         </div>
         <Textarea
           id="description"
           {...register('description')}
-          placeholder="What is this comic about? Give readers a good overview of the story, setting, and main characters..."
+          placeholder="What is this comic about?..."
           rows={4}
           className="resize-none"
         />
-        {errors.description && (
-          <p className="text-xs text-destructive">{errors.description.message}</p>
-        )}
+        {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
       </div>
 
-      {/* Why recommend */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="why_recommend">
-            Why do you recommend it?
-            <span className="text-muted-foreground font-normal ml-1">(optional)</span>
-          </Label>
-          <span className="text-xs text-muted-foreground">
-            {whyValue.length}/1000
-          </span>
+          <Label htmlFor="why_recommend">Why do you recommend it? <span className="text-muted-foreground font-normal ml-1">(optional)</span></Label>
+          <span className="text-xs text-muted-foreground">{whyValue.length}/1000</span>
         </div>
         <Textarea
           id="why_recommend"
           {...register('why_recommend')}
-          placeholder="What makes this special? Why should someone read it? What type of reader would enjoy it most?"
+          placeholder="What makes this special?..."
           rows={3}
           className="resize-none"
         />
@@ -421,16 +471,8 @@ export function RecommendationForm({ userId }: Props) {
 
       <Separator />
 
-      {/* Platforms */}
       <div className="space-y-3">
-        <div>
-          <Label>
-            Official Platforms <span className="text-destructive">*</span>
-          </Label>
-          <p className="text-xs text-muted-foreground mt-1">
-            Where can readers find this legally?
-          </p>
-        </div>
+        <Label>Official Platforms <span className="text-destructive">*</span></Label>
         <Controller
           name="official_platforms"
           control={control}
@@ -446,15 +488,13 @@ export function RecommendationForm({ userId }: Props) {
 
       <Separator />
 
-      {/* Info notice */}
       <div className="flex gap-2 p-3 rounded-lg bg-muted/50 border border-border">
         <Info size={16} className="text-muted-foreground shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground">
-          Your recommendation will be reviewed by our team before being published. This usually takes less than 24 hours. Admins and moderators are published instantly.
+          Your recommendation will be reviewed by our team before being published.
         </p>
       </div>
 
-      {/* Submit */}
       <div className="flex items-center justify-between pt-2">
         <Button
           type="button"
@@ -466,7 +506,7 @@ export function RecommendationForm({ userId }: Props) {
         </Button>
         <Button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || !!duplicateWarning} // Disabled if duplicate exists
           className="gap-2 min-w-36"
         >
           {submitting ? (

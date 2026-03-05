@@ -34,7 +34,28 @@ const profile = profileData as { role: string; is_banned: boolean } | null
       )
     }
 
-    const data = parsed.data
+    // After the parsed.success check, add:
+const data = parsed.data
+
+// Check for duplicate title
+const { data: existing } = await (supabase as any)
+  .from('recommendations')
+  .select('id, title, is_approved')
+  .ilike('title', data.title.trim())
+  .single()
+
+if (existing) {
+  return NextResponse.json(
+    {
+      error: 'duplicate',
+      message: `"${existing.title}" has already been recommended.`,
+      existing_id: existing.id,
+      is_approved: existing.is_approved,
+    },
+    { status: 409 }
+  )
+}
+
 
     // Auto-approve admins/moderators
     const isAutoApproved = ['admin', 'moderator'].includes(profile?.role ?? '')
