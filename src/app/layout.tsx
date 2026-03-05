@@ -3,7 +3,6 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { Toaster } from 'sonner'
-import { AgeGateProvider } from '@/components/ui/AgeGateProvider'
 import { CookieBanner } from '@/components/ui/CookieBanner'
 import './globals.css'
 
@@ -44,11 +43,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <AgeGateProvider>
             {children}
             <Toaster richColors position="top-right" />
              <CookieBanner />
-          </AgeGateProvider>
         </ThemeProvider>
       </body>
     </html>
