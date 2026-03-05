@@ -283,7 +283,7 @@ export default async function BrowsePage({ searchParams }: Props) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
 
-      {/* Header */}
+     {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Browse Comics</h1>
@@ -291,14 +291,23 @@ export default async function BrowsePage({ searchParams }: Props) {
             Discover community recommendations
           </p>
         </div>
-        <Link href="/dashboard/recommendations/new" className="hidden sm:block">
-          <Button size="sm" className="gap-2">
-            <BookOpen size={14} />
-            Add Comic
-          </Button>
-        </Link>
+        <div className="hidden sm:flex items-center gap-2">
+          {adultEnabled && (
+            <Link href="/browse/adult">
+              <Button size="sm" variant="outline" className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/5">
+                🔞 Adult
+              </Button>
+            </Link>
+          )}
+          <Link href="/dashboard/recommendations/new">
+            <Button size="sm" className="gap-2">
+              <BookOpen size={14} />
+              Add Comic
+            </Button>
+          </Link>
+        </div>
       </div>
-
+      
       {/* Featured Carousel */}
       {!isFiltering && featured.length > 0 && (
         <Suspense fallback={
