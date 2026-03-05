@@ -18,7 +18,9 @@ export function AdultContentToggle({ userId, initialEnabled }: Props) {
   const [enabled, setEnabled] = useState(initialEnabled)
   const [showConfirm, setShowConfirm] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [confirmed, setConfirmed] = useState(false)
+ const [confirmed, setConfirmed] = useState(false)
+  const [ageInput, setAgeInput] = useState('')
+  const ageValid = parseInt(ageInput) >= 18
 
   const ariaChecked = enabled ? "true" : "false" as const
 
@@ -82,8 +84,9 @@ export function AdultContentToggle({ userId, initialEnabled }: Props) {
   function handleCancel() {
     setShowConfirm(false)
     setConfirmed(false)
-  }
-
+    setAgeInput('')
+    }
+    
   return (
     <>
       <Separator />
@@ -162,10 +165,37 @@ export function AdultContentToggle({ userId, initialEnabled }: Props) {
               Adult content includes explicit themes and mature subject matter.
               By enabling this, you confirm that you are 18 years of age or older
               and legally permitted to view such content in your jurisdiction.
-            </p>
+                      </p>
+                      
+ {/* Age input */}
+            <div className="mb-4 space-y-1.5">
+              <label className="text-xs font-medium text-foreground">
+                Enter your age to confirm
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={120}
+                placeholder="Your age"
+                value={ageInput}
+                onChange={(e) => setAgeInput(e.target.value)}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              {ageInput && !ageValid && (
+                <p className="text-xs text-destructive">
+                  You must be 18 or older to enable adult content.
+                </p>
+              )}
+              {ageInput && ageValid && (
+                <p className="text-xs text-green-600 dark:text-green-400">
+                  ✓ Age confirmed
+                </p>
+              )}
+            </div>
 
             {/* Checkbox confirmation */}
             <label className="flex items-start gap-3 mb-6 cursor-pointer group">
+                         
               <div className="relative mt-0.5">
                 <input
                   type="checkbox"
@@ -205,7 +235,7 @@ export function AdultContentToggle({ userId, initialEnabled }: Props) {
               <button
                 type="button"
                 onClick={handleConfirm}
-                disabled={saving || !confirmed}
+                disabled={saving || !confirmed || !ageValid}
                 className="flex-1 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {saving ? (

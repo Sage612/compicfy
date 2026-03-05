@@ -63,6 +63,12 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-black/70 text-white backdrop-blur-sm">
             {typeLabels[rec.type] || rec.type}
           </span>
+          {/* Adult badge */}
+          {rec.content_rating === 'adult' && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600/90 text-white backdrop-blur-sm">
+              🔞 Adult
+            </span>
+          )}
         </div>
 
         {/* Status dot */}

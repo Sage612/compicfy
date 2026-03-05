@@ -28,6 +28,7 @@ const formSchema = z.object({
   official_platforms: z.array(z.string()).min(1, 'Select at least one platform'),
   cover_url: z.string().default(''),
   content_rating: z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
+  adult_content_confirmed: z.boolean().optional(),
   why_recommend: z.string().max(1000).default(''),
   author: z.string().max(100).default(''),
   artist: z.string().max(100).default(''),
@@ -392,29 +393,57 @@ export function RecommendationForm({ userId }: Props) {
           {errors.status && <p className="text-xs text-destructive">{errors.status.message}</p>}
         </div>
 
-        {/* Content Rating */}
+       {/* Content Rating */}
         <div className="space-y-3">
           <Label>Content Rating</Label>
           <Controller
             name="content_rating"
             control={control}
             render={({ field }) => (
-              <div className="grid grid-cols-2 gap-2">
-                {RATINGS.map(({ value, label }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => field.onChange(value)}
-                    className={cn(
-                      'px-3 py-2 rounded-lg border text-sm font-medium transition-all',
-                      field.value === value
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'border-border hover:border-primary text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  {RATINGS.map(({ value, label }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => field.onChange(value)}
+                      className={cn(
+                        'px-3 py-2 rounded-lg border text-sm font-medium transition-all',
+                        field.value === value
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'border-border hover:border-primary text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Adult warning box */}
+                {field.value === 'adult' && (
+                  <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/20 space-y-2">
+                    <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                      <AlertTriangle size={13} />
+                      Adult Content Rules
+                    </p>
+                    <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+                      <li>Must link to a verified official platform (Lezhin, Tapas, etc.)</li>
+                      <li>Cover image must be official promotional art — no explicit imagery</li>
+                      <li>All adult submissions require manual admin approval</li>
+                      <li>Violations will result in removal and account suspension</li>
+                    </ul>
+                    <label className="flex items-start gap-2 mt-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 accent-destructive"
+                        onChange={(e) => setValue('adult_content_confirmed', e.target.checked)}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        I confirm this submission follows all adult content rules above
+                      </span>
+                    </label>
+                  </div>
+                )}
               </div>
             )}
           />
@@ -506,7 +535,7 @@ export function RecommendationForm({ userId }: Props) {
         </Button>
         <Button
           type="submit"
-          disabled={submitting || !!duplicateWarning} // Disabled if duplicate exists
+          disabled={submitting || !!duplicateWarning || (watch('content_rating') === 'adult' && !watch('adult_content_confirmed'))}
           className="gap-2 min-w-36"
         >
           {submitting ? (
