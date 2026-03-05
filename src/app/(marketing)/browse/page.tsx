@@ -23,72 +23,95 @@ interface Props {
   searchParams: Promise<SearchParams>
 }
 
-async function getFeatured(): Promise<Recommendation[]> {
+async function getAdultEnabled(userId: string | null): Promise<boolean> {
+  if (!userId) return false
   const supabase = await createClient()
   const { data } = await supabase
+    .from('profiles')
+    .select('adult_content_enabled')
+    .eq('id', userId)
+    .single()
+  return (data as any)?.adult_content_enabled === true
+}
+
+async function getFeatured(adultEnabled: boolean): Promise<Recommendation[]> {
+  const supabase = await createClient()
+  let query = supabase
     .from('recommendations')
     .select('*')
     .eq('is_approved', true)
     .order('daily_votes', { ascending: false })
     .limit(8)
+  if (!adultEnabled) query = query.neq('content_rating', 'adult')
+  const { data } = await query
   return (data as Recommendation[]) ?? []
 }
 
-async function getTrending(): Promise<Recommendation[]> {
+async function getTrending(adultEnabled: boolean): Promise<Recommendation[]> {
   const supabase = await createClient()
-  const { data } = await supabase
+  let query = supabase
     .from('recommendations')
     .select('*')
     .eq('is_approved', true)
     .order('daily_votes', { ascending: false })
     .limit(12)
+  if (!adultEnabled) query = query.neq('content_rating', 'adult')
+  const { data } = await query
   return (data as Recommendation[]) ?? []
 }
 
-async function getRecent(): Promise<Recommendation[]> {
+async function getRecent(adultEnabled: boolean): Promise<Recommendation[]> {
   const supabase = await createClient()
-  const { data } = await supabase
+  let query = supabase
     .from('recommendations')
     .select('*')
     .eq('is_approved', true)
     .order('created_at', { ascending: false })
     .limit(12)
+  if (!adultEnabled) query = query.neq('content_rating', 'adult')
+  const { data } = await query
   return (data as Recommendation[]) ?? []
 }
 
-async function getAdminPicks(): Promise<Recommendation[]> {
+async function getAdminPicks(adultEnabled: boolean): Promise<Recommendation[]> {
   const supabase = await createClient()
-  const { data } = await supabase
+  let query = supabase
     .from('recommendations')
     .select('*')
     .eq('is_approved', true)
     .eq('is_featured', true)
     .order('featured_at', { ascending: false })
     .limit(12)
+  if (!adultEnabled) query = query.neq('content_rating', 'adult')
+  const { data } = await query
   return (data as Recommendation[]) ?? []
 }
 
-async function getCommunityFavourites(): Promise<Recommendation[]> {
+async function getCommunityFavourites(adultEnabled: boolean): Promise<Recommendation[]> {
   const supabase = await createClient()
-  const { data } = await supabase
+  let query = supabase
     .from('recommendations')
     .select('*')
     .eq('is_approved', true)
     .order('score', { ascending: false })
     .limit(12)
+  if (!adultEnabled) query = query.neq('content_rating', 'adult')
+  const { data } = await query
   return (data as Recommendation[]) ?? []
 }
 
-async function getYouMightLike(userId: string | null): Promise<Recommendation[]> {
+async function getYouMightLike(userId: string | null, adultEnabled: boolean): Promise<Recommendation[]> {
   const supabase = await createClient()
 
   if (!userId) {
-    const { data } = await supabase
+    let query = supabase
       .from('recommendations')
       .select('*')
       .eq('is_approved', true)
       .order('score', { ascending: false })
       .limit(12)
+    if (!adultEnabled) query = query.neq('content_rating', 'adult')
+    const { data } = await query
     return (data as Recommendation[]) ?? []
   }
 
@@ -101,38 +124,43 @@ async function getYouMightLike(userId: string | null): Promise<Recommendation[]>
   const genres = ((profile as any)?.favorite_genres ?? []) as string[]
 
   if (!genres.length) {
-    const { data } = await supabase
+    let query = supabase
       .from('recommendations')
       .select('*')
       .eq('is_approved', true)
       .order('score', { ascending: false })
       .limit(12)
+    if (!adultEnabled) query = query.neq('content_rating', 'adult')
+    const { data } = await query
     return (data as Recommendation[]) ?? []
   }
 
-  const { data } = await supabase
+  let query = supabase
     .from('recommendations')
     .select('*')
     .eq('is_approved', true)
     .overlaps('genres', genres)
     .order('score', { ascending: false })
     .limit(12)
-
+  if (!adultEnabled) query = query.neq('content_rating', 'adult')
+  const { data } = await query
   return (data as Recommendation[]) ?? []
 }
 
-async function getHiddenGems(): Promise<Recommendation[]> {
+async function getHiddenGems(adultEnabled: boolean): Promise<Recommendation[]> {
   const supabase = await createClient()
-  const { data } = await supabase
+  let query = supabase
     .from('recommendations')
     .select('*')
     .eq('is_approved', true)
     .order('save_count', { ascending: false })
     .limit(12)
+  if (!adultEnabled) query = query.neq('content_rating', 'adult')
+  const { data } = await query
   return (data as Recommendation[]) ?? []
 }
 
-async function ComicGrid({ searchParams }: { searchParams: SearchParams }) {
+async function ComicGrid({ searchParams, adultEnabled }: { searchParams: SearchParams, adultEnabled: boolean }) {
   const supabase = await createClient()
 
   const page = parseInt(searchParams.page ?? '1')
@@ -143,6 +171,9 @@ async function ComicGrid({ searchParams }: { searchParams: SearchParams }) {
     .from('recommendations')
     .select('*', { count: 'exact' })
     .eq('is_approved', true)
+
+  // Filter adult content at query level
+  if (!adultEnabled) query = query.neq('content_rating', 'adult')
 
   if (searchParams.q) query = query.ilike('title', `%${searchParams.q}%`)
   if (searchParams.type) query = query.eq('type', searchParams.type)
@@ -233,17 +264,20 @@ export default async function BrowsePage({ searchParams }: Props) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Get adult content preference from DB — not from client
+  const adultEnabled = await getAdultEnabled(user?.id ?? null)
+
   const [featured, trending, recent, adminPicks, communityFavs, hiddenGems, youMightLike] =
     isFiltering
       ? [[], [], [], [], [], [], []]
       : await Promise.all([
-          getFeatured(),
-          getTrending(),
-          getRecent(),
-          getAdminPicks(),
-          getCommunityFavourites(),
-          getHiddenGems(),
-          getYouMightLike(user?.id ?? null),
+          getFeatured(adultEnabled),
+          getTrending(adultEnabled),
+          getRecent(adultEnabled),
+          getAdminPicks(adultEnabled),
+          getCommunityFavourites(adultEnabled),
+          getHiddenGems(adultEnabled),
+          getYouMightLike(user?.id ?? null, adultEnabled),
         ])
 
   return (
@@ -277,37 +311,14 @@ export default async function BrowsePage({ searchParams }: Props) {
       {/* Horizontal sections */}
       {!isFiltering && (
         <div className="space-y-8">
-          <HorizontalSection
-            title="Trending Today"
-            emoji="🔥"
-            recommendations={trending}
-            viewAllHref="/browse?sort=trending"
-          />
-          <HorizontalSection
-            title="Recently Added"
-            emoji="✨"
-            recommendations={recent}
-            viewAllHref="/browse?sort=recent"
-          />
+          <HorizontalSection title="Trending Today" emoji="🔥" recommendations={trending} viewAllHref="/browse?sort=trending" />
+          <HorizontalSection title="Recently Added" emoji="✨" recommendations={recent} viewAllHref="/browse?sort=recent" />
           {adminPicks.length > 0 && (
-            <HorizontalSection
-              title="Admin Picks"
-              emoji="👑"
-              recommendations={adminPicks}
-            />
+            <HorizontalSection title="Admin Picks" emoji="👑" recommendations={adminPicks} />
           )}
-          <HorizontalSection
-            title="Community Favourites"
-            emoji="❤️"
-            recommendations={communityFavs}
-            viewAllHref="/browse?sort=score"
-          />
+          <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse?sort=score" />
           {hiddenGems.length > 0 && (
-            <HorizontalSection
-              title="Hidden Gems"
-              emoji="💎"
-              recommendations={hiddenGems}
-            />
+            <HorizontalSection title="Hidden Gems" emoji="💎" recommendations={hiddenGems} />
           )}
           {youMightLike.length > 0 && (
             <HorizontalSection
@@ -333,7 +344,7 @@ export default async function BrowsePage({ searchParams }: Props) {
         <FilterBar />
       </Suspense>
 
-      {/* Comic grid */}
+      {/* Comic grid — pass adultEnabled */}
       <Suspense
         fallback={
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
@@ -343,7 +354,7 @@ export default async function BrowsePage({ searchParams }: Props) {
           </div>
         }
       >
-        <ComicGrid searchParams={params} />
+        <ComicGrid searchParams={params} adultEnabled={adultEnabled} />
       </Suspense>
     </div>
   )
