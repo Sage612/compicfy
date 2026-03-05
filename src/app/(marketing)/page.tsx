@@ -16,17 +16,32 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const supabase = await createClient()
 
+ const { data: { user } } = await supabase.auth.getUser()
+
+  // Get adult content preference server-side
+  let adultEnabled = false
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('adult_content_enabled')
+      .eq('id', user.id)
+      .single()
+    adultEnabled = (profile as any)?.adult_content_enabled === true
+  }
+
+  const trendingQuery = supabase
+    .from('recommendations')
+    .select('*')
+    .eq('is_approved', true)
+    .order('score', { ascending: false })
+    .limit(6)
+
   const [
     { data: trending },
     { data: recentNews },
     { count: memberCount },
   ] = await Promise.all([
-    supabase
-      .from('recommendations')
-      .select('*')
-      .eq('is_approved', true)
-      .order('score', { ascending: false })
-      .limit(6),
+    adultEnabled ? trendingQuery : trendingQuery.neq('content_rating', 'adult'),
     supabase
       .from('news')
       .select('*')
