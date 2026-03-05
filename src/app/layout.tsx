@@ -4,6 +4,7 @@ import { GeistMono } from 'geist/font/mono'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { Toaster } from 'sonner'
 import { AgeGateProvider } from '@/components/ui/AgeGateProvider'
+import { CookieBanner } from '@/components/ui/CookieBanner'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com',
+    url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.site',
     siteName: 'Compicfy',
     title: 'Compicfy — Discover Your Next Favorite Comic',
     description: 'Community-driven recommendations for manga, manhwa, manhua, and webtoons.',
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AgeGateProvider>
             {children}
             <Toaster richColors position="top-right" />
+             <CookieBanner />
           </AgeGateProvider>
         </ThemeProvider>
       </body>
