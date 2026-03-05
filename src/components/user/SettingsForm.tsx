@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { Loader2, X } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
 import type { Profile, Database } from '@/types/database.types'
+import { AdultContentToggle } from '@/components/user/AdultContentToggle'
 
 const settingsSchema = z.object({
   username: z
@@ -229,6 +230,12 @@ const { error } = await (supabase as any)
           })}
         </div>
       </div>
+      <AdultContentToggle
+        userId={userId}
+        initialEnabled={profile.adult_content_enabled ?? false}
+      />
+
+      <Separator />
 
       <Separator />
 

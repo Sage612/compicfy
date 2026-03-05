@@ -21,6 +21,7 @@ export type Database = {
           last_seen: string
           is_age_verified: boolean
           show_mature_content: boolean
+          adult_content_enabled: boolean | null
           email_notifications: boolean
           theme_preference: 'dark' | 'light' | 'system'
           role: 'user' | 'moderator' | 'admin'
