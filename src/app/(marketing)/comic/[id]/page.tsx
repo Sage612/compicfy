@@ -13,8 +13,10 @@ import {
   Globe,
   ExternalLink,
   ArrowLeft,
+  ShieldAlert,
 } from 'lucide-react'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils/format'
 import { VoteButtons } from '@/components/recommendations/VoteButtons'
 import { SaveButton } from '@/components/recommendations/SaveButton'
@@ -79,11 +81,67 @@ export default async function ComicDetailPage({ params }: Props) {
     avatar_url: string | null
   } | null
 
-  const { data: { user } } = await supabase.auth.getUser()
+ const { data: { user } } = await supabase.auth.getUser()
+
+  // Server-side adult content gate — cannot be bypassed with a direct link
+  if (rec.content_rating === 'adult') {
+    if (!user) {
+      // Not logged in — hard block
+      return (
+        <div className="max-w-md mx-auto px-4 py-24 text-center space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
+            <ShieldAlert size={32} className="text-destructive" />
+          </div>
+          <h1 className="text-2xl font-bold">Age Restricted</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            This comic contains adult content. You must be logged in and have
+            adult content enabled in your settings to view it.
+          </p>
+          <div className="flex justify-center gap-3">
+            <Link href="/browse">
+              <Button variant="outline">Back to Browse</Button>
+            </Link>
+            <Link href="/login">
+              <Button>Log In</Button>
+            </Link>
+          </div>
+        </div>
+      )
+    }
+
+    // Logged in — check their profile flag
+    const { data: profileFlag } = await supabase
+      .from('profiles')
+      .select('adult_content_enabled')
+      .eq('id', user.id)
+      .single()
+
+    if (!(profileFlag as any)?.adult_content_enabled) {
+      return (
+        <div className="max-w-md mx-auto px-4 py-24 text-center space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
+            <ShieldAlert size={32} className="text-destructive" />
+          </div>
+          <h1 className="text-2xl font-bold">Adult Content Disabled</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            This comic is rated <strong className="text-foreground">Adult</strong>.
+            To view it, enable adult content in your profile settings.
+          </p>
+          <div className="flex justify-center gap-3">
+            <Link href="/browse">
+              <Button variant="outline">Back to Browse</Button>
+            </Link>
+            <Link href="/dashboard/settings">
+              <Button>Go to Settings</Button>
+            </Link>
+          </div>
+        </div>
+      )
+    }
+  }
 
   let userVote: 'up' | 'down' | null = null
   let isSaved = false
-
   if (user) {
     const [voteRes, saveRes] = await Promise.all([
       (supabase as any)
