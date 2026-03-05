@@ -23,48 +23,43 @@ export default function CookiePolicyPage() {
           </p>
         </div>
 
+       {/* Section: What cookies does Compicfy use? */}
         <div>
           <h2 className="text-xl font-semibold mb-3">What cookies does Compicfy use?</h2>
 
           <div className="rounded-lg border border-border overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
               <thead className="bg-muted">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium">Category</th>
-                  <th className="text-left px-4 py-3 font-medium">Purpose</th>
-                  <th className="text-left px-4 py-3 font-medium">Required?</th>
+                  <th className="text-left px-4 py-3 font-medium w-1/4">Category</th>
+                  <th className="text-left px-4 py-3 font-medium w-1/2">Purpose</th>
+                  <th className="text-left px-4 py-3 font-medium w-1/4">Required?</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 <tr>
-                  <td className="px-4 py-3 font-medium">Necessary</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    Authentication (Supabase session), security tokens, your cookie consent choice.
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 text-xs font-medium">
+                  <td className="px-4 py-3 font-medium align-middle">Necessary</td>
+                  <td className="px-4 py-3 text-muted-foreground align-middle">Authentication (Supabase session), security tokens, your cookie consent choice.</td>
+                  <td className="px-4 py-3 align-middle">
+                    <span className="rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 text-xs font-medium whitespace-nowrap">
                       Always on
                     </span>
                   </td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 font-medium">Preferences</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    Theme (light/dark mode), age verification status, UI preferences.
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 text-xs font-medium">
+                  <td className="px-4 py-3 font-medium align-middle">Preferences</td>
+                  <td className="px-4 py-3 text-muted-foreground align-middle">Theme (light/dark mode), age verification status, UI preferences.</td>
+                  <td className="px-4 py-3 align-middle">
+                    <span className="rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 text-xs font-medium whitespace-nowrap">
                       Optional
                     </span>
                   </td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 font-medium">Analytics</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    Anonymous usage data to understand how people use Compicfy. No personal data is collected.
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 text-xs font-medium">
+                  <td className="px-4 py-3 font-medium align-middle">Analytics</td>
+                  <td className="px-4 py-3 text-muted-foreground align-middle">Anonymous usage data to understand how people use Compicfy. No personal data collected.</td>
+                  <td className="px-4 py-3 align-middle">
+                    <span className="rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-0.5 text-xs font-medium whitespace-nowrap">
                       Optional
                     </span>
                   </td>
@@ -72,7 +67,7 @@ export default function CookiePolicyPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </div> {/* <--- This was the missing closing tag for line 26 */}
 
         <div>
           <h2 className="text-xl font-semibold mb-3">We do NOT do any of the following</h2>
