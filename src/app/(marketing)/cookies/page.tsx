@@ -10,7 +10,7 @@ export default function CookiePolicyPage() {
     <main className="mx-auto max-w-3xl px-4 py-16 md:py-24">
       <h1 className="text-3xl font-bold tracking-tight mb-2">Cookie Policy</h1>
       <p className="text-sm text-muted-foreground mb-10">
-        Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+       Last updated: March 5, 2026
       </p>
 
       <section className="prose prose-sm dark:prose-invert max-w-none space-y-8">
@@ -85,26 +85,14 @@ export default function CookiePolicyPage() {
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold mb-3">How to change your preferences</h2>
-          <p className="text-muted-foreground leading-relaxed">
-            You can reset your cookie preferences at any time by clearing your browser&apos;s
-            local storage for compicfy.site, or by clicking{' '}
-            <button
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  localStorage.removeItem('compicfy_cookie_consent')
-                  localStorage.removeItem('compicfy_cookie_consent_date')
-                  window.location.reload()
-                }
-              }}
-              className="underline underline-offset-2 hover:text-foreground transition-colors cursor-pointer"
-            >
-              Reset my cookie preferences
-            </button>
-            {' '}to see the banner again.
-          </p>
-        </div>
-
+  <h2 className="text-xl font-semibold mb-3">How to change your preferences</h2>
+  <p className="text-muted-foreground leading-relaxed">
+    You can reset your cookie preferences at any time by going to your browser&apos;s
+    developer tools → Application → Local Storage → delete the{' '}
+    <code className="text-xs bg-muted px-1 py-0.5 rounded">compicfy_cookie_consent</code>{' '}
+    key, then refresh the page.
+  </p>
+</div>
         <div>
           <h2 className="text-xl font-semibold mb-3">Contact</h2>
           <p className="text-muted-foreground leading-relaxed">
