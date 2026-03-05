@@ -8,7 +8,7 @@ export const recommendationSchema = z.object({
   genres: z.array(z.string()).min(1, 'Select at least one genre').max(5),
   official_platforms: z.array(z.string()).min(1, 'Select at least one platform'),
   cover_url: z.string().default(''),
-  content_rating: z.enum(['all', 'teen', 'mature', 'adult']).default('all'),
+ content_rating: z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
   why_recommend: z.string().max(1000).default(''),
   author: z.string().max(100).default(''),
   artist: z.string().max(100).default(''),
