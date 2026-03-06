@@ -6,7 +6,6 @@ import { NewsCard } from '@/components/news/NewsCard'
 import { ArrowRight, BookOpen, Users, TrendingUp, Star, Sparkles, ChevronRight } from 'lucide-react'
 import type { Recommendation } from '@/types/database.types'
 import type { News } from '@/types/database.types'
-import { AgeFilterWrapper } from '@/components/recommendations/AgeFilterWrapper'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -16,32 +15,18 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const supabase = await createClient()
 
- const { data: { user } } = await supabase.auth.getUser()
-
-  // Get adult content preference server-side
-  let adultEnabled = false
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('adult_content_enabled')
-      .eq('id', user.id)
-      .single()
-    adultEnabled = (profile as any)?.adult_content_enabled === true
-  }
-
-  const trendingQuery = supabase
-    .from('recommendations')
-    .select('*')
-    .eq('is_approved', true)
-    .order('score', { ascending: false })
-    .limit(6)
-
   const [
     { data: trending },
     { data: recentNews },
     { count: memberCount },
   ] = await Promise.all([
-    adultEnabled ? trendingQuery : trendingQuery.neq('content_rating', 'adult'),
+    supabase
+      .from('recommendations')
+      .select('*')
+      .eq('is_approved', true)
+      .not('content_rating', 'in', '("adult","mature")')
+      .order('score', { ascending: false })
+      .limit(6),
     supabase
       .from('news')
       .select('*')
@@ -53,6 +38,8 @@ export default async function HomePage() {
       .select('id', { count: 'exact', head: true }),
   ])
 
+  const { data: { user } } = await supabase.auth.getUser()
+
   const topComics = (trending as Recommendation[]) ?? []
   const latestNews = (recentNews as News[]) ?? []
 
@@ -63,8 +50,8 @@ export default async function HomePage() {
       <section className="relative overflow-hidden flex flex-col">
         <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-background" />
 
+        {/* Desktop decorative background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {/* Desktop: speed lines */}
           <svg className="absolute inset-0 w-full h-full opacity-[0.04] dark:opacity-[0.06] hidden md:block" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
             {Array.from({ length: 40 }).map((_, i) => {
               const angle = (i / 40) * 360
@@ -78,7 +65,6 @@ export default async function HomePage() {
             })}
           </svg>
 
-          {/* Desktop: halftone dots */}
           <svg className="absolute bottom-0 right-0 w-96 h-96 opacity-[0.05] dark:opacity-[0.08] hidden md:block" viewBox="0 0 200 200">
             {Array.from({ length: 10 }).map((_, row) =>
               Array.from({ length: 10 }).map((_, col) => (
@@ -91,20 +77,16 @@ export default async function HomePage() {
 
           <div className="absolute -top-32 -right-32 w-[600px] h-[600px] rounded-full border-[40px] border-primary/5 dark:border-primary/10 hidden md:block" />
           <div className="absolute -top-16 -right-16 w-[400px] h-[400px] rounded-full border-[20px] border-primary/5 dark:border-primary/10 hidden md:block" />
-
           <div className="absolute top-12 right-24 w-28 h-36 rounded-lg border-2 border-primary/10 dark:border-primary/20 rotate-6 hidden md:block" />
           <div className="absolute top-6 right-40 w-20 h-28 rounded-lg border-2 border-primary/10 dark:border-primary/15 -rotate-3 hidden md:block" />
           <div className="absolute top-24 right-16 w-16 h-20 rounded-lg border border-primary/10 dark:border-primary/15 rotate-12 hidden md:block" />
           <div className="absolute bottom-8 right-56 w-24 h-32 rounded-lg border-2 border-primary/8 dark:border-primary/12 -rotate-6 hidden md:block" />
-
           <div className="absolute top-16 left-[60%] text-primary/10 dark:text-primary/15 text-6xl font-black select-none rotate-12 hidden md:block">!!</div>
           <div className="absolute bottom-20 left-[50%] text-primary/8 dark:text-primary/12 text-4xl font-black select-none -rotate-6 hidden md:block">★</div>
           <div className="absolute top-1/2 right-12 text-primary/8 dark:text-primary/12 text-3xl font-black select-none rotate-45 hidden md:block">◆</div>
-
           <div className="absolute -top-10 right-64 w-2 h-[120%] bg-primary/5 dark:bg-primary/8 rotate-12 rounded-full hidden md:block" />
           <div className="absolute -top-10 right-72 w-1 h-[120%] bg-primary/4 dark:bg-primary/6 rotate-12 rounded-full hidden md:block" />
           <div className="absolute -top-10 right-56 w-1 h-[120%] bg-primary/3 dark:bg-primary/5 rotate-12 rounded-full hidden md:block" />
-
           <div className="absolute bottom-12 left-12 opacity-[0.04] dark:opacity-[0.06] text-[80px] font-black text-foreground leading-none select-none tracking-tighter hidden md:block">
             読む
           </div>
@@ -116,7 +98,7 @@ export default async function HomePage() {
 
         {/* Text Content */}
         <div className="relative max-w-7xl mx-auto px-4 pt-16 pb-8 md:py-24 w-full">
-          <div className="max-w-3xl space-y-6">
+          <div className="max-w-3xl space-y-6 text-center md:text-left mx-auto md:mx-0">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
               <Sparkles size={14} />
               Community-Powered Discovery
@@ -127,16 +109,16 @@ export default async function HomePage() {
               <span className="text-primary relative">
                 Favorite Comic
                 <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 8" preserveAspectRatio="none">
-                  <path d="M0,6 Q75,0 150,4 Q225,8 300,2" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" className="text-primary opacity-60"/>
+                  <path d="M0,6 Q75,0 150,4 Q225,8 300,2" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" className="text-primary opacity-60" />
                 </svg>
               </span>
             </h1>
 
-            <p className="text-lg text-muted-foreground max-w-xl leading-relaxed">
+            <p className="text-lg text-muted-foreground max-w-xl leading-relaxed mx-auto md:mx-0">
               Join a community of manga, manhwa, manhua, and webtoon fans. Recommend what you love, discover hidden gems, and vote for the best.
             </p>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-3 justify-center md:justify-start">
               <Link href="/browse">
                 <Button size="lg" className="gap-2 h-12 px-6">
                   <BookOpen size={18} />
@@ -152,7 +134,7 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <div className="flex flex-wrap gap-6 pt-2">
+            <div className="flex flex-wrap gap-6 pt-2 justify-center md:justify-start">
               {[
                 { label: 'Members', value: (memberCount ?? 0) > 0 ? `${memberCount}+` : 'Growing', icon: Users },
                 { label: 'Comics', value: `${topComics.length}+`, icon: BookOpen },
@@ -168,40 +150,43 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* Mobile Illustration */}
+        {/* Mobile illustration — behind content, centered */}
         <div className="relative md:hidden w-full px-4 pb-10 overflow-hidden">
-          <svg viewBox="0 0 360 120" className="w-full opacity-60 dark:opacity-40" preserveAspectRatio="xMidYMid meet">
-            {Array.from({ length: 18 }).map((_, i) => {
-              const angle = 160 + (i / 18) * 100
-              const rad = (angle * Math.PI) / 180
-              const x2 = 340 + Math.cos(rad) * 400
-              const y2 = 10 + Math.sin(rad) * 400
-              return (
-                <line key={i} x1="340" y1="10" x2={x2} y2={y2}
-                  stroke="currentColor" strokeWidth={i % 3 === 0 ? '1.5' : '0.5'} opacity="0.08" />
-              )
-            })}
-            {Array.from({ length: 5 }).map((_, row) =>
-              Array.from({ length: 6 }).map((_, col) => (
-                <circle key={`${row}-${col}`}
-                  cx={col * 14 + 8} cy={row * 14 + 60}
-                  r={1.5 + (row + col) * 0.2} fill="currentColor" opacity="0.1" />
-              ))
-            )}
-            <rect x="248" y="8" width="36" height="48" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.15" transform="rotate(5 266 32)" />
-            <rect x="292" y="4" width="28" height="38" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.12" transform="rotate(-3 306 23)" />
-            <rect x="260" y="62" width="32" height="44" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.10" transform="rotate(8 276 84)" />
-            <rect x="300" y="55" width="24" height="34" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.10" transform="rotate(-5 312 72)" />
-            <line x1="254" y1="22" x2="278" y2="22" stroke="currentColor" strokeWidth="0.8" opacity="0.12" transform="rotate(5 266 32)" />
-            <line x1="254" y1="30" x2="278" y2="30" stroke="currentColor" strokeWidth="0.8" opacity="0.12" transform="rotate(5 266 32)" />
-            <line x1="254" y1="38" x2="270" y2="38" stroke="currentColor" strokeWidth="0.8" opacity="0.12" transform="rotate(5 266 32)" />
-            <text x="200" y="45" fontSize="22" fontWeight="900" fill="currentColor" opacity="0.08" transform="rotate(10 200 45)">!!</text>
-            <text x="170" y="90" fontSize="16" fontWeight="900" fill="currentColor" opacity="0.07" transform="rotate(-5 170 90)">★</text>
-            <text x="225" y="95" fontSize="12" fontWeight="900" fill="currentColor" opacity="0.07" transform="rotate(20 225 95)">◆</text>
-            <line x1="130" y1="0" x2="160" y2="120" stroke="currentColor" strokeWidth="1.5" opacity="0.06" />
-            <line x1="145" y1="0" x2="175" y2="120" stroke="currentColor" strokeWidth="1" opacity="0.04" />
-            <text x="18" y="108" fontSize="28" fontWeight="900" fill="currentColor" opacity="0.06" fontFamily="serif">読</text>
-          </svg>
+          <div className="relative flex justify-center">
+            <svg
+              viewBox="0 0 360 120"
+              className="w-full max-w-sm opacity-[0.07] dark:opacity-[0.09] pointer-events-none"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              {Array.from({ length: 18 }).map((_, i) => {
+                const angle = 160 + (i / 18) * 100
+                const rad = (angle * Math.PI) / 180
+                const x2 = 340 + Math.cos(rad) * 400
+                const y2 = 10 + Math.sin(rad) * 400
+                return (
+                  <line key={i} x1="340" y1="10" x2={x2} y2={y2}
+                    stroke="currentColor" strokeWidth={i % 3 === 0 ? '1.5' : '0.5'} />
+                )
+              })}
+              {Array.from({ length: 5 }).map((_, row) =>
+                Array.from({ length: 6 }).map((_, col) => (
+                  <circle key={`${row}-${col}`}
+                    cx={col * 14 + 8} cy={row * 14 + 60}
+                    r={1.5 + (row + col) * 0.2} fill="currentColor" />
+                ))
+              )}
+              <rect x="248" y="8" width="36" height="48" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" transform="rotate(5 266 32)" />
+              <rect x="292" y="4" width="28" height="38" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" transform="rotate(-3 306 23)" />
+              <rect x="260" y="62" width="32" height="44" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" transform="rotate(8 276 84)" />
+              <rect x="300" y="55" width="24" height="34" rx="4" fill="none" stroke="currentColor" strokeWidth="1.5" transform="rotate(-5 312 72)" />
+              <text x="200" y="45" fontSize="22" fontWeight="900" fill="currentColor" transform="rotate(10 200 45)">!!</text>
+              <text x="170" y="90" fontSize="16" fontWeight="900" fill="currentColor" transform="rotate(-5 170 90)">★</text>
+              <text x="225" y="95" fontSize="12" fontWeight="900" fill="currentColor" transform="rotate(20 225 95)">◆</text>
+              <line x1="130" y1="0" x2="160" y2="120" stroke="currentColor" strokeWidth="1.5" />
+              <line x1="145" y1="0" x2="175" y2="120" stroke="currentColor" strokeWidth="1" />
+              <text x="18" y="108" fontSize="28" fontWeight="900" fill="currentColor" fontFamily="serif">読</text>
+            </svg>
+          </div>
         </div>
       </section>
 
@@ -227,9 +212,7 @@ export default async function HomePage() {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {topComics.map((rec) => (
-              <AgeFilterWrapper key={rec.id} contentRating={rec.content_rating}>
-                <ComicCard recommendation={rec} />
-              </AgeFilterWrapper>
+              <ComicCard key={rec.id} recommendation={rec} />
             ))}
           </div>
         </section>

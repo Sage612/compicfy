@@ -8,7 +8,7 @@ import { formatNumber } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
 
 interface ComicCardProps {
-  recommendation: Recommendation  // ← remove the & { profiles?: ... } part
+  recommendation: Recommendation
   className?: string
 }
 
@@ -63,17 +63,22 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
           <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-black/70 text-white backdrop-blur-sm">
             {typeLabels[rec.type] || rec.type}
           </span>
-          {/* Adult badge */}
+          {/* Age rating badges */}
           {rec.content_rating === 'adult' && (
             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600/90 text-white backdrop-blur-sm">
-              🔞 Adult
+              🔞 18+
+            </span>
+          )}
+          {rec.content_rating === 'mature' && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/90 text-white backdrop-blur-sm">
+              17+
             </span>
           )}
         </div>
 
         {/* Status dot */}
         <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm">
-          <span className={cn('w-1.5 h-1.5 rounded-full', statusColors[rec.status])} />
+          <span className={cn('w-1.5 h-1.5 rounded-full', statusColors[rec.status as keyof typeof statusColors])} />
           <span className="text-[10px] text-white capitalize">{rec.status}</span>
         </div>
 
@@ -123,9 +128,6 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
             )}
           </div>
         )}
-
-        {/* Submitter */}
-        
       </div>
     </Link>
   )
