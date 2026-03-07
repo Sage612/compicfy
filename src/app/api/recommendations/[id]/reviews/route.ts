@@ -63,7 +63,14 @@ export async function POST(
     }
 
     const body = await request.json()
-    const parsed = reviewSchema.safeParse(body)
+
+    // Normalize rating: convert null/0/undefined all to null safely
+    const normalized = {
+      ...body,
+      rating: body.rating ? Number(body.rating) : null,
+    }
+
+    const parsed = reviewSchema.safeParse(normalized)
 
     if (!parsed.success) {
       return NextResponse.json(
