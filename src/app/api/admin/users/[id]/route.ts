@@ -68,7 +68,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   }
 
-  const { data, error: updateError } = await (supabase as any)!
+  // Use service client to bypass RLS for all profile updates
+  const service = getServiceClient()
+  const { data, error: updateError } = await service
     .from('profiles')
     .update(updates)
     .eq('id', id)
@@ -102,7 +104,6 @@ export async function PATCH(
     })
 
     try {
-      const service = getServiceClient()
       const { data: authUser } = await service.auth.admin.getUserById(id)
       const email = authUser?.user?.email
 
