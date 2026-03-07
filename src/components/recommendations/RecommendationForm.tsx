@@ -427,7 +427,7 @@ export function RecommendationForm({ userId }: Props) {
                       Adult Content Rules
                     </p>
                     <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                      <li>Must link to a verified official platform (Lezhin, Tapas, etc.)</li>
+                      <li>Must link to a verified official platform (Lezhin,Toomics etc.)</li>
                       <li>Cover image must be official promotional art — no explicit imagery</li>
                       <li>All adult submissions require manual admin approval</li>
                       <li>Violations will result in removal and account suspension</li>

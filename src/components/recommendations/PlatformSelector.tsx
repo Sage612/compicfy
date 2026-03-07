@@ -94,8 +94,6 @@ export function PlatformSelector({ value, onChange, error }: PlatformSelectorPro
               >
                 {platform}
                     <button type="button" onClick={() => remove(platform)}>
-                        aria-label="Remove platform"
-  title="Remove platform"
 
                   <X size={10} />
                 </button>

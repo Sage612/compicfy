@@ -275,7 +275,7 @@ export default async function BrowsePage({ searchParams }: Props) {
             Discover community recommendations
           </p>
         </div>
-        <div className="hidden sm:flex items-center gap-2">
+        <div className="flex items-center gap-2">
           {adultEnabled && (
             <Link href="/browse/adult">
               <Button size="sm" variant="outline" className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/5">
@@ -285,9 +285,9 @@ export default async function BrowsePage({ searchParams }: Props) {
           )}
           <Link href="/dashboard/recommendations/new">
             <Button size="sm" className="gap-2">
-              <BookOpen size={14} />
-              Add Comic
-            </Button>
+  <BookOpen size={14} />
+  <span className="hidden sm:inline">Add Comic</span>
+</Button>
           </Link>
         </div>
       </div>

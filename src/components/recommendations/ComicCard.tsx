@@ -71,7 +71,7 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
           )}
           {rec.content_rating === 'mature' && (
             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/90 text-white backdrop-blur-sm">
-              17+
+              Mature
             </span>
           )}
         </div>
