@@ -66,27 +66,26 @@ export function FeaturedCarousel({ recommendations }: Props) {
               key={rec.id}
               className="relative flex-none w-full min-w-0"
             >
-              {/* Background image with overlay */}
-              <div className="relative h-[280px] sm:h-[360px] md:h-[420px] overflow-hidden">
-                {/* Background blur */}
+              <div className="relative h-[280px] sm:h-[360px] md:h-[420px] overflow-hidden bg-muted">
+                {/* Background blur image */}
                 {rec.cover_url ? (
-  <img
-    src={rec.cover_url}
-    alt=""
-    aria-hidden="true"
-    className="absolute inset-0 w-full h-full object-cover scale-110 blur-sm opacity-30"
-  />
-) : null}
+                  <img
+                    src={rec.cover_url}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-sm opacity-20 dark:opacity-30"
+                  />
+                ) : null}
 
-                {/* Dark gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-background/20" />
-                <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent" />
+                {/* Light mode: solid gradient from card color */}
+                <div className="absolute inset-0 bg-gradient-to-r from-card via-card/90 to-card/40 dark:from-background dark:via-background/80 dark:to-background/20" />
+                <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent dark:from-background/60 dark:via-transparent dark:to-transparent" />
 
                 {/* Content */}
                 <div className="relative h-full flex items-end md:items-center p-6 md:p-10 gap-6">
                   {/* Cover thumbnail */}
                   <div className="hidden sm:block w-32 md:w-44 shrink-0">
-                    <div className="aspect-[3/4] rounded-xl overflow-hidden border-2 border-white/10 shadow-2xl">
+                    <div className="aspect-[3/4] rounded-xl overflow-hidden border-2 border-border shadow-2xl">
                       {rec.cover_url ? (
                         <img
                           src={rec.cover_url}
@@ -114,7 +113,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
                     </div>
 
                     {/* Title */}
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight line-clamp-2">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight line-clamp-2 text-foreground">
                       {rec.title}
                     </h2>
 
@@ -133,7 +132,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
                         <Badge
                           key={genre}
                           variant="secondary"
-                          className="text-xs bg-white/10 hover:bg-white/20 border-white/10"
+                          className="text-xs"
                         >
                           {genre}
                         </Badge>
@@ -208,7 +207,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
               'rounded-full transition-all duration-300',
               selectedIndex === index
                 ? 'w-6 h-2 bg-primary'
-                : 'w-2 h-2 bg-white/30 hover:bg-white/60'
+                : 'w-2 h-2 bg-foreground/20 hover:bg-foreground/40'
             )}
             aria-label={`Go to slide ${index + 1}`}
           />
