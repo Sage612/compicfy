@@ -9,8 +9,8 @@ import {
   Users,
   Flag,
   ScrollText,
-  Settings,
   Star,
+  Mail,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -22,7 +22,9 @@ const navItems = [
   { href: '/admin/reports', label: 'Reports', icon: Flag },
   { href: '/admin/reviews', label: 'Reviews', icon: Star },
   { href: '/admin/logs', label: 'Activity Logs', icon: ScrollText },
+  { href: '/admin/test-email', label: 'Test Emails', icon: Mail },
 ]
+
 export function AdminMobileNav() {
   const pathname = usePathname()
 
@@ -34,6 +36,7 @@ export function AdminMobileNav() {
     { href: '/admin/reports', label: 'Reports', icon: Flag },
     { href: '/admin/reviews', label: 'Reviews', icon: Star },
     { href: '/admin/logs', label: 'Logs', icon: ScrollText },
+    { href: '/admin/test-email', label: 'Emails', icon: Mail },
   ]
 
   return (
@@ -62,7 +65,6 @@ export function AdminMobileNav() {
 
 export function AdminSidebar() {
   const pathname = usePathname()
-  
 
   return (
     <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border p-3 gap-1">
@@ -89,5 +91,4 @@ export function AdminSidebar() {
       })}
     </aside>
   )
-
 }
