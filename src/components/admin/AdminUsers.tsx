@@ -7,11 +7,12 @@ import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { XCircle } from 'lucide-react'
+import { XCircle, Trash2 } from 'lucide-react'
 import { Search, Ban, CheckCircle, Shield, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/format'
 import Link from 'next/link'
+
 
 const FILTERS = [
   { value: 'all', label: 'All Users' },
@@ -66,6 +67,23 @@ export function AdminUsers() {
       setBanReason('')
     } catch {
       toast.error(`Failed to ${action}`)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    setActionLoading(`${id}-delete`)
+    try {
+      const res = await fetch(`/api/admin/users/${id}`, {
+        method: 'DELETE',
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      toast.success('User deleted successfully')
+      setUsers(prev => prev.filter(u => u.id !== id))
+    } catch (err: any) {
+      toast.error(err.message ?? 'Failed to delete user')
     } finally {
       setActionLoading(null)
     }
@@ -180,11 +198,31 @@ export function AdminUsers() {
                         <Ban size={13} />
                       </Button>
                     )}
+
+                    {/* Delete user with confirmation */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      title="Delete user"
+                      disabled={!!actionLoading}
+                      onClick={() => {
+                        if (window.confirm(`Permanently delete @${user.username}? This cannot be undone.`)) {
+                          handleDelete(user.id)
+                        }
+                      }}
+                    >
+                      {actionLoading === `${user.id}-delete`
+                        ? <Loader2 size={13} className="animate-spin" />
+                        : <Trash2 size={13} />
+                      }
+                    </Button>
+
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7"
-                      onClick={() => setExpandedId(isExpanded && expandedId !== `role-${user.id}` ? null : user.id)}
+                      onClick={() => setExpandedId(isExpanded ? null : user.id)}
                     >
                       {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                     </Button>
@@ -206,7 +244,10 @@ export function AdminUsers() {
                             onClick={() => handleAction(user.id, 'change_role', { role })}
                             disabled={user.role === role || !!actionLoading}
                           >
-                            {role}
+                            {actionLoading === `${user.id}-change_role` && user.role !== role
+                              ? <Loader2 size={11} className="animate-spin" />
+                              : role
+                            }
                           </Button>
                         ))}
                       </div>

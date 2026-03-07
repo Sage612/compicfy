@@ -1,6 +1,30 @@
 import { NextResponse } from 'next/server'
 import { requireAdmin, logAction } from '@/lib/utils/admin'
-import { sendApprovedEmail, sendRejectedEmail, sendAppealResolvedEmail } from '@/lib/email/send'
+import { createClient } from '@/lib/supabase/server'
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const supabase = await createClient()
+
+    const { data, error } = await supabase
+      .from('recommendations')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error || !data) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ recommendation: data })
+  } catch {
+    return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 })
+  }
+}
 
 export async function PATCH(
   request: Request,
@@ -11,91 +35,128 @@ export async function PATCH(
   if (error) return NextResponse.json({ error }, { status })
 
   const body = await request.json()
-  const { action, reason, appeal_status, ...updateData } = body
+  const { action } = body
 
-  let updates: Record<string, any> = { ...updateData, updated_at: new Date().toISOString() }
+  // Direct field edit (no action key means it's a full edit)
+  if (!action) {
+    const allowedFields = [
+      'title', 'description', 'type', 'status', 'genres', 'themes',
+      'content_warnings', 'content_rating', 'official_platforms',
+      'official_links', 'author', 'artist', 'publisher', 'cover_url',
+      'banner_url', 'why_recommend', 'chapter_count', 'year_released',
+      'alternative_titles',
+    ]
+
+    const updates: Record<string, any> = {}
+    for (const field of allowedFields) {
+      if (field in body) updates[field] = body[field]
+    }
+
+    updates.updated_at = new Date().toISOString()
+
+    const { data, error: updateError } = await (supabase as any)!
+      .from('recommendations')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    }
+
+    await logAction(supabase!, user!.id, 'edited recommendation', 'recommendation', id, data.title, {})
+    return NextResponse.json({ recommendation: data })
+  }
+
+  // Action-based updates
+  let updates: Record<string, any> = {}
   let logMsg = ''
-
-  // Fetch recommendation for logging
-  const { data: rec } = await (supabase!
-    .from('recommendations')
-    .select('title, user_id')
-    .eq('id', id)
-    .single() as any) as { data: { title: string; user_id: string } | null }
 
   switch (action) {
     case 'approve':
-      updates = { ...updates, is_approved: true, rejection_reason: null, rejected_at: null, rejected_by: null }
+      updates = {
+        is_approved: true,
+        rejection_reason: null,
+        reviewed_by: user!.id,
+        reviewed_at: new Date().toISOString(),
+      }
       logMsg = 'approved recommendation'
       break
     case 'reject':
-      updates = { ...updates, is_approved: false, rejection_reason: reason, rejected_at: new Date().toISOString(), rejected_by: user!.id }
+      updates = {
+        is_approved: false,
+        rejection_reason: body.reason,
+        reviewed_by: user!.id,
+        reviewed_at: new Date().toISOString(),
+      }
       logMsg = 'rejected recommendation'
       break
     case 'feature':
-      updates = { ...updates, is_featured: true, featured_at: new Date().toISOString(), featured_by: user!.id }
+      updates = {
+        is_featured: true,
+        featured_at: new Date().toISOString(),
+      }
       logMsg = 'featured recommendation'
       break
     case 'unfeature':
-      updates = { ...updates, is_featured: false, featured_at: null, featured_by: null }
+      updates = { is_featured: false }
       logMsg = 'unfeatured recommendation'
       break
     case 'resolve_appeal':
-      updates = { ...updates, appeal_status, is_approved: appeal_status === 'approved' }
-      logMsg = `${appeal_status} appeal for recommendation`
+      updates = {
+        appeal_status: body.appeal_status,
+        is_approved: body.appeal_status === 'approved',
+        rejection_reason: body.appeal_status === 'approved' ? null : undefined,
+      }
+      logMsg = `${body.appeal_status} recommendation appeal`
       break
     default:
-      logMsg = 'edited recommendation'
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   }
 
   const { data, error: updateError } = await (supabase as any)!
-  .from('recommendations')
-  .update(updates)
-  .eq('id', id)
-  .select()
-  .single()
+    .from('recommendations')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
 
-  if (updateError) return NextResponse.json({ error: 'Failed to update' }, { status: 500 })
-
-  await logAction(supabase!, user!.id, logMsg, 'recommendation', id, rec?.title ?? id, { reason, action })
-
-  // Notify user
-  if (['approve', 'reject', 'resolve_appeal'].includes(action) && rec?.user_id) {
-    const messages: Record<string, string> = {
-      approve: `Your recommendation "${rec.title}" has been approved! 🎉`,
-      reject: `Your recommendation "${rec.title}" was rejected. Reason: ${reason}`,
-      resolve_appeal: `Your appeal for "${rec.title}" has been ${appeal_status}.`,
-    }
-    if (action === 'approve' && rec?.user_id) {
-  const { data: userProfile } = await (supabase! as any)
-    .from('profiles')
-    .select('username')
-    .eq('id', rec.user_id)
-    .single() as { data: { username: string } | null }
-  const { data: authUser } = await supabase!.auth.admin.getUserById(rec.user_id)
-  if (authUser?.user?.email && userProfile?.username) {
-    await sendApprovedEmail(authUser.user.email, userProfile.username, rec.title, id)
-  }
-}
-
-if (action === 'reject' && rec?.user_id) {
-  const { data: userProfile } = await (supabase! as any)
-    .from('profiles')
-    .select('username')
-    .eq('id', rec.user_id)
-    .single() as { data: { username: string } | null }
-  const { data: authUser } = await supabase!.auth.admin.getUserById(rec.user_id)
-  if (authUser?.user?.email && userProfile?.username) {
-    await sendRejectedEmail(authUser.user.email, userProfile.username, rec.title, reason, id)
-  }
-}
-    await (supabase! as any).from('notifications').insert({
-      user_id: rec.user_id,
-      type: `recommendation_${action}`,
-      title: messages[action],
-      data: { recommendation_id: id },
-    })
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 })
   }
 
+  await logAction(supabase!, user!.id, logMsg, 'recommendation', id, data.title, { action, reason: body.reason })
   return NextResponse.json({ recommendation: data })
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const { error, status, user, supabase } = await requireAdmin()
+  if (error) return NextResponse.json({ error }, { status })
+
+  try {
+    const { data: rec } = await supabase!
+      .from('recommendations')
+      .select('title')
+      .eq('id', id)
+      .single()
+
+    const { error: deleteError } = await supabase!
+      .from('recommendations')
+      .delete()
+      .eq('id', id)
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message }, { status: 500 })
+    }
+
+    await logAction(supabase!, user!.id, 'deleted recommendation', 'recommendation', id, (rec as any)?.title ?? id, {})
+    return NextResponse.json({ success: true })
+  } catch {
+    return NextResponse.json({ error: 'Failed to delete recommendation' }, { status: 500 })
+  }
 }

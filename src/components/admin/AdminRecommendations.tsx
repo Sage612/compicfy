@@ -9,11 +9,12 @@ import { toast } from 'sonner'
 import {
   CheckCircle, XCircle, Star, StarOff,
   Loader2, BookOpen, ChevronDown, ChevronUp,
-  Pencil, Eye
+  Pencil, Eye, Trash2
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/format'
 import Link from 'next/link'
+
 
 const FILTERS = [
   { value: 'pending', label: 'Pending', color: 'text-yellow-500' },
@@ -22,6 +23,11 @@ const FILTERS = [
   { value: 'featured', label: 'Featured ⭐', color: 'text-primary' },
   { value: 'appeals', label: 'Appeals 🚩', color: 'text-orange-500' },
 ]
+
+const TYPES = ['manga', 'manhwa', 'manhua', 'webtoon', 'comic', 'other']
+const STATUSES = ['ongoing', 'completed', 'hiatus', 'cancelled']
+const CONTENT_RATINGS = ['all_ages', 'teen', 'mature', 'adult']
+const PLATFORMS = ['Webtoon', 'Tapas', 'MangaPlus', 'Viz', 'Crunchyroll', 'Lezhin', 'Toomics', 'Other']
 
 export function AdminRecommendations() {
   const [recs, setRecs] = useState<any[]>([])
@@ -85,6 +91,52 @@ export function AdminRecommendations() {
     } finally {
       setActionLoading(null)
     }
+  }
+
+  const handleDelete = async (id: string) => {
+    setActionLoading(`${id}-delete`)
+    try {
+      const res = await fetch(`/api/admin/recommendations/${id}`, {
+        method: 'DELETE',
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Recommendation deleted')
+      setRecs(prev => prev.filter(r => r.id !== id))
+    } catch {
+      toast.error('Failed to delete recommendation')
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
+  const startEdit = (rec: any) => {
+    setEditingId(rec.id)
+    setEditData({
+      title: rec.title ?? '',
+      description: rec.description ?? '',
+      type: rec.type ?? 'manga',
+      status: rec.status ?? 'ongoing',
+      author: rec.author ?? '',
+      artist: rec.artist ?? '',
+      publisher: rec.publisher ?? '',
+      cover_url: rec.cover_url ?? '',
+      why_recommend: rec.why_recommend ?? '',
+      content_rating: rec.content_rating ?? 'all_ages',
+      chapter_count: rec.chapter_count ?? '',
+      year_released: rec.year_released ?? '',
+      genres: rec.genres ?? [],
+      official_platforms: rec.official_platforms ?? [],
+    })
+  }
+
+  const toggleArrayItem = (field: string, value: string) => {
+    setEditData(d => {
+      const arr: string[] = d[field] ?? []
+      return {
+        ...d,
+        [field]: arr.includes(value) ? arr.filter((v: string) => v !== value) : [...arr, value],
+      }
+    })
   }
 
   return (
@@ -166,18 +218,17 @@ export function AdminRecommendations() {
                             <Eye size={13} />
                           </Button>
                         </Link>
+
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => {
-                            setEditingId(isEditing ? null : rec.id)
-                            setEditData({ title: rec.title, description: rec.description, author: rec.author, artist: rec.artist })
-                          }}
+                          onClick={() => isEditing ? setEditingId(null) : startEdit(rec)}
                           title="Edit"
                         >
                           <Pencil size={13} />
                         </Button>
+
                         {!rec.is_approved && !rec.rejection_reason && (
                           <Button
                             variant="ghost"
@@ -190,6 +241,7 @@ export function AdminRecommendations() {
                             {actionLoading === `${rec.id}-approve` ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
                           </Button>
                         )}
+
                         {rec.is_featured ? (
                           <Button
                             variant="ghost"
@@ -211,6 +263,26 @@ export function AdminRecommendations() {
                             <Star size={13} />
                           </Button>
                         )}
+
+                        {/* Delete with confirmation */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          title="Delete"
+                          disabled={!!actionLoading}
+                          onClick={() => {
+                            if (window.confirm(`Permanently delete "${rec.title}"? This cannot be undone.`)) {
+                              handleDelete(rec.id)
+                            }
+                          }}
+                        >
+                          {actionLoading === `${rec.id}-delete`
+                            ? <Loader2 size={13} className="animate-spin" />
+                            : <Trash2 size={13} />
+                          }
+                        </Button>
+
                         <Button
                           variant="ghost"
                           size="icon"
@@ -224,40 +296,170 @@ export function AdminRecommendations() {
                   </div>
                 </div>
 
-                {/* Edit form */}
+                {/* Full edit form */}
                 {isEditing && (
-                  <div className="px-4 pb-4 space-y-3 border-t border-border pt-4">
+                  <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Edit Recommendation</p>
-                    <div className="space-y-2">
+
+                    {/* Title + Cover */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <Input
                         value={editData.title ?? ''}
                         onChange={(e) => setEditData(d => ({ ...d, title: e.target.value }))}
                         placeholder="Title"
                         className="text-sm"
                       />
-                      <Textarea
-                        value={editData.description ?? ''}
-                        onChange={(e) => setEditData(d => ({ ...d, description: e.target.value }))}
-                        placeholder="Description"
-                        rows={3}
-                        className="resize-none text-sm"
+                      <Input
+                        value={editData.cover_url ?? ''}
+                        onChange={(e) => setEditData(d => ({ ...d, cover_url: e.target.value }))}
+                        placeholder="Cover URL"
+                        className="text-sm"
                       />
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input
-                          value={editData.author ?? ''}
-                          onChange={(e) => setEditData(d => ({ ...d, author: e.target.value }))}
-                          placeholder="Author"
-                          className="text-sm"
-                        />
-                        <Input
-                          value={editData.artist ?? ''}
-                          onChange={(e) => setEditData(d => ({ ...d, artist: e.target.value }))}
-                          placeholder="Artist"
-                          className="text-sm"
-                        />
+                    </div>
+
+                    {/* Description */}
+                    <Textarea
+                      value={editData.description ?? ''}
+                      onChange={(e) => setEditData(d => ({ ...d, description: e.target.value }))}
+                      placeholder="Description"
+                      rows={3}
+                      className="resize-none text-sm"
+                    />
+
+                    {/* Why recommend */}
+                    <Textarea
+                      value={editData.why_recommend ?? ''}
+                      onChange={(e) => setEditData(d => ({ ...d, why_recommend: e.target.value }))}
+                      placeholder="Why recommend..."
+                      rows={2}
+                      className="resize-none text-sm"
+                    />
+
+                    {/* Author / Artist / Publisher */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <Input
+                        value={editData.author ?? ''}
+                        onChange={(e) => setEditData(d => ({ ...d, author: e.target.value }))}
+                        placeholder="Author"
+                        className="text-sm"
+                      />
+                      <Input
+                        value={editData.artist ?? ''}
+                        onChange={(e) => setEditData(d => ({ ...d, artist: e.target.value }))}
+                        placeholder="Artist"
+                        className="text-sm"
+                      />
+                      <Input
+                        value={editData.publisher ?? ''}
+                        onChange={(e) => setEditData(d => ({ ...d, publisher: e.target.value }))}
+                        placeholder="Publisher"
+                        className="text-sm"
+                      />
+                    </div>
+
+                    {/* Chapter count + Year */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        value={editData.chapter_count ?? ''}
+                        onChange={(e) => setEditData(d => ({ ...d, chapter_count: e.target.value ? Number(e.target.value) : null }))}
+                        placeholder="Chapter count"
+                        className="text-sm"
+                      />
+                      <Input
+                        type="number"
+                        value={editData.year_released ?? ''}
+                        onChange={(e) => setEditData(d => ({ ...d, year_released: e.target.value ? Number(e.target.value) : null }))}
+                        placeholder="Year released"
+                        className="text-sm"
+                      />
+                    </div>
+
+                    {/* Type */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground font-medium">Type</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {TYPES.map(t => (
+                          <button
+                            key={t}
+                            onClick={() => setEditData(d => ({ ...d, type: t }))}
+                            className={cn(
+                              'px-2.5 py-1 rounded-full text-xs border capitalize transition-colors',
+                              editData.type === t
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border text-muted-foreground hover:border-primary'
+                            )}
+                          >
+                            {t}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                    <div className="flex gap-2 justify-end">
+
+                    {/* Status */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground font-medium">Status</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {STATUSES.map(s => (
+                          <button
+                            key={s}
+                            onClick={() => setEditData(d => ({ ...d, status: s }))}
+                            className={cn(
+                              'px-2.5 py-1 rounded-full text-xs border capitalize transition-colors',
+                              editData.status === s
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border text-muted-foreground hover:border-primary'
+                            )}
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Content Rating */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground font-medium">Content Rating</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {CONTENT_RATINGS.map(r => (
+                          <button
+                            key={r}
+                            onClick={() => setEditData(d => ({ ...d, content_rating: r }))}
+                            className={cn(
+                              'px-2.5 py-1 rounded-full text-xs border capitalize transition-colors',
+                              editData.content_rating === r
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border text-muted-foreground hover:border-primary'
+                            )}
+                          >
+                            {r.replace('_', ' ')}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Platforms */}
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground font-medium">Platforms</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {PLATFORMS.map(p => (
+                          <button
+                            key={p}
+                            onClick={() => toggleArrayItem('official_platforms', p)}
+                            className={cn(
+                              'px-2.5 py-1 rounded-full text-xs border transition-colors',
+                              (editData.official_platforms ?? []).includes(p)
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border text-muted-foreground hover:border-primary'
+                            )}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 justify-end pt-1">
                       <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
                       <Button size="sm" onClick={() => handleEdit(rec.id)} disabled={!!actionLoading} className="gap-2">
                         {actionLoading === `${rec.id}-edit` ? <Loader2 size={13} className="animate-spin" /> : null}
@@ -270,7 +472,6 @@ export function AdminRecommendations() {
                 {/* Expanded: reject / appeal */}
                 {isExpanded && (
                   <div className="px-4 pb-4 space-y-3 border-t border-border pt-4">
-                    {/* Description preview */}
                     <p className="text-xs text-muted-foreground line-clamp-3">{rec.description}</p>
 
                     {/* Reject form */}

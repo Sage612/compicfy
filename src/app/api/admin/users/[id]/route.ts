@@ -22,10 +22,10 @@ export async function PATCH(
   const { action, reason, role } = body
 
   const { data: target } = (await supabase!
-  .from('profiles')
-  .select('username, role')
-  .eq('id', id)
-  .single()) as { data: { username: string; role: string } | null }
+    .from('profiles')
+    .select('username, role')
+    .eq('id', id)
+    .single()) as { data: { username: string; role: string } | null }
 
   let updates: Record<string, any> = {}
   let logMsg = ''
@@ -101,7 +101,6 @@ export async function PATCH(
       data: { reason },
     })
 
-    // Get email via service client (bypasses RLS)
     try {
       const service = getServiceClient()
       const { data: authUser } = await service.auth.admin.getUserById(id)
@@ -120,4 +119,43 @@ export async function PATCH(
   }
 
   return NextResponse.json({ user: data })
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const { error, status, user, supabase } = await requireAdmin()
+  if (error) return NextResponse.json({ error }, { status })
+
+  // Prevent self-deletion
+  if (id === user!.id) {
+    return NextResponse.json({ error: 'You cannot delete your own account' }, { status: 400 })
+  }
+
+  try {
+    const { data: target } = (await supabase!
+      .from('profiles')
+      .select('username')
+      .eq('id', id)
+      .single()) as { data: { username: string } | null }
+
+    // Use service client to delete from Supabase Auth (bypasses RLS)
+    const service = getServiceClient()
+    const { error: deleteAuthError } = await service.auth.admin.deleteUser(id)
+
+    if (deleteAuthError) {
+      console.error('Auth delete error:', deleteAuthError)
+      return NextResponse.json({ error: deleteAuthError.message }, { status: 500 })
+    }
+
+    // Profile will cascade delete due to FK constraint
+    await logAction(supabase!, user!.id, 'deleted user', 'user', id, target?.username ?? id, {})
+
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    console.error('Delete user error:', err)
+    return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 })
+  }
 }
