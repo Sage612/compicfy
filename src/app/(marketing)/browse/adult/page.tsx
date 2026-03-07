@@ -98,37 +98,14 @@ async function getHiddenGems(): Promise<Recommendation[]> {
   return (data as Recommendation[]) ?? []
 }
 
-async function getYouMightLike(userId: string): Promise<Recommendation[]> {
+async function getYouMightLike(userId: string | null): Promise<Recommendation[]> {
   const supabase = await createClient()
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('favorite_genres')
-    .eq('id', userId)
-    .single()
-
-  const genres = ((profile as any)?.favorite_genres ?? []) as string[]
-
-  if (!genres.length) {
-    const { data } = await supabase
-      .from('recommendations')
-      .select('*')
-      .eq('is_approved', true)
-      .in('content_rating', ['adult', 'mature'])
-      .order('score', { ascending: false })
-      .limit(12)
-    return (data as Recommendation[]) ?? []
-  }
-
-  const { data } = await supabase
-    .from('recommendations')
-    .select('*')
-    .eq('is_approved', true)
-    .in('content_rating', ['adult', 'mature'])
-    .overlaps('genres', genres)
-    .order('score', { ascending: false })
-    .limit(12)
-
+  const { data } = await (supabase as any).rpc('get_personalized_recommendations', {
+    p_user_id: userId,
+    p_exclude_id: null,
+    p_limit: 12,
+   p_content_ratings: ['mature', 'adult'],
+  })
   return (data as Recommendation[]) ?? []
 }
 

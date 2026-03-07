@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ReviewSection } from '@/components/recommendations/ReviewSection'
 import { AddToListButton } from '@/components/recommendations/AddToListButton'
+import { SimilarComics } from '@/components/recommendations/SimilarComics'
 import {
   BookOpen,
   Calendar,
@@ -70,7 +71,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Server-side adult/mature content gate — cannot be bypassed with a direct link
+  // Server-side adult/mature content gate
   if (rec.content_rating === 'adult' || rec.content_rating === 'mature') {
     if (!user) {
       return (
@@ -348,6 +349,10 @@ export default async function ComicDetailPage({ params }: Props) {
             currentUserId={user?.id ?? null}
             isLoggedIn={!!user}
           />
+
+          {/* Similar Comics — powered by algorithm */}
+          <Separator />
+          <SimilarComics comicId={id} contentRating={rec.content_rating} />
         </div>
       </div>
     </div>
