@@ -57,7 +57,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
   if (!recommendations.length) return null
 
   return (
-    <div className="relative rounded-2xl overflow-hidden group">
+    <div className="relative rounded-2xl overflow-hidden group border border-border">
       {/* Embla viewport */}
       <div ref={emblaRef} className="overflow-hidden">
         <div className="flex">
@@ -66,26 +66,28 @@ export function FeaturedCarousel({ recommendations }: Props) {
               key={rec.id}
               className="relative flex-none w-full min-w-0"
             >
-              <div className="relative h-[280px] sm:h-[360px] md:h-[420px] overflow-hidden bg-muted">
+              {/* Always dark background so carousel never blends with page in any mode */}
+              <div className="relative h-[280px] sm:h-[360px] md:h-[420px] overflow-hidden bg-slate-900">
+
                 {/* Background blur image */}
                 {rec.cover_url ? (
                   <img
                     src={rec.cover_url}
                     alt=""
                     aria-hidden="true"
-                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-sm opacity-20 dark:opacity-30"
+                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-md opacity-40"
                   />
                 ) : null}
 
-                {/* Light mode: solid gradient from card color */}
-                <div className="absolute inset-0 bg-gradient-to-r from-card via-card/90 to-card/40 dark:from-background dark:via-background/80 dark:to-background/20" />
-                <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent dark:from-background/60 dark:via-transparent dark:to-transparent" />
+                {/* Dark overlay gradients */}
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-slate-900/40" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
 
                 {/* Content */}
                 <div className="relative h-full flex items-end md:items-center p-6 md:p-10 gap-6">
                   {/* Cover thumbnail */}
                   <div className="hidden sm:block w-32 md:w-44 shrink-0">
-                    <div className="aspect-[3/4] rounded-xl overflow-hidden border-2 border-border shadow-2xl">
+                    <div className="aspect-[3/4] rounded-xl overflow-hidden border-2 border-white/10 shadow-2xl">
                       {rec.cover_url ? (
                         <img
                           src={rec.cover_url}
@@ -93,38 +95,35 @@ export function FeaturedCarousel({ recommendations }: Props) {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full bg-muted flex items-center justify-center">
-                          <BookOpen size={32} className="text-muted-foreground" />
+                        <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                          <BookOpen size={32} className="text-white/50" />
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Text content */}
+                  {/* Text — always white since bg is always dark */}
                   <div className="flex-1 min-w-0 space-y-3">
-                    {/* Featured label */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold uppercase tracking-widest text-primary">
+                      <span className="text-xs font-bold uppercase tracking-widest text-white/70">
                         ⭐ Featured
                       </span>
-                      <span className="text-xs text-muted-foreground capitalize">
+                      <span className="text-xs text-white/50 capitalize">
                         {rec.type}
                       </span>
                     </div>
 
-                    {/* Title */}
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight line-clamp-2 text-foreground">
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight line-clamp-2 text-white">
                       {rec.title}
                     </h2>
 
-                    {/* Status + genres */}
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="flex items-center gap-1.5">
                         <span className={cn(
                           'w-2 h-2 rounded-full',
                           statusColors[rec.status as keyof typeof statusColors]
                         )} />
-                        <span className="text-xs text-muted-foreground capitalize">
+                        <span className="text-xs text-white/60 capitalize">
                           {rec.status}
                         </span>
                       </div>
@@ -132,27 +131,25 @@ export function FeaturedCarousel({ recommendations }: Props) {
                         <Badge
                           key={genre}
                           variant="secondary"
-                          className="text-xs"
+                          className="text-xs bg-white/10 text-white/80 border-white/10 hover:bg-white/20"
                         >
                           {genre}
                         </Badge>
                       ))}
                     </div>
 
-                    {/* Description */}
-                    <p className="text-sm text-muted-foreground line-clamp-2 max-w-lg">
+                    <p className="text-sm text-white/60 line-clamp-2 max-w-lg">
                       {rec.description}
                     </p>
 
-                    {/* Stats + CTA */}
                     <div className="flex items-center gap-4">
                       <Link href={`/comic/${rec.id}`}>
-                        <Button size="sm" className="gap-2">
+                        <Button size="sm" className="gap-2 bg-white text-slate-900 hover:bg-white/90">
                           <BookOpen size={14} />
                           View Details
                         </Button>
                       </Link>
-                      <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1 text-sm text-white/60">
                         <ThumbsUp size={13} />
                         {formatNumber(rec.upvotes)}
                       </span>
@@ -170,10 +167,10 @@ export function FeaturedCarousel({ recommendations }: Props) {
         onClick={scrollPrev}
         className={cn(
           'absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full',
-          'bg-background/80 backdrop-blur-sm border border-border',
-          'flex items-center justify-center',
+          'bg-black/40 backdrop-blur-sm border border-white/10',
+          'flex items-center justify-center text-white',
           'opacity-0 group-hover:opacity-100 transition-opacity',
-          'hover:bg-background hover:scale-110 transition-all',
+          'hover:bg-black/60 hover:scale-110 transition-all',
           !canScrollPrev && 'cursor-not-allowed opacity-30'
         )}
         aria-label="Previous"
@@ -186,10 +183,10 @@ export function FeaturedCarousel({ recommendations }: Props) {
         onClick={scrollNext}
         className={cn(
           'absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full',
-          'bg-background/80 backdrop-blur-sm border border-border',
-          'flex items-center justify-center',
+          'bg-black/40 backdrop-blur-sm border border-white/10',
+          'flex items-center justify-center text-white',
           'opacity-0 group-hover:opacity-100 transition-opacity',
-          'hover:bg-background hover:scale-110 transition-all',
+          'hover:bg-black/60 hover:scale-110 transition-all',
           !canScrollNext && 'cursor-not-allowed opacity-30'
         )}
         aria-label="Next"
@@ -206,8 +203,8 @@ export function FeaturedCarousel({ recommendations }: Props) {
             className={cn(
               'rounded-full transition-all duration-300',
               selectedIndex === index
-                ? 'w-6 h-2 bg-primary'
-                : 'w-2 h-2 bg-foreground/20 hover:bg-foreground/40'
+                ? 'w-6 h-2 bg-white'
+                : 'w-2 h-2 bg-white/30 hover:bg-white/50'
             )}
             aria-label={`Go to slide ${index + 1}`}
           />
