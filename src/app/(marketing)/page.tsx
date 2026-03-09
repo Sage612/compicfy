@@ -24,16 +24,16 @@ export const metadata: Metadata = {
 }
 
 const GENRES = [
-  { label: 'Action',  emoji: '⚔️',  href: '/browse?genre=action'  },
-  { label: 'Romance', emoji: '🌸',  href: '/browse?genre=romance' },
-  { label: 'Fantasy', emoji: '✨',  href: '/browse?genre=fantasy' },
-  { label: 'Comedy',  emoji: '😂',  href: '/browse?genre=comedy'  },
-  { label: 'Sci-Fi',  emoji: '🚀',  href: '/browse?genre=sci-fi'  },
-  { label: 'Drama',   emoji: '🎭',  href: '/browse?genre=drama'   },
-  { label: 'Horror',  emoji: '👻',  href: '/browse?genre=horror'  },
-  { label: 'Sports',  emoji: '⚡',  href: '/browse?genre=sports'  },
-  { label: 'Slice of Life', emoji: '🍵', href: '/browse?genre=slice-of-life' },
-  { label: 'Mystery', emoji: '🔍',  href: '/browse?genre=mystery' },
+  { label: 'Action',        emoji: '⚔️',  href: '/browse?genre=Action'        },
+  { label: 'Romance',       emoji: '🌸',  href: '/browse?genre=Romance'       },
+  { label: 'Fantasy',       emoji: '✨',  href: '/browse?genre=Fantasy'       },
+  { label: 'Comedy',        emoji: '😂',  href: '/browse?genre=Comedy'        },
+  { label: 'Sci-Fi',        emoji: '🚀',  href: '/browse?genre=Sci-Fi'        },
+  { label: 'Drama',         emoji: '🎭',  href: '/browse?genre=Drama'         },
+  { label: 'Horror',        emoji: '👻',  href: '/browse?genre=Horror'        },
+  { label: 'Sports',        emoji: '⚡',  href: '/browse?genre=Sports'        },
+  { label: 'Slice of Life', emoji: '🍵',  href: '/browse?genre=Slice-of-Life' },
+  { label: 'Mystery',       emoji: '🔍',  href: '/browse?genre=Mystery'       },
 ]
 
 export default async function HomePage() {
@@ -80,20 +80,23 @@ export default async function HomePage() {
       {/* ── HERO ─────────────────────────────────────────────────── */}
       <section className="relative overflow-hidden min-h-[88vh] flex flex-col items-center justify-center">
 
-        {/* Warm ambient glow — dark mode shows amber, light shows soft peach */}
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-background" />
+        {/* Plain background — no amber tint */}
+        <div className="absolute inset-0 bg-background" />
+
+        {/* Subtle glow blobs — visible in both modes */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full bg-amber-500/5 dark:bg-amber-500/10 blur-[100px]" />
-          <div className="absolute bottom-0 right-1/4 w-[400px] h-[300px] rounded-full bg-orange-500/4 dark:bg-orange-400/8 blur-[80px]" />
-          <div className="absolute top-1/3 left-0 w-[300px] h-[300px] rounded-full bg-primary/5 dark:bg-primary/8 blur-[80px]" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full bg-primary/8 blur-[120px]" />
+          <div className="absolute bottom-0 right-1/4 w-[400px] h-[300px] rounded-full bg-primary/5 blur-[100px]" />
         </div>
 
-        {/* Animated particle canvas — embers + tiny comic panels */}
-        <ParticleCanvas />
+        {/* Particles — higher opacity so visible in light mode */}
+        <div className="absolute inset-0 opacity-60 dark:opacity-100">
+          <ParticleCanvas />
+        </div>
 
-        {/* Existing comic-book decorative SVG lines — preserved */}
+        {/* Comic-book decorative lines */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <svg className="absolute inset-0 w-full h-full opacity-[0.03] dark:opacity-[0.05] hidden md:block" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
+          <svg className="absolute inset-0 w-full h-full opacity-[0.04] dark:opacity-[0.05] hidden md:block" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
             {Array.from({ length: 40 }).map((_, i) => {
               const angle = (i / 40) * 360
               const rad   = (angle * Math.PI) / 180
@@ -109,9 +112,9 @@ export default async function HomePage() {
           </svg>
 
           {/* Floating comic-panel outlines */}
-          <div className="absolute top-12 right-24 w-28 h-36 rounded-lg border-2 border-amber-500/10 dark:border-amber-400/15 rotate-6 hidden md:block" />
-          <div className="absolute top-6  right-40 w-20 h-28 rounded-lg border-2 border-primary/8  dark:border-primary/15  -rotate-3 hidden md:block" />
-          <div className="absolute top-24 right-16 w-16 h-20 rounded-lg border   border-amber-500/8  dark:border-amber-400/12 rotate-12 hidden md:block" />
+          <div className="absolute top-12 right-24 w-28 h-36 rounded-lg border-2 border-primary/10 dark:border-primary/15 rotate-6 hidden md:block" />
+          <div className="absolute top-6  right-40 w-20 h-28 rounded-lg border-2 border-primary/8 dark:border-primary/15 -rotate-3 hidden md:block" />
+          <div className="absolute top-24 right-16 w-16 h-20 rounded-lg border border-primary/8 dark:border-primary/12 rotate-12 hidden md:block" />
           <div className="absolute bottom-8 right-56 w-24 h-32 rounded-lg border-2 border-primary/6 dark:border-primary/12 -rotate-6 hidden md:block" />
 
           {/* Kanji watermark */}
@@ -124,7 +127,7 @@ export default async function HomePage() {
         <div className="relative z-10 max-w-7xl mx-auto px-4 py-24 w-full">
           <div className="max-w-2xl mx-auto md:mx-0 text-center md:text-left space-y-7">
 
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-600 dark:text-amber-400 text-sm font-medium">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
               <Sparkles size={13} />
               Your Comic Discovery Community
             </div>
@@ -133,13 +136,12 @@ export default async function HomePage() {
               Find your next{' '}
               <span className="relative inline-block">
                 <span className="text-primary">obsession.</span>
-                {/* hand-drawn underline */}
                 <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 240 10" preserveAspectRatio="none">
                   <path
                     d="M2,7 Q60,1 120,5 Q180,9 238,3"
                     stroke="currentColor" strokeWidth="3"
                     fill="none" strokeLinecap="round"
-                    className="text-amber-500/60 dark:text-amber-400/70"
+                    className="text-primary/50"
                   />
                 </svg>
               </span>
@@ -152,7 +154,7 @@ export default async function HomePage() {
 
             <div className="flex flex-wrap gap-3 justify-center md:justify-start">
               <Link href="/browse">
-                <Button size="lg" className="gap-2 h-12 px-6 bg-amber-500 hover:bg-amber-400 text-black font-semibold shadow-lg shadow-amber-500/25 border-0">
+                <Button size="lg" className="gap-2 h-12 px-6 font-semibold shadow-lg border-0">
                   <BookOpen size={17} />
                   Browse Comics
                   <ArrowRight size={15} />
@@ -160,7 +162,7 @@ export default async function HomePage() {
               </Link>
               {!user && (
                 <Link href="/signup">
-                  <Button size="lg" variant="outline" className="gap-2 h-12 px-6 bg-background/60 backdrop-blur-sm hover:bg-background/80">
+                  <Button size="lg" variant="outline" className="gap-2 h-12 px-6">
                     <Users size={17} />
                     Join Free
                   </Button>
@@ -168,7 +170,7 @@ export default async function HomePage() {
               )}
               {user && (
                 <Link href="/dashboard/recommendations/new">
-                  <Button size="lg" variant="outline" className="gap-2 h-12 px-6 bg-background/60 backdrop-blur-sm hover:bg-background/80">
+                  <Button size="lg" variant="outline" className="gap-2 h-12 px-6">
                     <Sparkles size={17} />
                     Share a Pick
                   </Button>
@@ -179,12 +181,12 @@ export default async function HomePage() {
             {/* Live stats */}
             <div className="flex flex-wrap gap-5 pt-1 justify-center md:justify-start">
               {[
-                { label: 'Members',         value: totalMembers, suffix: '+',  icon: Users      },
-                { label: 'Comics Shared',   value: totalComics,  suffix: '+',  icon: BookOpen   },
-                { label: 'Community Picks', value: null,         suffix: '',   icon: TrendingUp, text: 'Daily' },
+                { label: 'Members',         value: totalMembers, suffix: '+', icon: Users      },
+                { label: 'Comics Shared',   value: totalComics,  suffix: '+', icon: BookOpen   },
+                { label: 'Community Picks', value: null,         suffix: '',  icon: TrendingUp, text: 'Daily' },
               ].map(({ label, value, suffix, icon: Icon, text }) => (
                 <div key={label} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Icon size={14} className="text-amber-500 dark:text-amber-400 shrink-0" />
+                  <Icon size={14} className="text-primary shrink-0" />
                   <span className="font-semibold text-foreground tabular-nums">
                     {text ?? (
                       value !== null && value > 0
@@ -217,7 +219,7 @@ export default async function HomePage() {
           <div className="flex flex-wrap gap-2 justify-center">
             {GENRES.map((g) => (
               <Link key={g.label} href={g.href}>
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-border bg-background/60 hover:bg-amber-500/8 hover:border-amber-500/30 hover:text-amber-600 dark:hover:text-amber-400 text-sm text-muted-foreground transition-all duration-150 cursor-pointer select-none backdrop-blur-sm">
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-border bg-background/60 hover:bg-primary/8 hover:border-primary/30 hover:text-primary text-sm text-muted-foreground transition-all duration-150 cursor-pointer select-none backdrop-blur-sm">
                   <span className="text-base leading-none">{g.emoji}</span>
                   {g.label}
                 </span>
@@ -233,7 +235,7 @@ export default async function HomePage() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold flex items-center gap-2">
-                <Flame size={20} className="text-amber-500" />
+                <Flame size={20} className="text-primary" />
                 Trending Now
               </h2>
               <p className="text-muted-foreground text-sm mt-0.5">
@@ -259,7 +261,7 @@ export default async function HomePage() {
       <section className="bg-muted/30 border-y border-border">
         <div className="max-w-7xl mx-auto px-4 py-14 space-y-10">
           <div className="text-center space-y-2">
-            <p className="text-xs text-amber-600 dark:text-amber-400 uppercase tracking-widest font-medium">Getting Started</p>
+            <p className="text-xs text-primary uppercase tracking-widest font-medium">Getting Started</p>
             <h2 className="text-2xl font-bold">Simple as Sunday morning</h2>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto">
               No algorithms. Just real readers sharing what they love.
@@ -273,7 +275,7 @@ export default async function HomePage() {
                 icon:  BookOpen,
                 title: 'Submit a Recommendation',
                 desc:  'Share a manga, manhwa, or webtoon you love. Add genres, a cover, and tell us why others need to read it.',
-                accent: 'text-amber-500 bg-amber-500/10',
+                accent: 'text-primary bg-primary/10',
               },
               {
                 step:  '02',
@@ -292,7 +294,7 @@ export default async function HomePage() {
             ].map(({ step, icon: Icon, title, desc, accent }) => (
               <div
                 key={step}
-                className="relative p-6 rounded-2xl bg-card border border-border space-y-4 hover:border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5 transition-all duration-200 group"
+                className="relative p-6 rounded-2xl bg-card border border-border space-y-4 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 group"
               >
                 <div className="flex items-center justify-between">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accent}`}>
@@ -337,18 +339,13 @@ export default async function HomePage() {
 
       {/* ── CTA BANNER ───────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 py-14 w-full">
-        <div className="relative overflow-hidden rounded-2xl p-8 md:p-12 bg-gradient-to-br from-amber-500/90 via-orange-500/85 to-amber-600/90 dark:from-amber-600/80 dark:via-orange-600/75 dark:to-amber-700/80">
-          {/* Decorative blobs */}
-          <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/15 pointer-events-none" />
-          <div className="absolute -bottom-20 -left-10  w-72 h-72 rounded-full bg-white/8  pointer-events-none" />
-          <div className="absolute top-4 right-32       w-20 h-20 rounded-full bg-white/12 pointer-events-none" />
-          {/* Particle canvas inside banner too */}
-          <div className="absolute inset-0 pointer-events-none opacity-40">
-            <ParticleCanvas />
-          </div>
+        <div className="relative overflow-hidden rounded-2xl p-8 md:p-12 bg-primary">
+          <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/10 pointer-events-none" />
+          <div className="absolute -bottom-20 -left-10  w-72 h-72 rounded-full bg-white/5  pointer-events-none" />
+          <div className="absolute top-4 right-32       w-20 h-20 rounded-full bg-white/8  pointer-events-none" />
 
           <div className="relative max-w-2xl space-y-5">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/15 text-white text-sm font-medium">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 text-white text-sm font-medium">
               <Star size={13} />
               Got a hidden gem?
             </div>
@@ -357,7 +354,7 @@ export default async function HomePage() {
               Help others find their<br className="hidden md:block" /> next favourite read.
             </h2>
 
-            <p className="text-white/85 leading-relaxed text-base drop-shadow-sm">
+            <p className="text-white/85 leading-relaxed text-base">
               Share your favourite manga, manhwa, or webtoon with thousands of readers. Every good rec helps someone fall in love with a new story.
             </p>
 
@@ -365,16 +362,16 @@ export default async function HomePage() {
               <Link href={user ? '/dashboard/recommendations/new' : '/signup'}>
                 <Button
                   size="lg"
-                  className="gap-2 h-11 bg-white text-amber-700 hover:bg-white/95 font-semibold shadow-lg border-0"
+                  className="gap-2 h-11 bg-white text-primary hover:bg-white/95 font-semibold shadow-lg border-0"
                 >
                   <BookOpen size={15} />
-                  {user ? 'Submit a Recommendation' : 'Join Compicfy — it\'s free'}
+                  {user ? 'Submit a Recommendation' : "Join Compicfy — it's free"}
                 </Button>
               </Link>
               <Link href="/browse">
                 <Button
                   size="lg"
-                  className="gap-2 h-11 bg-black/15 text-white hover:bg-black/25 border border-white/30 font-semibold backdrop-blur-sm"
+                  className="gap-2 h-11 bg-white/10 text-white hover:bg-white/20 border border-white/30 font-semibold"
                 >
                   Browse First
                   <ArrowRight size={15} />
