@@ -32,7 +32,7 @@ const GENRES = [
   { label: 'Drama',         emoji: '🎭',  href: '/browse?genre=Drama'         },
   { label: 'Horror',        emoji: '👻',  href: '/browse?genre=Horror'        },
   { label: 'Sports',        emoji: '⚡',  href: '/browse?genre=Sports'        },
-  { label: 'Slice of Life', emoji: '🍵',  href: '/browse?genre=Slice-of-Life' },
+  { label: 'Slice of Life', emoji: '🍵',  href: '/browse?genre=Slice+of+Life' },
   { label: 'Mystery',       emoji: '🔍',  href: '/browse?genre=Mystery'       },
 ]
 
@@ -339,7 +339,7 @@ export default async function HomePage() {
 
       {/* ── CTA BANNER ───────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 py-14 w-full">
-        <div className="relative overflow-hidden rounded-2xl p-8 md:p-12 bg-primary">
+        <div className="relative overflow-hidden rounded-2xl p-8 md:p-12 bg-gradient-to-br from-violet-600 via-indigo-600 to-violet-700 dark:from-violet-500 dark:via-indigo-500 dark:to-violet-600">
           <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/10 pointer-events-none" />
           <div className="absolute -bottom-20 -left-10  w-72 h-72 rounded-full bg-white/5  pointer-events-none" />
           <div className="absolute top-4 right-32       w-20 h-20 rounded-full bg-white/8  pointer-events-none" />
@@ -362,7 +362,7 @@ export default async function HomePage() {
               <Link href={user ? '/dashboard/recommendations/new' : '/signup'}>
                 <Button
                   size="lg"
-                  className="gap-2 h-11 bg-white text-primary hover:bg-white/95 font-semibold shadow-lg border-0"
+                  className="gap-2 h-11 bg-white text-violet-700 hover:bg-white/95 font-semibold shadow-lg border-0"
                 >
                   <BookOpen size={15} />
                   {user ? 'Submit a Recommendation' : "Join Compicfy — it's free"}

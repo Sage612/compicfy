@@ -19,6 +19,9 @@ export function ParticleCanvas() {
     resize()
     window.addEventListener('resize', resize)
 
+    // Detect light mode
+    const isLight = () => !document.documentElement.classList.contains('dark')
+
     type Particle = {
       x: number; y: number; r: number
       speed: number; drift: number
@@ -50,6 +53,12 @@ export function ParticleCanvas() {
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+      // In light mode: use darker, more saturated colours and higher opacity
+      const light = isLight()
+      const opacityMultiplier = light ? 2.2 : 1
+      const lightness = light ? 35 : 68      // darker hue in light mode
+      const coreLightness = light ? 25 : 82  // darker core in light mode
+
       for (const p of particles) {
         p.y -= p.speed
         p.x += p.drift
@@ -62,33 +71,33 @@ export function ParticleCanvas() {
         if (p.x > canvas.width + 20) p.x = -10
 
         ctx.save()
-        ctx.globalAlpha = p.opacity
+        ctx.globalAlpha = Math.min(1, p.opacity * opacityMultiplier)
 
         if (p.type === 'panel') {
           ctx.translate(p.x, p.y)
           ctx.rotate(p.rotation)
-          ctx.strokeStyle = `hsla(${p.hue}, 80%, 68%, 1)`
-          ctx.lineWidth = 0.7
-          ctx.shadowColor = `hsla(${p.hue}, 80%, 60%, 0.9)`
-          ctx.shadowBlur = 5
+          ctx.strokeStyle = `hsla(${p.hue}, 80%, ${lightness}%, 1)`
+          ctx.lineWidth = light ? 1 : 0.7
+          ctx.shadowColor = `hsla(${p.hue}, 80%, ${lightness}%, 0.9)`
+          ctx.shadowBlur = light ? 3 : 5
           ctx.strokeRect(-p.panelW / 2, -p.panelH / 2, p.panelW, p.panelH)
-          ctx.lineWidth = 0.35
+          ctx.lineWidth = light ? 0.6 : 0.35
           ctx.beginPath()
           ctx.moveTo(-p.panelW / 2 + 1, 0)
           ctx.lineTo(p.panelW / 2 - 1, 0)
           ctx.stroke()
         } else {
           const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3.5)
-          grad.addColorStop(0, `hsla(${p.hue}, 90%, 82%, 1)`)
-          grad.addColorStop(0.5, `hsla(${p.hue}, 75%, 60%, 0.5)`)
-          grad.addColorStop(1, `hsla(${p.hue}, 65%, 48%, 0)`)
+          grad.addColorStop(0, `hsla(${p.hue}, 90%, ${coreLightness + 10}%, 1)`)
+          grad.addColorStop(0.5, `hsla(${p.hue}, 75%, ${lightness}%, 0.5)`)
+          grad.addColorStop(1, `hsla(${p.hue}, 65%, ${lightness - 10}%, 0)`)
           ctx.fillStyle = grad
           ctx.beginPath()
           ctx.arc(p.x, p.y, p.r * 3.5, 0, Math.PI * 2)
           ctx.fill()
-          ctx.fillStyle = `hsla(${p.hue + 20}, 95%, 92%, 1)`
-          ctx.shadowColor = `hsla(${p.hue}, 90%, 80%, 1)`
-          ctx.shadowBlur = 4
+          ctx.fillStyle = `hsla(${p.hue + 20}, 95%, ${coreLightness}%, 1)`
+          ctx.shadowColor = `hsla(${p.hue}, 90%, ${lightness}%, 1)`
+          ctx.shadowBlur = light ? 3 : 4
           ctx.beginPath()
           ctx.arc(p.x, p.y, p.r * 0.5, 0, Math.PI * 2)
           ctx.fill()
