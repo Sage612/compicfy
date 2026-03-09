@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Bell, CheckCircle, XCircle, BookOpen, Star, ThumbsUp } from 'lucide-react'
+import { Bell, Trash2 } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
-import { cn } from '@/lib/utils/cn'
+import { cn } from '@/lib/utils'
 import Link from 'next/link'
+import { toast } from 'sonner'
 
 interface Notification {
   id: string
@@ -15,23 +16,26 @@ interface Notification {
   data?: Record<string, any>
 }
 
-const typeConfig: Record<string, { icon: any; color: string }> = {
-  recommendation_approve: { icon: CheckCircle, color: 'text-green-500' },
-  recommendation_reject: { icon: XCircle, color: 'text-destructive' },
-  recommendation_resolve_appeal: { icon: BookOpen, color: 'text-primary' },
-  account_ban: { icon: XCircle, color: 'text-destructive' },
-  account_unban: { icon: CheckCircle, color: 'text-green-500' },
-  account_resolve_appeal: { icon: CheckCircle, color: 'text-primary' },
-  new_review: { icon: Star, color: 'text-yellow-500' },
-  new_vote: { icon: ThumbsUp, color: 'text-primary' },
-}
-
 export function NotificationsClient({
   initialNotifications,
 }: {
   initialNotifications: Notification[]
 }) {
-  const [notifications] = useState(initialNotifications)
+  const [notifications, setNotifications] = useState(initialNotifications)
+
+  const dismiss = async (id: string) => {
+    await fetch(`/api/notifications/${id}`, { method: 'DELETE' })
+    setNotifications((prev) => prev.filter((n) => n.id !== id))
+    toast.success('Notification dismissed')
+  }
+
+  const dismissAll = async () => {
+    await Promise.all(
+      notifications.map((n) => fetch(`/api/notifications/${n.id}`, { method: 'DELETE' }))
+    )
+    setNotifications([])
+    toast.success('All notifications cleared')
+  }
 
   if (!notifications.length) {
     return (
@@ -46,50 +50,69 @@ export function NotificationsClient({
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-3">
+      {/* Clear all */}
+      <div className="flex justify-end">
+        <button
+          onClick={dismissAll}
+          className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+        >
+          <Trash2 size={12} />
+          Clear all
+        </button>
+      </div>
+
       {notifications.map((notif) => {
-        const config = typeConfig[notif.type] ?? { icon: Bell, color: 'text-muted-foreground' }
-        const Icon = config.icon
         const href = notif.data?.recommendation_id
           ? `/comic/${notif.data.recommendation_id}`
-          : undefined
+          : null
 
-        const content = (
+        return (
           <div
+            key={notif.id}
             className={cn(
-              'flex items-start gap-3 p-4 rounded-xl border transition-colors',
+              'flex items-stretch rounded-xl border transition-colors',
               notif.is_read
                 ? 'border-border bg-card'
                 : 'border-primary/20 bg-primary/5'
             )}
           >
-            <div className={cn(
-              'w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5',
-              notif.is_read ? 'bg-muted' : 'bg-primary/10'
-            )}>
-              <Icon size={15} className={config.color} />
+            {/* Content */}
+            <div className="flex items-start gap-3 p-4 flex-1 min-w-0">
+              {!notif.is_read && (
+                <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5" />
+              )}
+              <div className={cn('flex-1 min-w-0', notif.is_read && 'pl-5')}>
+                {href ? (
+                  <Link
+                    href={href}
+                    className={cn(
+                      'text-sm leading-snug hover:text-primary transition-colors',
+                      !notif.is_read && 'font-medium'
+                    )}
+                  >
+                    {notif.title}
+                  </Link>
+                ) : (
+                  <p className={cn('text-sm leading-snug', !notif.is_read && 'font-medium')}>
+                    {notif.title}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground mt-1">
+                  {timeAgo(notif.created_at)}
+                </p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className={cn(
-                'text-sm leading-snug',
-                !notif.is_read && 'font-medium'
-              )}>
-                {notif.title}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {timeAgo(notif.created_at)}
-              </p>
-            </div>
-            {!notif.is_read && (
-              <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />
-            )}
-          </div>
-        )
 
-        return href ? (
-          <Link key={notif.id} href={href}>{content}</Link>
-        ) : (
-          <div key={notif.id}>{content}</div>
+            {/* Dismiss */}
+            <button
+              onClick={() => dismiss(notif.id)}
+              className="px-4 text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors rounded-r-xl shrink-0 text-sm"
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
         )
       })}
     </div>
