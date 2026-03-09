@@ -32,7 +32,7 @@ const GENRES = [
   { label: 'Drama',         emoji: '🎭',  href: '/browse?genre=Drama'         },
   { label: 'Horror',        emoji: '👻',  href: '/browse?genre=Horror'        },
   { label: 'Sports',        emoji: '⚡',  href: '/browse?genre=Sports'        },
-  { label: 'Slice of Life', emoji: '🍵',  href: '/browse?genre=Slice+of+Life' },
+  { label: 'Slice of Life', emoji: '🍵',  href: '/browse?genre=Slice-of-Life' },
   { label: 'Mystery',       emoji: '🔍',  href: '/browse?genre=Mystery'       },
 ]
 
@@ -129,7 +129,7 @@ export default async function HomePage() {
 
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
               <Sparkles size={13} />
-              Your Comic Discovery Community
+              Community-Powered Discovery
             </div>
 
             <h1 className="text-4xl md:text-6xl font-bold leading-[1.05] tracking-tight">
