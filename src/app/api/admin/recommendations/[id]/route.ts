@@ -2,6 +2,15 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/utils/requireRole'
 import { logAction } from '@/lib/utils/admin'
 import { createClient } from '@/lib/supabase/server'
+import { sendApprovedEmail, sendRejectedEmail, sendAppealResolvedEmail } from '@/lib/email/send'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
+
+function getServiceClient() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export async function GET(
   request: Request,
@@ -56,7 +65,6 @@ export async function PATCH(
     for (const field of allowedFields) {
       if (field in body) updates[field] = body[field]
     }
-
     updates.updated_at = new Date().toISOString()
 
     const { data, error: updateError } = await (supabase as any)!
@@ -66,15 +74,13 @@ export async function PATCH(
       .select()
       .single()
 
-    if (updateError) {
-      return NextResponse.json({ error: updateError.message }, { status: 500 })
-    }
+    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
     await logAction(supabase!, user!.id, 'edited recommendation', 'recommendation', id, data.title, {})
     return NextResponse.json({ recommendation: data })
   }
 
-  // Action-based updates — admin + mod
+  // Action-based updates
   let updates: Record<string, any> = {}
   let logMsg = ''
 
@@ -98,10 +104,7 @@ export async function PATCH(
       logMsg = 'rejected recommendation'
       break
     case 'feature':
-      updates = {
-        is_featured: true,
-        featured_at: new Date().toISOString(),
-      }
+      updates = { is_featured: true, featured_at: new Date().toISOString() }
       logMsg = 'featured recommendation'
       break
     case 'unfeature':
@@ -127,11 +130,51 @@ export async function PATCH(
     .select()
     .single()
 
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 })
-  }
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
 
   await logAction(supabase!, user!.id, logMsg, 'recommendation', id, data.title, { action, reason: body.reason })
+
+  // Send notification + email to rec owner
+  if (['approve', 'reject', 'resolve_appeal'].includes(action)) {
+    try {
+      const notifMessages: Record<string, string> = {
+        approve: `Your recommendation "${data.title}" has been approved! 🎉`,
+        reject: `Your recommendation "${data.title}" was not approved.`,
+        resolve_appeal: `Your appeal for "${data.title}" has been ${body.appeal_status}.`,
+      }
+
+      await (supabase as any)!.from('notifications').insert({
+        user_id: data.user_id,
+        type: `recommendation_${action}`,
+        title: notifMessages[action],
+        data: { recommendation_id: id, reason: body.reason },
+      })
+
+      // Send email
+      const service = getServiceClient()
+      const { data: authUser } = await service.auth.admin.getUserById(data.user_id)
+      const email = authUser?.user?.email
+
+      const { data: profile } = await (supabase as any)!
+        .from('profiles')
+        .select('username')
+        .eq('id', data.user_id)
+        .single()
+
+      if (email && profile?.username) {
+        if (action === 'approve') {
+          await sendApprovedEmail(email, profile.username, data.title, id)
+        } else if (action === 'reject') {
+          await sendRejectedEmail(email, profile.username, data.title, body.reason ?? 'No reason provided', id)
+        } else if (action === 'resolve_appeal') {
+          await sendAppealResolvedEmail(email, profile.username, 'recommendation', body.appeal_status, data.title)
+        }
+      }
+    } catch (notifError) {
+      console.error('Notification/email error (non-fatal):', notifError)
+    }
+  }
+
   return NextResponse.json({ recommendation: data })
 }
 
@@ -157,9 +200,7 @@ export async function DELETE(
       .delete()
       .eq('id', id)
 
-    if (deleteError) {
-      return NextResponse.json({ error: deleteError.message }, { status: 500 })
-    }
+    if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
     await logAction(supabase!, user!.id, 'deleted recommendation', 'recommendation', id, (rec as any)?.title ?? id, {})
     return NextResponse.json({ success: true })

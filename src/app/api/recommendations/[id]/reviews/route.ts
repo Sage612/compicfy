@@ -64,7 +64,6 @@ export async function POST(
 
     const body = await request.json()
 
-    // Normalize rating: convert null/0/undefined all to null safely
     const normalized = {
       ...body,
       rating: body.rating ? Number(body.rating) : null,
@@ -91,6 +90,34 @@ export async function POST(
       .single())
 
     if (error) throw error
+
+    // Notify the comic owner (don't notify yourself)
+    try {
+      const { data: rec } = await (supabase as any)
+        .from('recommendations')
+        .select('user_id, title')
+        .eq('id', id)
+        .single()
+
+      if (rec && rec.user_id !== user.id) {
+        const { data: reviewer } = await (supabase as any)
+          .from('profiles')
+          .select('username, display_name')
+          .eq('id', user.id)
+          .single()
+
+        const reviewerName = reviewer?.display_name || reviewer?.username || 'Someone'
+
+        await (supabase as any).from('notifications').insert({
+          user_id: rec.user_id,
+          type: 'new_review',
+          title: `${reviewerName} reviewed your recommendation "${rec.title}"`,
+          data: { recommendation_id: id, reviewer_id: user.id },
+        })
+      }
+    } catch (notifError) {
+      console.error('Notification error (non-fatal):', notifError)
+    }
 
     return NextResponse.json({ review }, { status: 201 })
   } catch {
