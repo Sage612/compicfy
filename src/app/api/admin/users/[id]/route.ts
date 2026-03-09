@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { requireAdmin, logAction } from '@/lib/utils/admin'
+import { requireRole } from '@/lib/utils/requireRole'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { sendBannedEmail, sendUnbannedEmail, sendAppealResolvedEmail } from '@/lib/email/send'
+import { logAction } from '@/lib/utils/admin'
 
 function getServiceClient() {
   return createServiceClient(
@@ -15,9 +16,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { error, status, user, supabase } = await requireAdmin()
-  if (error) return NextResponse.json({ error }, { status })
+  const auth = await requireRole(true) // admin only
+  if (auth.error) return auth.error
 
+  const { user, supabase } = auth
   const body = await request.json()
   const { action, reason, role } = body
 
@@ -127,8 +129,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { error, status, user, supabase } = await requireAdmin()
-  if (error) return NextResponse.json({ error }, { status })
+  const auth = await requireRole(true) // admin only
+  if (auth.error) return auth.error
+
+  const { user, supabase } = auth
 
   // Prevent self-deletion
   if (id === user!.id) {

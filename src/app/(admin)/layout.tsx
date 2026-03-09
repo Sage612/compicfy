@@ -18,16 +18,18 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect('/dashboard')
   }
 
+  const role = profile.role as 'admin' | 'moderator'
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 pt-14">
-        <AdminSidebar />
+        <AdminSidebar role={role} />
         <main className="flex-1 min-w-0 overflow-auto pb-20 md:pb-0">
           {children}
         </main>
       </div>
-      <AdminMobileNav />
+      <AdminMobileNav role={role} />
     </div>
   )
 }

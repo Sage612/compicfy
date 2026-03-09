@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { requireAdmin, logAction } from '@/lib/utils/admin'
+import { requireRole } from '@/lib/utils/requireRole'
+import { logAction } from '@/lib/utils/admin'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET(
@@ -31,14 +32,18 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { error, status, user, supabase } = await requireAdmin()
-  if (error) return NextResponse.json({ error }, { status })
+  const auth = await requireRole(false) // admin + mod
+  if (auth.error) return auth.error
 
+  const { user, supabase } = auth
   const body = await request.json()
   const { action } = body
 
-  // Direct field edit (no action key means it's a full edit)
+  // Direct field edit — admin only
   if (!action) {
+    const adminAuth = await requireRole(true)
+    if (adminAuth.error) return adminAuth.error
+
     const allowedFields = [
       'title', 'description', 'type', 'status', 'genres', 'themes',
       'content_warnings', 'content_rating', 'official_platforms',
@@ -69,7 +74,7 @@ export async function PATCH(
     return NextResponse.json({ recommendation: data })
   }
 
-  // Action-based updates
+  // Action-based updates — admin + mod
   let updates: Record<string, any> = {}
   let logMsg = ''
 
@@ -135,8 +140,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { error, status, user, supabase } = await requireAdmin()
-  if (error) return NextResponse.json({ error }, { status })
+  const auth = await requireRole(true) // admin only
+  if (auth.error) return auth.error
+
+  const { user, supabase } = auth
 
   try {
     const { data: rec } = await supabase!

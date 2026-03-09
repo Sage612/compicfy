@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/utils/admin'
+import { requireRole } from '@/lib/utils/requireRole'
 
 export async function GET(request: Request) {
   try {
-    const { error, status, supabase } = await requireAdmin()
-    if (error) return NextResponse.json({ error }, { status })
+    const auth = await requireRole(false) // admin + mod
+    if (auth.error) return auth.error
 
+    const { supabase } = auth
     const { searchParams } = new URL(request.url)
     const filter = searchParams.get('filter') ?? 'pending'
     const page = parseInt(searchParams.get('page') ?? '1')
@@ -14,7 +15,7 @@ export async function GET(request: Request) {
 
     let query = supabase!
       .from('recommendations')
-      .select('*', { count: 'exact' })  // ← no join first
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 

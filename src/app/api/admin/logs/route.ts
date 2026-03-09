@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/utils/admin'
+import { requireRole } from '@/lib/utils/requireRole'
 
 export async function GET(request: Request) {
-  const { error, status, supabase } = await requireAdmin()
-  if (error) return NextResponse.json({ error }, { status })
+  const auth = await requireRole(true) // admin only
+  if (auth.error) return auth.error
 
+  const { supabase } = auth
   const { searchParams } = new URL(request.url)
   const page = parseInt(searchParams.get('page') ?? '1')
   const limit = 50
@@ -18,7 +19,6 @@ export async function GET(request: Request) {
 
   if (fetchError) return NextResponse.json({ error: 'Failed to fetch' }, { status: 500 })
 
-  // Normalise column names for frontend
   const logs = data?.map((log: any) => ({
     ...log,
     target_type: log.entity_type,

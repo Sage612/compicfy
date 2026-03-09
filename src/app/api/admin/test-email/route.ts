@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/utils/admin'
+import { requireRole } from '@/lib/utils/requireRole'
 import {
   sendWelcomeEmail,
   sendApprovedEmail,
@@ -10,9 +10,8 @@ import {
 } from '@/lib/email/send'
 
 export async function POST(request: Request) {
-  // Admin only
-  const { error, status, user } = await requireAdmin()
-  if (error) return NextResponse.json({ error }, { status })
+  const auth = await requireRole(true) // admin only
+  if (auth.error) return auth.error
 
   const { type, to } = await request.json()
 

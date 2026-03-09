@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server'
-import { requireAdmin, logAction } from '@/lib/utils/admin'
+import { requireRole } from '@/lib/utils/requireRole'
+import { logAction } from '@/lib/utils/admin'
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { error, status, user, supabase } = await requireAdmin()
-  if (error) return NextResponse.json({ error }, { status })
+  const auth = await requireRole(false) // admin + mod
+  if (auth.error) return auth.error
+
+  const { user, supabase } = auth
   const db = supabase as any
 
   const { data: review } = await db.from('reviews').select('content, user_id').eq('id', id).single()
@@ -23,8 +26,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { error, status, user, supabase } = await requireAdmin()
-  if (error) return NextResponse.json({ error }, { status })
+  const auth = await requireRole(false) // admin + mod
+  if (auth.error) return auth.error
+
+  const { user, supabase } = auth
   const db = supabase as any
 
   const body = await request.json()
