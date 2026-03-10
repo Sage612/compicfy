@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRef } from 'react'
 import { ComicCard } from './ComicCard'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import type { Recommendation } from '@/types/database.types'
 
@@ -37,36 +37,45 @@ export function HorizontalSection({
   if (!recommendations.length) return null
 
   return (
-    <div className={cn('space-y-3', className)}>
+    <div className={cn('space-y-4', className)}>
       {/* Section header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold flex items-center gap-2">
-          {emoji && <span>{emoji}</span>}
-          {title}
-        </h2>
-        <div className="flex items-center gap-2">
-          {/* Scroll arrows */}
-          <div className="flex gap-1">
-            <button
-              onClick={() => scroll('left')}
-              className="w-7 h-7 rounded-full border border-border bg-card hover:bg-accent flex items-center justify-center transition-colors"
-              aria-label="Scroll left"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <button
-              onClick={() => scroll('right')}
-              className="w-7 h-7 rounded-full border border-border bg-card hover:bg-accent flex items-center justify-center transition-colors"
-              aria-label="Scroll right"
-            >
-              <ChevronRight size={14} />
-            </button>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 min-w-0">
+          {emoji && (
+            <span className="text-2xl leading-none shrink-0">{emoji}</span>
+          )}
+          <div>
+            <h2 className="text-lg font-black leading-tight tracking-tight">{title}</h2>
+            <div className="h-0.5 w-8 rounded-full bg-primary mt-1 opacity-60" />
           </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Scroll arrows */}
+          <button
+            onClick={() => scroll('left')}
+            className="w-8 h-8 rounded-full border border-border bg-card hover:bg-accent hover:border-primary/40 flex items-center justify-center transition-all"
+            aria-label="Scroll left"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <button
+            onClick={() => scroll('right')}
+            className="w-8 h-8 rounded-full border border-border bg-card hover:bg-accent hover:border-primary/40 flex items-center justify-center transition-all"
+            aria-label="Scroll right"
+          >
+            <ChevronRight size={14} />
+          </button>
 
           {viewAllHref && (
             <Link href={viewAllHref}>
-              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground h-7">
-                View all →
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1 text-xs text-muted-foreground hover:text-foreground h-8 px-3"
+              >
+                All
+                <ArrowRight size={11} />
               </Button>
             </Link>
           )}
@@ -76,7 +85,7 @@ export function HorizontalSection({
       {/* Horizontal scroll container */}
       <div
         ref={scrollRef}
-        className="flex gap-3 overflow-x-auto no-scrollbar pb-2"
+        className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1"
       >
         {recommendations.map((rec) => (
           <div key={rec.id} className="flex-none w-36 sm:w-40">

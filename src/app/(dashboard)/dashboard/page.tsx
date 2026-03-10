@@ -2,7 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { BookOpen, Bookmark, Star, ThumbsUp, Plus, Settings } from 'lucide-react'
+import {
+  BookOpen, Bookmark, Star, ThumbsUp,
+  Plus, Settings, Flame, Trophy, ArrowRight, BookMarked
+} from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils/format'
 import type { Profile } from '@/types/database.types'
@@ -13,18 +16,16 @@ export const metadata: Metadata = { title: 'Dashboard' }
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) redirect('/login')
 
   const { data: profileData } = await supabase
-  .from('profiles')
-  .select('*')
-  .eq('id', user.id)
-  .single()
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
 
-if (!profileData) redirect('/login')
-
-const profile = profileData as Profile
+  if (!profileData) redirect('/login')
+  const profile = profileData as Profile
 
   const initials = (profile.display_name || profile.username)
     .slice(0, 2)
@@ -33,118 +34,186 @@ const profile = profileData as Profile
   const stats = [
     {
       label: 'Recommendations',
-      value: profile.total_recommendations,
+      value: profile.total_recommendations ?? 0,
       icon: BookOpen,
       href: '/dashboard/recommendations',
-      color: 'text-primary',
-      bg: 'bg-primary/10',
+      gradient: 'from-violet-500 to-purple-600',
+      bg: 'bg-violet-500/10',
+      text: 'text-violet-500',
+    },
+    {
+      label: 'Reviews Written',
+      value: profile.total_reviews ?? 0,
+      icon: Star,
+      href: '/dashboard/reviews',
+      gradient: 'from-amber-500 to-orange-500',
+      bg: 'bg-amber-500/10',
+      text: 'text-amber-500',
+    },
+    {
+      label: 'Votes Received',
+      value: profile.total_votes_received ?? 0,
+      icon: ThumbsUp,
+      href: '/dashboard/recommendations',
+      gradient: 'from-emerald-500 to-teal-500',
+      bg: 'bg-emerald-500/10',
+      text: 'text-emerald-500',
     },
     {
       label: 'Saved Comics',
       value: '—',
       icon: Bookmark,
       href: '/dashboard/saved',
-      color: 'text-secondary',
-      bg: 'bg-secondary/10',
+      gradient: 'from-rose-500 to-pink-500',
+      bg: 'bg-rose-500/10',
+      text: 'text-rose-500',
+    },
+  ]
+
+  const quickActions = [
+    {
+      href: '/dashboard/recommendations/new',
+      icon: Plus,
+      label: 'Submit a Recommendation',
+      desc: 'Share a comic with the community',
+      gradient: 'from-violet-500 to-purple-600',
     },
     {
-      label: 'Reviews Written',
-      value: profile.total_reviews,
-      icon: Star,
-      href: '/dashboard/reviews',
-      color: 'text-yellow-500',
-      bg: 'bg-yellow-500/10',
+      href: '/browse',
+      icon: Flame,
+      label: 'Browse Comics',
+      desc: 'Discover new recommendations',
+      gradient: 'from-rose-500 to-pink-600',
     },
     {
-      label: 'Votes Received',
-      value: profile.total_votes_received,
-      icon: ThumbsUp,
-      href: '/dashboard/recommendations',
-      color: 'text-green-500',
-      bg: 'bg-green-500/10',
+      href: '/dashboard/lists',
+      icon: BookMarked,
+      label: 'Reading Lists',
+      desc: 'Manage your reading collection',
+      gradient: 'from-amber-500 to-orange-500',
+    },
+    {
+      href: '/dashboard/saved',
+      icon: Bookmark,
+      label: 'Saved Comics',
+      desc: 'Comics you\'ve bookmarked',
+      gradient: 'from-emerald-500 to-teal-500',
     },
   ]
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
 
-      {/* Welcome card */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-6 rounded-xl border border-border bg-card">
-        <Avatar className="h-16 w-16 border-2 border-border shrink-0">
-          <AvatarImage src={profile.avatar_url ?? undefined} />
-          <AvatarFallback className="text-xl bg-primary text-primary-foreground">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold truncate">
-            Welcome back, {profile.display_name || profile.username}!
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Member since {formatDate(profile.member_since)}
-          </p>
+      {/* Hero welcome banner */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 md:p-8">
+        {/* Background decoration */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-primary/5 blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-violet-500/5 blur-xl" />
         </div>
-        <div className="flex gap-2 shrink-0">
-          <Link href="/dashboard/settings">
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Settings size={14} />
-              Settings
-            </Button>
-          </Link>
-          <Link href="/dashboard/recommendations/new">
-            <Button size="sm" className="gap-1.5">
-              <Plus size={14} />
-              Add Comic
-            </Button>
-          </Link>
+
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
+          {/* Avatar with ring */}
+          <div className="relative shrink-0">
+            <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-primary to-violet-500 opacity-30 blur-sm" />
+            <Avatar className="relative h-16 w-16 border-2 border-background">
+              <AvatarImage src={profile.avatar_url ?? undefined} />
+              <AvatarFallback className="text-xl bg-gradient-to-br from-primary to-violet-500 text-white font-bold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-xl font-black truncate">
+                Hey, {profile.display_name || profile.username}! 👋
+              </h1>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Member since {formatDate(profile.member_since)} · Keep sharing great reads 📚
+            </p>
+          </div>
+
+          <div className="flex gap-2 shrink-0">
+            <Link href="/dashboard/settings">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Settings size={13} />
+                Settings
+              </Button>
+            </Link>
+            <Link href="/dashboard/recommendations/new">
+              <Button size="sm" className="gap-1.5">
+                <Plus size={13} />
+                Add Comic
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {stats.map(({ label, value, icon: Icon, href, color, bg }) => (
-          <Link
-            key={label}
-            href={href}
-            className="p-4 rounded-xl border border-border bg-card hover:border-primary transition-colors group"
-          >
-            <div className={`w-9 h-9 rounded-lg ${bg} flex items-center justify-center mb-3`}>
-              <Icon size={18} className={color} />
-            </div>
-            <p className="text-2xl font-bold">{value}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
-          </Link>
-        ))}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Your Stats</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {stats.map(({ label, value, icon: Icon, href, gradient, bg, text }) => (
+            <Link
+              key={label}
+              href={href}
+              className="group relative overflow-hidden p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200"
+            >
+              {/* Background glow on hover */}
+              <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br ${gradient} opacity-[0.03]`} />
+
+              <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-3`}>
+                <Icon size={18} className={text} />
+              </div>
+              <p className="text-2xl font-black tabular-nums">{value}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{label}</p>
+
+              <ArrowRight size={12} className="absolute bottom-4 right-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 group-hover:translate-x-0.5 transition-all" />
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Quick actions */}
       <div>
-        <h2 className="text-base font-semibold mb-3">Quick Actions</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Link href="/dashboard/recommendations/new">
-            <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:border-primary transition-colors cursor-pointer">
-              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Plus size={18} className="text-primary" />
+          {quickActions.map(({ href, icon: Icon, label, desc, gradient }) => (
+            <Link key={href} href={href}>
+              <div className="group flex items-center gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer">
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm group-hover:scale-110 transition-transform`}>
+                  <Icon size={17} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold group-hover:text-primary transition-colors">{label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{desc}</p>
+                </div>
+                <ArrowRight size={14} className="text-muted-foreground/30 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
               </div>
-              <div>
-                <p className="text-sm font-medium">Submit a Recommendation</p>
-                <p className="text-xs text-muted-foreground">Share a comic with the community</p>
-              </div>
-            </div>
-          </Link>
-          <Link href="/browse">
-            <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card hover:border-primary transition-colors cursor-pointer">
-              <div className="w-9 h-9 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0">
-                <BookOpen size={18} className="text-secondary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Browse Comics</p>
-                <p className="text-xs text-muted-foreground">Discover new recommendations</p>
-              </div>
-            </div>
-          </Link>
+            </Link>
+          ))}
         </div>
       </div>
+
+      {/* Achievement teaser */}
+      <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+        <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-amber-500/10 blur-xl pointer-events-none" />
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 flex items-center justify-center shrink-0">
+            <Trophy size={22} className="text-amber-500" />
+          </div>
+          <div className="flex-1">
+            <p className="font-bold text-sm">Achievements coming soon</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Earn badges for sharing great comics and helping the community grow
+            </p>
+          </div>
+        </div>
+      </div>
+
     </div>
   )
 }
