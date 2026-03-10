@@ -243,7 +243,7 @@ export function ReadingListDetail({
                   </div>
 
                   {/* Status selector */}
-                  <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                     <span className={cn(
                       'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border font-medium',
                       statusMeta.className
