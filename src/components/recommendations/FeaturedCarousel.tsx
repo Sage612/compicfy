@@ -5,8 +5,7 @@ import Autoplay from 'embla-carousel-autoplay'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, ChevronRight, BookOpen, ThumbsUp } from 'lucide-react'
+import { ChevronLeft, ChevronRight, BookOpen, ThumbsUp, Star, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
@@ -15,17 +14,26 @@ interface Props {
   recommendations: Recommendation[]
 }
 
-const statusColors = {
-  ongoing: 'bg-green-500',
-  completed: 'bg-blue-500',
-  hiatus: 'bg-yellow-500',
-  cancelled: 'bg-red-500',
+const typeColors: Record<string, string> = {
+  manga:   '#f43f5e',
+  manhwa:  '#8b5cf6',
+  manhua:  '#f59e0b',
+  webtoon: '#14b8a6',
+  comic:   '#3b82f6',
+  other:   '#6b7280',
+}
+
+const statusConfig = {
+  ongoing:   { color: 'bg-emerald-500', label: 'Ongoing'   },
+  completed: { color: 'bg-sky-500',     label: 'Completed' },
+  hiatus:    { color: 'bg-amber-500',   label: 'Hiatus'    },
+  cancelled: { color: 'bg-rose-500',    label: 'Cancelled' },
 }
 
 export function FeaturedCarousel({ recommendations }: Props) {
   const [emblaRef, emblaApi] = useEmblaCarousel(
     { loop: true, align: 'start' },
-    [Autoplay({ delay: 4000, stopOnInteraction: false, stopOnMouseEnter: true })]
+    [Autoplay({ delay: 5000, stopOnInteraction: false, stopOnMouseEnter: true })]
   )
 
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -57,137 +65,172 @@ export function FeaturedCarousel({ recommendations }: Props) {
   if (!recommendations.length) return null
 
   return (
-    <div className="relative rounded-2xl overflow-hidden group border border-border">
-      {/* Embla viewport */}
+    <div className="relative rounded-3xl overflow-hidden group shadow-2xl">
       <div ref={emblaRef} className="overflow-hidden">
         <div className="flex">
-          {recommendations.map((rec) => (
-            <div
-              key={rec.id}
-              className="relative flex-none w-full min-w-0"
-            >
-              {/* Always dark background so carousel never blends with page in any mode */}
-              <div className="relative h-[280px] sm:h-[360px] md:h-[420px] overflow-hidden bg-slate-900">
+          {recommendations.map((rec, i) => {
+            const accentColor = typeColors[rec.type] || typeColors.other
+            const status = statusConfig[rec.status as keyof typeof statusConfig]
 
-                {/* Background blur image */}
-                {rec.cover_url ? (
-                  <img
-                    src={rec.cover_url}
-                    alt=""
-                    aria-hidden="true"
-                    className="absolute inset-0 w-full h-full object-cover scale-110 blur-md opacity-40"
+            return (
+              <div key={rec.id} className="relative flex-none w-full min-w-0">
+                <div className="relative h-[300px] sm:h-[380px] md:h-[460px] overflow-hidden bg-zinc-950">
+
+                  {/* Full bleed background cover */}
+                  {rec.cover_url && (
+                    <img
+                      src={rec.cover_url}
+                      alt=""
+                      aria-hidden
+                      className="absolute inset-0 w-full h-full object-cover scale-105 blur-xl opacity-30"
+                    />
+                  )}
+
+                  {/* Colour tint from type */}
+                  <div
+                    className="absolute inset-0 opacity-15"
+                    style={{ background: `radial-gradient(ellipse at 70% 50%, ${accentColor}55, transparent 70%)` }}
                   />
-                ) : null}
 
-                {/* Dark overlay gradients */}
-                <div className="absolute inset-0 bg-gradient-to-r from-slate-900/95 via-slate-900/80 to-slate-900/40" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
+                  {/* Strong left gradient for text legibility */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/98 via-zinc-950/75 to-zinc-950/20" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/60 via-transparent to-transparent" />
 
-                {/* Content */}
-                <div className="relative h-full flex items-end md:items-center p-6 md:p-10 gap-6">
-                  {/* Cover thumbnail */}
-                  <div className="hidden sm:block w-32 md:w-44 shrink-0">
-                    <div className="aspect-[3/4] rounded-xl overflow-hidden border-2 border-white/10 shadow-2xl">
-                      {rec.cover_url ? (
-                        <img
-                          src={rec.cover_url}
-                          alt={rec.title}
-                          className="w-full h-full object-cover"
+                  {/* Decorative vertical accent line */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-1 opacity-80"
+                    style={{ background: `linear-gradient(to bottom, transparent, ${accentColor}, transparent)` }}
+                  />
+
+                  {/* Content */}
+                  <div className="relative h-full flex items-center px-6 md:px-12 gap-8">
+
+                    {/* Cover art */}
+                    <div className="hidden sm:block shrink-0">
+                      <div className="relative">
+                        {/* Glow behind cover */}
+                        <div
+                          className="absolute -inset-3 rounded-2xl blur-xl opacity-40"
+                          style={{ background: accentColor }}
                         />
-                      ) : (
-                        <div className="w-full h-full bg-white/10 flex items-center justify-center">
-                          <BookOpen size={32} className="text-white/50" />
+                        <div className="relative w-32 md:w-48 aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                          {rec.cover_url ? (
+                            <img
+                              src={rec.cover_url}
+                              alt={rec.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-white/5">
+                              <BookOpen size={32} className="text-white/30" />
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
+                    </div>
+
+                    {/* Text content */}
+                    <div className="flex-1 min-w-0 space-y-4">
+
+                      {/* Type + featured badge */}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-widest text-white"
+                          style={{ background: `${accentColor}33`, border: `1px solid ${accentColor}55` }}
+                        >
+                          <Zap size={10} style={{ color: accentColor }} />
+                          <span style={{ color: accentColor }}>{rec.type}</span>
+                        </span>
+                        <span className="flex items-center gap-1 text-xs font-bold text-amber-400 uppercase tracking-widest">
+                          <Star size={10} className="fill-amber-400" />
+                          Featured
+                        </span>
+                      </div>
+
+                      {/* Title */}
+                      <h2 className="text-2xl sm:text-3xl md:text-5xl font-black leading-[1.0] text-white tracking-tight line-clamp-2">
+                        {rec.title}
+                      </h2>
+
+                      {/* Status + genres */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+                          <span className={cn('w-1.5 h-1.5 rounded-full', status?.color)} />
+                          <span className="text-xs text-white/70 capitalize">{status?.label ?? rec.status}</span>
+                        </div>
+                        {rec.genres?.slice(0, 3).map((genre) => (
+                          <span
+                            key={genre}
+                            className="px-2 py-0.5 rounded-full text-xs text-white/60 bg-white/5 border border-white/10"
+                          >
+                            {genre}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-sm text-white/50 line-clamp-2 max-w-md leading-relaxed hidden sm:block">
+                        {rec.description}
+                      </p>
+
+                      {/* CTA + stats */}
+                      <div className="flex items-center gap-4 pt-1">
+                        <Link href={`/comic/${rec.id}`}>
+                          <Button
+                            size="sm"
+                            className="gap-2 font-bold text-zinc-950 border-0 shadow-lg hover:scale-105 transition-transform"
+                            style={{ background: accentColor }}
+                          >
+                            <BookOpen size={13} />
+                            Read More
+                          </Button>
+                        </Link>
+                        <div className="flex items-center gap-3 text-sm text-white/40">
+                          <span className="flex items-center gap-1">
+                            <ThumbsUp size={12} />
+                            {formatNumber(rec.upvotes)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Text — always white since bg is always dark */}
-                  <div className="flex-1 min-w-0 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold uppercase tracking-widest text-white/70">
-                        ⭐ Featured
-                      </span>
-                      <span className="text-xs text-white/50 capitalize">
-                        {rec.type}
-                      </span>
-                    </div>
-
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold leading-tight line-clamp-2 text-white">
-                      {rec.title}
-                    </h2>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className={cn(
-                          'w-2 h-2 rounded-full',
-                          statusColors[rec.status as keyof typeof statusColors]
-                        )} />
-                        <span className="text-xs text-white/60 capitalize">
-                          {rec.status}
-                        </span>
-                      </div>
-                      {rec.genres?.slice(0, 3).map((genre) => (
-                        <Badge
-                          key={genre}
-                          variant="secondary"
-                          className="text-xs bg-white/10 text-white/80 border-white/10 hover:bg-white/20"
-                        >
-                          {genre}
-                        </Badge>
-                      ))}
-                    </div>
-
-                    <p className="text-sm text-white/60 line-clamp-2 max-w-lg">
-                      {rec.description}
-                    </p>
-
-                    <div className="flex items-center gap-4">
-                      <Link href={`/comic/${rec.id}`}>
-                        <Button size="sm" className="gap-2 bg-white text-slate-900 hover:bg-white/90">
-                          <BookOpen size={14} />
-                          View Details
-                        </Button>
-                      </Link>
-                      <span className="flex items-center gap-1 text-sm text-white/60">
-                        <ThumbsUp size={13} />
-                        {formatNumber(rec.upvotes)}
-                      </span>
-                    </div>
+                  {/* Slide number */}
+                  <div className="absolute top-4 right-4 text-xs text-white/20 font-mono tabular-nums">
+                    {String(i + 1).padStart(2, '0')} / {String(recommendations.length).padStart(2, '0')}
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
-      {/* Prev arrow */}
+      {/* Nav arrows */}
       <button
         onClick={scrollPrev}
         className={cn(
-          'absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full',
-          'bg-black/40 backdrop-blur-sm border border-white/10',
+          'absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full',
+          'bg-white/5 backdrop-blur-md border border-white/10',
           'flex items-center justify-center text-white',
-          'opacity-0 group-hover:opacity-100 transition-opacity',
-          'hover:bg-black/60 hover:scale-110 transition-all',
-          !canScrollPrev && 'cursor-not-allowed opacity-30'
+          'opacity-0 group-hover:opacity-100 transition-all duration-200',
+          'hover:bg-white/15 hover:scale-110 hover:border-white/20',
+          !canScrollPrev && 'cursor-not-allowed opacity-20'
         )}
         aria-label="Previous"
       >
         <ChevronLeft size={18} />
       </button>
 
-      {/* Next arrow */}
       <button
         onClick={scrollNext}
         className={cn(
-          'absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full',
-          'bg-black/40 backdrop-blur-sm border border-white/10',
+          'absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full',
+          'bg-white/5 backdrop-blur-md border border-white/10',
           'flex items-center justify-center text-white',
-          'opacity-0 group-hover:opacity-100 transition-opacity',
-          'hover:bg-black/60 hover:scale-110 transition-all',
-          !canScrollNext && 'cursor-not-allowed opacity-30'
+          'opacity-0 group-hover:opacity-100 transition-all duration-200',
+          'hover:bg-white/15 hover:scale-110 hover:border-white/20',
+          !canScrollNext && 'cursor-not-allowed opacity-20'
         )}
         aria-label="Next"
       >
@@ -195,7 +238,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
       </button>
 
       {/* Dot indicators */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
         {recommendations.map((_, index) => (
           <button
             key={index}
@@ -203,8 +246,8 @@ export function FeaturedCarousel({ recommendations }: Props) {
             className={cn(
               'rounded-full transition-all duration-300',
               selectedIndex === index
-                ? 'w-6 h-2 bg-white'
-                : 'w-2 h-2 bg-white/30 hover:bg-white/50'
+                ? 'w-6 h-1.5 bg-white'
+                : 'w-1.5 h-1.5 bg-white/20 hover:bg-white/40'
             )}
             aria-label={`Go to slide ${index + 1}`}
           />

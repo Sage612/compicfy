@@ -1,8 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { BookOpen, ThumbsUp, MessageSquare, Bookmark } from 'lucide-react'
+import { BookOpen, ThumbsUp, MessageSquare, Bookmark, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
@@ -12,123 +11,131 @@ interface ComicCardProps {
   className?: string
 }
 
-const statusColors = {
-  ongoing: 'bg-green-500',
-  completed: 'bg-blue-500',
-  hiatus: 'bg-yellow-500',
-  cancelled: 'bg-red-500',
+const statusConfig = {
+  ongoing:   { color: 'bg-emerald-500', label: 'Ongoing' },
+  completed: { color: 'bg-sky-500',     label: 'Done'    },
+  hiatus:    { color: 'bg-amber-500',   label: 'Hiatus'  },
+  cancelled: { color: 'bg-rose-500',    label: 'Dropped' },
 }
 
-const typeLabels: Record<string, string> = {
-  manga: 'Manga',
-  manhwa: 'Manhwa',
-  manhua: 'Manhua',
-  webtoon: 'Webtoon',
-  comic: 'Comic',
-  other: 'Other',
+const typeColors: Record<string, string> = {
+  manga:   'from-rose-500 to-pink-600',
+  manhwa:  'from-violet-500 to-purple-600',
+  manhua:  'from-amber-500 to-orange-600',
+  webtoon: 'from-teal-500 to-cyan-600',
+  comic:   'from-blue-500 to-indigo-600',
+  other:   'from-slate-500 to-zinc-600',
 }
 
 export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
+  const status = statusConfig[rec.status as keyof typeof statusConfig]
+  const typeGradient = typeColors[rec.type] || typeColors.other
+
   return (
     <Link
       href={`/comic/${rec.id}`}
-      className={cn(
-        'group flex flex-col rounded-xl overflow-hidden border border-border bg-card',
-        'hover:border-primary/60 hover:shadow-lg hover:shadow-primary/5',
-        'transition-all duration-200',
-        className
-      )}
+      className={cn('group relative flex flex-col', className)}
     >
-      {/* Cover image */}
-      <div className="relative aspect-[3/4] bg-muted overflow-hidden">
+      {/* Card */}
+      <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-900 shadow-md group-hover:shadow-2xl group-hover:shadow-black/40 transition-all duration-300 group-hover:-translate-y-1">
+
+        {/* Cover */}
         {rec.cover_url ? (
           <img
             src={rec.cover_url}
             alt={rec.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-muted to-muted/50">
-            <BookOpen size={32} className="text-muted-foreground opacity-40" />
-            <span className="text-xs text-muted-foreground opacity-60 text-center px-2">
-              {rec.title}
+          <div className={cn(
+            'absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br',
+            typeGradient
+          )}>
+            <BookOpen size={28} className="text-white/60" />
+            <span className="text-[10px] text-white/50 text-center px-3 leading-snug">{rec.title}</span>
+          </div>
+        )}
+
+        {/* Gradient overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/20" />
+
+        {/* Type pill — top left */}
+        <div className="absolute top-2.5 left-2.5">
+          <span className={cn(
+            'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider text-white bg-gradient-to-r shadow-lg',
+            typeGradient
+          )}>
+            {rec.type}
+          </span>
+        </div>
+
+        {/* Age rating — top right */}
+        {(rec.content_rating === 'adult' || rec.content_rating === 'mature') && (
+          <div className="absolute top-2.5 right-2.5">
+            <span className={cn(
+              'inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black text-white',
+              rec.content_rating === 'adult' ? 'bg-red-600' : 'bg-orange-500'
+            )}>
+              {rec.content_rating === 'adult' ? '18+' : '17+'}
             </span>
           </div>
         )}
 
-        {/* Top badges overlay */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1">
-          {/* Type badge */}
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-black/70 text-white backdrop-blur-sm">
-            {typeLabels[rec.type] || rec.type}
-          </span>
-          {/* Age rating badges */}
-          {rec.content_rating === 'adult' && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600/90 text-white backdrop-blur-sm">
-              🔞 18+
-            </span>
-          )}
-          {rec.content_rating === 'mature' && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-500/90 text-white backdrop-blur-sm">
-              Mature
-            </span>
-          )}
-        </div>
+        {/* Bottom info */}
+        <div className="absolute bottom-0 left-0 right-0 p-3 space-y-1.5">
+          {/* Title */}
+          <h3 className="text-white font-bold text-xs leading-snug line-clamp-2 drop-shadow-sm">
+            {rec.title}
+          </h3>
 
-        {/* Status dot */}
-        <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm">
-          <span className={cn('w-1.5 h-1.5 rounded-full', statusColors[rec.status as keyof typeof statusColors])} />
-          <span className="text-[10px] text-white capitalize">{rec.status}</span>
-        </div>
-
-        {/* Score overlay at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-2 pt-6">
+          {/* Stats row */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="flex items-center gap-1 text-xs text-white/90">
-                <ThumbsUp size={11} />
+              <span className="flex items-center gap-0.5 text-[10px] text-white/70">
+                <ThumbsUp size={9} />
                 {formatNumber(rec.upvotes)}
               </span>
-              <span className="flex items-center gap-1 text-xs text-white/90">
-                <MessageSquare size={11} />
+              <span className="flex items-center gap-0.5 text-[10px] text-white/70">
+                <MessageSquare size={9} />
                 {formatNumber(rec.review_count)}
               </span>
             </div>
-            <span className="flex items-center gap-1 text-xs text-white/90">
-              <Bookmark size={11} />
-              {formatNumber(rec.save_count)}
-            </span>
+            {/* Status dot */}
+            <div className="flex items-center gap-1">
+              <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status?.color ?? 'bg-zinc-500')} />
+              <span className="text-[9px] text-white/60 capitalize">{status?.label ?? rec.status}</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Card info below image */}
-      <div className="p-2.5 flex flex-col gap-1.5 flex-1">
-        <h3 className="text-sm font-semibold leading-tight line-clamp-2 group-hover:text-primary transition-colors">
-          {rec.title}
-        </h3>
+        {/* Hover shine effect */}
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none" />
 
-        {/* Genres */}
-        {rec.genres?.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {rec.genres.slice(0, 2).map((genre) => (
-              <Badge
-                key={genre}
-                variant="secondary"
-                className="text-[10px] px-1.5 py-0 h-4"
-              >
-                {genre}
-              </Badge>
-            ))}
-            {rec.genres.length > 2 && (
-              <span className="text-[10px] text-muted-foreground">
-                +{rec.genres.length - 2}
-              </span>
-            )}
+        {/* Featured star */}
+        {rec.is_featured && (
+          <div className="absolute top-2.5 right-2.5">
+            <Star size={14} className="text-amber-400 fill-amber-400 drop-shadow-lg" />
           </div>
         )}
       </div>
+
+      {/* Genre pills below card */}
+      {rec.genres?.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2 px-0.5">
+          {rec.genres.slice(0, 2).map((genre) => (
+            <span
+              key={genre}
+              className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-medium"
+            >
+              {genre}
+            </span>
+          ))}
+          {rec.genres.length > 2 && (
+            <span className="text-[9px] text-muted-foreground/60">+{rec.genres.length - 2}</span>
+          )}
+        </div>
+      )}
     </Link>
   )
 }
