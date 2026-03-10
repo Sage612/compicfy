@@ -1,9 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import {
   BookMarked, Plus, Trash2, Globe, Lock,
@@ -157,11 +157,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
               {creating ? <Loader2 size={13} className="animate-spin" /> : null}
               Create List
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowCreate(false)}
-            >
+            <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>
               Cancel
             </Button>
           </div>
@@ -207,7 +203,12 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
                       </Button>
                     </div>
                   ) : (
-                    <h3 className="font-semibold text-sm truncate">{list.name}</h3>
+                    <Link
+                      href={`/dashboard/lists/${list.id}`}
+                      className="font-semibold text-sm truncate hover:text-primary transition-colors block"
+                    >
+                      {list.name}
+                    </Link>
                   )}
                   {list.description && (
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
