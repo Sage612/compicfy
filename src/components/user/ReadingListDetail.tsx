@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
@@ -55,12 +56,14 @@ export function ReadingListDetail({
   list: ReadingList
   initialItems: ListItem[]
 }) {
+  const router = useRouter()
   const [items, setItems] = useState(initialItems)
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<string | null>(null)
 
-  const handleRemove = async (item: ListItem) => {
+  const handleRemove = async (e: React.MouseEvent, item: ListItem) => {
+    e.stopPropagation()
     if (!confirm(`Remove "${item.recommendations.title}" from this list?`)) return
     setRemovingId(item.id)
     try {
@@ -76,7 +79,9 @@ export function ReadingListDetail({
     }
   }
 
-  const handleStatusChange = async (item: ListItem, newStatus: string) => {
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>, item: ListItem) => {
+    e.stopPropagation()
+    const newStatus = e.target.value
     setUpdatingId(item.id)
     try {
       await fetch(`/api/lists/${list.id}/items`, {
@@ -103,7 +108,6 @@ export function ReadingListDetail({
     ? items.filter((i) => i.status === filterStatus)
     : items
 
-  // Count by status for filter tabs
   const statusCounts = items.reduce((acc, item) => {
     acc[item.status] = (acc[item.status] ?? 0) + 1
     return acc
@@ -198,42 +202,36 @@ export function ReadingListDetail({
             return (
               <div
                 key={item.id}
-                className="flex gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors"
+                onClick={() => router.push(`/comic/${rec.id}`)}
+                className="flex gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-accent/30 transition-colors cursor-pointer"
               >
                 {/* Cover */}
-                <Link href={`/comic/${rec.id}`} className="shrink-0">
-                  <div className="w-14 h-20 rounded-lg overflow-hidden bg-muted border border-border">
-                    {rec.cover_url ? (
-                      <img
-                        src={rec.cover_url}
-                        alt={rec.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <BookOpen size={16} className="text-muted-foreground opacity-40" />
-                      </div>
-                    )}
-                  </div>
-                </Link>
+                <div className="w-14 h-20 rounded-lg overflow-hidden bg-muted border border-border shrink-0">
+                  {rec.cover_url ? (
+                    <img
+                      src={rec.cover_url}
+                      alt={rec.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <BookOpen size={16} className="text-muted-foreground opacity-40" />
+                    </div>
+                  )}
+                </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <Link
-                        href={`/comic/${rec.id}`}
-                        className="font-semibold text-sm hover:text-primary transition-colors line-clamp-1"
-                      >
-                        {rec.title}
-                      </Link>
+                      <p className="font-semibold text-sm line-clamp-1">{rec.title}</p>
                       <div className="flex flex-wrap gap-1.5 mt-1">
                         <Badge variant="secondary" className="text-xs capitalize">{rec.type}</Badge>
                         <Badge variant="outline" className="text-xs capitalize">{rec.status}</Badge>
                       </div>
                     </div>
                     <button
-                      onClick={() => handleRemove(item)}
+                      onClick={(e) => handleRemove(e, item)}
                       disabled={removingId === item.id}
                       className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
                     >
@@ -257,7 +255,8 @@ export function ReadingListDetail({
                     ) : (
                       <select
                         value={item.status}
-                        onChange={(e) => handleStatusChange(item, e.target.value)}
+                        onChange={(e) => handleStatusChange(e, item)}
+                        onClick={(e) => e.stopPropagation()}
                         className="text-xs text-muted-foreground bg-transparent border-none outline-none cursor-pointer hover:text-foreground transition-colors"
                       >
                         {STATUSES.map((s) => (
