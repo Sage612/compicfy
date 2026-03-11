@@ -4,7 +4,7 @@ import { ComicCard } from '@/components/recommendations/ComicCard'
 import { FilterBar } from '@/components/recommendations/FilterBar'
 import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, Compass } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import type { Recommendation } from '@/types/database.types'
@@ -119,20 +119,15 @@ async function ComicGrid({ searchParams }: { searchParams: SearchParams }) {
     .eq('is_approved', true)
     .not('content_rating', 'in', '("adult","mature")')
 
-  if (searchParams.q) query = query.ilike('title', `%${searchParams.q}%`)
-  if (searchParams.type) query = query.eq('type', searchParams.type)
-  if (searchParams.genre) query = query.contains('genres', [searchParams.genre])
+  if (searchParams.q)      query = query.ilike('title', `%${searchParams.q}%`)
+  if (searchParams.type)   query = query.eq('type', searchParams.type)
+  if (searchParams.genre)  query = query.contains('genres', [searchParams.genre])
   if (searchParams.status) query = query.eq('status', searchParams.status)
 
   switch (searchParams.sort) {
-    case 'trending':
-      query = query.order('daily_votes', { ascending: false })
-      break
-    case 'recent':
-      query = query.order('created_at', { ascending: false })
-      break
-    default:
-      query = query.order('score', { ascending: false })
+    case 'trending': query = query.order('daily_votes', { ascending: false }); break
+    case 'recent':   query = query.order('created_at',  { ascending: false }); break
+    default:         query = query.order('score',        { ascending: false })
   }
 
   query = query.range(offset, offset + limit - 1)
@@ -147,8 +142,10 @@ async function ComicGrid({ searchParams }: { searchParams: SearchParams }) {
   if (!recommendations.length) {
     return (
       <div className="text-center py-20">
-        <BookOpen size={48} className="mx-auto mb-4 text-muted-foreground opacity-30" />
-        <h3 className="text-lg font-semibold mb-1">No comics found</h3>
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+          <BookOpen size={28} className="text-muted-foreground opacity-40" />
+        </div>
+        <h3 className="text-lg font-black mb-1">No comics found</h3>
         <p className="text-muted-foreground text-sm mb-6">
           {searchParams.q || searchParams.type || searchParams.genre || searchParams.status
             ? 'Try adjusting your filters'
@@ -166,7 +163,7 @@ async function ComicGrid({ searchParams }: { searchParams: SearchParams }) {
 
   return (
     <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         {count} comic{count !== 1 ? 's' : ''} found
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
@@ -175,13 +172,13 @@ async function ComicGrid({ searchParams }: { searchParams: SearchParams }) {
         ))}
       </div>
       {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-4">
+        <div className="flex items-center justify-center gap-3 pt-4">
           {page > 1 && (
             <Link href={`/browse?${new URLSearchParams({ ...searchParams, page: String(page - 1) })}`}>
               <Button variant="outline" size="sm">← Previous</Button>
             </Link>
           )}
-          <span className="text-sm text-muted-foreground px-3">
+          <span className="text-sm text-muted-foreground px-3 font-medium">
             Page {page} of {totalPages}
           </span>
           {hasMore && (
@@ -206,7 +203,6 @@ export default async function BrowsePage({ searchParams }: Props) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Check adult enabled to show the 18+ link
   let adultEnabled = false
   if (user) {
     const { data: profile } = await supabase
@@ -231,34 +227,40 @@ export default async function BrowsePage({ searchParams }: Props) {
         ])
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-10">
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Browse Comics</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Discover community recommendations
+      {/* ── PAGE HEADER ── */}
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20">
+              <Compass size={17} className="text-white" />
+            </div>
+            <h1 className="text-3xl font-black tracking-tight">Browse Comics</h1>
+          </div>
+          <p className="text-muted-foreground text-sm pl-0.5">
+            Discover community recommendations · manga, manhwa, manhua &amp; webtoons
           </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-2 shrink-0">
           {adultEnabled && (
             <Link href="/browse/adult">
               <Button size="sm" variant="outline" className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/5">
-                🔞 18+ Comics
+                🔞 18+
               </Button>
             </Link>
           )}
           <Link href="/dashboard/recommendations/new">
             <Button size="sm" className="gap-2">
-  <BookOpen size={14} />
-  <span className="hidden sm:inline">Add Comic</span>
-</Button>
+              <BookOpen size={14} />
+              <span className="hidden sm:inline">Add Comic</span>
+            </Button>
           </Link>
         </div>
       </div>
 
-      {/* Featured Carousel */}
+      {/* ── FEATURED CAROUSEL ── */}
       {!isFiltering && featured.length > 0 && (
         <Suspense fallback={
           <div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />
@@ -267,40 +269,17 @@ export default async function BrowsePage({ searchParams }: Props) {
         </Suspense>
       )}
 
-      {/* Horizontal sections */}
+      {/* ── HORIZONTAL SECTIONS ── */}
       {!isFiltering && (
-        <div className="space-y-8">
-          <HorizontalSection
-            title="Trending Today"
-            emoji="🔥"
-            recommendations={trending}
-            viewAllHref="/browse?sort=trending"
-          />
-          <HorizontalSection
-            title="Recently Added"
-            emoji="✨"
-            recommendations={recent}
-            viewAllHref="/browse?sort=recent"
-          />
+        <div className="space-y-10">
+          <HorizontalSection title="Trending Today"        emoji="🔥" recommendations={trending}      viewAllHref="/browse?sort=trending" />
+          <HorizontalSection title="Recently Added"        emoji="✨" recommendations={recent}        viewAllHref="/browse?sort=recent"   />
           {adminPicks.length > 0 && (
-            <HorizontalSection
-              title="Admin Picks"
-              emoji="👑"
-              recommendations={adminPicks}
-            />
+            <HorizontalSection title="Admin Picks"         emoji="👑" recommendations={adminPicks}                                        />
           )}
-          <HorizontalSection
-            title="Community Favourites"
-            emoji="❤️"
-            recommendations={communityFavs}
-            viewAllHref="/browse?sort=score"
-          />
+          <HorizontalSection title="Community Favourites"  emoji="❤️" recommendations={communityFavs} viewAllHref="/browse?sort=score"    />
           {hiddenGems.length > 0 && (
-            <HorizontalSection
-              title="Hidden Gems"
-              emoji="💎"
-              recommendations={hiddenGems}
-            />
+            <HorizontalSection title="Hidden Gems"         emoji="💎" recommendations={hiddenGems}                                        />
           )}
           {youMightLike.length > 0 && (
             <HorizontalSection
@@ -312,32 +291,36 @@ export default async function BrowsePage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* Divider */}
+      {/* ── ALL COMICS DIVIDER ── */}
       {!isFiltering && (
-        <div className="flex items-center gap-4">
-          <div className="flex-1 h-px bg-border" />
-          <span className="text-sm font-semibold text-muted-foreground">All Comics</span>
-          <div className="flex-1 h-px bg-border" />
+        <div className="relative flex items-center gap-4 py-2">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card shrink-0">
+            <BookOpen size={13} className="text-muted-foreground" />
+            <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">All Comics</span>
+          </div>
+          <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />
         </div>
       )}
 
-      {/* Filters */}
-      <Suspense fallback={<div className="h-24 bg-muted/30 rounded-lg animate-pulse" />}>
+      {/* ── FILTER BAR ── */}
+      <Suspense fallback={<div className="h-24 bg-muted/30 rounded-xl animate-pulse" />}>
         <FilterBar />
       </Suspense>
 
-      {/* Comic grid */}
+      {/* ── COMIC GRID ── */}
       <Suspense
         fallback={
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {Array.from({ length: 12 }).map((_, i) => (
-              <div key={i} className="aspect-[3/4] rounded-xl bg-muted animate-pulse" />
+              <div key={i} className="aspect-[3/4] rounded-2xl bg-muted animate-pulse" />
             ))}
           </div>
         }
       >
         <ComicGrid searchParams={params} />
       </Suspense>
+
     </div>
   )
 }
