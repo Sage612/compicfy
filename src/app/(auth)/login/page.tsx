@@ -10,10 +10,9 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { GoogleButton } from '@/components/auth/GoogleButton'
 import { toast } from 'sonner'
-import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2, BookOpen, ArrowRight } from 'lucide-react'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -28,11 +27,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginForm>({
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
   })
 
@@ -42,62 +37,60 @@ export default function LoginPage() {
       email: data.email,
       password: data.password,
     })
-
     if (error) {
       toast.error(error.message)
       setLoading(false)
       return
     }
-
     toast.success('Welcome back!')
     router.push('/dashboard')
     router.refresh()
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-        <CardDescription>Sign in to your Compicfy account</CardDescription>
-      </CardHeader>
+    <div className="w-full max-w-md space-y-6">
 
-      <CardContent className="space-y-4">
-        {/* Google OAuth */}
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-violet-500 items-center justify-center shadow-xl shadow-primary/20 mb-2">
+          <BookOpen size={24} className="text-white" />
+        </div>
+        <h1 className="text-3xl font-black tracking-tight">Welcome back</h1>
+        <p className="text-muted-foreground text-sm">Sign in to your Compicfy account</p>
+      </div>
+
+      {/* Card */}
+      <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm shadow-xl shadow-black/5 p-6 space-y-5">
+
+        {/* Google */}
         <GoogleButton mode="signin" />
 
         {/* Divider */}
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-border" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">or continue with email</span>
-          </div>
+        <div className="relative flex items-center gap-3">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">or</span>
+          <div className="flex-1 h-px bg-border" />
         </div>
 
-        {/* Email/Password Form */}
+        {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-sm font-semibold">Email</Label>
             <Input
               id="email"
               type="email"
               placeholder="you@example.com"
               autoComplete="email"
+              className="h-11 bg-background border-border focus:border-primary transition-colors"
               {...register('email')}
             />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
+            {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link
-                href="/forgot-password"
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
-              >
+              <Label htmlFor="password" className="text-sm font-semibold">Password</Label>
+              <Link href="/forgot-password" className="text-xs text-muted-foreground hover:text-primary transition-colors">
                 Forgot password?
               </Link>
             </div>
@@ -107,7 +100,7 @@ export default function LoginPage() {
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 autoComplete="current-password"
-                className="pr-10"
+                className="h-11 pr-10 bg-background border-border focus:border-primary transition-colors"
                 {...register('password')}
               />
               <button
@@ -119,32 +112,30 @@ export default function LoginPage() {
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
-            )}
+            {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full h-11 font-bold gap-2 bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 border-0 shadow-lg shadow-primary/20"
+            disabled={loading}
+          >
             {loading ? (
-              <>
-                <Loader2 size={16} className="mr-2 animate-spin" />
-                Signing in...
-              </>
+              <><Loader2 size={16} className="animate-spin" /> Signing in…</>
             ) : (
-              'Sign in'
+              <>Sign in <ArrowRight size={15} /></>
             )}
           </Button>
         </form>
-      </CardContent>
+      </div>
 
-      <CardFooter>
-        <p className="text-sm text-muted-foreground text-center w-full">
-          Don&apos;t have an account?{' '}
-          <Link href="/signup" className="text-primary hover:underline font-medium">
-            Sign up
-          </Link>
-        </p>
-      </CardFooter>
-    </Card>
+      {/* Footer link */}
+      <p className="text-sm text-muted-foreground text-center">
+        Don&apos;t have an account?{' '}
+        <Link href="/signup" className="text-primary hover:underline font-semibold">
+          Sign up free
+        </Link>
+      </p>
+    </div>
   )
 }

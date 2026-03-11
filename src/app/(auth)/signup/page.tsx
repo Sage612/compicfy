@@ -10,25 +10,24 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { GoogleButton } from '@/components/auth/GoogleButton'
 import { toast } from 'sonner'
-import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Users, ArrowRight } from 'lucide-react'
 
 const signupSchema = z.object({
   username: z
     .string()
-    .min(3, 'Username must be at least 3 characters')
-    .max(30, 'Username must be less than 30 characters')
-    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+    .min(3, 'At least 3 characters')
+    .max(30, 'Max 30 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers, underscores only'),
   email: z.string().email('Please enter a valid email'),
   password: z
     .string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number'),
+    .min(8, 'At least 8 characters')
+    .regex(/[A-Z]/, 'Must include one uppercase letter')
+    .regex(/[0-9]/, 'Must include one number'),
   confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
+}).refine((d) => d.password === d.confirmPassword, {
   message: "Passwords don't match",
   path: ['confirmPassword'],
 })
@@ -42,18 +41,12 @@ export default function SignupPage() {
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<SignupForm>({
+  const { register, handleSubmit, formState: { errors } } = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
   })
 
   const onSubmit = async (data: SignupForm) => {
     setLoading(true)
-
-    // Check username is available
     const { data: existingUser } = await supabase
       .from('profiles')
       .select('username')
@@ -84,73 +77,73 @@ export default function SignupPage() {
       return
     }
 
-    toast.success('Account created! You can now sign in..')
+    toast.success('Account created! You can now sign in.')
     router.push('/login')
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
-        <CardDescription>Join the Compicfy community today</CardDescription>
-      </CardHeader>
+    <div className="w-full max-w-md space-y-6">
 
-      <CardContent className="space-y-4">
-        {/* Google OAuth */}
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-violet-500 items-center justify-center shadow-xl shadow-rose-500/20 mb-2">
+          <Users size={24} className="text-white" />
+        </div>
+        <h1 className="text-3xl font-black tracking-tight">Join Compicfy</h1>
+        <p className="text-muted-foreground text-sm">Discover your next favourite comic</p>
+      </div>
+
+      {/* Card */}
+      <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm shadow-xl shadow-black/5 p-6 space-y-5">
+
         <GoogleButton mode="signup" />
 
-        {/* Divider */}
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-border" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">or continue with email</span>
-          </div>
+        <div className="relative flex items-center gap-3">
+          <div className="flex-1 h-px bg-border" />
+          <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">or</span>
+          <div className="flex-1 h-px bg-border" />
         </div>
 
-        {/* Signup Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="username" className="text-sm font-semibold">Username</Label>
             <Input
               id="username"
               type="text"
               placeholder="comicfan123"
               autoComplete="username"
+              className="h-11 bg-background border-border focus:border-primary transition-colors"
               {...register('username')}
             />
-            {errors.username && (
-              <p className="text-sm text-destructive">{errors.username.message}</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Letters, numbers, and underscores only
-            </p>
+            {errors.username
+              ? <p className="text-xs text-destructive">{errors.username.message}</p>
+              : <p className="text-xs text-muted-foreground">Letters, numbers, underscores only</p>
+            }
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-sm font-semibold">Email</Label>
             <Input
               id="email"
               type="email"
               placeholder="you@example.com"
               autoComplete="email"
+              className="h-11 bg-background border-border focus:border-primary transition-colors"
               {...register('email')}
             />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
+            {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-sm font-semibold">Password</Label>
             <div className="relative">
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 autoComplete="new-password"
-                className="pr-10"
+                className="h-11 pr-10 bg-background border-border focus:border-primary transition-colors"
                 {...register('password')}
               />
               <button
@@ -162,23 +155,21 @@ export default function SignupPage() {
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Min 8 characters, one uppercase, one number
-            </p>
+            {errors.password
+              ? <p className="text-xs text-destructive">{errors.password.message}</p>
+              : <p className="text-xs text-muted-foreground">Min 8 chars · one uppercase · one number</p>
+            }
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="confirmPassword" className="text-sm font-semibold">Confirm Password</Label>
             <div className="relative">
               <Input
                 id="confirmPassword"
                 type={showConfirm ? 'text' : 'password'}
                 placeholder="••••••••"
                 autoComplete="new-password"
-                className="pr-10"
+                className="h-11 pr-10 bg-background border-border focus:border-primary transition-colors"
                 {...register('confirmPassword')}
               />
               <button
@@ -190,32 +181,29 @@ export default function SignupPage() {
                 {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            {errors.confirmPassword && (
-              <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
-            )}
+            {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
           </div>
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button
+            type="submit"
+            className="w-full h-11 font-bold gap-2 bg-gradient-to-r from-rose-500 to-violet-500 hover:from-rose-400 hover:to-violet-400 border-0 shadow-lg shadow-rose-500/20 text-white"
+            disabled={loading}
+          >
             {loading ? (
-              <>
-                <Loader2 size={16} className="mr-2 animate-spin" />
-                Creating account...
-              </>
+              <><Loader2 size={16} className="animate-spin" /> Creating account…</>
             ) : (
-              'Create account'
+              <>Create account <ArrowRight size={15} /></>
             )}
           </Button>
         </form>
-      </CardContent>
+      </div>
 
-      <CardFooter>
-        <p className="text-sm text-muted-foreground text-center w-full">
-          Already have an account?{' '}
-          <Link href="/login" className="text-primary hover:underline font-medium">
-            Sign in
-          </Link>
-        </p>
-      </CardFooter>
-    </Card>
+      <p className="text-sm text-muted-foreground text-center">
+        Already have an account?{' '}
+        <Link href="/login" className="text-primary hover:underline font-semibold">
+          Sign in
+        </Link>
+      </p>
+    </div>
   )
 }

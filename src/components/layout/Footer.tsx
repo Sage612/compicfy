@@ -87,7 +87,7 @@ export function Footer() {
         <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground text-center sm:flex-row sm:justify-between sm:text-left">
           <div className="space-y-1">
             <p>© {new Date().getFullYear()} Compicfy. All rights reserved.</p>
-            <p>We do not host or link to pirated content.</p>
+            We do not host or link to pirated content.
           </div>
           <p className="flex items-center gap-1 shrink-0">
             Made with

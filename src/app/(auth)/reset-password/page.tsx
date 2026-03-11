@@ -9,9 +9,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { Loader2, KeyRound, CheckCircle } from 'lucide-react'
+import { Loader2, KeyRound, CheckCircle, ShieldAlert, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 const resetSchema = z.object({
@@ -33,150 +32,103 @@ export default function ResetPasswordPage() {
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    // Supabase puts the token in the URL hash — it handles it automatically
-    // We just need to confirm there's an active session from the reset link
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       setValidSession(!!session)
       setChecking(false)
     }
     checkSession()
-
-    // Listen for the PASSWORD_RECOVERY event from the hash token
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setValidSession(true)
         setChecking(false)
       }
     })
-
     return () => subscription.unsubscribe()
   }, [])
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<ResetForm>({
+  const { register, handleSubmit, formState: { errors } } = useForm<ResetForm>({
     resolver: zodResolver(resetSchema),
   })
 
   const onSubmit = async (data: ResetForm) => {
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ password: data.password })
-    if (error) {
-      toast.error(error.message)
-      setLoading(false)
-      return
-    }
+    if (error) { toast.error(error.message); setLoading(false); return }
     setDone(true)
     setLoading(false)
     setTimeout(() => router.push('/login'), 2500)
   }
 
-  if (checking) {
-    return (
-      <Card className="w-full max-w-md text-center">
-        <CardContent className="py-12">
-          <Loader2 size={32} className="animate-spin mx-auto text-muted-foreground" />
-          <p className="text-sm text-muted-foreground mt-3">Verifying reset link...</p>
-        </CardContent>
-      </Card>
-    )
-  }
+  if (checking) return (
+    <div className="w-full max-w-md text-center space-y-4">
+      <div className="inline-flex w-14 h-14 rounded-2xl bg-muted items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-muted-foreground" />
+      </div>
+      <p className="text-sm text-muted-foreground">Verifying reset link…</p>
+    </div>
+  )
 
-  if (!validSession) {
-    return (
-      <Card className="w-full max-w-md text-center">
-        <CardHeader className="space-y-4">
-          <CardTitle className="text-2xl font-bold">Link expired</CardTitle>
-          <CardDescription>
-            This password reset link is invalid or has expired. Please request a new one.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Link href="/forgot-password">
-            <Button className="w-full">Request new link</Button>
-          </Link>
-        </CardContent>
-      </Card>
-    )
-  }
+  if (!validSession) return (
+    <div className="w-full max-w-md space-y-6 text-center">
+      <div className="inline-flex w-16 h-16 rounded-2xl bg-destructive/10 items-center justify-center">
+        <ShieldAlert size={28} className="text-destructive" />
+      </div>
+      <div className="space-y-2">
+        <h1 className="text-3xl font-black tracking-tight">Link expired</h1>
+        <p className="text-muted-foreground text-sm">This reset link is invalid or expired. Please request a new one.</p>
+      </div>
+      <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm p-6">
+        <Link href="/forgot-password">
+          <Button className="w-full h-11 font-bold">Request new link</Button>
+        </Link>
+      </div>
+    </div>
+  )
 
-  if (done) {
-    return (
-      <Card className="w-full max-w-md text-center">
-        <CardHeader className="space-y-4">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center">
-              <CheckCircle size={32} className="text-green-500" />
-            </div>
-          </div>
-          <CardTitle className="text-2xl font-bold">Password updated!</CardTitle>
-          <CardDescription>
-            Your password has been changed. Redirecting you to login...
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    )
-  }
+  if (done) return (
+    <div className="w-full max-w-md space-y-6 text-center">
+      <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 items-center justify-center shadow-xl shadow-emerald-500/20">
+        <CheckCircle size={28} className="text-white" />
+      </div>
+      <div className="space-y-2">
+        <h1 className="text-3xl font-black tracking-tight">Password updated!</h1>
+        <p className="text-muted-foreground text-sm">Redirecting you to login…</p>
+      </div>
+    </div>
+  )
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <div className="flex justify-center mb-2">
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-            <KeyRound size={24} className="text-primary" />
-          </div>
+    <div className="w-full max-w-md space-y-6">
+      <div className="text-center space-y-2">
+        <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-violet-500 items-center justify-center shadow-xl shadow-primary/20 mb-2">
+          <KeyRound size={22} className="text-white" />
         </div>
-        <CardTitle className="text-2xl font-bold text-center">Set new password</CardTitle>
-        <CardDescription className="text-center">
-          Choose a strong password for your account
-        </CardDescription>
-      </CardHeader>
+        <h1 className="text-3xl font-black tracking-tight">New password</h1>
+        <p className="text-muted-foreground text-sm">Choose a strong password for your account</p>
+      </div>
 
-      <CardContent>
+      <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm shadow-xl shadow-black/5 p-6 space-y-5">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="password">New Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="At least 8 characters"
-              autoComplete="new-password"
-              {...register('password')}
-            />
-            {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
-            )}
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-sm font-semibold">New Password</Label>
+            <Input id="password" type="password" placeholder="At least 8 characters" autoComplete="new-password"
+              className="h-11 bg-background border-border focus:border-primary transition-colors" {...register('password')} />
+            {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              placeholder="Repeat your password"
-              autoComplete="new-password"
-              {...register('confirmPassword')}
-            />
-            {errors.confirmPassword && (
-              <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
-            )}
+          <div className="space-y-1.5">
+            <Label htmlFor="confirmPassword" className="text-sm font-semibold">Confirm Password</Label>
+            <Input id="confirmPassword" type="password" placeholder="Repeat your password" autoComplete="new-password"
+              className="h-11 bg-background border-border focus:border-primary transition-colors" {...register('confirmPassword')} />
+            {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
           </div>
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 size={16} className="mr-2 animate-spin" />
-                Updating...
-              </>
-            ) : (
-              'Update password'
-            )}
+          <Button type="submit"
+            className="w-full h-11 font-bold gap-2 bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 border-0 shadow-lg shadow-primary/20"
+            disabled={loading}>
+            {loading ? <><Loader2 size={16} className="animate-spin" /> Updating…</> : <>Update password <ArrowRight size={15} /></>}
           </Button>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

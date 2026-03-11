@@ -9,9 +9,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
-import { ArrowLeft, Loader2, MailCheck } from 'lucide-react'
+import { ArrowLeft, Loader2, MailCheck, KeyRound, ArrowRight } from 'lucide-react'
 
 const forgotSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -24,12 +23,7 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    getValues,
-  } = useForm<ForgotForm>({
+  const { register, handleSubmit, formState: { errors }, getValues } = useForm<ForgotForm>({
     resolver: zodResolver(forgotSchema),
   })
 
@@ -38,90 +32,80 @@ export default function ForgotPasswordPage() {
     const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
       redirectTo: `${window.location.origin}/reset-password`,
     })
-
     if (error) {
       toast.error(error.message)
       setLoading(false)
       return
     }
-
     setSent(true)
     setLoading(false)
   }
 
   if (sent) {
     return (
-      <Card className="w-full max-w-md text-center">
-        <CardHeader className="space-y-4">
-          <div className="flex justify-center">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-              <MailCheck size={32} className="text-primary" />
-            </div>
-          </div>
-          <CardTitle className="text-2xl font-bold">Check your email</CardTitle>
-          <CardDescription>
-            We sent a password reset link to{' '}
-            <span className="font-medium text-foreground">{getValues('email')}</span>
-          </CardDescription>
-        </CardHeader>
-        <CardFooter className="flex-col gap-2">
-          <Link href="/login" className="w-full">
-            <Button variant="outline" className="w-full gap-2">
-              <ArrowLeft size={16} />
+      <div className="w-full max-w-md space-y-6 text-center">
+        <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 items-center justify-center shadow-xl shadow-emerald-500/20">
+          <MailCheck size={28} className="text-white" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-black tracking-tight">Check your inbox</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            We sent a reset link to{' '}
+            <span className="font-semibold text-foreground">{getValues('email')}</span>.<br />
+            It may take a minute to arrive.
+          </p>
+        </div>
+        <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm p-6">
+          <Link href="/login">
+            <Button variant="outline" className="w-full h-11 gap-2 font-semibold">
+              <ArrowLeft size={15} />
               Back to login
             </Button>
           </Link>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     )
   }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Reset password</CardTitle>
-        <CardDescription>
-          Enter your email and we&apos;ll send you a reset link
-        </CardDescription>
-      </CardHeader>
+    <div className="w-full max-w-md space-y-6">
+      <div className="text-center space-y-2">
+        <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 items-center justify-center shadow-xl shadow-amber-500/20 mb-2">
+          <KeyRound size={22} className="text-white" />
+        </div>
+        <h1 className="text-3xl font-black tracking-tight">Reset password</h1>
+        <p className="text-muted-foreground text-sm">We'll send a reset link to your email</p>
+      </div>
 
-      <CardContent>
+      <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm shadow-xl shadow-black/5 p-6 space-y-5">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-sm font-semibold">Email</Label>
             <Input
               id="email"
               type="email"
               placeholder="you@example.com"
               autoComplete="email"
+              className="h-11 bg-background border-border focus:border-primary transition-colors"
               {...register('email')}
             />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
+            {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
           </div>
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 size={16} className="mr-2 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              'Send reset link'
-            )}
+          <Button
+            type="submit"
+            className="w-full h-11 font-bold gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 border-0 shadow-lg shadow-amber-500/20 text-white"
+            disabled={loading}
+          >
+            {loading ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : <>Send reset link <ArrowRight size={15} /></>}
           </Button>
         </form>
-      </CardContent>
-
-      <CardFooter>
-        <Link href="/login" className="w-full">
-          <Button variant="ghost" className="w-full gap-2">
-            <ArrowLeft size={16} />
+        <Link href="/login">
+          <Button variant="ghost" className="w-full h-10 gap-2 text-muted-foreground hover:text-foreground font-medium">
+            <ArrowLeft size={15} />
             Back to login
           </Button>
         </Link>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   )
 }
