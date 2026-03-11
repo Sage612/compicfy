@@ -26,108 +26,108 @@ const TYPES = [
 ]
 
 const SORTS = [
-  { value: 'score', label: '🏆 Top' },
-  { value: 'trending', label: '🔥 Trending' },
-  { value: 'recent', label: '✨ New' },
+  { value: 'score',    label: '🏆', full: 'Top Rated'  },
+  { value: 'trending', label: '🔥', full: 'Trending'   },
+  { value: 'recent',   label: '✨', full: 'Newest'     },
 ]
 
 const STATUSES = [
-  { value: '', label: 'Any' },
-  { value: 'ongoing', label: 'Ongoing' },
+  { value: '',          label: 'Any Status' },
+  { value: 'ongoing',   label: 'Ongoing'   },
   { value: 'completed', label: 'Completed' },
-  { value: 'hiatus', label: 'Hiatus' },
+  { value: 'hiatus',    label: 'Hiatus'    },
   { value: 'cancelled', label: 'Cancelled' },
 ]
 
+// Type accent colours matching ComicCard palette
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'data-[active=true]:bg-rose-500    data-[active=true]:border-rose-500    data-[active=true]:text-white',
+  manhwa:  'data-[active=true]:bg-violet-500  data-[active=true]:border-violet-500  data-[active=true]:text-white',
+  manhua:  'data-[active=true]:bg-amber-500   data-[active=true]:border-amber-500   data-[active=true]:text-white',
+  webtoon: 'data-[active=true]:bg-teal-500    data-[active=true]:border-teal-500    data-[active=true]:text-white',
+  comic:   'data-[active=true]:bg-blue-500    data-[active=true]:border-blue-500    data-[active=true]:text-white',
+  other:   'data-[active=true]:bg-zinc-500    data-[active=true]:border-zinc-500    data-[active=true]:text-white',
+  '':      'data-[active=true]:bg-primary     data-[active=true]:border-primary     data-[active=true]:text-primary-foreground',
+}
+
 export function FilterBar() {
-  const router = useRouter()
-  const pathname = usePathname()
+  const router       = useRouter()
+  const pathname     = usePathname()
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
 
-  const currentType = searchParams.get('type') ?? ''
-  const currentGenre = searchParams.get('genre') ?? ''
-  const currentSort = searchParams.get('sort') ?? 'score'
+  const currentType   = searchParams.get('type')   ?? ''
+  const currentGenre  = searchParams.get('genre')  ?? ''
+  const currentSort   = searchParams.get('sort')   ?? 'score'
   const currentStatus = searchParams.get('status') ?? ''
-  const currentSearch = searchParams.get('q') ?? ''
+  const currentSearch = searchParams.get('q')      ?? ''
 
   const updateParam = useCallback(
     (key: string, value: string) => {
       const params = new URLSearchParams(searchParams.toString())
-      if (value) {
-        params.set(key, value)
-      } else {
-        params.delete(key)
-      }
-      // Reset to page 1 when filters change
+      if (value) params.set(key, value)
+      else params.delete(key)
       params.delete('page')
-      startTransition(() => {
-        router.push(`${pathname}?${params.toString()}`)
-      })
+      startTransition(() => router.push(`${pathname}?${params.toString()}`))
     },
     [pathname, router, searchParams]
   )
 
-  const clearAll = () => {
-    startTransition(() => {
-      router.push(pathname)
-    })
-  }
+  const clearAll = () => startTransition(() => router.push(pathname))
 
   const hasActiveFilters = currentType || currentGenre || currentStatus || currentSearch
 
   return (
-    <div className="space-y-3">
-      {/* Search + Filter trigger row */}
+    <div className="space-y-4">
+
+      {/* ── Row 1: Search + mobile filter trigger ── */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search
-            size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-          />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Search comics..."
+            placeholder="Search comics…"
             defaultValue={currentSearch}
-            className="pl-9 h-9"
+            className="pl-9 h-10 bg-card border-border focus:border-primary transition-colors"
             onChange={(e) => {
               const val = e.target.value
-              const timeout = setTimeout(() => updateParam('q', val), 400)
-              return () => clearTimeout(timeout)
+              const t   = setTimeout(() => updateParam('q', val), 400)
+              return () => clearTimeout(t)
             }}
           />
           {currentSearch && (
             <button
-                          onClick={() => updateParam('q', '')}
-                           aria-label="Clear search"
-  title="Clear search"
-
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              onClick={() => updateParam('q', '')}
+              aria-label="Clear search"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
               <X size={14} />
             </button>
           )}
         </div>
 
-        {/* Mobile: sheet filter trigger */}
+        {/* Mobile sheet */}
         <Sheet>
           <SheetTrigger asChild>
             <Button
               variant="outline"
               size="sm"
-              className={cn('h-9 gap-1.5 md:hidden', hasActiveFilters && 'border-primary text-primary')}
+              className={cn(
+                'h-10 gap-1.5 md:hidden relative',
+                hasActiveFilters && 'border-primary text-primary bg-primary/5'
+              )}
             >
               <SlidersHorizontal size={14} />
               Filters
               {hasActiveFilters && (
-                <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
+                <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
                   !
                 </span>
               )}
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="h-auto max-h-[80vh] overflow-y-auto">
-            <SheetHeader className="mb-4">
-              <SheetTitle>Filters</SheetTitle>
+          <SheetContent side="bottom" className="h-auto max-h-[80vh] overflow-y-auto rounded-t-2xl">
+            <SheetHeader className="mb-5">
+              <SheetTitle className="text-left">Filters</SheetTitle>
             </SheetHeader>
             <MobileFilters
               currentType={currentType}
@@ -138,80 +138,95 @@ export function FilterBar() {
           </SheetContent>
         </Sheet>
 
-        {/* Clear all */}
         {hasActiveFilters && (
           <Button
             variant="ghost"
             size="sm"
             onClick={clearAll}
-            className="h-9 text-muted-foreground hover:text-foreground"
+            className="h-10 text-muted-foreground hover:text-foreground gap-1"
           >
-            <X size={14} />
-            <span className="hidden sm:inline ml-1">Clear</span>
+            <X size={13} />
+            <span className="hidden sm:inline">Clear all</span>
           </Button>
         )}
       </div>
 
-      {/* Sort tabs — always visible */}
-      <div className="flex gap-1.5">
-        {SORTS.map(({ value, label }) => (
-          <button
-            key={value}
-            onClick={() => updateParam('sort', value)}
-            className={cn(
-              'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-              currentSort === value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
-            )}
-          >
-            {label}
-          </button>
-        ))}
+      {/* ── Row 2: Sort pills ── */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:block shrink-0">
+          Sort
+        </span>
+        <div className="flex gap-1.5">
+          {SORTS.map(({ value, label, full }) => (
+            <button
+              key={value}
+              onClick={() => updateParam('sort', value)}
+              className={cn(
+                'flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all duration-150',
+                currentSort === value
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
+                  : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
+              )}
+            >
+              <span>{label}</span>
+              <span className="hidden sm:inline">{full}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Desktop: inline type filter */}
-      <div className="hidden md:flex gap-1.5 flex-wrap">
-        {TYPES.map(({ value, label }) => (
-          <button
-            key={value}
-            onClick={() => updateParam('type', value)}
-            className={cn(
-              'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
-              currentType === value
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border text-muted-foreground hover:border-primary hover:text-foreground'
-            )}
-          >
-            {label}
-          </button>
-        ))}
+      {/* ── Row 3: Desktop type + status chips ── */}
+      <div className="hidden md:flex items-center gap-3 flex-wrap">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+          Type
+        </span>
+        <div className="flex gap-1.5 flex-wrap">
+          {TYPES.map(({ value, label }) => (
+            <button
+              key={value}
+              data-active={currentType === value}
+              onClick={() => updateParam('type', value)}
+              className={cn(
+                'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
+                TYPE_COLORS[value] ?? TYPE_COLORS[''],
+                currentType !== value && 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-        {/* Status */}
-        <div className="w-px bg-border mx-1" />
-        {STATUSES.map(({ value, label }) => (
-          <button
-            key={value}
-            onClick={() => updateParam('status', value)}
-            className={cn(
-              'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
-              currentStatus === value
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border text-muted-foreground hover:border-primary hover:text-foreground'
-            )}
-          >
-            {label}
-          </button>
-        ))}
+        <div className="w-px h-5 bg-border" />
+
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+          Status
+        </span>
+        <div className="flex gap-1.5 flex-wrap">
+          {STATUSES.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => updateParam('status', value)}
+              className={cn(
+                'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
+                currentStatus === value
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Active genre badge */}
+      {/* ── Active genre badge ── */}
       {currentGenre && (
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Genre:</span>
+          <span className="text-xs text-muted-foreground font-medium">Genre:</span>
           <button
             onClick={() => updateParam('genre', '')}
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium border border-primary/20 hover:bg-primary/20"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20 hover:bg-primary/20 transition-colors"
           >
             {currentGenre}
             <X size={10} />
@@ -223,10 +238,7 @@ export function FilterBar() {
 }
 
 function MobileFilters({
-  currentType,
-  currentGenre,
-  currentStatus,
-  updateParam,
+  currentType, currentGenre, currentStatus, updateParam,
 }: {
   currentType: string
   currentGenre: string
@@ -234,20 +246,19 @@ function MobileFilters({
   updateParam: (key: string, value: string) => void
 }) {
   return (
-    <div className="space-y-6 pb-6">
-      {/* Type */}
-      <div className="space-y-2">
-        <p className="text-sm font-semibold">Type</p>
+    <div className="space-y-6 pb-8">
+      <div className="space-y-2.5">
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Type</p>
         <div className="flex flex-wrap gap-2">
           {TYPES.map(({ value, label }) => (
             <button
               key={value}
+              data-active={currentType === value}
               onClick={() => updateParam('type', value)}
               className={cn(
-                'px-3 py-1.5 rounded-full text-sm border transition-colors',
-                currentType === value
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'border-border text-muted-foreground'
+                'px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all',
+                TYPE_COLORS[value] ?? TYPE_COLORS[''],
+                currentType !== value && 'border-border text-muted-foreground'
               )}
             >
               {label}
@@ -256,16 +267,15 @@ function MobileFilters({
         </div>
       </div>
 
-      {/* Status */}
-      <div className="space-y-2">
-        <p className="text-sm font-semibold">Status</p>
+      <div className="space-y-2.5">
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</p>
         <div className="flex flex-wrap gap-2">
           {STATUSES.map(({ value, label }) => (
             <button
               key={value}
               onClick={() => updateParam('status', value)}
               className={cn(
-                'px-3 py-1.5 rounded-full text-sm border transition-colors',
+                'px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all',
                 currentStatus === value
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'border-border text-muted-foreground'
@@ -277,16 +287,15 @@ function MobileFilters({
         </div>
       </div>
 
-      {/* Genre */}
-      <div className="space-y-2">
-        <p className="text-sm font-semibold">Genre</p>
+      <div className="space-y-2.5">
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Genre</p>
         <div className="flex flex-wrap gap-2">
           {GENRES.map((genre) => (
             <button
               key={genre}
               onClick={() => updateParam('genre', currentGenre === genre ? '' : genre)}
               className={cn(
-                'px-3 py-1.5 rounded-full text-sm border transition-colors',
+                'px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all',
                 currentGenre === genre
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'border-border text-muted-foreground'
