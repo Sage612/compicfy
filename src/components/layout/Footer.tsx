@@ -84,9 +84,12 @@ export function Footer() {
         <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mb-6" />
 
         {/* Bottom bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-          <p>© {new Date().getFullYear()} Compicfy · We do not host or link to pirated content.</p>
-          <p className="flex items-center gap-1">
+        <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground text-center sm:flex-row sm:justify-between sm:text-left">
+          <div className="space-y-1">
+            <p>© {new Date().getFullYear()} Compicfy. All rights reserved.</p>
+            <p>We do not host or link to pirated content.</p>
+          </div>
+          <p className="flex items-center gap-1 shrink-0">
             Made with
             <span className="text-rose-500 mx-0.5">❤️</span>
             for comic fans everywhere
