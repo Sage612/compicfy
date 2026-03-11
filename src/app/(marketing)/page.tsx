@@ -14,11 +14,11 @@ import type { News } from '@/types/database.types'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Compicfy — Discover Your Next Favorite Comic',
-  description:
+  title: 'Compicfy — Find your next obsession.',
+   description:
     'A warm community for manga, manhwa, manhua, and webtoon fans. Discover, recommend, and vote for the best comics.',
   openGraph: {
-    title: 'Compicfy — Discover Your Next Favorite Comic',
+    title: 'Compicfy — Find your next obsession.',
     description: 'Community-powered comic discovery. Browse, recommend, and vote.',
   },
 }
