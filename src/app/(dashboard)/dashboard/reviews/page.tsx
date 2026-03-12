@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Star, BookOpen } from 'lucide-react'
+import { Star, BookOpen, ArrowRight } from 'lucide-react'
 import { StarRating } from '@/components/recommendations/StarRating'
 import { formatDate } from '@/lib/utils/format'
 import type { Metadata } from 'next'
@@ -9,85 +9,106 @@ import type { Review } from '@/types/database.types'
 
 export const metadata: Metadata = { title: 'My Reviews' }
 
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
+  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+}
+
 export default async function MyReviewsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const { data: reviewsData } = await supabase
-  .from('reviews')
-  .select('*, recommendations(id, title, cover_url, type)')
-  .eq('user_id', user.id)
-  .order('created_at', { ascending: false })
+    .from('reviews')
+    .select('*, recommendations(id, title, cover_url, type)')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
 
-const reviews = (reviewsData ?? []) as (Review & {
-  recommendations: { id: string; title: string; cover_url: string | null; type: string } | null
-})[]
+  const reviews = (reviewsData ?? []) as (Review & {
+    recommendations: { id: string; title: string; cover_url: string | null; type: string } | null
+  })[]
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Star size={22} />
-          My Reviews
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {reviews?.length ?? 0} review{reviews?.length !== 1 ? 's' : ''} written
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+      {/* Header */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <Star size={16} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-black tracking-tight">My Reviews</h1>
+        </div>
+        <p className="text-muted-foreground text-sm pl-0.5">
+          {reviews.length} review{reviews.length !== 1 ? 's' : ''} written
         </p>
       </div>
 
-      {!reviews?.length ? (
-        <div className="text-center py-16 border border-dashed border-border rounded-xl">
-          <Star size={40} className="mx-auto mb-3 text-muted-foreground opacity-40" />
-          <h3 className="font-semibold mb-1">No reviews yet</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Visit a comic and write your first review
-          </p>
-          <Link href="/browse" className="text-primary hover:underline text-sm">
+      {/* Empty state */}
+      {!reviews.length ? (
+        <div className="text-center py-20 rounded-2xl border border-dashed border-border">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <Star size={24} className="text-muted-foreground opacity-40" />
+          </div>
+          <h3 className="font-black text-lg mb-1">No reviews yet</h3>
+          <p className="text-sm text-muted-foreground mb-5">Visit a comic and write your first review</p>
+          <Link href="/browse" className="text-primary hover:underline text-sm font-semibold">
             Browse Comics →
           </Link>
         </div>
       ) : (
         <div className="space-y-3">
           {reviews.map((review) => {
-            const rec = review.recommendations 
+            const rec = review.recommendations
+            const typeStyle = TYPE_COLORS[rec?.type ?? ''] ?? 'bg-muted text-muted-foreground border-border'
             return (
               <Link
                 key={review.id}
                 href={`/comic/${rec?.id}`}
-                className="flex gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/50 transition-colors"
+                className="group flex gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200"
               >
                 {/* Cover */}
-                <div className="w-12 h-16 rounded-lg overflow-hidden bg-muted shrink-0">
+                <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                   {rec?.cover_url ? (
-                    <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                    <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen size={14} className="text-muted-foreground" />
+                      <BookOpen size={14} className="text-muted-foreground opacity-40" />
                     </div>
                   )}
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 min-w-0 space-y-1.5">
+                <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-sm truncate">{rec?.title}</h3>
-                    <span className="text-xs text-muted-foreground shrink-0">
-                      {formatDate(review.created_at)}
-                    </span>
+                    <div className="min-w-0">
+                      <h3 className="font-black text-sm truncate group-hover:text-primary transition-colors">{rec?.title}</h3>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${typeStyle}`}>
+                          {rec?.type}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">{formatDate(review.created_at)}</span>
+                      </div>
+                    </div>
+                    <ArrowRight size={13} className="text-muted-foreground/30 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
                   </div>
-                  {review.rating && (
-                    <StarRating value={review.rating} readonly size={13} />
-                  )}
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {review.content}
-                  </p>
-                  {review.contains_spoilers && (
-                    <span className="text-xs text-yellow-600">⚠️ Contains spoilers</span>
-                  )}
-                  {review.is_edited && (
-                    <span className="text-xs text-muted-foreground italic">Edited</span>
-                  )}
+
+                  {review.rating && <StarRating value={review.rating} readonly size={13} />}
+
+                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{review.content}</p>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {review.contains_spoilers && (
+                      <span className="text-[10px] text-amber-600 bg-amber-500/8 border border-amber-500/15 px-2 py-0.5 rounded-full font-semibold">⚠️ Spoilers</span>
+                    )}
+                    {review.is_edited && (
+                      <span className="text-[10px] text-muted-foreground italic">Edited</span>
+                    )}
+                  </div>
                 </div>
               </Link>
             )

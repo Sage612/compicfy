@@ -131,7 +131,7 @@ export default async function DashboardPage() {
               </h1>
             </div>
             <p className="text-sm text-muted-foreground">
-              Member since {formatDate(profile.member_since)} · Keep sharing great reads 📚
+              Member since {formatDate(profile.member_since)} · Keep sharing great reads.
             </p>
           </div>
 

@@ -1,21 +1,20 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react' // Added useRef and useEffect
+import { useState, useRef, useEffect } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link' // Added Link
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Separator } from '@/components/ui/separator'
 import { CoverUpload } from './CoverUpload'
 import { GenreSelector } from './GenreSelector'
 import { PlatformSelector } from './PlatformSelector'
 import { toast } from 'sonner'
-import { Loader2, BookOpen, Info, AlertTriangle } from 'lucide-react' // Added AlertTriangle
+import { Loader2, BookOpen, Info, AlertTriangle, Sparkles, Tag, FileText, Globe } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MangaSearch } from './MangaSearch'
 
@@ -45,93 +44,80 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>
 
 const TYPES = [
-  { value: 'manga', label: 'Manga', desc: 'Japanese' },
-  { value: 'manhwa', label: 'Manhwa', desc: 'Korean' },
-  { value: 'manhua', label: 'Manhua', desc: 'Chinese' },
-  { value: 'webtoon', label: 'Webtoon', desc: 'Vertical scroll' },
-  { value: 'comic', label: 'Comic', desc: 'Western' },
-  { value: 'other', label: 'Other', desc: 'Misc' },
+  { value: 'manga',   label: 'Manga',   desc: 'Japanese', activeClass: 'bg-rose-500   border-rose-500   text-white' },
+  { value: 'manhwa',  label: 'Manhwa',  desc: 'Korean',   activeClass: 'bg-violet-500 border-violet-500 text-white' },
+  { value: 'manhua',  label: 'Manhua',  desc: 'Chinese',  activeClass: 'bg-amber-500  border-amber-500  text-white' },
+  { value: 'webtoon', label: 'Webtoon', desc: 'Vertical', activeClass: 'bg-teal-500   border-teal-500   text-white' },
+  { value: 'comic',   label: 'Comic',   desc: 'Western',  activeClass: 'bg-blue-500   border-blue-500   text-white' },
+  { value: 'other',   label: 'Other',   desc: 'Misc',     activeClass: 'bg-zinc-500   border-zinc-500   text-white' },
 ] as const
 
 const STATUSES = [
-  { value: 'ongoing', label: 'Ongoing', color: 'text-green-500' },
-  { value: 'completed', label: 'Completed', color: 'text-blue-500' },
-  { value: 'hiatus', label: 'On Hiatus', color: 'text-yellow-500' },
-  { value: 'cancelled', label: 'Cancelled', color: 'text-destructive' },
+  { value: 'ongoing',   label: 'Ongoing',   dot: 'bg-emerald-500' },
+  { value: 'completed', label: 'Completed', dot: 'bg-blue-500'    },
+  { value: 'hiatus',    label: 'On Hiatus', dot: 'bg-amber-500'   },
+  { value: 'cancelled', label: 'Cancelled', dot: 'bg-red-500'     },
 ] as const
 
 const RATINGS = [
-  { value: 'all_ages', label: 'All Ages' },
-  { value: 'teen', label: 'Teen (13+)' },
-  { value: 'mature', label: 'Mature (17+)' },
-  { value: 'adult', label: 'Adult (18+)' },
+  { value: 'all_ages', label: 'All Ages',   emoji: '🟢' },
+  { value: 'teen',     label: 'Teen 13+',   emoji: '🟡' },
+  { value: 'mature',   label: 'Mature 17+', emoji: '🟠' },
+  { value: 'adult',    label: 'Adult 18+',  emoji: '🔴' },
 ] as const
 
-interface Props {
-  userId: string
+function FormSection({ icon: Icon, title, accent = 'from-primary to-violet-500', children }: {
+  icon: React.ElementType
+  title: string
+  accent?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-muted/30">
+        <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${accent} flex items-center justify-center shrink-0`}>
+          <Icon size={13} className="text-white" />
+        </div>
+        <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{title}</h3>
+      </div>
+      <div className="p-5 space-y-5">{children}</div>
+    </div>
+  )
 }
+
+interface Props { userId: string }
 
 export function RecommendationForm({ userId }: Props) {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
-  
-  // New Duplicate Check State
   const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
   const [checkingDuplicate, setCheckingDuplicate] = useState(false)
   const duplicateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    watch,
-    setValue,
-    getValues,
-    formState: { errors },
-  } = useForm<FormValues>({
+  const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
-    defaultValues: {
-      genres: [],
-      official_platforms: [],
-      cover_url: '',
-      content_rating: 'all_ages',
-      why_recommend: '',
-      author: '',
-      artist: '',
-    },
+    defaultValues: { genres: [], official_platforms: [], cover_url: '', content_rating: 'all_ages', why_recommend: '', author: '', artist: '' },
   })
 
   const descValue = watch('description') || ''
-  const whyValue = watch('why_recommend') || ''
+  const whyValue  = watch('why_recommend') || ''
 
-  // Cleanup timeout on unmount
   useEffect(() => {
-    return () => {
-      if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current)
-    }
+    return () => { if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current) }
   }, [])
 
   const checkDuplicate = async (title: string) => {
-    if (title.trim().length < 2) {
-      setDuplicateWarning(null)
-      return
-    }
+    if (title.trim().length < 2) { setDuplicateWarning(null); return }
     setCheckingDuplicate(true)
     try {
-      const res = await fetch(
-        `/api/recommendations/check-duplicate?title=${encodeURIComponent(title.trim())}`
-      )
+      const res = await fetch(`/api/recommendations/check-duplicate?title=${encodeURIComponent(title.trim())}`)
       const data = await res.json()
       setDuplicateWarning(data.duplicate ?? null)
-    } catch {
-      // silent fail
-    } finally {
-      setCheckingDuplicate(false)
-    }
+    } catch { /* silent */ } finally { setCheckingDuplicate(false) }
   }
 
   const onSubmit = async (data: FormValues) => {
-    if (duplicateWarning) return; // Guard clause
+    if (duplicateWarning) return
     setSubmitting(true)
     try {
       const response = await fetch('/api/recommendations', {
@@ -139,44 +125,23 @@ export function RecommendationForm({ userId }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       })
-
       const result = await response.json()
-
       if (response.status === 409 && result.error === 'duplicate') {
         toast.error(result.message, {
-          description: result.is_approved
-            ? 'View the existing recommendation instead.'
-            : 'This comic is already pending review.',
-          action: result.is_approved
-            ? {
-                label: 'View Comic',
-                onClick: () => router.push(`/comic/${result.existing_id}`),
-              }
-            : undefined,
+          description: result.is_approved ? 'View the existing recommendation instead.' : 'This comic is already pending review.',
+          action: result.is_approved ? { label: 'View Comic', onClick: () => router.push(`/comic/${result.existing_id}`) } : undefined,
           duration: 6000,
         })
         return
       }
-
-      if (!response.ok) {
-        toast.error(result.error || 'Failed to submit')
-        return
-      }
-
-      toast.success(
-        result.recommendation.is_approved
-          ? 'Recommendation published!'
-          : 'Recommendation submitted for review!'
-      )
-
+      if (!response.ok) { toast.error(result.error || 'Failed to submit'); return }
+      toast.success(result.recommendation.is_approved ? 'Recommendation published!' : 'Recommendation submitted for review!')
       router.push('/dashboard/recommendations')
       router.refresh()
     } catch (error) {
       console.error(error)
       toast.error('Something went wrong')
-    } finally {
-      setSubmitting(false)
-    }
+    } finally { setSubmitting(false) }
   }
 
   const handleMangaSelect = (result: any) => {
@@ -188,361 +153,272 @@ export function RecommendationForm({ userId }: Props) {
     setValue('status', result.status || 'ongoing')
     if (result.year) setValue('year_released', result.year)
     if (result.chapters) setValue('chapter_count', result.chapters)
-
-    // Run duplicate check on the selected title
     if (result.title) checkDuplicate(result.title)
-
-    const validGenres = [
-      'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror',
-      'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports',
-      'Supernatural', 'Thriller', 'Isekai', 'Martial Arts', 'School Life',
-      'Historical', 'Psychological', 'Shounen', 'Shoujo', 'Seinen', 'Josei','Yuri', 'Yaoi',
-    ]
-    const matchedGenres = result.genres
-      ?.filter((g: string) => validGenres.includes(g))
-      .slice(0, 5) || []
-    setValue('genres', matchedGenres)
-
-    if (result.coverUrl && !getValues('cover_url')) {
-      setValue('cover_url', result.coverUrl)
-    }
+    const validGenres = ['Action','Adventure','Comedy','Drama','Fantasy','Horror','Mystery','Romance','Sci-Fi','Slice of Life','Sports','Supernatural','Thriller','Isekai','Martial Arts','School Life','Historical','Psychological','Shounen','Shoujo','Seinen','Josei','Yuri','Yaoi']
+    setValue('genres', result.genres?.filter((g: string) => validGenres.includes(g)).slice(0, 5) || [])
+    if (result.coverUrl && !getValues('cover_url')) setValue('cover_url', result.coverUrl)
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-      {/* Manga API Search */}
-      <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-4">
-        <MangaSearch onSelect={handleMangaSelect} />
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+
+      {/* Auto-fill banner */}
+      <div className="flex items-start gap-3 p-4 rounded-2xl border border-primary/20 bg-primary/5">
+        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shrink-0 mt-0.5">
+          <Sparkles size={13} className="text-white" />
+        </div>
+        <div className="flex-1 space-y-2">
+          <p className="text-sm font-bold text-primary">Auto-fill from database</p>
+          <MangaSearch onSelect={handleMangaSelect} />
+        </div>
       </div>
 
-      <Separator />
-
-      {/* Cover + Title row */}
-      <div className="flex flex-col sm:flex-row gap-6">
-        <div className="shrink-0">
-          <Controller
-            name="cover_url"
-            control={control}
-            render={({ field }) => (
-              <CoverUpload
-                value={field.value}
-                onChange={field.onChange}
-                userId={userId}
-              />
-            )}
-          />
-        </div>
-
-        <div className="flex-1 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">
-              Title <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="title"
-              {...register('title')}
-              placeholder="e.g. One Piece, Solo Leveling, Tower of God..."
-              className="text-base"
-              onChange={(e) => {
-                register('title').onChange(e) // Vital: keeps react-hook-form in sync
-                if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current)
-                duplicateDebounceRef.current = setTimeout(() => checkDuplicate(e.target.value), 600)
-              }}
+      {/* Basic Info */}
+      <FormSection icon={BookOpen} title="Basic Info">
+        <div className="flex flex-col sm:flex-row gap-6">
+          <div className="shrink-0">
+            <Controller
+              name="cover_url"
+              control={control}
+              render={({ field }) => (
+                <CoverUpload value={field.value} onChange={field.onChange} userId={userId} />
+              )}
             />
-            
-            {/* Checking status */}
-            {checkingDuplicate && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Loader2 size={11} className="animate-spin" />
-                Checking for duplicates...
-              </p>
-            )}
-
-            {/* Duplicate warning block */}
-            {duplicateWarning && (
-              <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/5 border border-destructive/20">
-                <AlertTriangle size={14} className="text-destructive shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="text-xs text-destructive font-medium">
-                    This comic has already been recommended!
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    "{duplicateWarning.title}" already exists.{' '}
-                    {duplicateWarning.is_approved ? (
-                      <Link
-                        href={`/comic/${duplicateWarning.id}`}
-                        className="text-primary hover:underline font-medium"
-                      >
-                        View it here →
-                      </Link>
-                    ) : (
-                      'It is currently pending review.'
-                    )}
-                  </p>
+          </div>
+          <div className="flex-1 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="title" className="text-sm font-semibold">Title <span className="text-destructive">*</span></Label>
+              <Input
+                id="title"
+                {...register('title')}
+                placeholder="e.g. One Piece, Solo Leveling, Tower of God…"
+                className="h-11 text-base"
+                onChange={(e) => {
+                  register('title').onChange(e)
+                  if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current)
+                  duplicateDebounceRef.current = setTimeout(() => checkDuplicate(e.target.value), 600)
+                }}
+              />
+              {checkingDuplicate && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 size={11} className="animate-spin" /> Checking for duplicates…
+                </p>
+              )}
+              {duplicateWarning && (
+                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-destructive/5 border border-destructive/20">
+                  <AlertTriangle size={14} className="text-destructive shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-bold text-destructive">Already recommended!</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      "{duplicateWarning.title}" exists.{' '}
+                      {duplicateWarning.is_approved
+                        ? <Link href={`/comic/${duplicateWarning.id}`} className="text-primary hover:underline font-semibold">View it →</Link>
+                        : 'Currently pending review.'}
+                    </p>
+                  </div>
                 </div>
+              )}
+              {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="author" className="text-sm font-semibold">Author</Label>
+                <Input id="author" {...register('author')} placeholder="Author name" className="h-10" />
               </div>
-            )}
-
-            {errors.title && (
-              <p className="text-xs text-destructive">{errors.title.message}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="author">Author</Label>
-              <Input id="author" {...register('author')} placeholder="Author name" />
+              <div className="space-y-1.5">
+                <Label htmlFor="artist" className="text-sm font-semibold">Artist</Label>
+                <Input id="artist" {...register('artist')} placeholder="Artist name" className="h-10" />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="artist">Artist</Label>
-              <Input id="artist" {...register('artist')} placeholder="Artist name" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="year_released">Year Released</Label>
-              <Input
-                id="year_released"
-                type="number"
-                {...register('year_released')}
-                placeholder="e.g. 2020"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="chapter_count">Chapters</Label>
-              <Input
-                id="chapter_count"
-                type="number"
-                {...register('chapter_count')}
-                placeholder="e.g. 100"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="year_released" className="text-sm font-semibold">Year</Label>
+                <Input id="year_released" type="number" {...register('year_released')} placeholder="e.g. 2020" className="h-10" />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="chapter_count" className="text-sm font-semibold">Chapters</Label>
+                <Input id="chapter_count" type="number" {...register('chapter_count')} placeholder="e.g. 100" className="h-10" />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </FormSection>
 
-      <Separator />
-
-      {/* Type selection */}
-      <div className="space-y-3">
-        <Label>Type <span className="text-destructive">*</span></Label>
-        <Controller
-          name="type"
-          control={control}
-          render={({ field }) => (
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {TYPES.map(({ value, label, desc }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => field.onChange(value)}
-                  className={cn(
-                    'flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-lg border text-sm font-medium transition-all',
-                    field.value === value
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'border-border hover:border-primary text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {label}
-                  <span className={cn(
-                    'text-[10px] font-normal',
-                    field.value === value ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                  )}>
-                    {desc}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        />
-        {errors.type && <p className="text-xs text-destructive">{errors.type.message}</p>}
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        {/* Status */}
-        <div className="space-y-3">
-          <Label>Status <span className="text-destructive">*</span></Label>
+      {/* Classification */}
+      <FormSection icon={Tag} title="Classification" accent="from-violet-500 to-purple-600">
+        <div className="space-y-2">
+          <Label className="text-sm font-semibold">Type <span className="text-destructive">*</span></Label>
           <Controller
-            name="status"
+            name="type"
             control={control}
             render={({ field }) => (
-              <div className="grid grid-cols-2 gap-2">
-                {STATUSES.map(({ value, label, color }) => (
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {TYPES.map(({ value, label, desc, activeClass }) => (
                   <button
                     key={value}
                     type="button"
                     onClick={() => field.onChange(value)}
                     className={cn(
-                      'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all',
+                      'flex flex-col items-center gap-0.5 px-2 py-2.5 rounded-xl border text-sm font-semibold transition-all',
                       field.value === value
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'border-border hover:border-primary text-muted-foreground hover:text-foreground'
+                        ? activeClass
+                        : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
                     )}
                   >
-                    <span className={cn(
-                      'w-2 h-2 rounded-full shrink-0',
-                      field.value === value ? 'bg-primary-foreground' : color.replace('text-', 'bg-')
-                    )} />
                     {label}
+                    <span className={cn('text-[10px] font-normal', field.value === value ? 'opacity-75' : 'opacity-60')}>{desc}</span>
                   </button>
                 ))}
               </div>
             )}
           />
-          {errors.status && <p className="text-xs text-destructive">{errors.status.message}</p>}
+          {errors.type && <p className="text-xs text-destructive">{errors.type.message}</p>}
         </div>
 
-       {/* Content Rating */}
-        <div className="space-y-3">
-          <Label>Content Rating</Label>
-          <Controller
-            name="content_rating"
-            control={control}
-            render={({ field }) => (
-              <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Status <span className="text-destructive">*</span></Label>
+            <Controller
+              name="status"
+              control={control}
+              render={({ field }) => (
                 <div className="grid grid-cols-2 gap-2">
-                  {RATINGS.map(({ value, label }) => (
+                  {STATUSES.map(({ value, label, dot }) => (
                     <button
                       key={value}
                       type="button"
                       onClick={() => field.onChange(value)}
                       className={cn(
-                        'px-3 py-2 rounded-lg border text-sm font-medium transition-all',
+                        'flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all',
                         field.value === value
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'border-border hover:border-primary text-muted-foreground hover:text-foreground'
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
+                          : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
                       )}
                     >
+                      <span className={cn('w-2 h-2 rounded-full shrink-0', field.value === value ? 'bg-primary-foreground/80' : dot)} />
                       {label}
                     </button>
                   ))}
                 </div>
+              )}
+            />
+            {errors.status && <p className="text-xs text-destructive">{errors.status.message}</p>}
+          </div>
 
-                {/* Adult warning box */}
-                {field.value === 'adult' && (
-                  <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/20 space-y-2">
-                    <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
-                      <AlertTriangle size={13} />
-                      Adult Content Rules
-                    </p>
-                    <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                      <li>Must link to a verified official platform (Lezhin,Toomics etc.)</li>
-                      <li>Cover image must be official promotional art — no explicit imagery</li>
-                      <li>All adult submissions require manual admin approval</li>
-                      <li>Violations will result in removal and account suspension</li>
-                    </ul>
-                    <label className="flex items-start gap-2 mt-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5 accent-destructive"
-                        onChange={(e) => setValue('adult_content_confirmed', e.target.checked)}
-                      />
-                      <span className="text-xs text-muted-foreground">
-                        I confirm this submission follows all adult content rules above
-                      </span>
-                    </label>
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold">Content Rating</Label>
+            <Controller
+              name="content_rating"
+              control={control}
+              render={({ field }) => (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {RATINGS.map(({ value, label, emoji }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => field.onChange(value)}
+                        className={cn(
+                          'flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all',
+                          field.value === value
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
+                            : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                        )}
+                      >
+                        <span className="leading-none">{emoji}</span>
+                        {label}
+                      </button>
+                    ))}
                   </div>
-                )}
-              </div>
-            )}
-          />
+                  {field.value === 'adult' && (
+                    <div className="p-3 rounded-xl bg-destructive/5 border border-destructive/20 space-y-2">
+                      <p className="text-xs font-black text-destructive flex items-center gap-1.5">
+                        <AlertTriangle size={12} /> Adult Content Rules
+                      </p>
+                      <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside leading-relaxed">
+                        <li>Must link to a verified official platform</li>
+                        <li>Cover must be official promotional art — no explicit imagery</li>
+                        <li>Requires manual admin approval</li>
+                        <li>Violations result in removal &amp; account suspension</li>
+                      </ul>
+                      <label className="flex items-start gap-2 cursor-pointer">
+                        <input type="checkbox" className="mt-0.5 accent-destructive" onChange={(e) => setValue('adult_content_confirmed', e.target.checked)} />
+                        <span className="text-xs text-muted-foreground">I confirm this submission follows all adult content rules</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
+            />
+          </div>
         </div>
-      </div>
+      </FormSection>
 
-      <Separator />
-
-      <div className="space-y-3">
-        <Label>Genres <span className="text-destructive">*</span></Label>
+      {/* Genres */}
+      <FormSection icon={Tag} title="Genres" accent="from-rose-500 to-pink-600">
         <Controller
           name="genres"
           control={control}
           render={({ field }) => (
-            <GenreSelector
-              value={field.value}
-              onChange={field.onChange}
-              error={errors.genres?.message}
-            />
+            <GenreSelector value={field.value} onChange={field.onChange} error={errors.genres?.message} />
           )}
         />
-      </div>
+      </FormSection>
 
-      <Separator />
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="description">Description <span className="text-destructive">*</span></Label>
-          <span className="text-xs text-muted-foreground">{descValue.length}/2000</span>
+      {/* Description */}
+      <FormSection icon={FileText} title="Description" accent="from-amber-500 to-orange-500">
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="description" className="text-sm font-semibold">Description <span className="text-destructive">*</span></Label>
+            <span className="text-xs text-muted-foreground">{descValue.length}/2000</span>
+          </div>
+          <Textarea id="description" {...register('description')} placeholder="What is this comic about?" rows={4} className="resize-none" />
+          {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
         </div>
-        <Textarea
-          id="description"
-          {...register('description')}
-          placeholder="What is this comic about?..."
-          rows={4}
-          className="resize-none"
-        />
-        {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="why_recommend">Why do you recommend it? <span className="text-muted-foreground font-normal ml-1">(optional)</span></Label>
-          <span className="text-xs text-muted-foreground">{whyValue.length}/1000</span>
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="why_recommend" className="text-sm font-semibold">
+              Why do you recommend it?
+              <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+            </Label>
+            <span className="text-xs text-muted-foreground">{whyValue.length}/1000</span>
+          </div>
+          <Textarea id="why_recommend" {...register('why_recommend')} placeholder="What makes this special? What should readers expect?" rows={3} className="resize-none" />
         </div>
-        <Textarea
-          id="why_recommend"
-          {...register('why_recommend')}
-          placeholder="What makes this special?..."
-          rows={3}
-          className="resize-none"
-        />
-      </div>
+      </FormSection>
 
-      <Separator />
-
-      <div className="space-y-3">
-        <Label>Official Platforms <span className="text-destructive">*</span></Label>
+      {/* Platforms */}
+      <FormSection icon={Globe} title="Official Platforms" accent="from-teal-500 to-cyan-600">
         <Controller
           name="official_platforms"
           control={control}
           render={({ field }) => (
-            <PlatformSelector
-              value={field.value}
-              onChange={field.onChange}
-              error={errors.official_platforms?.message}
-            />
+            <PlatformSelector value={field.value} onChange={field.onChange} error={errors.official_platforms?.message} />
           )}
         />
-      </div>
+      </FormSection>
 
-      <Separator />
-
-      <div className="flex gap-2 p-3 rounded-lg bg-muted/50 border border-border">
-        <Info size={16} className="text-muted-foreground shrink-0 mt-0.5" />
-        <p className="text-xs text-muted-foreground">
-          Your recommendation will be reviewed by our team before being published.
+      {/* Info notice */}
+      <div className="flex gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/15">
+        <Info size={15} className="text-primary shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Your recommendation will be reviewed by our team before being published to the community.
         </p>
       </div>
 
-      <div className="flex items-center justify-between pt-2">
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => router.back()}
-          disabled={submitting}
-        >
+      {/* Submit row */}
+      <div className="flex items-center justify-between pt-1">
+        <Button type="button" variant="ghost" onClick={() => router.back()} disabled={submitting}>
           Cancel
         </Button>
         <Button
           type="submit"
           disabled={submitting || !!duplicateWarning || (watch('content_rating') === 'adult' && !watch('adult_content_confirmed'))}
-          className="gap-2 min-w-36"
+          className="gap-2 min-w-44 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
         >
-          {submitting ? (
-            <><Loader2 size={15} className="animate-spin" />Submitting...</>
-          ) : (
-            <><BookOpen size={15} />Submit Recommendation</>
-          )}
+          {submitting
+            ? <><Loader2 size={15} className="animate-spin" /> Submitting…</>
+            : <><BookOpen size={15} /> Submit Recommendation</>}
         </Button>
       </div>
     </form>

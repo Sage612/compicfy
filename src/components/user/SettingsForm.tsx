@@ -9,13 +9,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Separator } from '@/components/ui/separator'
 import { AvatarUpload } from './AvatarUpload'
 import { toast } from 'sonner'
-import { Loader2, X } from 'lucide-react'
+import { Loader2, X, User, Heart, Shield, Globe } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
 import type { Profile, Database } from '@/types/database.types'
 import { AdultContentToggle } from '@/components/user/AdultContentToggle'
+import { cn } from '@/lib/utils'
 
 const settingsSchema = z.object({
   username: z
@@ -30,6 +30,25 @@ const settingsSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof settingsSchema>
 
+function FormSection({ icon: Icon, title, accent = 'from-primary to-violet-500', children }: {
+  icon: React.ElementType
+  title: string
+  accent?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-muted/30">
+        <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${accent} flex items-center justify-center shrink-0`}>
+          <Icon size={13} className="text-white" />
+        </div>
+        <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{title}</h3>
+      </div>
+      <div className="p-5 space-y-5">{children}</div>
+    </div>
+  )
+}
+
 interface Props {
   profile: Profile
   userId: string
@@ -39,16 +58,9 @@ export function SettingsForm({ profile, userId }: Props) {
   const supabase = createClient()
   const [saving, setSubmitting] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url)
-  const [selectedGenres, setSelectedGenres] = useState<string[]>(
-    profile.favorite_genres || []
-  )
+  const [selectedGenres, setSelectedGenres] = useState<string[]>(profile.favorite_genres || [])
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors, isDirty },
-  } = useForm<SettingsFormValues>({
+  const { register, handleSubmit, watch, formState: { errors, isDirty } } = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       username: profile.username,
@@ -64,16 +76,13 @@ export function SettingsForm({ profile, userId }: Props) {
     setSelectedGenres((prev) =>
       prev.includes(genre)
         ? prev.filter((g) => g !== genre)
-        : prev.length >= 10
-        ? prev
-        : [...prev, genre]
+        : prev.length >= 10 ? prev : [...prev, genre]
     )
   }
 
   const onSubmit = async (data: SettingsFormValues) => {
     setSubmitting(true)
     try {
-      // Check username uniqueness if changed
       if (data.username !== profile.username) {
         const { data: existing } = await supabase
           .from('profiles')
@@ -81,7 +90,6 @@ export function SettingsForm({ profile, userId }: Props) {
           .eq('username', data.username.toLowerCase())
           .neq('id', userId)
           .single()
-
         if (existing) {
           toast.error('Username is already taken')
           setSubmitting(false)
@@ -89,22 +97,17 @@ export function SettingsForm({ profile, userId }: Props) {
         }
       }
 
-     const updateData: Database['public']['Tables']['profiles']['Update'] = {
-  username: data.username.toLowerCase(),
-  display_name: data.display_name || null,
-  bio: data.bio || null,
-  website: data.website || null,
-  favorite_genres: selectedGenres,
-  updated_at: new Date().toISOString(),
-}
+      const updateData: Database['public']['Tables']['profiles']['Update'] = {
+        username: data.username.toLowerCase(),
+        display_name: data.display_name || null,
+        bio: data.bio || null,
+        website: data.website || null,
+        favorite_genres: selectedGenres,
+        updated_at: new Date().toISOString(),
+      }
 
-const { error } = await (supabase as any)
-  .from('profiles')
-  .update(updateData)
-  .eq('id', userId)
-
+      const { error } = await (supabase as any).from('profiles').update(updateData).eq('id', userId)
       if (error) throw error
-
       toast.success('Profile updated!')
     } catch (error) {
       console.error(error)
@@ -115,144 +118,110 @@ const { error } = await (supabase as any)
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-      {/* Avatar section */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-base font-semibold">Profile Photo</h2>
-          <p className="text-sm text-muted-foreground">
-            This will be shown on your profile and recommendations
-          </p>
+      {/* Profile Photo */}
+      <FormSection icon={User} title="Profile Photo">
+        <div className="space-y-1.5">
+          <p className="text-sm text-muted-foreground">Shown on your profile and recommendations</p>
+          <AvatarUpload
+            userId={userId}
+            currentUrl={avatarUrl}
+            displayName={profile.display_name || profile.username}
+            onUploadComplete={(url) => setAvatarUrl(url || null)}
+          />
         </div>
-        <AvatarUpload
-          userId={userId}
-          currentUrl={avatarUrl}
-          displayName={profile.display_name || profile.username}
-          onUploadComplete={(url) => setAvatarUrl(url || null)}
-        />
-      </div>
+      </FormSection>
 
-      <Separator />
-
-      {/* Basic info */}
-      <div className="space-y-4">
-        <h2 className="text-base font-semibold">Basic Information</h2>
-
+      {/* Basic Information */}
+      <FormSection icon={User} title="Basic Information" accent="from-violet-500 to-purple-600">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
-            <Input
-              id="username"
-              {...register('username')}
-              placeholder="comicfan123"
-            />
-            {errors.username && (
-              <p className="text-xs text-destructive">{errors.username.message}</p>
-            )}
+          <div className="space-y-1.5">
+            <Label htmlFor="username" className="text-sm font-semibold">Username</Label>
+            <Input id="username" {...register('username')} placeholder="comicfan123" className="h-10" />
+            {errors.username && <p className="text-xs text-destructive">{errors.username.message}</p>}
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="display_name">Display Name</Label>
-            <Input
-              id="display_name"
-              {...register('display_name')}
-              placeholder="Comic Fan"
-            />
-            {errors.display_name && (
-              <p className="text-xs text-destructive">{errors.display_name.message}</p>
-            )}
+          <div className="space-y-1.5">
+            <Label htmlFor="display_name" className="text-sm font-semibold">Display Name</Label>
+            <Input id="display_name" {...register('display_name')} placeholder="Comic Fan" className="h-10" />
+            {errors.display_name && <p className="text-xs text-destructive">{errors.display_name.message}</p>}
           </div>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="bio">Bio</Label>
-            <span className="text-xs text-muted-foreground">
-              {bioValue.length}/500
-            </span>
+            <Label htmlFor="bio" className="text-sm font-semibold">Bio</Label>
+            <span className="text-xs text-muted-foreground">{bioValue.length}/500</span>
           </div>
           <Textarea
             id="bio"
             {...register('bio')}
-            placeholder="Tell the community about yourself and what you love to read..."
+            placeholder="Tell the community about yourself and what you love to read…"
             rows={3}
             className="resize-none"
           />
-          {errors.bio && (
-            <p className="text-xs text-destructive">{errors.bio.message}</p>
-          )}
+          {errors.bio && <p className="text-xs text-destructive">{errors.bio.message}</p>}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="website">Website</Label>
-          <Input
-            id="website"
-            {...register('website')}
-            placeholder="https://yoursite.com"
-            type="url"
-          />
-          {errors.website && (
-            <p className="text-xs text-destructive">{errors.website.message}</p>
-          )}
+        <div className="space-y-1.5">
+          <Label htmlFor="website" className="text-sm font-semibold flex items-center gap-1.5">
+            <Globe size={13} />
+            Website
+          </Label>
+          <Input id="website" {...register('website')} placeholder="https://yoursite.com" type="url" className="h-10" />
+          {errors.website && <p className="text-xs text-destructive">{errors.website.message}</p>}
         </div>
-      </div>
+      </FormSection>
 
-      <Separator />
-
-      {/* Favorite genres */}
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-base font-semibold">Favorite Genres</h2>
+      {/* Favourite Genres */}
+      <FormSection icon={Heart} title="Favourite Genres" accent="from-rose-500 to-pink-600">
+        <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Select up to 10 genres · {selectedGenres.length}/10 selected
+            Select up to 10 genres
+            <span className={cn('ml-1.5 font-semibold', selectedGenres.length >= 10 ? 'text-amber-500' : 'text-primary')}>
+              {selectedGenres.length}/10
+            </span>
           </p>
+          <div className="flex flex-wrap gap-2">
+            {GENRES.map((genre) => {
+              const isSelected = selectedGenres.includes(genre)
+              return (
+                <button
+                  key={genre}
+                  type="button"
+                  onClick={() => toggleGenre(genre)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold border transition-all',
+                    isSelected
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
+                      : 'bg-card border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                  )}
+                >
+                  {genre}
+                  {isSelected && <X size={11} />}
+                </button>
+              )
+            })}
+          </div>
         </div>
+      </FormSection>
 
-        <div className="flex flex-wrap gap-2">
-          {GENRES.map((genre) => {
-            const isSelected = selectedGenres.includes(genre)
-            return (
-              <button
-                key={genre}
-                type="button"
-                onClick={() => toggleGenre(genre)}
-                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border transition-colors ${
-                  isSelected
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-card border-border text-muted-foreground hover:border-primary hover:text-foreground'
-                }`}
-              >
-                {genre}
-                {isSelected && <X size={12} />}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-      <AdultContentToggle
-        userId={userId}
-        initialEnabled={profile.adult_content_enabled ?? false}
-      />
+      {/* Content Preferences */}
+      <FormSection icon={Shield} title="Content Preferences" accent="from-zinc-600 to-zinc-800">
+        <AdultContentToggle userId={userId} initialEnabled={profile.adult_content_enabled ?? false} />
+      </FormSection>
 
-      <Separator />
-
-      <Separator />
-
-      {/* Save button */}
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">
-          Your profile is public and visible to all users
-        </p>
-        <Button type="submit" disabled={saving} className="gap-2 min-w-28">
-          {saving ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              Saving...
-            </>
-          ) : (
-            'Save Changes'
-          )}
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-1">
+        <p className="text-xs text-muted-foreground">Your profile is public and visible to all users</p>
+        <Button
+          type="submit"
+          disabled={saving}
+          className="gap-2 min-w-32 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+        >
+          {saving
+            ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
+            : 'Save Changes'}
         </Button>
       </div>
     </form>

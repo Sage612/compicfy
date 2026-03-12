@@ -1,12 +1,12 @@
 export const GENRES = [
   'Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy',
   'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Slice of Life',
-  'Sports', 'Supernatural', 'Thriller', 'Historical', 'Mecha',
+  'Sports', 'Supernatural', 'Thriller', 'Isekai', 'Martial Arts', 'School Life', 'Historical', 'Psychological', 'Shounen', 'Shoujo','Seinen', 'Josei','Yuri','Yaoi', 'Mecha',
 ] as const
 
 export const PLATFORMS = [
-  'Webtoon', 'Tapas', 'MangaDex', 'Viz Media', 'Crunchyroll Manga',
-  'Shonen Jump', 'ComiXology', 'Lezhin', 'Pocket Comics', 'Other',
+  'Webtoon', 'Tapas', 'Tappytoon', 'Viz Media', 'Crunchyroll Manga',
+  'Manta', 'Webcomics', 'Lezhin', 'Mangatoon', 'Pocket Comics','Toomics','Toptoon','DAYcomics', 'Mangaplus','INKR',
 ] as const
 
 export const COMIC_TYPES = [

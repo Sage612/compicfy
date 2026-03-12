@@ -90,7 +90,7 @@ export default function SignupPage() {
           <Users size={24} className="text-white" />
         </div>
         <h1 className="text-3xl font-black tracking-tight">Join Compicfy</h1>
-        <p className="text-muted-foreground text-sm">Discover your next favourite comic</p>
+        <p className="text-muted-foreground text-sm">Find your next obsession</p>
       </div>
 
       {/* Card */}
