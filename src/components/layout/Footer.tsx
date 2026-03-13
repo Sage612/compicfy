@@ -14,11 +14,13 @@ const footerLinks = {
     { label: 'Discord',              href: 'https://discord.gg/7WPGMb696N'       },
   ],
   Legal: [
+    {label:'Disclaimer', href: '/disclaimer' },
     { label: 'About',          href: '/about'   },
     { label: 'FAQ',            href: '/faq'     },
     { label: 'Terms',          href: '/terms'   },
     { label: 'Privacy Policy', href: '/privacy' },
-    { label: 'Cookies',        href: '/cookies' },
+    { label: 'Cookies', href: '/cookies' },
+    { label: 'DMCA',   href: '/dmca'    },
   ],
 }
 
@@ -86,8 +88,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground text-center sm:flex-row sm:justify-between sm:text-left">
           <div className="space-y-1">
-            <p>© {new Date().getFullYear()} Compicfy. All rights reserved.</p>
-            We do not host or link to pirated content.
+            <p>© {new Date().getFullYear()} Compicfy. All rights reserved.We do not host or link to pirated content.</p>
           </div>
           <p className="flex items-center gap-1 shrink-0">
             Made with
