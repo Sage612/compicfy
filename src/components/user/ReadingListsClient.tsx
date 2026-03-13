@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import {
   BookMarked, Plus, Trash2, Globe, Lock,
-  Loader2, BookOpen, Pencil
+  Loader2, BookOpen, Pencil, ArrowRight,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
@@ -104,19 +104,26 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
 
   return (
     <div className="space-y-6">
+
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <BookMarked size={22} />
-            Reading Lists
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {lists.length} list{lists.length !== 1 ? 's' : ''}
-          </p>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
+            <BookMarked size={16} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
+            <p className="text-muted-foreground text-sm">
+              {lists.length} list{lists.length !== 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
         {!showCreate && (
-          <Button size="sm" onClick={() => setShowCreate(true)} className="gap-2">
+          <Button
+            size="sm"
+            onClick={() => setShowCreate(true)}
+            className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+          >
             <Plus size={14} />
             New List
           </Button>
@@ -125,149 +132,199 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
 
       {/* Create form */}
       {showCreate && (
-        <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
-          <p className="text-sm font-semibold">Create New List</p>
-          <Input
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            placeholder="List name (e.g. Currently Reading)"
-            autoFocus
-          />
-          <Input
-            value={newDesc}
-            onChange={(e) => setNewDesc(e.target.value)}
-            placeholder="Description (optional)"
-          />
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isPublic}
-              onChange={(e) => setIsPublic(e.target.checked)}
-              className="w-4 h-4"
-            />
-            <span className="text-sm">Make this list public</span>
-          </label>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={handleCreate}
-              disabled={!newName.trim() || creating}
-              className="gap-2"
-            >
-              {creating ? <Loader2 size={13} className="animate-spin" /> : null}
-              Create List
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>
-              Cancel
-            </Button>
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-gradient-to-r from-teal-500/10 to-cyan-500/5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shrink-0">
+              <Plus size={13} className="text-white" />
+            </div>
+            <p className="text-xs font-black uppercase tracking-widest text-teal-600">Create New List</p>
+          </div>
+          <div className="p-5 space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">
+                List Name <span className="text-red-500">*</span>
+              </label>
+              <Input
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                placeholder='e.g. "Currently Reading", "Plan to Read"'
+                autoFocus
+                className="h-9 text-sm"
+                onKeyDown={e => e.key === 'Enter' && handleCreate()}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">
+                Description <span className="text-muted-foreground/60">(optional)</span>
+              </label>
+              <Input
+                value={newDesc}
+                onChange={e => setNewDesc(e.target.value)}
+                placeholder="What's this list for?"
+                className="h-9 text-sm"
+              />
+            </div>
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div
+                className={cn(
+                  'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors shrink-0',
+                  isPublic ? 'bg-primary border-primary' : 'border-border group-hover:border-primary/60'
+                )}
+                onClick={() => setIsPublic(p => !p)}
+              >
+                {isPublic && <span className="text-white text-[10px] font-black leading-none">✓</span>}
+              </div>
+              <div>
+                <span className="text-sm font-medium">Make this list public</span>
+                <p className="text-xs text-muted-foreground">Others can see and browse this list on your profile</p>
+              </div>
+            </label>
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                onClick={handleCreate}
+                disabled={!newName.trim() || creating}
+                className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+              >
+                {creating ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                Create List
+              </Button>
+              <Button
+                variant="ghost" size="sm"
+                onClick={() => { setShowCreate(false); setNewName(''); setNewDesc('') }}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Lists grid */}
+      {/* Empty state */}
       {lists.length === 0 && !showCreate ? (
-        <div className="text-center py-16 border border-dashed border-border rounded-xl">
-          <BookMarked size={40} className="mx-auto mb-3 text-muted-foreground opacity-40" />
-          <h3 className="font-semibold mb-1">No lists yet</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Create lists to organise your reading
-          </p>
-          <Button size="sm" onClick={() => setShowCreate(true)} className="gap-2">
+        <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-3">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+            <BookMarked size={22} className="text-muted-foreground opacity-40" />
+          </div>
+          <div>
+            <h3 className="font-black text-sm">No lists yet</h3>
+            <p className="text-xs text-muted-foreground mt-1">Create lists to organise your reading journey</p>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setShowCreate(true)}
+            className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+          >
             <Plus size={14} />
             Create Your First List
           </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {lists.map((list) => (
-            <div
-              key={list.id}
-              className="p-4 rounded-xl border border-border bg-card space-y-3 hover:border-primary/50 transition-colors"
-            >
-              {/* List header */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  {editingId === list.id ? (
-                    <div className="flex gap-2">
-                      <Input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="h-7 text-sm"
-                        autoFocus
-                      />
-                      <Button size="sm" className="h-7 text-xs" onClick={() => handleRename(list.id)}>
-                        Save
+          {lists.map((list) => {
+            const count = itemCount(list)
+            const isEditing = editingId === list.id
+
+            return (
+              <div
+                key={list.id}
+                className="group relative p-5 rounded-2xl border border-border bg-card space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200"
+              >
+                {/* Name + actions */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    {isEditing ? (
+                      <div className="flex gap-2">
+                        <Input
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          className="h-8 text-sm"
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleRename(list.id)
+                            if (e.key === 'Escape') setEditingId(null)
+                          }}
+                        />
+                        <Button size="sm" className="h-8 text-xs px-3 shrink-0" onClick={() => handleRename(list.id)}>
+                          Save
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 text-xs px-2 shrink-0" onClick={() => setEditingId(null)}>
+                          ✕
+                        </Button>
+                      </div>
+                    ) : (
+                      <Link
+                        href={`/dashboard/lists/${list.id}`}
+                        className="font-black text-sm truncate hover:text-primary transition-colors block"
+                      >
+                        {list.name}
+                      </Link>
+                    )}
+                    {list.description && !isEditing && (
+                      <p className="text-xs text-muted-foreground line-clamp-1">{list.description}</p>
+                    )}
+                  </div>
+
+                  {!isEditing && (
+                    <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7"
+                        onClick={() => { setEditingId(list.id); setEditName(list.name) }}
+                        title="Rename"
+                      >
+                        <Pencil size={12} />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setEditingId(null)}>
-                        Cancel
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(list.id)}
+                        disabled={deletingId === list.id}
+                        title="Delete"
+                      >
+                        {deletingId === list.id
+                          ? <Loader2 size={12} className="animate-spin" />
+                          : <Trash2 size={12} />
+                        }
                       </Button>
                     </div>
-                  ) : (
-                    <Link
-                      href={`/dashboard/lists/${list.id}`}
-                      className="font-semibold text-sm truncate hover:text-primary transition-colors block"
-                    >
-                      {list.name}
-                    </Link>
-                  )}
-                  {list.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                      {list.description}
-                    </p>
                   )}
                 </div>
-                <div className="flex gap-1 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={() => { setEditingId(list.id); setEditName(list.name) }}
-                    title="Rename"
-                  >
-                    <Pencil size={12} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(list.id)}
-                    disabled={deletingId === list.id}
-                    title="Delete"
-                  >
-                    {deletingId === list.id
-                      ? <Loader2 size={12} className="animate-spin" />
-                      : <Trash2 size={12} />
-                    }
-                  </Button>
-                </div>
-              </div>
 
-              {/* Stats + actions */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <BookOpen size={11} />
-                    {itemCount(list)} comic{itemCount(list) !== 1 ? 's' : ''}
-                  </span>
-                  <button
-                    onClick={() => handleTogglePublic(list.id, list.is_public)}
-                    className={cn(
-                      'flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors',
-                      list.is_public
-                        ? 'border-green-500/30 text-green-600 bg-green-500/5'
-                        : 'border-border text-muted-foreground hover:border-primary/50'
-                    )}
-                  >
-                    {list.is_public ? <Globe size={10} /> : <Lock size={10} />}
-                    {list.is_public ? 'Public' : 'Private'}
-                  </button>
+                {/* Stats + visibility + date */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <BookOpen size={11} className="text-primary/60" />
+                      <span>
+                        <strong className="text-foreground font-black">{count}</strong> comic{count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleTogglePublic(list.id, list.is_public)}
+                      className={cn(
+                        'flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors',
+                        list.is_public
+                          ? 'border-emerald-500/30 text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20'
+                          : 'border-border text-muted-foreground hover:border-primary/50'
+                      )}
+                    >
+                      {list.is_public ? <Globe size={9} /> : <Lock size={9} />}
+                      {list.is_public ? 'Public' : 'Private'}
+                    </button>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{formatDate(list.created_at)}</span>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {formatDate(list.created_at)}
-                </span>
+
+                {/* Hover arrow to open list */}
+                <Link
+                  href={`/dashboard/lists/${list.id}`}
+                  className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
+                  tabIndex={-1}
+                >
+                  <ArrowRight size={14} className="text-muted-foreground" />
+                </Link>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

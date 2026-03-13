@@ -17,21 +17,28 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Sun,
-  Moon,
-  Monitor,
-  BookOpen,
-  Newspaper,
-  LayoutDashboard,
-  Settings,
-  LogOut,
-  Plus,
-  User as UserIcon,
+  Sun, Moon, Monitor, BookOpen, Newspaper,
+  LayoutDashboard, Settings, LogOut, Plus,
+  User as UserIcon, Bookmark, Bell,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { NotificationBell } from '@/components/user/NotificationBell'
+
+// Custom stacked-books logo mark
+function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+      <rect x="3"   y="18"   width="22" height="5.5" rx="1.5" className="fill-primary-foreground/25" />
+      <rect x="3"   y="18"   width="10" height="5.5" rx="1.5" className="fill-primary-foreground/55" />
+      <rect x="4.5" y="11.5" width="19" height="5.5" rx="1.5" className="fill-primary-foreground/45" />
+      <rect x="4.5" y="11.5" width="9"  height="5.5" rx="1.5" className="fill-primary-foreground/75" />
+      <rect x="6"   y="5"    width="16" height="5.5" rx="1.5" className="fill-primary-foreground"    />
+      <rect x="6"   y="5"    width="7.5"height="5.5" rx="1.5" className="fill-primary-foreground/65" />
+    </svg>
+  )
+}
 
 export function Header() {
   const pathname = usePathname()
@@ -41,6 +48,7 @@ export function Header() {
   const [user, setUser] = useState<User | null>(null)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState<string | null>(null)
+  const [username, setUsername] = useState<string | null>(null)
   const [scrolled, setScrolled] = useState(false)
   const supabase = createClient()
 
@@ -55,25 +63,23 @@ export function Header() {
   useEffect(() => {
     const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
-      const user = session?.user ?? null
-      setUser(user)
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
 
-      if (user) {
-        type ProfileResult = {
-          avatar_url: string | null
-          display_name: string | null
-          username: string
-        }
-
+      if (currentUser) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('avatar_url, display_name, username')
-          .eq('id', user.id)
-          .single() as { data: ProfileResult | null; error: unknown }
+          .eq('id', currentUser.id)
+          .single() as {
+            data: { avatar_url: string | null; display_name: string | null; username: string } | null
+            error: unknown
+          }
 
         if (profile) {
           setAvatarUrl(profile.avatar_url)
           setDisplayName(profile.display_name || profile.username)
+          setUsername(profile.username)
         }
       }
     }
@@ -84,6 +90,7 @@ export function Header() {
       if (!session?.user) {
         setAvatarUrl(null)
         setDisplayName(null)
+        setUsername(null)
       }
     })
 
@@ -98,13 +105,13 @@ export function Header() {
   }
 
   const navLinks = [
-    { href: '/browse', label: 'Browse', icon: BookOpen },
-    { href: '/news', label: 'News', icon: Newspaper },
+    { href: '/browse', label: 'Browse', icon: BookOpen  },
+    { href: '/news',   label: 'News',   icon: Newspaper },
   ]
 
   const themeOptions = [
-    { value: 'light', label: 'Light', icon: Sun },
-    { value: 'dark', label: 'Dark', icon: Moon },
+    { value: 'light',  label: 'Light',  icon: Sun     },
+    { value: 'dark',   label: 'Dark',   icon: Moon    },
     { value: 'system', label: 'System', icon: Monitor },
   ] as const
 
@@ -115,51 +122,65 @@ export function Header() {
   return (
     <header
       className={cn(
-        'fixed top-0 left-0 right-0 z-50 h-14 bg-background/80 backdrop-blur-md border-b border-border transition-shadow duration-200',
-        scrolled && 'shadow-md'
+        'fixed top-0 left-0 right-0 z-50 h-14',
+        'bg-background/90 backdrop-blur-lg border-b border-border',
+        'transition-all duration-200',
+        scrolled && 'shadow-sm shadow-black/5 border-border/80'
       )}
     >
       <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between gap-4">
 
-        {/* Left: Logo */}
-        <Link
-          href="/"
-          className="flex items-center gap-2 font-bold text-lg text-primary hover:opacity-80 transition-opacity shrink-0"
-        >
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <BookOpen size={14} className="text-primary-foreground" />
+        {/* ── Logo ──────────────────────────────────────────────────────── */}
+        <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
+          <div className={cn(
+            'w-8 h-8 rounded-xl flex items-center justify-center',
+            'bg-gradient-to-br from-primary to-violet-500',
+            'shadow-md shadow-primary/20',
+            'group-hover:shadow-lg group-hover:shadow-primary/30 group-hover:scale-105',
+            'transition-all duration-200'
+          )}>
+            <LogoMark className="w-[18px] h-[18px]" />
           </div>
-          <span className="hidden sm:inline">Compicfy</span>
+          <span className="hidden sm:inline font-black text-[15px] tracking-tight leading-none">
+            Compic<span className="text-primary">fy</span>
+          </span>
         </Link>
 
-        {/* Center: Nav links */}
-        <nav className="hidden md:flex items-center gap-1">
-          {navLinks.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-                pathname === href || pathname.startsWith(href + '/')
-                  ? 'bg-accent text-accent-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
-              )}
-            >
-              <Icon size={15} />
-              {label}
-            </Link>
-          ))}
+        {/* ── Center nav ────────────────────────────────────────────────── */}
+        <nav className="hidden md:flex items-center gap-0.5">
+          {navLinks.map(({ href, label, icon: Icon }) => {
+            const isActive = pathname === href || pathname.startsWith(href + '/')
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium transition-all duration-150',
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
+                )}
+              >
+                <Icon size={14} />
+                {label}
+              </Link>
+            )
+          })}
         </nav>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        {/* ── Right actions ─────────────────────────────────────────────── */}
+        <div className="flex items-center gap-1">
 
           {/* Theme toggle */}
           {mounted && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Toggle theme">
-                  {theme === 'light' ? <Sun size={16} /> : theme === 'dark' ? <Moon size={16} /> : <Monitor size={16} />}
+                <Button
+                  variant="ghost" size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  aria-label="Toggle theme"
+                >
+                  {theme === 'light' ? <Sun size={15} /> : theme === 'dark' ? <Moon size={15} /> : <Monitor size={15} />}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-36">
@@ -169,34 +190,40 @@ export function Header() {
                     onClick={() => setTheme(value)}
                     className={cn('gap-2 cursor-pointer', theme === value && 'text-primary font-medium')}
                   >
-                    <Icon size={14} />
+                    <Icon size={13} />
                     {label}
-                    {theme === value && <span className="ml-auto">✓</span>}
+                    {theme === value && <span className="ml-auto text-primary">✓</span>}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
           )}
 
-          {/* Logged out */}
+          {/* ── Logged out ──────────────────────────────────────────────── */}
           {!user && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 ml-1">
               <Link href="/login">
-                <Button variant="ghost" size="sm" className="hidden sm:flex">Log in</Button>
+                <Button variant="ghost" size="sm" className="hidden sm:flex h-8 text-sm font-medium">
+                  Log in
+                </Button>
               </Link>
               <Link href="/signup">
-                <Button size="sm">Sign up</Button>
+                <Button size="sm" className="h-8 text-sm font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
+                  Sign up
+                </Button>
               </Link>
             </div>
           )}
 
-          {/* Logged in */}
+          {/* ── Logged in ───────────────────────────────────────────────── */}
           {user && (
-            <div className="flex items-center gap-2">
-              <Link href="/dashboard/recommendations/new" className="hidden sm:block">
-                <Button size="sm" className="gap-1.5">
-                  <Plus size={14} />
-                  Add
+            <div className="flex items-center gap-1 ml-0.5">
+
+              {/* Add comic button */}
+              <Link href="/dashboard/recommendations/new">
+                <Button size="sm" className="h-8 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
+                  <Plus size={13} />
+                  <span className="hidden sm:inline text-sm">Add</span>
                 </Button>
               </Link>
 
@@ -206,53 +233,111 @@ export function Header() {
               {/* User dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="rounded-full ring-2 ring-transparent hover:ring-primary transition-all outline-none">
+                  <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/40 focus-visible:ring-primary/40 transition-all outline-none">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={avatarUrl ?? undefined} alt={displayName ?? 'User'} />
-                      <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                      <AvatarFallback className="text-xs font-black bg-gradient-to-br from-primary to-violet-500 text-white">
                         {initials}
                       </AvatarFallback>
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-semibold text-sm">{displayName ?? 'User'}</span>
-                      <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+
+                <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
+
+                  {/* User info header */}
+                  <DropdownMenuLabel className="font-normal px-2 py-2 mb-0.5">
+                    <div className="flex items-center gap-2.5">
+                      <Avatar className="h-9 w-9 shrink-0">
+                        <AvatarImage src={avatarUrl ?? undefined} />
+                        <AvatarFallback className="text-xs font-black bg-gradient-to-br from-primary to-violet-500 text-white">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="font-black text-sm truncate leading-tight">{displayName ?? 'User'}</p>
+                        <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">{user.email}</p>
+                      </div>
                     </div>
                   </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                    <Link href="/dashboard"><LayoutDashboard size={14} />Dashboard</Link>
+
+                  <DropdownMenuSeparator className="my-1" />
+
+                  {/* Profile */}
+                  {username && (
+                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                      <Link href={`/profile/${username}`}>
+                        <UserIcon size={13} className="text-muted-foreground" />
+                        View Profile
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                    <Link href="/dashboard">
+                      <LayoutDashboard size={13} className="text-muted-foreground" />
+                      Dashboard
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                    <Link href="/dashboard/recommendations"><BookOpen size={14} />My Recommendations</Link>
+
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                    <Link href="/dashboard/recommendations">
+                      <BookOpen size={13} className="text-muted-foreground" />
+                      My Recommendations
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                    <Link href="/dashboard/saved"><UserIcon size={14} />Saved Comics</Link>
+
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                    <Link href="/dashboard/saved">
+                      <Bookmark size={13} className="text-muted-foreground" />
+                      Saved Comics
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                    <Link href="/dashboard/notifications"><BookOpen size={14} />Notifications</Link>
+
+                  <DropdownMenuSeparator className="my-1" />
+
+                  {/*
+                    Notifications — only show on sm+ screens.
+                    On mobile the bell is already visible in the header
+                    and in the bottom mobile nav, so this would be a duplicate.
+                    `hidden sm:flex` hides it on mobile, shows on tablet/desktop.
+                  */}
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg hidden sm:flex">
+                    <Link href="/dashboard/notifications">
+                      <Bell size={13} className="text-muted-foreground" />
+                      Notifications
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2">
-                    <Link href="/dashboard/settings"><Settings size={14} />Settings</Link>
+
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                    <Link href="/dashboard/settings">
+                      <Settings size={13} className="text-muted-foreground" />
+                      Settings
+                    </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
+
+                  <DropdownMenuSeparator className="my-1" />
+
+                  {/* Discord */}
+                  <DropdownMenuItem asChild className="rounded-lg">
                     <a href="https://discord.gg/7WPGMb696N" target="_blank" rel="noopener noreferrer" className="gap-2 cursor-pointer">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.102 18.08.114 18.1.141 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-[#5865F2] shrink-0">
+                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.102 18.08.114 18.1.141 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
                       </svg>
                       Join Discord
                     </a>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer gap-2 text-destructive focus:text-destructive">
-                    <LogOut size={14} />
+
+                  <DropdownMenuSeparator className="my-1" />
+
+                  <DropdownMenuItem
+                    onClick={handleSignOut}
+                    className="cursor-pointer gap-2 rounded-lg text-destructive focus:text-destructive"
+                  >
+                    <LogOut size={13} />
                     Sign out
                   </DropdownMenuItem>
+
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

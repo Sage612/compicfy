@@ -41,18 +41,15 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const auth = await requireRole(false) // admin + mod
+
+  const auth = await requireRole(false)
   if (auth.error) return auth.error
 
   const { user, supabase } = auth
   const body = await request.json()
   const { action } = body
 
-  // Direct field edit — admin only
   if (!action) {
-    const adminAuth = await requireRole(true)
-    if (adminAuth.error) return adminAuth.error
-
     const allowedFields = [
       'title', 'description', 'type', 'status', 'genres', 'themes',
       'content_warnings', 'content_rating', 'official_platforms',
@@ -65,22 +62,29 @@ export async function PATCH(
     for (const field of allowedFields) {
       if (field in body) updates[field] = body[field]
     }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })
+    }
+
     updates.updated_at = new Date().toISOString()
 
-    const { data, error: updateError } = await (supabase as any)!
+    const { data, error: updateError } = await (supabase! as any)
       .from('recommendations')
-      .update(updates)
+      .update(updates as any)
       .eq('id', id)
       .select()
       .single()
 
-    if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+    if (updateError) {
+      console.error('Edit recommendation error:', updateError)
+      return NextResponse.json({ error: updateError.message }, { status: 500 })
+    }
 
-    await logAction(supabase!, user!.id, 'edited recommendation', 'recommendation', id, data.title, {})
+    await logAction(supabase!, user!.id, 'edited recommendation', 'recommendation', id, (data as any).title, {})
     return NextResponse.json({ recommendation: data })
   }
 
-  // Action-based updates
   let updates: Record<string, any> = {}
   let logMsg = ''
 
@@ -94,6 +98,7 @@ export async function PATCH(
       }
       logMsg = 'approved recommendation'
       break
+
     case 'reject':
       updates = {
         is_approved: false,
@@ -103,71 +108,79 @@ export async function PATCH(
       }
       logMsg = 'rejected recommendation'
       break
+
     case 'feature':
       updates = { is_featured: true, featured_at: new Date().toISOString() }
       logMsg = 'featured recommendation'
       break
+
     case 'unfeature':
       updates = { is_featured: false }
       logMsg = 'unfeatured recommendation'
       break
+
     case 'resolve_appeal':
       updates = {
         appeal_status: body.appeal_status,
         is_approved: body.appeal_status === 'approved',
-        rejection_reason: body.appeal_status === 'approved' ? null : undefined,
+        ...(body.appeal_status === 'approved' ? { rejection_reason: null } : {}),
       }
       logMsg = `${body.appeal_status} recommendation appeal`
       break
+
     default:
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   }
 
-  const { data, error: updateError } = await (supabase as any)!
+  const { data, error: updateError } = await (supabase! as any)
     .from('recommendations')
-    .update(updates)
+    .update(updates as any)
     .eq('id', id)
     .select()
     .single()
 
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+  if (updateError) {
+    console.error('Action update error:', updateError)
+    return NextResponse.json({ error: updateError.message }, { status: 500 })
+  }
 
-  await logAction(supabase!, user!.id, logMsg, 'recommendation', id, data.title, { action, reason: body.reason })
+  await logAction(
+    supabase!, user!.id, logMsg, 'recommendation', id,
+    (data as any).title, { action, reason: body.reason }
+  )
 
-  // Send notification + email to rec owner
   if (['approve', 'reject', 'resolve_appeal'].includes(action)) {
     try {
       const notifMessages: Record<string, string> = {
-        approve: `Your recommendation "${data.title}" has been approved! 🎉`,
-        reject: `Your recommendation "${data.title}" was not approved.`,
-        resolve_appeal: `Your appeal for "${data.title}" has been ${body.appeal_status}.`,
+        approve:        `Your recommendation "${(data as any).title}" has been approved! 🎉`,
+        reject:         `Your recommendation "${(data as any).title}" was not approved.`,
+        resolve_appeal: `Your appeal for "${(data as any).title}" has been ${body.appeal_status}.`,
       }
 
-      await (supabase as any)!.from('notifications').insert({
-        user_id: data.user_id,
+      await supabase!.from('notifications').insert({
+        user_id: (data as any).user_id,
         type: `recommendation_${action}`,
         title: notifMessages[action],
         data: { recommendation_id: id, reason: body.reason },
-      })
+      } as any)
 
-      // Send email
       const service = getServiceClient()
-      const { data: authUser } = await service.auth.admin.getUserById(data.user_id)
+      const { data: authUser } = await service.auth.admin.getUserById((data as any).user_id)
       const email = authUser?.user?.email
 
-      const { data: profile } = await (supabase as any)!
+      const { data: profile } = await supabase!
         .from('profiles')
         .select('username')
-        .eq('id', data.user_id)
+        .eq('id', (data as any).user_id)
         .single()
 
-      if (email && profile?.username) {
+      if (email && (profile as any)?.username) {
         if (action === 'approve') {
-          await sendApprovedEmail(email, profile.username, data.title, id)
+          await sendApprovedEmail(email, (profile as any).username, (data as any).title, id)
         } else if (action === 'reject') {
-          await sendRejectedEmail(email, profile.username, data.title, body.reason ?? 'No reason provided', id)
+          await sendRejectedEmail(email, (profile as any).username, (data as any).title, body.reason ?? 'No reason provided', id)
         } else if (action === 'resolve_appeal') {
-          await sendAppealResolvedEmail(email, profile.username, 'recommendation', body.appeal_status, data.title)
+          await sendAppealResolvedEmail(email, (profile as any).username, 'recommendation', body.appeal_status, (data as any).title)
         }
       }
     } catch (notifError) {
@@ -183,7 +196,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const auth = await requireRole(true) // admin only
+  const auth = await requireRole(true)
   if (auth.error) return auth.error
 
   const { user, supabase } = auth

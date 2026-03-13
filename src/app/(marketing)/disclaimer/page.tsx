@@ -46,7 +46,7 @@ const SECTIONS = [
   {
     n: '11', title: 'Contact',
     body: null,
-    contact: 'legal@compicfy.com',
+    contact: 'legal@compicfy.site',
   },
 ]
 

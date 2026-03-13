@@ -7,9 +7,9 @@ import { CookieBanner } from '@/components/ui/CookieBanner'
 import './globals.css'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.site'),
   title: {
-    default: 'Compicfy — Discover Your Next Favorite Comic',
+    default: 'Compicfy — Find your next obsession',
     template: '%s | Compicfy',
   },
   description: 'Community-driven recommendations for manga, manhwa, manhua, and webtoons. Discover, vote, review, and share your favorite comics.',
@@ -21,13 +21,13 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.site',
     siteName: 'Compicfy',
-    title: 'Compicfy — Discover Your Next Favorite Comic',
+    title: 'Compicfy — Find your next obsession',
     description: 'Community-driven recommendations for manga, manhwa, manhua, and webtoons.',
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Compicfy' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Compicfy — Discover Your Next Favorite Comic',
+    title: 'Compicfy — Find your next obsession',
     description: 'Community-driven recommendations for manga, manhwa, manhua, and webtoons.',
     images: ['/og-image.png'],
   },
