@@ -12,26 +12,37 @@ import {
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 
+// Must match newsSchema in validators.ts exactly
 interface NewsItem {
   id: string
   title: string
-  summary: string
-  source_url: string
-  image_url?: string | null
+  excerpt: string        // newsSchema: excerpt (NOT summary)
+  content: string        // newsSchema: content
+  source_url: string     // newsSchema: source_url (required, must be valid URL)
+  source_name: string    // newsSchema: source_name (required)
+  category: string       // newsSchema: category enum
+  cover_url: string
   is_published: boolean
-  is_ai_summary: boolean
+  is_ai_generated: boolean
   is_affiliate: boolean
-  affiliate_url?: string | null
+  affiliate_url: string
+  tags: string[]
   created_at: string
 }
 
 interface Props { initialNews: NewsItem[] }
 
 const BLANK: Omit<NewsItem, 'id' | 'created_at'> = {
-  title: '', summary: '', source_url: '',
-  image_url: '', is_published: false, is_ai_summary: false,
-  is_affiliate: false, affiliate_url: '',
+  title: '', excerpt: '', content: '',
+  source_url: '', source_name: '',
+  category: 'announcement',
+  cover_url: '', is_published: false, is_ai_generated: false,
+  is_affiliate: false, affiliate_url: '', tags: [],
 }
+
+const CATEGORIES = [
+  'industry', 'release', 'adaptation', 'event', 'creator', 'announcement',
+] as const
 
 export function NewsManager({ initialNews }: Props) {
   const [news, setNews] = useState<NewsItem[]>(initialNews)
@@ -41,7 +52,7 @@ export function NewsManager({ initialNews }: Props) {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [aiLoading, setAiLoading] = useState(false)
 
-  const set = (field: keyof typeof editData, value: string | boolean) =>
+  const set = (field: keyof typeof editData, value: string | boolean | string[]) =>
     setEditData(prev => ({ ...prev, [field]: value }))
 
   const startNew = () => {
@@ -53,10 +64,18 @@ export function NewsManager({ initialNews }: Props) {
   const startEdit = (item: NewsItem) => {
     setEditingId(item.id)
     setEditData({
-      title: item.title, summary: item.summary,
-      source_url: item.source_url, image_url: item.image_url ?? '',
-      is_published: item.is_published, is_ai_summary: item.is_ai_summary,
-      is_affiliate: item.is_affiliate, affiliate_url: item.affiliate_url ?? '',
+      title:          item.title,
+      excerpt:        item.excerpt,
+      content:        item.content        ?? '',
+      source_url:     item.source_url,
+      source_name:    item.source_name    ?? '',
+      category:       item.category       ?? 'announcement',
+      cover_url:      item.cover_url      ?? '',
+      is_published:   item.is_published,
+      is_ai_generated: item.is_ai_generated ?? false,
+      is_affiliate:   item.is_affiliate   ?? false,
+      affiliate_url:  item.affiliate_url  ?? '',
+      tags:           item.tags           ?? [],
     })
     setExpandedId(null)
   }
@@ -71,14 +90,19 @@ export function NewsManager({ initialNews }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      // Route returns { summary: { title, excerpt, content, ... }, image_url }
+
+      // Route returns { summary: { title, excerpt, content, category, tags }, image_url }
       const s = data.summary ?? {}
       setEditData(prev => ({
         ...prev,
-        title:      s.title   || prev.title,
-        summary:    s.excerpt || s.content || prev.summary,
-        image_url:  data.image_url || prev.image_url,
-        is_ai_summary: true,
+        title:          s.title    || prev.title,
+        excerpt:        s.excerpt  || prev.excerpt,
+        content:        s.content  || prev.content,
+        category:       CATEGORIES.includes(s.category) ? s.category : prev.category,
+        tags:           Array.isArray(s.tags) ? s.tags : prev.tags,
+        cover_url:      data.image_url || prev.cover_url,
+        source_name:    prev.source_name || (new URL(editData.source_url).hostname.replace('www.', '')),
+        is_ai_generated: true,
       }))
       toast.success('AI summary generated!')
     } catch (err: any) {
@@ -89,12 +113,17 @@ export function NewsManager({ initialNews }: Props) {
   }
 
   const handleSave = async () => {
-    if (!editData.title.trim() || !editData.summary.trim()) {
-      toast.error('Title and summary are required'); return
-    }
+    // Match newsSchema required fields
+    if (!editData.title.trim())       { toast.error('Title is required'); return }
+    if (!editData.excerpt.trim())     { toast.error('Excerpt is required (min 10 chars)'); return }
+    if (editData.excerpt.length < 10) { toast.error('Excerpt must be at least 10 characters'); return }
+    if (!editData.source_url.trim())  { toast.error('Source URL is required'); return }
+    if (!editData.source_name.trim()) { toast.error('Source name is required'); return }
+    if (!editData.category)           { toast.error('Category is required'); return }
     if (editData.is_affiliate && !editData.affiliate_url?.trim()) {
       toast.error('Affiliate URL is required when affiliate is enabled'); return
     }
+
     setActionLoading('save')
     try {
       const isNew = editingId === 'new'
@@ -104,9 +133,10 @@ export function NewsManager({ initialNews }: Props) {
         body: JSON.stringify(editData),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) throw new Error(data.error ?? JSON.stringify(data.details ?? 'Failed to save'))
+
       if (isNew) {
-        setNews(prev => [data.article, ...prev])
+        setNews(prev => [data.news, ...prev])
         toast.success('Article created!')
       } else {
         setNews(prev => prev.map(n => n.id === editingId ? { ...n, ...editData } : n))
@@ -175,11 +205,15 @@ export function NewsManager({ initialNews }: Props) {
 
         {/* Source URL + AI */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">Source URL</label>
+          <label className="text-xs font-semibold text-muted-foreground">
+            Source URL <span className="text-red-500">*</span>
+          </label>
           <div className="flex gap-2">
             <Input
-              value={editData.source_url} onChange={e => set('source_url', e.target.value)}
-              placeholder="https://..." className="h-9 text-sm font-mono flex-1"
+              value={editData.source_url}
+              onChange={e => set('source_url', e.target.value)}
+              placeholder="https://..."
+              className="h-9 text-sm font-mono flex-1"
             />
             <Button
               variant="outline" size="sm" onClick={handleAISummarise}
@@ -192,30 +226,104 @@ export function NewsManager({ initialNews }: Props) {
           </div>
         </div>
 
+        {/* Source name */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-muted-foreground">
+            Source Name <span className="text-red-500">*</span>
+            <span className="text-muted-foreground/60 font-normal ml-1">(e.g. Crunchyroll, ANN, Viz)</span>
+          </label>
+          <Input
+            value={editData.source_name}
+            onChange={e => set('source_name', e.target.value)}
+            placeholder="Publication or website name"
+            className="h-9 text-sm"
+          />
+        </div>
+
         {/* Title */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">Title <span className="text-red-500">*</span></label>
-          <Input value={editData.title} onChange={e => set('title', e.target.value)} placeholder="Article title..." className="h-9 text-sm" />
+          <label className="text-xs font-semibold text-muted-foreground">
+            Title <span className="text-red-500">*</span>
+          </label>
+          <Input
+            value={editData.title}
+            onChange={e => set('title', e.target.value)}
+            placeholder="Article title..."
+            className="h-9 text-sm"
+          />
         </div>
 
-        {/* Summary */}
+        {/* Excerpt */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">Summary <span className="text-red-500">*</span></label>
-          <Textarea value={editData.summary} onChange={e => set('summary', e.target.value)} placeholder="Article summary..." rows={4} className="resize-none text-sm" />
+          <label className="text-xs font-semibold text-muted-foreground">
+            Excerpt <span className="text-red-500">*</span>
+            <span className="text-muted-foreground/60 font-normal ml-1">(min 10 chars, shown on cards)</span>
+          </label>
+          <Textarea
+            value={editData.excerpt}
+            onChange={e => set('excerpt', e.target.value)}
+            placeholder="2-3 sentence summary shown on news cards..."
+            rows={2}
+            className="resize-none text-sm"
+          />
         </div>
 
-        {/* Image URL */}
+        {/* Full content */}
         <div className="space-y-1.5">
-          <label className="text-xs font-semibold text-muted-foreground">Image URL <span className="text-muted-foreground/60">(optional)</span></label>
-          <Input value={editData.image_url ?? ''} onChange={e => set('image_url', e.target.value)} placeholder="https://..." className="h-9 text-sm font-mono" />
+          <label className="text-xs font-semibold text-muted-foreground">
+            Full Content <span className="text-muted-foreground/60 font-normal">(optional — for article detail page)</span>
+          </label>
+          <Textarea
+            value={editData.content}
+            onChange={e => set('content', e.target.value)}
+            placeholder="Full article body..."
+            rows={5}
+            className="resize-none text-sm"
+          />
+        </div>
+
+        {/* Cover image */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-muted-foreground">
+            Cover Image URL <span className="text-muted-foreground/60 font-normal">(optional)</span>
+          </label>
+          <Input
+            value={editData.cover_url}
+            onChange={e => set('cover_url', e.target.value)}
+            placeholder="https://..."
+            className="h-9 text-sm font-mono"
+          />
+        </div>
+
+        {/* Category */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-muted-foreground">
+            Category <span className="text-red-500">*</span>
+          </label>
+          <div className="flex flex-wrap gap-1.5">
+            {CATEGORIES.map(c => (
+              <button
+                key={c}
+                onClick={() => set('category', c)}
+                className={cn(
+                  'px-2.5 py-1 rounded-full text-xs border capitalize transition-colors',
+                  editData.category === c
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border text-muted-foreground hover:border-primary'
+                )}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Affiliate section */}
         <div className={cn(
-          'rounded-xl border transition-colors space-y-3 overflow-hidden',
+          'rounded-xl border transition-colors space-y-0 overflow-hidden',
           editData.is_affiliate ? 'border-amber-500/30 bg-amber-500/5' : 'border-border'
         )}>
-          <div className="px-4 pt-3 pb-1">
+          <div className="px-4 pt-3 pb-3">
             <label className="flex items-center gap-2 cursor-pointer">
               <div
                 className={cn(
@@ -233,35 +341,37 @@ export function NewsManager({ initialNews }: Props) {
               </div>
             </label>
           </div>
-
-          {/* Affiliate URL — only shown when toggled on */}
           {editData.is_affiliate && (
-            <div className="px-4 pb-4 space-y-1.5">
-              <label className="text-xs font-semibold text-amber-600">
+            <div className="px-4 pb-4 space-y-1.5 border-t border-amber-500/20">
+              <label className="text-xs font-semibold text-amber-600 mt-3 block">
                 Affiliate URL <span className="text-red-500">*</span>
               </label>
               <Input
-                value={editData.affiliate_url ?? ''}
+                value={editData.affiliate_url}
                 onChange={e => set('affiliate_url', e.target.value)}
                 placeholder="https://... (your tracked affiliate link)"
                 className="h-9 text-sm font-mono border-amber-500/30 focus:border-amber-500"
               />
               <p className="text-[10px] text-muted-foreground">
-                This link will be used instead of the source URL when the card is clicked.
+                This link replaces the source URL when the card is clicked.
               </p>
             </div>
           )}
         </div>
 
-        {/* Toggles row */}
+        {/* Toggles */}
         <div className="flex items-center gap-4 flex-wrap">
-          <Checkbox field="is_published"  label="Publish immediately" />
-          <Checkbox field="is_ai_summary" label="AI-generated label"  />
+          <Checkbox field="is_published"    label="Publish immediately" />
+          <Checkbox field="is_ai_generated" label="AI-generated label"  />
         </div>
 
         {/* Save */}
         <div className="flex justify-end pt-1">
-          <Button onClick={handleSave} disabled={!!actionLoading} className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
+          <Button
+            onClick={handleSave}
+            disabled={!!actionLoading}
+            className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+          >
             {actionLoading === 'save' && <Loader2 size={13} className="animate-spin" />}
             {editingId === 'new' ? 'Create Article' : 'Save Changes'}
           </Button>
@@ -284,12 +394,12 @@ export function NewsManager({ initialNews }: Props) {
       {editingId === 'new' && <FormPanel />}
 
       <div className="space-y-2">
-        {news.map((item) => (
+        {news.map(item => (
           <div key={item.id} className="rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors">
             <div className="flex items-center gap-3 p-4">
-              {item.image_url && (
+              {item.cover_url && (
                 <div className="w-14 h-10 rounded-lg overflow-hidden bg-muted shrink-0">
-                  <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                  <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
                 </div>
               )}
               <div className="flex-1 min-w-0">
@@ -299,7 +409,7 @@ export function NewsManager({ initialNews }: Props) {
                     ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-600 border-emerald-500/20">✓ Published</span>
                     : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-muted text-muted-foreground border-border">Draft</span>
                   }
-                  {item.is_ai_summary && (
+                  {item.is_ai_generated && (
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-violet-500/10 text-violet-600 border-violet-500/20">
                       <Sparkles size={9} /> AI
                     </span>
@@ -309,8 +419,16 @@ export function NewsManager({ initialNews }: Props) {
                       💰 Affiliate
                     </span>
                   )}
+                  {item.category && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-muted text-muted-foreground border-border capitalize">
+                      {item.category}
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">{formatDate(item.created_at)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {item.source_name && <span className="font-medium">{item.source_name} · </span>}
+                  {formatDate(item.created_at)}
+                </p>
               </div>
               <div className="flex items-center gap-0.5 shrink-0">
                 {item.source_url && (
@@ -318,7 +436,8 @@ export function NewsManager({ initialNews }: Props) {
                     <Button variant="ghost" size="icon" className="h-8 w-8" title="View source"><ExternalLink size={13} /></Button>
                   </a>
                 )}
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => editingId === item.id ? setEditingId(null) : startEdit(item)} title="Edit">
+                <Button variant="ghost" size="icon" className="h-8 w-8"
+                  onClick={() => editingId === item.id ? setEditingId(null) : startEdit(item)} title="Edit">
                   <Pencil size={13} />
                 </Button>
                 <Button
@@ -333,21 +452,20 @@ export function NewsManager({ initialNews }: Props) {
                   onClick={() => handleDelete(item.id)} disabled={!!actionLoading} title="Delete">
                   {actionLoading === `${item.id}-delete` ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
+                <Button variant="ghost" size="icon" className="h-8 w-8"
+                  onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
                   {expandedId === item.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </Button>
               </div>
             </div>
 
             {editingId === item.id && (
-              <div className="border-t border-border">
-                <FormPanel />
-              </div>
+              <div className="border-t border-border"><FormPanel /></div>
             )}
 
             {expandedId === item.id && editingId !== item.id && (
               <div className="px-4 pb-4 border-t border-border pt-3 space-y-2">
-                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">{item.summary}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{item.excerpt}</p>
                 {item.affiliate_url && (
                   <a href={item.affiliate_url} target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-xs text-amber-600 hover:underline font-medium">
