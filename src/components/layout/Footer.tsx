@@ -22,13 +22,13 @@ const footerLinks = {
     { label: 'New Releases',  href: '/browse?sort=recent'   },
   ],
   Community: [
+     { label: 'About',          href: '/about'       },
+    { label: 'FAQ',            href: '/faq'         },
     { label: 'Community Guidelines', href: '/guidelines'                    },
     { label: 'Submit a Comic',       href: '/dashboard/recommendations/new' },
     { label: 'Discord',              href: 'https://discord.gg/7WPGMb696N'  },
   ],
   Legal: [
-    { label: 'About',          href: '/about'       },
-    { label: 'FAQ',            href: '/faq'         },
     { label: 'Disclaimer',     href: '/disclaimer'  },
     { label: 'Terms',          href: '/terms'       },
     { label: 'Privacy Policy', href: '/privacy'     },

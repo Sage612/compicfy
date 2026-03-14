@@ -2,30 +2,84 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { recommendationSchema } from '@/lib/utils/validators'
 
+export async function GET(request: Request) {
+  try {
+    const supabase = await createClient()
+    const { searchParams } = new URL(request.url)
+
+    const page   = parseInt(searchParams.get('page')  ?? '1')
+    const limit  = parseInt(searchParams.get('limit') ?? '24')
+    const type   = searchParams.get('type')
+    const genre  = searchParams.get('genre')
+    const status = searchParams.get('status')
+    const sort   = searchParams.get('sort') ?? 'score'
+    const q      = searchParams.get('q')
+    const adult  = searchParams.get('adult') === 'true'
+    const offset = (page - 1) * limit
+
+    let query = supabase
+      .from('recommendations')
+      .select('*', { count: 'exact' })
+      .eq('is_approved', true)
+
+    // Content rating — adult page passes adult=true
+    if (adult) {
+      query = query.in('content_rating', ['adult', 'mature'])
+    } else {
+      query = query.not('content_rating', 'in', '("adult","mature")')
+    }
+
+    if (q)      query = query.ilike('title', `%${q}%`)
+    if (type)   query = query.eq('type', type as any)
+    if (genre)  query = query.contains('genres', [genre])
+    if (status) query = query.eq('status', status)
+
+    switch (sort) {
+      case 'trending': query = query.order('daily_votes', { ascending: false }); break
+      case 'recent':   query = query.order('created_at',  { ascending: false }); break
+      default:         query = query.order('score',        { ascending: false })
+    }
+
+    query = query.range(offset, offset + limit - 1)
+
+    const { data, error, count } = await query
+    if (error) throw error
+
+    return NextResponse.json({
+      recommendations: data,
+      total:   count,
+      page,
+      limit,
+      hasMore: (count ?? 0) > offset + limit,
+    })
+  } catch (error) {
+    console.error('Failed to fetch recommendations:', error)
+    return NextResponse.json({ error: 'Failed to fetch recommendations' }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
 
-    // Auth check
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('role, is_banned')
+      .eq('id', user.id)
+      .single()
+
+    const profile = profileData as { role: string; is_banned: boolean } | null
+
+    if (profile?.is_banned) {
+      return NextResponse.json({ error: 'Your account has been banned' }, { status: 403 })
     }
 
-    // Check if user is banned
-    const { data: profileData } = await supabase
-  .from('profiles')
-  .select('role, is_banned')
-  .eq('id', user.id)
-  .single()
-
-const profile = profileData as { role: string; is_banned: boolean } | null
-
-    // Parse body
     const body = await request.json()
-
-    // Validate
     const parsed = recommendationSchema.safeParse(body)
+
     if (!parsed.success) {
       console.error('Validation errors:', parsed.error.flatten())
       return NextResponse.json(
@@ -34,122 +88,59 @@ const profile = profileData as { role: string; is_banned: boolean } | null
       )
     }
 
-    // After the parsed.success check, add:
-const data = parsed.data
+    const data = parsed.data
 
-// Check for duplicate title
-const { data: existing } = await (supabase as any)
-  .from('recommendations')
-  .select('id, title, is_approved')
-  .ilike('title', data.title.trim())
-  .single()
+    // Duplicate title check
+    const { data: existing } = await (supabase as any)
+      .from('recommendations')
+      .select('id, title, is_approved')
+      .ilike('title', data.title.trim())
+      .single()
 
-if (existing) {
-  return NextResponse.json(
-    {
-      error: 'duplicate',
-      message: `"${existing.title}" has already been recommended.`,
-      existing_id: existing.id,
-      is_approved: existing.is_approved,
-    },
-    { status: 409 }
-  )
-}
+    if (existing) {
+      return NextResponse.json(
+        {
+          error:       'duplicate',
+          message:     `"${existing.title}" has already been recommended.`,
+          existing_id: existing.id,
+          is_approved: existing.is_approved,
+        },
+        { status: 409 }
+      )
+    }
 
-
-    // Auto-approve admins/moderators
     const isAutoApproved = ['admin', 'moderator'].includes(profile?.role ?? '')
 
     const { data: recommendation, error } = await (supabase as any)
-  .from('recommendations')
-  .insert({
-    user_id: user.id,
-        title: data.title,
-        description: data.description,
-        type: data.type,
-        status: data.status,
-        genres: data.genres,
+      .from('recommendations')
+      .insert({
+        user_id:            user.id,
+        title:              data.title,
+        description:        data.description,
+        type:               data.type,
+        status:             data.status,
+        genres:             data.genres,
         official_platforms: data.official_platforms,
-        cover_url: data.cover_url || null,
-        content_rating: data.content_rating,
-        why_recommend: data.why_recommend || null,
-        author: data.author || null,
-        artist: data.artist || null,
-        year_released: data.year_released || null,
-        chapter_count: data.chapter_count || null,
-        is_approved: isAutoApproved,
+        cover_url:          data.cover_url   || null,
+        content_rating:     data.content_rating,
+        why_recommend:      data.why_recommend || null,
+        author:             data.author        || null,
+        artist:             data.artist        || null,
+        year_released:      data.year_released || null,
+        chapter_count:      data.chapter_count || null,
+        is_approved:        isAutoApproved,
       })
       .select()
       .single()
 
     if (error) {
       console.error('Supabase insert error:', error)
-      return NextResponse.json(
-        { error: error.message },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ recommendation }, { status: 201 })
   } catch (error) {
     console.error('Unexpected error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function GET(request: Request) {
-  try {
-    const supabase = await createClient()
-    const { searchParams } = new URL(request.url)
-
-    const page = parseInt(searchParams.get('page') ?? '1')
-    const limit = parseInt(searchParams.get('limit') ?? '20')
-    const type = searchParams.get('type')
-    const genre = searchParams.get('genre')
-    const sort = searchParams.get('sort') ?? 'score'
-    const offset = (page - 1) * limit
-
-    // Build query — typed explicitly to avoid 'never' errors
-    let query = supabase
-      .from('recommendations')
-      .select('*, profiles(username, display_name, avatar_url)', { count: 'exact' })
-      .eq('is_approved', true)
-      .range(offset, offset + limit - 1)
-
-    if (type) {
-      query = query.eq('type', type as 'manga' | 'manhwa' | 'manhua' | 'webtoon' | 'comic' | 'other')
-    }
-
-    if (genre) {
-      query = query.contains('genres', [genre])
-    }
-
-    if (sort === 'trending') {
-      query = query.order('daily_votes', { ascending: false })
-    } else if (sort === 'recent') {
-      query = query.order('created_at', { ascending: false })
-    } else {
-      query = query.order('score', { ascending: false })
-    }
-
-    const { data, error, count } = await query
-    if (error) throw error
-
-    return NextResponse.json({
-      recommendations: data,
-      total: count,
-      page,
-      limit,
-      hasMore: (count ?? 0) > offset + limit,
-    })
-  } catch (error) {
-    console.error('Failed to fetch recommendations:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch recommendations' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
