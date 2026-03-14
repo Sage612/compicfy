@@ -1,26 +1,39 @@
 import Link from 'next/link'
-import { BookOpen } from 'lucide-react'
+
+// Same LogoMark as Header — stacked books
+function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+      <rect x="3"   y="18"    width="22"  height="5.5" rx="1.5" className="fill-primary-foreground/25" />
+      <rect x="3"   y="18"    width="10"  height="5.5" rx="1.5" className="fill-primary-foreground/55" />
+      <rect x="4.5" y="11.5"  width="19"  height="5.5" rx="1.5" className="fill-primary-foreground/45" />
+      <rect x="4.5" y="11.5"  width="9"   height="5.5" rx="1.5" className="fill-primary-foreground/75" />
+      <rect x="6"   y="5"     width="16"  height="5.5" rx="1.5" className="fill-primary-foreground"    />
+      <rect x="6"   y="5"     width="7.5" height="5.5" rx="1.5" className="fill-primary-foreground/65" />
+    </svg>
+  )
+}
 
 const footerLinks = {
   Discover: [
-    { label: 'Browse Comics',  href: '/browse'              },
-    { label: 'News',           href: '/news'                },
-    { label: 'Trending',       href: '/browse?sort=trending' },
-    { label: 'New Releases',   href: '/browse?sort=recent'  },
+    { label: 'Browse Comics', href: '/browse'               },
+    { label: 'News',          href: '/news'                 },
+    { label: 'Trending',      href: '/browse?sort=trending' },
+    { label: 'New Releases',  href: '/browse?sort=recent'   },
   ],
   Community: [
-    { label: 'Community Guidelines', href: '/guidelines'                         },
-    { label: 'Submit a Comic',       href: '/dashboard/recommendations/new'      },
-    { label: 'Discord',              href: 'https://discord.gg/7WPGMb696N'       },
+    { label: 'Community Guidelines', href: '/guidelines'                    },
+    { label: 'Submit a Comic',       href: '/dashboard/recommendations/new' },
+    { label: 'Discord',              href: 'https://discord.gg/7WPGMb696N'  },
   ],
   Legal: [
-    {label:'Disclaimer', href: '/disclaimer' },
-    { label: 'About',          href: '/about'   },
-    { label: 'FAQ',            href: '/faq'     },
-    { label: 'Terms',          href: '/terms'   },
-    { label: 'Privacy Policy', href: '/privacy' },
-    { label: 'Cookies', href: '/cookies' },
-    { label: 'DMCA',   href: '/dmca'    },
+    { label: 'About',          href: '/about'       },
+    { label: 'FAQ',            href: '/faq'         },
+    { label: 'Disclaimer',     href: '/disclaimer'  },
+    { label: 'Terms',          href: '/terms'       },
+    { label: 'Privacy Policy', href: '/privacy'     },
+    { label: 'Cookies',        href: '/cookies'     },
+    { label: 'DMCA',           href: '/dmca'        },
   ],
 }
 
@@ -36,11 +49,11 @@ export function Footer() {
           {/* Brand */}
           <div className="col-span-2 md:col-span-1 space-y-4">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
-                <BookOpen size={15} className="text-white" />
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 group-hover:shadow-primary/30 transition-all duration-200">
+                <LogoMark className="w-[18px] h-[18px]" />
               </div>
-              <span className="font-black text-lg tracking-tight text-foreground group-hover:text-primary transition-colors">
-                Compicfy
+              <span className="font-black text-[15px] tracking-tight text-foreground group-hover:text-primary transition-colors">
+                Compic<span className="text-primary">fy</span>
               </span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-[200px]">
@@ -71,7 +84,7 @@ export function Footer() {
                   <li key={href}>
                     <Link
                       href={href}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors hover:translate-x-0.5 inline-block transition-transform"
+                      className="text-sm text-muted-foreground hover:text-foreground hover:translate-x-0.5 inline-block transition-all duration-150"
                     >
                       {label}
                     </Link>
@@ -87,13 +100,9 @@ export function Footer() {
 
         {/* Bottom bar */}
         <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground text-center sm:flex-row sm:justify-between sm:text-left">
-          <div className="space-y-1">
-            <p>© {new Date().getFullYear()} Compicfy. All rights reserved.We do not host or link to pirated content.</p>
-          </div>
+          <p>© {new Date().getFullYear()} Compicfy. All rights reserved. We do not host or link to pirated content.</p>
           <p className="flex items-center gap-1 shrink-0">
-            Made with
-            <span className="text-rose-500 mx-0.5">❤️</span>
-            for comic fans everywhere
+            Made with <span className="text-rose-500 mx-0.5">❤️</span> for comic fans everywhere
           </p>
         </div>
       </div>
