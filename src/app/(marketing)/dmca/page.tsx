@@ -172,7 +172,7 @@ export default function DMCAPage() {
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed pl-8">
               You may also send a DMCA notice directly to{' '}
-              <a href="mailto:legal@compicfy.com" className="text-primary hover:underline font-medium">legal@compicfy.site</a>{' '}
+              <a href="mailto:legal@compicfy.site" className="text-primary hover:underline font-medium">legal@compicfy.site</a>{' '}
               with the subject line <span className="font-mono text-xs bg-muted border border-border px-1.5 py-0.5 rounded">DMCA Takedown Notice</span>.
             </p>
           </section>
@@ -232,7 +232,7 @@ export default function DMCAPage() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">URL of Infringing Content on Compicfy <span className="text-red-500">*</span></label>
-                <Input value={form.infringing_url} onChange={e => set('infringing_url', e.target.value)} placeholder="https://compicfy.com/..." className="h-9 text-sm font-mono" />
+                <Input value={form.infringing_url} onChange={e => set('infringing_url', e.target.value)} placeholder="https://compicfy.site/..." className="h-9 text-sm font-mono" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">Content Type <span className="text-red-500">*</span></label>

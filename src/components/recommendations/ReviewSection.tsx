@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { ReviewForm, type ReviewWithProfile } from './ReviewForm'
 import { ReviewCard } from './ReviewCard'
 import { Button } from '@/components/ui/button'
-import { Loader2, MessageSquare, LogIn } from 'lucide-react'
+import { Loader2, MessageSquare, LogIn, Plus, Star } from 'lucide-react'
 import Link from 'next/link'
 import { StarRating } from './StarRating'
+import { cn } from '@/lib/utils'
 
 interface Props {
   recommendationId: string
@@ -21,10 +22,10 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [offset, setOffset] = useState(0)
+  const [showForm, setShowForm] = useState(false)
   const LIMIT = 10
 
-  // Check if current user already reviewed
-  const userReview = reviews.find((r) => r.user_id === currentUserId)
+  const userReview = reviews.find(r => r.user_id === currentUserId)
 
   const fetchReviews = useCallback(async (currentOffset: number, append = false) => {
     try {
@@ -32,13 +33,8 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
         `/api/recommendations/${recommendationId}/reviews?limit=${LIMIT}&offset=${currentOffset}`
       )
       const data = await res.json()
-
-      if (append) {
-        setReviews((prev) => [...prev, ...data.reviews])
-      } else {
-        setReviews(data.reviews ?? [])
-      }
-
+      if (append) setReviews(prev => [...prev, ...data.reviews])
+      else setReviews(data.reviews ?? [])
       setTotal(data.total ?? 0)
       setHasMore(data.hasMore ?? false)
       setOffset(currentOffset + LIMIT)
@@ -50,9 +46,7 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
     }
   }, [recommendationId])
 
-  useEffect(() => {
-    fetchReviews(0)
-  }, [fetchReviews])
+  useEffect(() => { fetchReviews(0) }, [fetchReviews])
 
   const handleLoadMore = async () => {
     setLoadingMore(true)
@@ -60,90 +54,166 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
   }
 
   const handleNewReview = (review: ReviewWithProfile) => {
-    setReviews((prev) => [review, ...prev])
-    setTotal((t) => t + 1)
+    setReviews(prev => [review, ...prev])
+    setTotal(t => t + 1)
+    setShowForm(false)
   }
 
-  const handleUpdate = (updated: ReviewWithProfile) => {
-    setReviews((prev) => prev.map((r) => (r.id === updated.id ? updated : r)))
-  }
+  const handleUpdate = (updated: ReviewWithProfile) =>
+    setReviews(prev => prev.map(r => r.id === updated.id ? updated : r))
 
   const handleDelete = (id: string) => {
-    setReviews((prev) => prev.filter((r) => r.id !== id))
-    setTotal((t) => t - 1)
+    setReviews(prev => prev.filter(r => r.id !== id))
+    setTotal(t => t - 1)
   }
 
-  // Calculate average rating
-  const ratingsOnly = reviews.filter((r) => r.rating !== null)
+  const ratingsOnly = reviews.filter(r => r.rating !== null)
   const avgRating = ratingsOnly.length
     ? ratingsOnly.reduce((sum, r) => sum + (r.rating ?? 0), 0) / ratingsOnly.length
     : 0
 
+  const ratingCounts = [5, 4, 3, 2, 1].map(n => ({
+    n,
+    count: ratingsOnly.filter(r => r.rating === n).length,
+    pct: ratingsOnly.length
+      ? Math.round((ratingsOnly.filter(r => r.rating === n).length / ratingsOnly.length) * 100)
+      : 0,
+  }))
+
   return (
     <div className="space-y-6">
-      {/* Section header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold flex items-center gap-2">
-            <MessageSquare size={18} />
-            Reviews
-            {total > 0 && (
-              <span className="text-sm font-normal text-muted-foreground">({total})</span>
-            )}
-          </h2>
+
+      {/* ── Section header ── */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center">
+              <MessageSquare size={14} className="text-amber-600" />
+            </div>
+            <h2 className="text-lg font-black tracking-tight">
+              Reviews
+              {total > 0 && (
+                <span className="text-sm font-normal text-muted-foreground ml-1.5">({total})</span>
+              )}
+            </h2>
+          </div>
           {avgRating > 0 && (
-            <div className="flex items-center gap-1.5">
-              <StarRating value={Math.round(avgRating)} readonly size={14} />
-              <span className="text-sm text-muted-foreground">
-                {avgRating.toFixed(1)}
-              </span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20">
+              <StarRating value={Math.round(avgRating)} readonly size={12} />
+              <span className="text-xs font-black text-amber-600">{avgRating.toFixed(1)}</span>
             </div>
           )}
         </div>
+
+        {isLoggedIn && !userReview && !showForm && (
+          <Button
+            size="sm"
+            onClick={() => setShowForm(true)}
+            className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 shrink-0"
+          >
+            <Plus size={13} />
+            <span className="hidden sm:inline">Write Review</span>
+            <span className="sm:hidden">Review</span>
+          </Button>
+        )}
       </div>
 
-      {/* Write a review */}
+      {/* ── Rating summary bar ── */}
+      {ratingsOnly.length >= 3 && (
+        <div className="p-4 rounded-2xl border border-border bg-card space-y-2.5">
+          <div className="flex items-center gap-4">
+            <div className="text-center shrink-0">
+              <p className="text-4xl font-black text-foreground leading-none">{avgRating.toFixed(1)}</p>
+              {/* FIXED: Moved className to a wrapper div because StarRating doesn't accept it */}
+              <div className="mt-1.5 flex justify-center">
+                <StarRating value={Math.round(avgRating)} readonly size={13} />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{ratingsOnly.length} ratings</p>
+            </div>
+            <div className="flex-1 space-y-1.5">
+              {ratingCounts.map(({ n, count, pct }) => (
+                <div key={n} className="flex items-center gap-2">
+                  <div className="flex items-center gap-0.5 w-14 justify-end shrink-0">
+                    {Array.from({ length: n }).map((_, i) => (
+                      <Star key={i} size={9} className="fill-amber-400 text-amber-400" />
+                    ))}
+                  </div>
+                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-400 transition-all duration-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground w-6 shrink-0">{count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Write a review ── */}
       {isLoggedIn ? (
-        !userReview ? (
-          <div className="p-4 rounded-xl border border-border bg-card/50 space-y-3">
-            <p className="text-sm font-medium">Write a Review</p>
-            <ReviewForm
-              recommendationId={recommendationId}
-              onSuccess={handleNewReview}
-            />
-          </div>
-        ) : (
-          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm text-muted-foreground">
-            ✅ You have already reviewed this comic. Find your review below to edit it.
-          </div>
-        )
+        <>
+          {showForm && !userReview && (
+            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-primary/10 to-violet-500/5">
+                <p className="text-xs font-black uppercase tracking-widest text-primary">Write a Review</p>
+                <button
+                  onClick={() => setShowForm(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+              <div className="p-5">
+                <ReviewForm
+                  recommendationId={recommendationId}
+                  onSuccess={handleNewReview}
+                />
+              </div>
+            </div>
+          )}
+          {userReview && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-sm text-emerald-600">
+              <span>✅</span>
+              <span>You've reviewed this comic — find it below to edit.</span>
+            </div>
+          )}
+        </>
       ) : (
-        <div className="p-4 rounded-xl border border-dashed border-border text-center space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Sign in to write a review
-          </p>
-          <Link href="/login">
-            <Button variant="outline" size="sm" className="gap-2">
-              <LogIn size={14} />
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl border border-dashed border-border bg-card/50">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MessageSquare size={15} className="text-muted-foreground/60" />
+            Have thoughts on this comic? Sign in to write a review.
+          </div>
+          <Link href="/login" className="shrink-0">
+            <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
+              <LogIn size={13} />
               Sign in to Review
             </Button>
           </Link>
         </div>
       )}
 
-      {/* Reviews list */}
+      {/* ── Reviews list ── */}
       {loading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 size={24} className="animate-spin text-muted-foreground" />
+        <div className="flex justify-center py-10">
+          <Loader2 size={22} className="animate-spin text-muted-foreground" />
         </div>
       ) : reviews.length === 0 ? (
-        <div className="text-center py-10 text-muted-foreground">
-          <MessageSquare size={36} className="mx-auto mb-3 opacity-30" />
-          <p className="text-sm">No reviews yet. Be the first!</p>
+        <div className="text-center py-12 rounded-2xl border border-dashed border-border space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+            <MessageSquare size={18} className="text-muted-foreground opacity-40" />
+          </div>
+          <div>
+            <p className="font-black text-sm">No reviews yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Be the first to share your thoughts!</p>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
-          {reviews.map((review) => (
+          {reviews.map(review => (
             <ReviewCard
               key={review.id}
               review={review}
@@ -154,7 +224,6 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
             />
           ))}
 
-          {/* Load more */}
           {hasMore && (
             <div className="flex justify-center pt-2">
               <Button
@@ -162,12 +231,15 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
                 size="sm"
                 onClick={handleLoadMore}
                 disabled={loadingMore}
-                className="gap-2"
+                className={cn(
+                  'gap-2 rounded-xl min-w-[160px]',
+                  'border-border hover:border-primary/50 transition-colors'
+                )}
               >
                 {loadingMore ? (
-                  <><Loader2 size={14} className="animate-spin" />Loading...</>
+                  <><Loader2 size={13} className="animate-spin" /> Loading...</>
                 ) : (
-                  `Load more reviews (${total - reviews.length} remaining)`
+                  <><Plus size={13} /> Load more ({total - reviews.length})</>
                 )}
               </Button>
             </div>
