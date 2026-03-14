@@ -1,9 +1,21 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { BookOpen } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Auth — Compicfy',
+}
+
+function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
+      <rect x="3"   y="18"    width="22"  height="5.5" rx="1.5" className="fill-primary-foreground/25" />
+      <rect x="3"   y="18"    width="10"  height="5.5" rx="1.5" className="fill-primary-foreground/55" />
+      <rect x="4.5" y="11.5"  width="19"  height="5.5" rx="1.5" className="fill-primary-foreground/45" />
+      <rect x="4.5" y="11.5"  width="9"   height="5.5" rx="1.5" className="fill-primary-foreground/75" />
+      <rect x="6"   y="5"     width="16"  height="5.5" rx="1.5" className="fill-primary-foreground"    />
+      <rect x="6"   y="5"     width="7.5" height="5.5" rx="1.5" className="fill-primary-foreground/65" />
+    </svg>
+  )
 }
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -28,11 +40,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* Top bar */}
       <header className="relative z-10 p-5">
         <Link href="/" className="inline-flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
-            <BookOpen size={15} className="text-white" />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 group-hover:shadow-primary/30 transition-all duration-200">
+            <LogoMark className="w-[18px] h-[18px]" />
           </div>
-          <span className="font-black text-lg tracking-tight text-foreground group-hover:text-primary transition-colors">
-            Compicfy
+          <span className="font-black text-[15px] tracking-tight text-foreground group-hover:text-primary transition-colors">
+            Compic<span className="text-primary">fy</span>
           </span>
         </Link>
       </header>
