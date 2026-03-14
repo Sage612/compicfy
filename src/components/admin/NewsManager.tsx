@@ -98,7 +98,7 @@ export function NewsManager({ initialNews }: Props) {
     setActionLoading('save')
     try {
       const isNew = editingId === 'new'
-      const res = await fetch(isNew ? '/api/admin/news' : `/api/admin/news/${editingId}`, {
+      const res = await fetch(isNew ? '/api/news' : `/api/news/${editingId}`, {
         method: isNew ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editData),
@@ -123,7 +123,7 @@ export function NewsManager({ initialNews }: Props) {
   const handleTogglePublish = async (id: string, current: boolean) => {
     setActionLoading(`${id}-publish`)
     try {
-      const res = await fetch(`/api/admin/news/${id}`, {
+      const res = await fetch(`/api/news/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_published: !current }),
       })
@@ -138,7 +138,7 @@ export function NewsManager({ initialNews }: Props) {
     if (!confirm('Delete this article permanently?')) return
     setActionLoading(`${id}-delete`)
     try {
-      const res = await fetch(`/api/admin/news/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/news/${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       setNews(prev => prev.filter(n => n.id !== id))
       toast.success('Article deleted')
