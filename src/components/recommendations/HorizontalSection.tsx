@@ -5,7 +5,7 @@ import { useRef } from 'react'
 import { ComicCard } from './ComicCard'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
+import { cn } from '@/lib/utils'
 import type { Recommendation } from '@/types/database.types'
 
 interface Props {

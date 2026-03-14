@@ -4,7 +4,7 @@ import { ComicCard } from '@/components/recommendations/ComicCard'
 import { FilterBar } from '@/components/recommendations/FilterBar'
 import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
-import { BookOpen, Compass } from 'lucide-react'
+import { BookOpen, Compass, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import type { Recommendation } from '@/types/database.types'
@@ -152,8 +152,8 @@ async function ComicGrid({ searchParams }: { searchParams: SearchParams }) {
             : 'Be the first to add a recommendation!'}
         </p>
         <Link href="/dashboard/recommendations/new">
-          <Button className="gap-2">
-            <BookOpen size={16} />
+          <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
+            <Plus size={15} />
             Submit a Recommendation
           </Button>
         </Link>
@@ -230,31 +230,43 @@ export default async function BrowsePage({ searchParams }: Props) {
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-10">
 
       {/* ── PAGE HEADER ── */}
-      <div className="flex items-end justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20">
-              <Compass size={17} className="text-white" />
-            </div>
-            <h1 className="text-3xl font-black tracking-tight">Browse Comics</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Left: icon + title + subtitle */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+            <Compass size={17} className="text-white" />
           </div>
-          <p className="text-muted-foreground text-sm pl-0.5">
-            Discover community recommendations · manga, manhwa, manhua &amp; webtoons
-          </p>
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
+              Browse Comics
+            </h1>
+            <p className="text-muted-foreground text-xs sm:text-sm leading-snug mt-0.5 truncate">
+              Community recommendations · manga, manhwa, manhua &amp; webtoons
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right: action buttons — always in a row, wrap only if needed */}
+        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
           {adultEnabled && (
             <Link href="/browse/adult">
-              <Button size="sm" variant="outline" className="gap-2 border-destructive/30 text-destructive hover:bg-destructive/5">
-                🔞 18+
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 whitespace-nowrap"
+              >
+                🔞 <span className="hidden xs:inline">18+</span>
               </Button>
             </Link>
           )}
           <Link href="/dashboard/recommendations/new">
-            <Button size="sm" className="gap-2">
-              <BookOpen size={14} />
+            <Button
+              size="sm"
+              className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 whitespace-nowrap"
+            >
+              <Plus size={14} />
               <span className="hidden sm:inline">Add Comic</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           </Link>
         </div>
@@ -272,14 +284,14 @@ export default async function BrowsePage({ searchParams }: Props) {
       {/* ── HORIZONTAL SECTIONS ── */}
       {!isFiltering && (
         <div className="space-y-10">
-          <HorizontalSection title="Trending Today"        emoji="🔥" recommendations={trending}      viewAllHref="/browse?sort=trending" />
-          <HorizontalSection title="Recently Added"        emoji="✨" recommendations={recent}        viewAllHref="/browse?sort=recent"   />
+          <HorizontalSection title="Trending Today"       emoji="🔥" recommendations={trending}      viewAllHref="/browse?sort=trending" />
+          <HorizontalSection title="Recently Added"       emoji="✨" recommendations={recent}        viewAllHref="/browse?sort=recent"   />
           {adminPicks.length > 0 && (
-            <HorizontalSection title="Admin Picks"         emoji="👑" recommendations={adminPicks}                                        />
+            <HorizontalSection title="Admin Picks"        emoji="👑" recommendations={adminPicks}                                        />
           )}
-          <HorizontalSection title="Community Favourites"  emoji="❤️" recommendations={communityFavs} viewAllHref="/browse?sort=score"    />
+          <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse?sort=score"    />
           {hiddenGems.length > 0 && (
-            <HorizontalSection title="Hidden Gems"         emoji="💎" recommendations={hiddenGems}                                        />
+            <HorizontalSection title="Hidden Gems"        emoji="💎" recommendations={hiddenGems}                                        />
           )}
           {youMightLike.length > 0 && (
             <HorizontalSection
