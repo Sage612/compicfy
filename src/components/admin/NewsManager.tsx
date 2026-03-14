@@ -71,11 +71,13 @@ export function NewsManager({ initialNews }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
+      // Route returns { summary: { title, excerpt, content, ... }, image_url }
+      const s = data.summary ?? {}
       setEditData(prev => ({
         ...prev,
-        title: data.title || prev.title,
-        summary: data.summary,
-        image_url: data.image_url || prev.image_url,
+        title:      s.title   || prev.title,
+        summary:    s.excerpt || s.content || prev.summary,
+        image_url:  data.image_url || prev.image_url,
         is_ai_summary: true,
       }))
       toast.success('AI summary generated!')
