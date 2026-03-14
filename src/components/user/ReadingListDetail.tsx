@@ -4,11 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import {
   ArrowLeft, BookOpen, Trash2, Globe, Lock,
-  Loader2, BookMarked
+  Loader2, BookMarked, ChevronRight,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -39,12 +38,20 @@ interface ListItem {
 }
 
 const STATUS_META: Record<string, { label: string; emoji: string; className: string }> = {
-  reading:      { label: 'Reading',      emoji: '📖', className: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
-  plan_to_read: { label: 'Plan to Read', emoji: '📌', className: 'bg-purple-500/10 text-purple-600 border-purple-500/20' },
-  marinating:   { label: 'Marinating',   emoji: '🫙', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20 dark:text-amber-400' },
-  completed:    { label: 'Completed',    emoji: '✅', className: 'bg-green-500/10 text-green-600 border-green-500/20' },
+  reading:      { label: 'Reading',      emoji: '📖', className: 'bg-blue-500/10   text-blue-600   border-blue-500/20'   },
+  plan_to_read: { label: 'Plan to Read', emoji: '📌', className: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
+  marinating:   { label: 'Marinating',   emoji: '🫙', className: 'bg-amber-500/10  text-amber-600  border-amber-500/20'  },
+  completed:    { label: 'Completed',    emoji: '✅', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
   on_hold:      { label: 'On Hold',      emoji: '⏸️', className: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
-  dropped:      { label: 'Dropped',      emoji: '🗑️', className: 'bg-red-500/10 text-red-600 border-red-500/20' },
+  dropped:      { label: 'Dropped',      emoji: '🗑️', className: 'bg-red-500/10    text-red-600    border-red-500/20'    },
+}
+
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
+  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
 }
 
 const STATUSES = Object.entries(STATUS_META).map(([value, meta]) => ({ value, ...meta }))
@@ -67,10 +74,8 @@ export function ReadingListDetail({
     if (!confirm(`Remove "${item.recommendations.title}" from this list?`)) return
     setRemovingId(item.id)
     try {
-      await fetch(`/api/lists/${list.id}/items?rec_id=${item.recommendations.id}`, {
-        method: 'DELETE',
-      })
-      setItems((prev) => prev.filter((i) => i.id !== item.id))
+      await fetch(`/api/lists/${list.id}/items?rec_id=${item.recommendations.id}`, { method: 'DELETE' })
+      setItems(prev => prev.filter(i => i.id !== item.id))
       toast.success('Removed from list')
     } catch {
       toast.error('Failed to remove')
@@ -87,16 +92,11 @@ export function ReadingListDetail({
       await fetch(`/api/lists/${list.id}/items`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recommendation_id: item.recommendations.id,
-          status: newStatus,
-        }),
+        body: JSON.stringify({ recommendation_id: item.recommendations.id, status: newStatus }),
       })
-      setItems((prev) =>
-        prev.map((i) => i.id === item.id ? { ...i, status: newStatus } : i)
-      )
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: newStatus } : i))
       const meta = STATUS_META[newStatus]
-      toast.success(`Status updated to ${meta?.emoji} ${meta?.label}`)
+      toast.success(`${meta?.emoji} ${meta?.label}`)
     } catch {
       toast.error('Failed to update status')
     } finally {
@@ -104,9 +104,7 @@ export function ReadingListDetail({
     }
   }
 
-  const filtered = filterStatus
-    ? items.filter((i) => i.status === filterStatus)
-    : items
+  const filtered = filterStatus ? items.filter(i => i.status === filterStatus) : items
 
   const statusCounts = items.reduce((acc, item) => {
     acc[item.status] = (acc[item.status] ?? 0) + 1
@@ -115,33 +113,43 @@ export function ReadingListDetail({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <Link
-          href="/dashboard/lists"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
-        >
-          <ArrowLeft size={14} />
-          Back to Lists
-        </Link>
 
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <BookMarked size={22} />
-              {list.name}
-            </h1>
-            {list.description && (
-              <p className="text-muted-foreground text-sm mt-1">{list.description}</p>
-            )}
-            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-              <span>{items.length} comic{items.length !== 1 ? 's' : ''}</span>
-              <span className="flex items-center gap-1">
-                {list.is_public ? <Globe size={11} /> : <Lock size={11} />}
-                {list.is_public ? 'Public' : 'Private'}
-              </span>
-              <span>Created {formatDate(list.created_at)}</span>
+      {/* Back link */}
+      <Link
+        href="/dashboard/lists"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft size={14} />
+        Back to Lists
+      </Link>
+
+      {/* Header card */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="h-16 bg-gradient-to-br from-teal-500/20 via-cyan-500/10 to-transparent" />
+        <div className="px-5 pb-5 -mt-6 space-y-3">
+          <div className="flex items-end justify-between gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20 ring-2 ring-card">
+              <BookMarked size={20} className="text-white" />
             </div>
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-black tracking-tight">{list.name}</h1>
+            {list.description && (
+              <p className="text-sm text-muted-foreground leading-relaxed">{list.description}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+            <span className="font-black text-foreground">{items.length}</span> comic{items.length !== 1 ? 's' : ''}
+            <span className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold',
+              list.is_public
+                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                : 'bg-muted text-muted-foreground border-border'
+            )}>
+              {list.is_public ? <Globe size={9} /> : <Lock size={9} />}
+              {list.is_public ? 'Public' : 'Private'}
+            </span>
+            <span>Created {formatDate(list.created_at)}</span>
           </div>
         </div>
       </div>
@@ -152,22 +160,22 @@ export function ReadingListDetail({
           <button
             onClick={() => setFilterStatus(null)}
             className={cn(
-              'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+              'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
               !filterStatus
-                ? 'bg-primary text-primary-foreground border-primary'
+                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                 : 'border-border text-muted-foreground hover:border-primary'
             )}
           >
             All ({items.length})
           </button>
-          {STATUSES.filter(s => statusCounts[s.value]).map((s) => (
+          {STATUSES.filter(s => statusCounts[s.value]).map(s => (
             <button
               key={s.value}
               onClick={() => setFilterStatus(filterStatus === s.value ? null : s.value)}
               className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-medium border transition-colors',
+                'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
                 filterStatus === s.value
-                  ? 'bg-primary text-primary-foreground border-primary'
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
                   : 'border-border text-muted-foreground hover:border-primary'
               )}
             >
@@ -177,41 +185,46 @@ export function ReadingListDetail({
         </div>
       )}
 
-      {/* Empty state */}
+      {/* Empty states */}
       {items.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-border rounded-xl">
-          <BookOpen size={40} className="mx-auto mb-3 text-muted-foreground opacity-40" />
-          <h3 className="font-semibold mb-1">No comics yet</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Add comics to this list from any comic page
-          </p>
+        <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-3">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+            <BookOpen size={22} className="text-muted-foreground opacity-40" />
+          </div>
+          <div>
+            <h3 className="font-black text-sm">No comics yet</h3>
+            <p className="text-xs text-muted-foreground mt-1">Add comics to this list from any comic page</p>
+          </div>
           <Link href="/browse">
-            <Button size="sm">Browse Comics</Button>
+            <Button size="sm" className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
+              Browse Comics
+            </Button>
           </Link>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
-          No comics with this status
+        <div className="text-center py-12 rounded-2xl border border-dashed border-border">
+          <p className="text-sm text-muted-foreground">No comics with this status</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((item) => {
+        <div className="space-y-2">
+          {filtered.map(item => {
             const rec = item.recommendations
             const statusMeta = STATUS_META[item.status] ?? STATUS_META.plan_to_read
+            const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
 
             return (
               <div
                 key={item.id}
                 onClick={() => router.push(`/comic/${rec.id}`)}
-                className="flex gap-4 p-4 rounded-xl border border-border bg-card hover:border-primary/30 hover:bg-accent/30 transition-colors cursor-pointer"
+                className="group flex gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer"
               >
                 {/* Cover */}
-                <div className="w-14 h-20 rounded-lg overflow-hidden bg-muted border border-border shrink-0">
+                <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                   {rec.cover_url ? (
                     <img
                       src={rec.cover_url}
                       alt={rec.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -221,55 +234,64 @@ export function ReadingListDetail({
                 </div>
 
                 {/* Info */}
-                <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex-1 min-w-0 space-y-2 py-0.5">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-semibold text-sm line-clamp-1">{rec.title}</p>
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        <Badge variant="secondary" className="text-xs capitalize">{rec.type}</Badge>
-                        <Badge variant="outline" className="text-xs capitalize">{rec.status}</Badge>
+                    <div className="min-w-0 space-y-1.5">
+                      <p className="font-black text-sm line-clamp-1 group-hover:text-primary transition-colors">
+                        {rec.title}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize', typeStyle)}>
+                          {rec.type}
+                        </span>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border border-border bg-muted text-muted-foreground capitalize">
+                          {rec.status}
+                        </span>
                       </div>
                     </div>
                     <button
-                      onClick={(e) => handleRemove(e, item)}
+                      onClick={e => handleRemove(e, item)}
                       disabled={removingId === item.id}
-                      className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                      className="text-muted-foreground hover:text-destructive transition-colors shrink-0 p-1 rounded-lg hover:bg-destructive/10"
                     >
                       {removingId === item.id
-                        ? <Loader2 size={14} className="animate-spin" />
-                        : <Trash2 size={14} />
+                        ? <Loader2 size={13} className="animate-spin" />
+                        : <Trash2 size={13} />
                       }
                     </button>
                   </div>
 
-                  {/* Status selector */}
-                  <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                  {/* Status row */}
+                  <div className="flex items-center gap-2 flex-wrap" onClick={e => e.stopPropagation()}>
                     <span className={cn(
-                      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border font-medium',
+                      'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border',
                       statusMeta.className
                     )}>
                       {statusMeta.emoji} {statusMeta.label}
                     </span>
                     {updatingId === item.id ? (
-                      <Loader2 size={12} className="animate-spin text-muted-foreground" />
+                      <Loader2 size={11} className="animate-spin text-muted-foreground" />
                     ) : (
                       <select
                         value={item.status}
-                        onChange={(e) => handleStatusChange(e, item)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-xs text-muted-foreground bg-transparent border-none outline-none cursor-pointer hover:text-foreground transition-colors"
+                        onChange={e => handleStatusChange(e, item)}
+                        onClick={e => e.stopPropagation()}
+                        className="text-[10px] text-muted-foreground bg-transparent border-none outline-none cursor-pointer hover:text-foreground transition-colors"
                       >
-                        {STATUSES.map((s) => (
-                          <option key={s.value} value={s.value}>
-                            {s.emoji} {s.label}
-                          </option>
+                        {STATUSES.map(s => (
+                          <option key={s.value} value={s.value}>{s.emoji} {s.label}</option>
                         ))}
                       </select>
                     )}
-                    <span className="text-xs text-muted-foreground ml-auto">
+                    <span className="text-[10px] text-muted-foreground ml-auto">
                       Added {formatDate(item.added_at)}
                     </span>
                   </div>
+                </div>
+
+                {/* Arrow */}
+                <div className="flex items-center shrink-0 self-center opacity-0 group-hover:opacity-40 transition-opacity">
+                  <ChevronRight size={14} className="text-muted-foreground" />
                 </div>
               </div>
             )

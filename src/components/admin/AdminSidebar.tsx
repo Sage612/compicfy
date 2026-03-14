@@ -12,24 +12,24 @@ interface Props { role: 'admin' | 'moderator' }
 
 const sharedItems = [
   { href: '/admin',                  label: 'Overview',        icon: LayoutDashboard, exact: true },
-  { href: '/admin/recommendations',  label: 'Recommendations', icon: BookOpen         },
-  { href: '/admin/news',             label: 'News',            icon: Newspaper        },
-  { href: '/admin/reports',          label: 'Reports',         icon: Flag             },
-  { href: '/admin/reviews',          label: 'Reviews',         icon: Star             },
+  { href: '/admin/recommendations',  label: 'Recommendations', icon: BookOpen                     },
+  { href: '/admin/news',             label: 'News',            icon: Newspaper                    },
+  { href: '/admin/reports',          label: 'Reports',         icon: Flag                         },
+  { href: '/admin/reviews',          label: 'Reviews',         icon: Star                         },
 ]
 
 const adminOnlyItems = [
-  { href: '/admin/users',      label: 'Users',          icon: Users      },
-  { href: '/admin/logs',       label: 'Activity Logs',  icon: ScrollText },
-  { href: '/admin/test-email', label: 'Test Emails',    icon: Mail       },
+  { href: '/admin/users',      label: 'Users',         icon: Users      },
+  { href: '/admin/logs',       label: 'Activity Logs', icon: ScrollText },
+  { href: '/admin/test-email', label: 'Test Emails',   icon: Mail       },
 ]
 
 const mobileShared = [
   { href: '/admin',                 label: 'Overview', icon: LayoutDashboard, exact: true },
-  { href: '/admin/recommendations', label: 'Recs',     icon: BookOpen         },
-  { href: '/admin/news',            label: 'News',     icon: Newspaper        },
-  { href: '/admin/reports',         label: 'Reports',  icon: Flag             },
-  { href: '/admin/reviews',         label: 'Reviews',  icon: Star             },
+  { href: '/admin/recommendations', label: 'Recs',     icon: BookOpen                     },
+  { href: '/admin/news',            label: 'News',     icon: Newspaper                    },
+  { href: '/admin/reports',         label: 'Reports',  icon: Flag                         },
+  { href: '/admin/reviews',         label: 'Reviews',  icon: Star                         },
 ]
 
 const mobileAdminOnly = [
@@ -44,6 +44,7 @@ export function AdminSidebar({ role }: Props) {
 
   return (
     <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border p-3 gap-0.5">
+      {/* Panel header */}
       <div className="flex items-center justify-between px-3 py-2.5 mb-1">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 rounded-md bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center">
@@ -96,8 +97,8 @@ export function AdminMobileNav({ role }: Props) {
   const items = role === 'admin' ? [...mobileShared, ...mobileAdminOnly] : mobileShared
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-md border-t border-border">
-      <div className="flex overflow-x-auto no-scrollbar px-1 py-1">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-lg border-t border-border">
+      <div className="flex overflow-x-auto no-scrollbar px-1 py-1.5">
         {items.map(({ href, label, icon: Icon, exact }: any) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
           return (
@@ -105,19 +106,27 @@ export function AdminMobileNav({ role }: Props) {
               key={href}
               href={href}
               className={cn(
-                'flex flex-col items-center gap-1 px-3 py-2 min-w-[56px] flex-none rounded-xl transition-all duration-150',
+                'relative flex flex-col items-center gap-1 px-3 py-1.5 min-w-[56px] flex-none rounded-xl transition-all duration-150',
                 isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
               )}
             >
               <div className={cn(
-                'w-8 h-8 rounded-xl flex items-center justify-center transition-all',
-                isActive ? 'bg-primary/10' : 'bg-transparent'
+                'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150',
+                isActive
+                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
+                  : 'hover:bg-accent/60'
               )}>
                 <Icon size={17} />
               </div>
-              <span className={cn('text-[9px] font-semibold whitespace-nowrap', isActive ? 'text-primary' : 'text-muted-foreground')}>
+              <span className={cn(
+                'text-[9px] font-semibold whitespace-nowrap leading-none',
+                isActive ? 'text-primary' : 'text-muted-foreground'
+              )}>
                 {label}
               </span>
+              {isActive && (
+                <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+              )}
             </Link>
           )
         })}
