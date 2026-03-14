@@ -65,7 +65,7 @@ export function NewsManager({ initialNews }: Props) {
     if (!editData.source_url.trim()) { toast.error('Enter a source URL first'); return }
     setAiLoading(true)
     try {
-      const res = await fetch('/api/admin/news/summarise', {
+      const res = await fetch('/api/news/summarise', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: editData.source_url }),
       })
