@@ -1,6 +1,5 @@
 import Link from 'next/link'
 
-// Same LogoMark as Header — stacked books
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
@@ -40,13 +39,11 @@ const footerLinks = {
 export function Footer() {
   return (
     <footer className="relative overflow-hidden border-t border-border bg-background">
-      {/* Subtle top glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-32 bg-primary/4 blur-3xl pointer-events-none" />
 
-      <div className="relative max-w-7xl mx-auto px-4 pt-14 pb-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
+      <div className="relative max-w-7xl mx-auto px-4 pt-14 pb-12 sm:pb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-10">
 
-          {/* Brand */}
           <div className="col-span-2 md:col-span-1 space-y-4">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 group-hover:shadow-primary/30 transition-all duration-200">
@@ -59,7 +56,6 @@ export function Footer() {
             <p className="text-sm text-muted-foreground leading-relaxed max-w-[200px]">
               Your community for discovering manga, manhwa, manhua &amp; webtoons.
             </p>
-            {/* Discord pill */}
             <a
               href="https://discord.gg/7WPGMb696N"
               target="_blank"
@@ -73,7 +69,6 @@ export function Footer() {
             </a>
           </div>
 
-          {/* Links */}
           {Object.entries(footerLinks).map(([category, links]) => (
             <div key={category} className="space-y-4">
               <h3 className="text-xs font-black uppercase tracking-widest text-foreground">
@@ -95,13 +90,25 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Divider */}
+        {/* Affiliate Disclosure Section */}
+        <div className="mb-8 space-y-1">
+           <p className="text-[10px] text-muted-foreground/60 leading-relaxed text-center sm:text-left">
+            Compicfy is a participant in the Amazon Services LLC Associates Program and other affiliate advertising programs 
+            designed to provide a means for sites to earn advertising fees by advertising and linking to official retailers.
+          </p>
+        </div>
+
         <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mb-6" />
 
-        {/* Bottom bar */}
-        <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground text-center sm:flex-row sm:justify-between sm:text-left">
-          <p>© {new Date().getFullYear()} Compicfy. All rights reserved. We do not host or link to pirated content.</p>
-          <p className="flex items-center gap-1 shrink-0">
+        {/* Bottom bar - Fixed for mobile overflow */}
+        <div className="flex flex-col gap-4 text-[11px] text-muted-foreground sm:flex-row sm:justify-between sm:items-center">
+          <p className="text-center sm:text-left leading-relaxed max-w-[90%] mx-auto sm:mx-0">
+            © {new Date().getFullYear()} Compicfy. All rights reserved. 
+            <span className="block sm:inline sm:ml-1">We do not host or link to pirated content.</span>
+          </p>
+          
+          {/* Visible only on Desktop (sm and up) */}
+          <p className="hidden sm:flex items-center gap-1 shrink-0">
             Made with <span className="text-rose-500 mx-0.5">❤️</span> for comic fans everywhere
           </p>
         </div>

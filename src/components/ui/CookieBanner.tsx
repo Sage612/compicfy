@@ -9,10 +9,8 @@ export function CookieBanner() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    // Only show if user hasn't made a choice yet
     const consent = localStorage.getItem('compicfy_cookie_consent')
     if (!consent) {
-      // Small delay so it doesn't flash on first paint
       const timer = setTimeout(() => setVisible(true), 800)
       return () => clearTimeout(timer)
     }
@@ -37,14 +35,13 @@ export function CookieBanner() {
       <div className="mx-auto max-w-4xl rounded-xl border border-border bg-background/95 shadow-2xl backdrop-blur-sm p-5 md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           
-          {/* Text */}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground mb-1">
               🍪 We use cookies
             </p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              We use essential cookies to keep the site working and optional analytics
-              cookies to understand how it&apos;s used. No ads, no data selling — ever.{' '}
+              We use essential cookies to keep the site working, plus analytics and referral tracking 
+              to support the community. No ads, no data selling — ever.{' '}
               <Link
                 href="/cookies"
                 className="underline underline-offset-2 hover:text-foreground transition-colors"
@@ -54,9 +51,7 @@ export function CookieBanner() {
             </p>
           </div>
 
-          {/* Buttons */}
           <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-            {/* Necessary Only — visually equal weight to Accept All */}
             <button
               onClick={() => handleConsent('necessary')}
               className="rounded-lg border border-border bg-background px-4 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -64,7 +59,6 @@ export function CookieBanner() {
               Necessary Only
             </button>
 
-            {/* Accept All */}
             <button
               onClick={() => handleConsent('all')}
               className="rounded-lg bg-foreground px-4 py-2 text-xs font-medium text-background transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

@@ -17,6 +17,10 @@ import type { Metadata } from 'next'
 import type { Recommendation } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 
+// NEW IMPORT: Affiliate Components and Suspense
+import { Suspense } from 'react'
+import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
+
 interface Props {
   params: Promise<{ id: string }>
 }
@@ -255,9 +259,9 @@ export default async function ComicDetailPage({ params }: Props) {
             <div className="grid grid-cols-4 gap-2">
               {[
                 { icon: ThumbsUp,      label: 'Upvotes', value: rec.upvotes,      color: 'text-emerald-500', bg: 'bg-emerald-500/8' },
-                { icon: Star,          label: 'Reviews', value: rec.review_count,  color: 'text-amber-500',   bg: 'bg-amber-500/8'  },
-                { icon: Bookmark,      label: 'Saves',   value: rec.save_count,    color: 'text-blue-500',    bg: 'bg-blue-500/8'   },
-                { icon: MessageSquare, label: 'Score',   value: rec.score,         color: 'text-violet-500',  bg: 'bg-violet-500/8' },
+                { icon: Star,          label: 'Reviews', value: rec.review_count, color: 'text-amber-500',   bg: 'bg-amber-500/8'  },
+                { icon: Bookmark,      label: 'Saves',   value: rec.save_count,   color: 'text-blue-500',    bg: 'bg-blue-500/8'   },
+                { icon: MessageSquare, label: 'Score',   value: rec.score,        color: 'text-violet-500',  bg: 'bg-violet-500/8' },
               ].map(({ icon: Icon, label, value, color, bg }) => (
                 <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-2xl ${bg} border border-border`}>
                   <Icon size={14} className={color} />
@@ -300,6 +304,15 @@ export default async function ComicDetailPage({ params }: Props) {
               <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reviews</h2>
               <ReviewSection recommendationId={id} currentUserId={user?.id ?? null} isLoggedIn={!!user} />
             </div>
+
+            {/* ── NEW: AFFILIATE MERCHANDISE SECTION ── */}
+            <Suspense fallback={<div className="h-40 bg-muted/30 animate-pulse rounded-2xl border border-border mt-6" />}>
+              <ContextualOffers 
+                comicId={id} 
+                comicTitle={rec.title} 
+                genre={rec.genres?.[0] || 'Action'} // Passes primary genre or defaults to Action
+              />
+            </Suspense>
 
             {/* Similar */}
             <div className="space-y-3 pt-2">

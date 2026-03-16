@@ -6,6 +6,8 @@ export const metadata: Metadata = {
 }
 
 export default function CookiePolicyPage() {
+  const lastUpdated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-12 space-y-10">
 
@@ -17,7 +19,7 @@ export default function CookiePolicyPage() {
           </div>
           <h1 className="text-3xl font-black tracking-tight">Cookie Policy</h1>
         </div>
-        <p className="text-muted-foreground text-sm pl-0.5">Last updated: March 5, 2026</p>
+        <p className="text-muted-foreground text-sm pl-0.5">Last updated: {lastUpdated}</p>
       </div>
 
       <div className="space-y-8">
@@ -52,14 +54,21 @@ export default function CookiePolicyPage() {
                 <tbody className="divide-y divide-border">
                   <tr>
                     <td className="px-4 py-3 font-semibold text-sm align-middle">Necessary</td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs align-middle leading-relaxed">Authentication (Supabase session), security tokens, your cookie consent choice.</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs align-middle leading-relaxed">Authentication (Supabase session), security tokens, and your cookie consent choice.</td>
                     <td className="px-4 py-3 align-middle">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-600 border-emerald-500/20 whitespace-nowrap">Always on</span>
                     </td>
                   </tr>
                   <tr>
                     <td className="px-4 py-3 font-semibold text-sm align-middle">Preferences</td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs align-middle leading-relaxed">Theme (light/dark mode), age verification status, UI preferences.</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs align-middle leading-relaxed">Theme (light/dark mode), age verification status, and UI preferences.</td>
+                    <td className="px-4 py-3 align-middle">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">Optional</span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="px-4 py-3 font-semibold text-sm align-middle">Referrals</td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs align-middle leading-relaxed">Attribution for merchandise links to help support the platform. Third-party partners (e.g., Amazon) may set their own cookies upon clicking links.</td>
                     <td className="px-4 py-3 align-middle">
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">Optional</span>
                     </td>
@@ -86,7 +95,7 @@ export default function CookiePolicyPage() {
           <ul className="pl-8 space-y-1.5">
             {[
               'Sell your data to third parties',
-              'Use advertising or tracking cookies',
+              'Use third-party advertising cookies',
               'Share your data with advertisers',
               'Use fingerprinting or cross-site tracking',
             ].map((item) => (
