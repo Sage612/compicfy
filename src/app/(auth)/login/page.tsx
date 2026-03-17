@@ -43,7 +43,7 @@ export default function LoginPage() {
       return
     }
     toast.success('Welcome back!')
-    router.push('/')
+    router.push('/browse')
     router.refresh()
   }
 
