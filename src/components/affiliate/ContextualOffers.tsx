@@ -16,10 +16,10 @@ export async function ContextualOffers({ comicId, comicTitle, genre }: Contextua
     <section className="mt-8 pt-8 border-t border-border space-y-4">
       <div>
         <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-          Fans Also Bought
+          Find Related Products
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Merchandise related to <span className="text-foreground font-semibold">{comicTitle}</span>
+          Search for <span className="text-foreground font-semibold">{comicTitle}</span> merchandise across platforms. Links open search results — availability varies.
         </p>
       </div>
 

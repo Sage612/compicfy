@@ -2,7 +2,7 @@
 
 import { AFFILIATE_MAPPINGS, generateAffiliateUrl } from '@/lib/affiliate/constants'
 import { AffiliateLink } from './AffiliateLink'
-import { ShoppingBag, Gamepad2, Sparkles, Shirt, BookOpen } from 'lucide-react'
+import { ShoppingBag, Gamepad2, Sparkles, Shirt, BookOpen, Search } from 'lucide-react'
 
 interface GenreMerchGridProps {
   comicId: string
@@ -14,11 +14,11 @@ function getIcon(productType: string) {
   const t = productType.toLowerCase()
   if (t.includes('apparel') || t.includes('shirt') || t.includes('cosplay') || t.includes('fashion'))
     return <Shirt className="w-4 h-4" />
-  if (t.includes('game') || t.includes('figure') || t.includes('collectible'))
+  if (t.includes('figure') || t.includes('collectible'))
     return <Gamepad2 className="w-4 h-4" />
-  if (t.includes('book') || t.includes('stationery') || t.includes('print'))
+  if (t.includes('volume') || t.includes('book') || t.includes('stationery'))
     return <BookOpen className="w-4 h-4" />
-  if (t.includes('jewelry') || t.includes('kawaii') || t.includes('plush') || t.includes('snack'))
+  if (t.includes('plush') || t.includes('poster') || t.includes('print') || t.includes('art'))
     return <Sparkles className="w-4 h-4" />
   return <ShoppingBag className="w-4 h-4" />
 }
@@ -41,13 +41,19 @@ export function GenreMerchGrid({ comicId, comicTitle, genre }: GenreMerchGridPro
             key={idx}
             className="flex flex-col gap-3 p-4 rounded-2xl border border-border bg-card hover:border-primary/30 transition-colors"
           >
+            {/* Product type + icon */}
             <div className="flex items-center gap-2 text-primary">
               {getIcon(product.productType)}
               <span className="text-xs font-bold">{product.productType}</span>
             </div>
+
+            {/* Honest description — makes clear this is a search */}
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Find {comicTitle}-related {product.productType.toLowerCase()} on {product.platform}
+              Search for <span className="text-foreground font-medium">{comicTitle}</span>{' '}
+              {product.productType.toLowerCase()} on {product.platform}.
+              Results may vary.
             </p>
+
             <div className="mt-auto">
               <AffiliateLink
                 href={outboundUrl}
@@ -58,7 +64,9 @@ export function GenreMerchGrid({ comicId, comicTitle, genre }: GenreMerchGridPro
                 genre={genre}
                 className="text-xs font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-xl w-full justify-center hover:bg-primary/20 transition-colors"
               >
-                Shop on {product.platform}
+                {/* Label clearly says Search, not Shop */}
+                <Search className="w-3 h-3" />
+                Search on {product.platform}
               </AffiliateLink>
             </div>
           </div>
