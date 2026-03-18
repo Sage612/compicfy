@@ -8,22 +8,22 @@ export const metadata: Metadata = {
 }
 
 const platforms = [
-  {
-    name: 'Amazon',
-    description: 'Manga volumes, art books, posters and more. The largest catalogue for anime and manga merchandise.',
-    color: 'from-amber-500 to-orange-500',
-    bg: 'bg-amber-500/10',
-    border: 'border-amber-500/20',
-    text: 'text-amber-600 dark:text-amber-400',
-    url: `https://www.amazon.com/s?k=manga&tag=compicfy-20&ref=nosim`,
-    categories: [
-      { label: 'Manga Volumes',  url: 'https://www.amazon.com/s?k=manga%20volumes&tag=compicfy-20&ref=nosim'  },
-      { label: 'Art Books',      url: 'https://www.amazon.com/s?k=manga%20art%20book&tag=compicfy-20&ref=nosim' },
-      { label: 'Posters',        url: 'https://www.amazon.com/s?k=anime%20poster&tag=compicfy-20&ref=nosim'   },
-      { label: 'Figures',        url: 'https://www.amazon.com/s?k=anime%20figure&tag=compicfy-20&ref=nosim'   },
-      { label: 'Plush Toys',     url: 'https://www.amazon.com/s?k=anime%20plush&tag=compicfy-20&ref=nosim'    },
-    ],
-  },
+ {
+  name: 'Amazon',
+  description: 'Manga volumes, art books, posters and more. The largest catalogue for anime and manga merchandise.',
+  color: 'from-amber-500 to-orange-500',
+  bg: 'bg-amber-500/10',
+  border: 'border-amber-500/20',
+  text: 'text-amber-600 dark:text-amber-400',
+  url: `https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=manga&tag=compicfy-20`,
+  categories: [
+    { label: 'Manga Volumes', url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=manga%20volumes&tag=compicfy-20' },
+    { label: 'Art Books',     url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=manga%20art%20book&tag=compicfy-20' },
+    { label: 'Posters',       url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=anime%20poster&tag=compicfy-20' },
+    { label: 'Figures',       url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=anime%20figure&tag=compicfy-20' },
+    { label: 'Plush Toys',    url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=anime%20plush&tag=compicfy-20' },
+  ],
+},
   {
     name: 'Blippo',
     description: 'Kawaii Japanese merchandise — plushies, stationery, accessories, snacks and more.',

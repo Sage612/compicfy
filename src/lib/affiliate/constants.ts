@@ -108,12 +108,12 @@ export function generateAffiliateUrl(platform: string, searchQuery: string): str
   // Blippo — searchQuery is already the full category URL
   if (platform === 'Blippo') return searchQuery
 
-  // Use %20 not + for spaces — Amazon rejects + encoded spaces
-  const query = encodeURIComponent(searchQuery).replace(/%2B/g, '%20')
+  const query = encodeURIComponent(searchQuery)
 
   switch (platform) {
     case 'Amazon':
-      return `https://www.amazon.com/s?k=${query}&tag=${amazonTag}&ref=nosim`
+      // Correct Amazon affiliate search URL format
+      return `https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=${query}&tag=${amazonTag}`
     case 'Entertainment Earth':
       return `https://www.entertainmentearth.com/s/?query1=${query}`
     case 'Etsy':
