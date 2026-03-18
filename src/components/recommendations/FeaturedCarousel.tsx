@@ -130,10 +130,10 @@ export function FeaturedCarousel({ recommendations }: Props) {
                     </div>
 
                     {/* Text content */}
-                    <div className="flex-1 min-w-0 space-y-4">
+                    <div className="flex-1 min-w-0 flex flex-col justify-center gap-3 overflow-hidden">
 
                       {/* Type + featured badge */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 shrink-0">
                         <span
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-widest text-white"
                           style={{ background: `${accentColor}33`, border: `1px solid ${accentColor}55` }}
@@ -148,12 +148,12 @@ export function FeaturedCarousel({ recommendations }: Props) {
                       </div>
 
                       {/* Title */}
-                      <h2 className="text-2xl sm:text-3xl md:text-5xl font-black leading-[1.0] text-white tracking-tight line-clamp-2">
+                      <h2 className="text-2xl sm:text-3xl md:text-5xl font-black leading-[1.0] text-white tracking-tight line-clamp-2 shrink-0">
                         {rec.title}
                       </h2>
 
                       {/* Status + genres */}
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 shrink-0 overflow-hidden max-h-8">
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
                           <span className={cn('w-1.5 h-1.5 rounded-full', status?.color)} />
                           <span className="text-xs text-white/70 capitalize">{status?.label ?? rec.status}</span>
@@ -169,12 +169,12 @@ export function FeaturedCarousel({ recommendations }: Props) {
                       </div>
 
                       {/* Description */}
-                      <p className="text-sm text-white/50 line-clamp-2 max-w-md leading-relaxed hidden sm:block">
+                      <p className="text-sm text-white/50 leading-relaxed hidden sm:block shrink-0 overflow-hidden line-clamp-2 max-w-md">
                         {rec.description}
                       </p>
 
                       {/* CTA + stats */}
-                      <div className="flex items-center gap-4 pt-1">
+                      <div className="flex items-center gap-4 shrink-0">
                         <Link href={`/comic/${rec.id}`}>
                           <Button
                             size="sm"
