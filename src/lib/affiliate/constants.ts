@@ -106,14 +106,14 @@ export function generateAffiliateUrl(platform: string, searchQuery: string): str
   const amazonTag = process.env.NEXT_PUBLIC_AMAZON_AFFILIATE_TAG ?? 'compicfy-20'
 
   // Blippo — searchQuery is already the full category URL
-  // TODO: change to `${searchQuery}?ref=YOUR_ID` once Blippo approves you
   if (platform === 'Blippo') return searchQuery
 
-  const query = encodeURIComponent(searchQuery)
+  // Use %20 not + for spaces — Amazon rejects + encoded spaces
+  const query = encodeURIComponent(searchQuery).replace(/%2B/g, '%20')
 
   switch (platform) {
     case 'Amazon':
-      return `https://www.amazon.com/s?k=${query}&tag=${amazonTag}`
+      return `https://www.amazon.com/s?k=${query}&tag=${amazonTag}&ref=nosim`
     case 'Entertainment Earth':
       return `https://www.entertainmentearth.com/s/?query1=${query}`
     case 'Etsy':
@@ -121,6 +121,6 @@ export function generateAffiliateUrl(platform: string, searchQuery: string): str
     case 'eBay':
       return `https://www.ebay.com/sch/i.html?_nkw=${query}`
     default:
-      return `https://www.google.com/search?q=${encodeURIComponent(searchQuery + ' buy')}`
+      return `https://www.google.com/search?q=${query}`
   }
 }
