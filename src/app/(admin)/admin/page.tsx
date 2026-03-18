@@ -1,11 +1,8 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// src/app/(admin)/admin/page.tsx  →  Admin Overview
-// ─────────────────────────────────────────────────────────────────────────────
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import {
   Users, BookOpen, Clock, Newspaper,
-  Star, Flag, ArrowRight, Shield,
+  Star, Flag, ArrowRight, Shield, ShoppingBag,
 } from 'lucide-react'
 import type { Metadata } from 'next'
 
@@ -21,6 +18,7 @@ export default async function AdminPage() {
     { count: totalNews },
     { count: totalReviews },
     { count: pendingReports },
+    { count: totalAffiliateClicks },
   ] = await Promise.all([
     supabase.from('profiles').select('*', { count: 'exact', head: true }),
     supabase.from('recommendations').select('*', { count: 'exact', head: true }),
@@ -28,15 +26,17 @@ export default async function AdminPage() {
     supabase.from('news').select('*', { count: 'exact', head: true }),
     supabase.from('reviews').select('*', { count: 'exact', head: true }),
     supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('affiliate_clicks').select('*', { count: 'exact', head: true }),
   ])
 
   const stats = [
-    { label: 'Total Users',       value: totalUsers     ?? 0, icon: Users,     href: '/admin/users',           gradient: 'from-violet-500 to-purple-600', bg: 'bg-violet-500/10', text: 'text-violet-500', urgent: false },
-    { label: 'Recommendations',   value: totalRecs      ?? 0, icon: BookOpen,  href: '/admin/recommendations', gradient: 'from-blue-500 to-indigo-600',   bg: 'bg-blue-500/10',   text: 'text-blue-500',   urgent: false },
-    { label: 'Pending Approval',  value: pendingRecs    ?? 0, icon: Clock,     href: '/admin/recommendations', gradient: 'from-amber-500 to-orange-500',  bg: 'bg-amber-500/10',  text: 'text-amber-500',  urgent: (pendingRecs  ?? 0) > 0 },
-    { label: 'News Articles',     value: totalNews      ?? 0, icon: Newspaper, href: '/admin/news',            gradient: 'from-teal-500 to-cyan-600',     bg: 'bg-teal-500/10',   text: 'text-teal-500',   urgent: false },
-    { label: 'Reviews',           value: totalReviews   ?? 0, icon: Star,      href: '/admin/reviews',         gradient: 'from-amber-500 to-yellow-500',  bg: 'bg-amber-500/10',  text: 'text-amber-500',  urgent: false },
-    { label: 'Pending Reports',   value: pendingReports ?? 0, icon: Flag,      href: '/admin/reports',         gradient: 'from-red-500 to-rose-600',      bg: 'bg-red-500/10',    text: 'text-red-500',    urgent: (pendingReports ?? 0) > 0 },
+    { label: 'Total Users',        value: totalUsers           ?? 0, icon: Users,        href: '/admin/users',           gradient: 'from-violet-500 to-purple-600', bg: 'bg-violet-500/10', text: 'text-violet-500', urgent: false },
+    { label: 'Recommendations',    value: totalRecs            ?? 0, icon: BookOpen,     href: '/admin/recommendations', gradient: 'from-blue-500 to-indigo-600',   bg: 'bg-blue-500/10',   text: 'text-blue-500',   urgent: false },
+    { label: 'Pending Approval',   value: pendingRecs          ?? 0, icon: Clock,        href: '/admin/recommendations', gradient: 'from-amber-500 to-orange-500',  bg: 'bg-amber-500/10',  text: 'text-amber-500',  urgent: (pendingRecs  ?? 0) > 0 },
+    { label: 'News Articles',      value: totalNews            ?? 0, icon: Newspaper,    href: '/admin/news',            gradient: 'from-teal-500 to-cyan-600',     bg: 'bg-teal-500/10',   text: 'text-teal-500',   urgent: false },
+    { label: 'Reviews',            value: totalReviews         ?? 0, icon: Star,         href: '/admin/reviews',         gradient: 'from-amber-500 to-yellow-500',  bg: 'bg-amber-500/10',  text: 'text-amber-500',  urgent: false },
+    { label: 'Pending Reports',    value: pendingReports       ?? 0, icon: Flag,         href: '/admin/reports',         gradient: 'from-red-500 to-rose-600',      bg: 'bg-red-500/10',    text: 'text-red-500',    urgent: (pendingReports ?? 0) > 0 },
+    { label: 'Affiliate Clicks',   value: totalAffiliateClicks ?? 0, icon: ShoppingBag,  href: '/admin/affiliate',       gradient: 'from-emerald-500 to-green-600', bg: 'bg-emerald-500/10',text: 'text-emerald-500',urgent: false },
   ]
 
   return (
@@ -54,7 +54,7 @@ export default async function AdminPage() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {stats.map(({ label, value, icon: Icon, href, gradient, bg, text, urgent }) => (
+        {stats.map(({ label, value, icon: Icon, href, bg, text, urgent }) => (
           <Link
             key={label}
             href={href}
