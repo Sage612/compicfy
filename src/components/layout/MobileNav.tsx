@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  House, Compass, Plus, Newspaper, Bell, ShoppingBag,
+  House, Compass, Search, Plus, Newspaper, Bell, ShoppingBag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { createClient } from '@/lib/supabase/client'
@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react'
 
 const navItems = [
   { href: '/',                              label: 'Home',   icon: House,        exact: true    },
-  { href: '/browse',                        label: 'Browse', icon: Compass                      },
+  { href: '/browse',                        label: 'Browse', icon: Search                      },
   { href: '/dashboard/recommendations/new', label: 'Add',    icon: Plus,         isAdd: true    },
   { href: '/news',                          label: 'News',   icon: Newspaper                    },
   { href: '/affiliate',                     label: 'Shop',   icon: ShoppingBag                  },
