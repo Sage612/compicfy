@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { ShoppingBag } from 'lucide-react'
 
 function LogoMark({ className }: { className?: string }) {
   return (
@@ -17,22 +18,23 @@ const footerLinks = {
   Discover: [
     { label: 'Browse Comics', href: '/browse'               },
     { label: 'News',          href: '/news'                 },
+    { label: 'Shop & Merch',  href: '/affiliate'            },
     { label: 'Trending',      href: '/browse?sort=trending' },
     { label: 'New Releases',  href: '/browse?sort=recent'   },
   ],
   Community: [
-     { label: 'About',          href: '/about'       },
-    { label: 'FAQ',            href: '/faq'         },
+    { label: 'About',                href: '/about'                         },
+    { label: 'FAQ',                  href: '/faq'                           },
     { label: 'Community Guidelines', href: '/guidelines'                    },
     { label: 'Submit a Comic',       href: '/dashboard/recommendations/new' },
-    { label: 'Discord',              href: 'https://discord.gg/7WPGMb696N'  },
+    { label: 'Discord',              href: 'https://discord.gg/7WPGMb696N' },
   ],
   Legal: [
-    { label: 'Disclaimer',     href: '/disclaimer'  },
-    { label: 'Terms',          href: '/terms'       },
-    { label: 'Privacy Policy', href: '/privacy'     },
-    { label: 'Cookies',        href: '/cookies'     },
-    { label: 'DMCA',           href: '/dmca'        },
+    { label: 'Disclaimer',     href: '/disclaimer' },
+    { label: 'Terms',          href: '/terms'      },
+    { label: 'Privacy Policy', href: '/privacy'    },
+    { label: 'Cookies',        href: '/cookies'    },
+    { label: 'DMCA',           href: '/dmca'       },
   ],
 }
 
@@ -44,6 +46,7 @@ export function Footer() {
       <div className="relative max-w-7xl mx-auto px-4 pt-14 pb-12 sm:pb-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-10">
 
+          {/* Brand column */}
           <div className="col-span-2 md:col-span-1 space-y-4">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 group-hover:shadow-primary/30 transition-all duration-200">
@@ -56,7 +59,18 @@ export function Footer() {
             <p className="text-sm text-muted-foreground leading-relaxed max-w-[200px]">
               Your community for discovering manga, manhwa, manhua &amp; webtoons.
             </p>
-            <a
+
+            {/* Shop link in brand column */}
+            <Link
+              href="/affiliate"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
+            >
+              <ShoppingBag size={12} />
+              Shop Merch
+            </Link>
+
+            {/* Fixed Discord Link */}
+            <Link
               href="https://discord.gg/7WPGMb696N"
               target="_blank"
               rel="noopener noreferrer"
@@ -66,7 +80,7 @@ export function Footer() {
                 <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.102 18.08.114 18.1.141 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
               </svg>
               Join Discord
-            </a>
+            </Link>
           </div>
 
           {Object.entries(footerLinks).map(([category, links]) => (
@@ -90,24 +104,25 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Affiliate Disclosure Section */}
-        <div className="mb-8 space-y-1">
-           <p className="text-[10px] text-muted-foreground/60 leading-relaxed text-center sm:text-left">
-            Compicfy is a participant in the Amazon Services LLC Associates Program and other affiliate advertising programs 
+        {/* Affiliate disclosure — visible on ALL screen sizes */}
+        <div className="mb-8 p-3 rounded-xl bg-muted/40 border border-border">
+          <p className="text-[10px] text-muted-foreground leading-relaxed text-center sm:text-left">
+            Compicfy participates in the Amazon Services LLC Associates Program and other affiliate advertising programs
             designed to provide a means for sites to earn advertising fees by advertising and linking to official retailers.
+            Some links on this site are affiliate links — we may earn a small commission at no extra cost to you.
           </p>
         </div>
 
         <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mb-6" />
 
-        {/* Bottom bar - Fixed for mobile overflow */}
-        <div className="flex flex-col gap-4 text-[11px] text-muted-foreground sm:flex-row sm:justify-between sm:items-center">
-          <p className="text-center sm:text-left leading-relaxed max-w-[90%] mx-auto sm:mx-0">
-            © {new Date().getFullYear()} Compicfy. All rights reserved. 
+        {/* Bottom bar */}
+        <div className="flex flex-col gap-2 text-[11px] text-muted-foreground sm:flex-row sm:justify-between sm:items-center">
+          <p className="text-center sm:text-left leading-relaxed">
+            © {new Date().getFullYear()} Compicfy. All rights reserved.
             <span className="block sm:inline sm:ml-1">We do not host or link to pirated content.</span>
           </p>
-          
-          {/* Visible only on Desktop (sm and up) */}
+
+          {/* Desktop only */}
           <p className="hidden sm:flex items-center gap-1 shrink-0">
             Made with <span className="text-rose-500 mx-0.5">❤️</span> for comic fans everywhere
           </p>

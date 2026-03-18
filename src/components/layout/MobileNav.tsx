@@ -2,17 +2,19 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, Search, Plus, Newspaper, Bell } from 'lucide-react'
+import {
+  House, Compass, Plus, Newspaper, Bell, ShoppingBag,
+} from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
 const navItems = [
-  { href: '/',                               label: 'Home',   icon: Home,      exact: true               },
-  { href: '/browse',                         label: 'Browse', icon: Search                               },
-  { href: '/dashboard/recommendations/new',  label: 'Add',    icon: Plus,      isAdd: true               },
-  { href: '/news',                           label: 'News',   icon: Newspaper                            },
-  { href: '/dashboard/notifications',        label: 'Alerts', icon: Bell,      authOnly: true            },
+  { href: '/',                              label: 'Home',   icon: House,        exact: true    },
+  { href: '/browse',                        label: 'Browse', icon: Compass                      },
+  { href: '/dashboard/recommendations/new', label: 'Add',    icon: Plus,         isAdd: true    },
+  { href: '/news',                          label: 'News',   icon: Newspaper                    },
+  { href: '/affiliate',                     label: 'Shop',   icon: ShoppingBag                  },
 ]
 
 export function MobileNav() {
@@ -38,19 +40,17 @@ export function MobileNav() {
     checkAuth()
   }, [])
 
-  const visibleItems = navItems.filter(item => !item.authOnly || isLoggedIn)
-
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-background/95 backdrop-blur-lg border-t border-border" />
 
-      <div className="relative flex items-center justify-around px-3 h-16">
-        {visibleItems.map(({ href, label, icon: Icon, exact, isAdd, authOnly }) => {
+      <div className="relative flex items-center justify-around px-2 h-16">
+        {navItems.map(({ href, label, icon: Icon, exact, isAdd }) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
-          const target = (isAdd || authOnly) && !isLoggedIn ? '/login' : href
+          const target = isAdd && !isLoggedIn ? '/login' : href
 
-          // ── Add button — elevated pill in the center ──────────────────────
+          // ── Add button ────────────────────────────────────────────────────
           if (isAdd) {
             return (
               <Link
@@ -77,17 +77,17 @@ export function MobileNav() {
             <Link
               key={href}
               href={target}
-              className="relative flex flex-col items-center justify-center gap-1 px-3 py-2 min-w-[48px]"
+              className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px]"
             >
               <div className={cn(
                 'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150',
                 isActive
-                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
+                  ? 'bg-primary/15 text-primary'
                   : 'text-muted-foreground hover:bg-accent/60'
               )}>
-                <Icon size={18} />
+                <Icon size={18} strokeWidth={isActive ? 2.5 : 1.75} />
 
-                {/* Unread badge */}
+                {/* Unread badge for alerts — kept on Bell in dropdown */}
                 {label === 'Alerts' && unreadCount > 0 && (
                   <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-black flex items-center justify-center leading-none">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -102,7 +102,7 @@ export function MobileNav() {
                 {label}
               </span>
 
-              {/* Active dot indicator */}
+              {/* Active dot */}
               {isActive && (
                 <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
               )}
@@ -111,7 +111,6 @@ export function MobileNav() {
         })}
       </div>
 
-      {/* Safe area spacing for phones with home indicator */}
       <div className="h-safe-bottom bg-background/95" />
     </nav>
   )

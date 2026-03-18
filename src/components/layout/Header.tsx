@@ -19,14 +19,13 @@ import {
 import {
   Sun, Moon, Monitor, BookOpen, Newspaper,
   LayoutDashboard, Settings, LogOut, Plus,
-  User as UserIcon, Bookmark, Bell,
+  User as UserIcon, Bookmark, Bell, ShoppingBag,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { NotificationBell } from '@/components/user/NotificationBell'
 
-// Custom stacked-books logo mark
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
@@ -105,8 +104,9 @@ export function Header() {
   }
 
   const navLinks = [
-    { href: '/browse', label: 'Browse', icon: BookOpen  },
-    { href: '/news',   label: 'News',   icon: Newspaper },
+    { href: '/browse',    label: 'Browse', icon: BookOpen    },
+    { href: '/news',      label: 'News',   icon: Newspaper   },
+    { href: '/affiliate', label: 'Shop',   icon: ShoppingBag },
   ]
 
   const themeOptions = [
@@ -130,7 +130,7 @@ export function Header() {
     >
       <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between gap-4">
 
-        {/* ── Logo ──────────────────────────────────────────────────────── */}
+        {/* ── Logo ── */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
           <div className={cn(
             'w-8 h-8 rounded-xl flex items-center justify-center',
@@ -146,7 +146,7 @@ export function Header() {
           </span>
         </Link>
 
-        {/* ── Center nav ────────────────────────────────────────────────── */}
+        {/* ── Center nav ── */}
         <nav className="hidden md:flex items-center gap-0.5">
           {navLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
@@ -168,7 +168,7 @@ export function Header() {
           })}
         </nav>
 
-        {/* ── Right actions ─────────────────────────────────────────────── */}
+        {/* ── Right actions ── */}
         <div className="flex items-center gap-1">
 
           {/* Theme toggle */}
@@ -199,7 +199,7 @@ export function Header() {
             </DropdownMenu>
           )}
 
-          {/* ── Logged out ──────────────────────────────────────────────── */}
+          {/* ── Logged out ── */}
           {!user && (
             <div className="flex items-center gap-1.5 ml-1">
               <Link href="/login">
@@ -215,15 +215,18 @@ export function Header() {
             </div>
           )}
 
-          {/* ── Logged in ───────────────────────────────────────────────── */}
+          {/* ── Logged in ── */}
           {user && (
             <div className="flex items-center gap-1 ml-0.5">
 
-              {/* Add comic button */}
+              {/* Add comic button — fixed height to match avatar */}
               <Link href="/dashboard/recommendations/new">
-                <Button size="sm" className="h-8 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
-                  <Plus size={13} />
-                  <span className="hidden sm:inline text-sm">Add</span>
+                <Button
+                  size="sm"
+                  className="h-8 w-8 md:w-auto md:px-3 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 flex items-center justify-center"
+                >
+                  <Plus size={14} strokeWidth={2.5} />
+                  <span className="hidden md:inline text-sm">Add</span>
                 </Button>
               </Link>
 
@@ -244,8 +247,6 @@ export function Header() {
                 </DropdownMenuTrigger>
 
                 <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
-
-                  {/* User info header */}
                   <DropdownMenuLabel className="font-normal px-2 py-2 mb-0.5">
                     <div className="flex items-center gap-2.5">
                       <Avatar className="h-9 w-9 shrink-0">
@@ -263,7 +264,6 @@ export function Header() {
 
                   <DropdownMenuSeparator className="my-1" />
 
-                  {/* Profile */}
                   {username && (
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
                       <Link href={`/profile/${username}`}>
@@ -296,12 +296,6 @@ export function Header() {
 
                   <DropdownMenuSeparator className="my-1" />
 
-                  {/*
-                    Notifications — only show on sm+ screens.
-                    On mobile the bell is already visible in the header
-                    and in the bottom mobile nav, so this would be a duplicate.
-                    `hidden sm:flex` hides it on mobile, shows on tablet/desktop.
-                  */}
                   <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg hidden sm:flex">
                     <Link href="/dashboard/notifications">
                       <Bell size={13} className="text-muted-foreground" />
@@ -318,7 +312,6 @@ export function Header() {
 
                   <DropdownMenuSeparator className="my-1" />
 
-                  {/* Discord */}
                   <DropdownMenuItem asChild className="rounded-lg">
                     <a href="https://discord.gg/7WPGMb696N" target="_blank" rel="noopener noreferrer" className="gap-2 cursor-pointer">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-[#5865F2] shrink-0">
