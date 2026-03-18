@@ -20,6 +20,7 @@ import {
   Sun, Moon, Monitor, BookOpen, Newspaper,
   LayoutDashboard, Settings, LogOut, Plus,
   User as UserIcon, Bookmark, Bell, ShoppingBag,
+  Search,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -104,7 +105,7 @@ export function Header() {
   }
 
   const navLinks = [
-    { href: '/browse',    label: 'Browse', icon: BookOpen    },
+    { href: '/browse',    label: 'Browse', icon: Search    },
     { href: '/news',      label: 'News',   icon: Newspaper   },
     { href: '/affiliate', label: 'Shop',   icon: ShoppingBag },
   ]
