@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { BookOpen, Rss, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { formatDate, timeAgo } from '@/lib/utils/format'
+import { timeAgo } from '@/lib/utils/format'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Following Feed | Compicfy' }
@@ -22,27 +22,48 @@ export default async function FeedPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Get following IDs
-  const { data: followData } = await supabase
+  // Single query — join follows → recommendations → profiles
+  // Avoids the .in() UUID array bug entirely
+  const { data: feedData, error } = await supabase
     .from('follows')
-    .select('following_id')
+    .select(`
+      following_id,
+      recommendations!inner(
+        id,
+        title,
+        cover_url,
+        type,
+        status,
+        genres,
+        upvotes,
+        created_at,
+        description,
+        content_rating,
+        is_approved,
+        profiles(username, display_name, avatar_url)
+      )
+    `)
+    .eq('follower_id', user.id)
+    .eq('recommendations.is_approved', true)
+    .not('recommendations.content_rating', 'in', '("adult","mature")')
+    .order('recommendations.created_at', { ascending: false })
+    .limit(30)
+
+  // Check if user follows anyone
+  const { count: followingCount } = await supabase
+    .from('follows')
+    .select('*', { count: 'exact', head: true })
     .eq('follower_id', user.id)
 
-  const followingIds = (followData ?? []).map((f: any) => f.following_id)
+  // Flatten — each follow row has a recommendations object
+  const items = (feedData ?? [])
+    .map((row: any) => row.recommendations)
+    .filter(Boolean)
+    .sort((a: any, b: any) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    ) as any[]
 
-  // Get feed items
-  const feedItems = followingIds.length > 0
-    ? await supabase
-        .from('recommendations')
-        .select('id, title, cover_url, type, status, genres, upvotes, created_at, user_id, description, profiles(username, display_name, avatar_url)')
-        .in('user_id', followingIds)
-        .eq('is_approved', true)
-        .not('content_rating', 'in', '("adult","mature")')
-        .order('created_at', { ascending: false })
-        .limit(30)
-    : { data: [] }
-
-  const items = (feedItems.data ?? []) as any[]
+  const isFollowingNobody = (followingCount ?? 0) === 0
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -61,7 +82,7 @@ export default async function FeedPage() {
       </div>
 
       {/* Empty — not following anyone */}
-      {followingIds.length === 0 && (
+      {isFollowingNobody && (
         <div className="text-center py-20 rounded-2xl border border-dashed border-border space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
             <UserPlus size={22} className="text-muted-foreground opacity-40" />
@@ -81,8 +102,8 @@ export default async function FeedPage() {
         </div>
       )}
 
-      {/* Empty — following but no recs yet */}
-      {followingIds.length > 0 && items.length === 0 && (
+      {/* Empty — following but no recs */}
+      {!isFollowingNobody && items.length === 0 && (
         <div className="text-center py-20 rounded-2xl border border-dashed border-border space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
             <Rss size={22} className="text-muted-foreground opacity-40" />
@@ -90,9 +111,15 @@ export default async function FeedPage() {
           <div>
             <h3 className="font-black text-lg">Nothing here yet</h3>
             <p className="text-sm text-muted-foreground mt-1">
-              The people you follow haven't shared any recommendations yet
+              The people you follow haven't shared any approved recommendations yet
             </p>
           </div>
+          <Link href="/browse">
+            <Button variant="outline" className="gap-2">
+              <BookOpen size={14} />
+              Browse All Comics
+            </Button>
+          </Link>
         </div>
       )}
 
@@ -128,12 +155,12 @@ export default async function FeedPage() {
                       @{profile?.username}
                     </Link>
                     <span className="text-xs text-muted-foreground ml-1.5">
-                      recommended a comic · {timeAgo(rec.created_at)}
+                      recommended · {timeAgo(rec.created_at)}
                     </span>
                   </div>
                 </div>
 
-                {/* Comic card */}
+                {/* Comic */}
                 <Link href={`/comic/${rec.id}`} className="group flex gap-4 p-4">
                   <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                     {rec.cover_url ? (

@@ -19,8 +19,8 @@ import {
 import {
   Sun, Moon, Monitor, BookOpen, Newspaper,
   LayoutDashboard, Settings, LogOut, Plus,
-  User as UserIcon, Bookmark, Bell, ShoppingBag,
-  Search,
+  User as UserIcon, Bookmark, Bell,
+  ShoppingBag, Rss, BookMarked,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -104,10 +104,17 @@ export function Header() {
     router.refresh()
   }
 
-  const navLinks = [
-    { href: '/browse',    label: 'Browse', icon: Search    },
+  // Public nav — always visible
+  const publicNavLinks = [
+    { href: '/browse',    label: 'Browse', icon: BookOpen    },
     { href: '/news',      label: 'News',   icon: Newspaper   },
     { href: '/affiliate', label: 'Shop',   icon: ShoppingBag },
+  ]
+
+  // Auth nav — only visible when logged in
+  const authNavLinks = [
+    { href: '/feed',            label: 'Feed',  icon: Rss       },
+    { href: '/dashboard/lists', label: 'Lists', icon: BookMarked },
   ]
 
   const themeOptions = [
@@ -149,7 +156,33 @@ export function Header() {
 
         {/* ── Center nav ── */}
         <nav className="hidden md:flex items-center gap-0.5">
-          {navLinks.map(({ href, label, icon: Icon }) => {
+          {/* Always show public links */}
+          {publicNavLinks.map(({ href, label, icon: Icon }) => {
+            const isActive = pathname === href || pathname.startsWith(href + '/')
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium transition-all duration-150',
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
+                )}
+              >
+                <Icon size={14} />
+                {label}
+              </Link>
+            )
+          })}
+
+          {/* Divider when logged in */}
+          {user && (
+            <div className="w-px h-4 bg-border mx-1" />
+          )}
+
+          {/* Auth-only links */}
+          {user && authNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
             return (
               <Link
@@ -220,7 +253,7 @@ export function Header() {
           {user && (
             <div className="flex items-center gap-1 ml-0.5">
 
-              {/* Add comic button — fixed height to match avatar */}
+              {/* Add comic button */}
               <Link href="/dashboard/recommendations/new">
                 <Button
                   size="sm"
@@ -295,9 +328,26 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
 
+                  {/* Feed + Lists in dropdown for mobile access */}
                   <DropdownMenuSeparator className="my-1" />
 
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg hidden sm:flex">
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                    <Link href="/feed">
+                      <Rss size={13} className="text-muted-foreground" />
+                      Following Feed
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                    <Link href="/dashboard/lists">
+                      <BookMarked size={13} className="text-muted-foreground" />
+                      Reading Lists
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator className="my-1" />
+
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
                     <Link href="/dashboard/notifications">
                       <Bell size={13} className="text-muted-foreground" />
                       Notifications
