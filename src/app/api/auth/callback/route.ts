@@ -10,21 +10,37 @@ export async function GET(request: Request) {
   if (code) {
     const supabase = await createClient()
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      if (data.session?.user) {
-        const user = data.session.user
-        const { data: profile } = await supabase
+
+    if (!error && data.session?.user) {
+      const user = data.session.user
+
+      // Retry up to 3 times — profile trigger can be slightly delayed
+      let profile = null
+      for (let i = 0; i < 3; i++) {
+        const { data: p } = await (supabase as any)
           .from('profiles')
-          .select('username, member_since')
+          .select('username, member_since, onboarding_completed')
           .eq('id', user.id)
-          .single() as { data: { username: string; member_since: string } | null }
+          .single()
 
-        const isNew = profile?.member_since &&
-          (Date.now() - new Date(profile.member_since).getTime()) < 5 * 60 * 1000
+        if (p) { profile = p; break }
 
-        if (isNew && user.email && profile?.username) {
-          await sendWelcomeEmail(user.email, profile.username)
-        }
+        // Wait 500ms before retry
+        await new Promise(r => setTimeout(r, 500))
+      }
+
+      const isNew = profile?.member_since &&
+        (Date.now() - new Date(profile.member_since).getTime()) < 5 * 60 * 1000
+
+      // Send welcome email for new users
+      if (isNew && user.email && profile?.username) {
+        await sendWelcomeEmail(user.email, profile.username)
+      }
+
+      // Only redirect to onboarding if explicitly false (new user)
+      // NULL means existing user before this feature — send to browse
+      if (profile?.onboarding_completed === false) {
+        return NextResponse.redirect(`${origin}/onboarding`)
       }
 
       return NextResponse.redirect(`${origin}${next}`)

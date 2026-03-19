@@ -54,7 +54,7 @@ export default function LoginPage() {
     toast.success('Welcome back!')
     router.refresh()
 
-    if (!(profile as any)?.onboarding_completed) {
+    if ((profile as any)?.onboarding_completed === false) {
       router.push('/onboarding')
     } else {
       router.push('/browse')
