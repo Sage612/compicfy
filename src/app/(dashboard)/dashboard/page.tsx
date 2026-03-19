@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button'
 import {
   BookOpen, Bookmark, Star, ThumbsUp,
   Plus, Settings, Flame, Trophy, ArrowRight,
-  BookMarked, ChevronRight,
+  BookMarked, ChevronRight, Rss, Users,
 } from 'lucide-react'
 import Link from 'next/link'
-import { formatDate } from '@/lib/utils/format'
+import { formatDate, timeAgo } from '@/lib/utils/format'
 import type { Profile } from '@/types/database.types'
 import type { Metadata } from 'next'
 
@@ -36,11 +36,20 @@ export default async function DashboardPage() {
   if (!profileData) redirect('/login')
   const profile = profileData as Profile
 
-  // Fetch reading lists count + currently reading items in parallel
+  // Get following IDs first
+  const { data: followData } = await supabase
+    .from('follows')
+    .select('following_id')
+    .eq('follower_id', user.id)
+
+  const followingIds = (followData ?? []).map((f: any) => f.following_id)
+
   const [
     { count: listsCount },
     { count: savedCount },
+    { count: followingCount },
     { data: currentlyReading },
+    { data: feedItems },
   ] = await Promise.all([
     supabase
       .from('reading_lists')
@@ -51,17 +60,30 @@ export default async function DashboardPage() {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id),
     supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', user.id),
+    supabase
       .from('reading_list_items')
       .select('*, reading_lists!inner(user_id), recommendations(id, title, cover_url, type, status)')
       .eq('reading_lists.user_id', user.id)
       .eq('status', 'reading')
       .order('added_at', { ascending: false })
       .limit(6),
+    followingIds.length > 0
+      ? supabase
+          .from('recommendations')
+          .select('id, title, cover_url, type, created_at, user_id, profiles(username, display_name, avatar_url)')
+          .in('user_id', followingIds)
+          .eq('is_approved', true)
+          .not('content_rating', 'in', '("adult","mature")')
+          .order('created_at', { ascending: false })
+          .limit(4)
+      : Promise.resolve({ data: [] }),
   ])
 
   const initials = (profile.display_name || profile.username)
-    .slice(0, 2)
-    .toUpperCase()
+    .slice(0, 2).toUpperCase()
 
   const stats = [
     {
@@ -72,15 +94,6 @@ export default async function DashboardPage() {
       gradient: 'from-violet-500 to-purple-600',
       bg: 'bg-violet-500/10',
       text: 'text-violet-500',
-    },
-    {
-      label: 'Reviews Written',
-      value: profile.total_reviews ?? 0,
-      icon: Star,
-      href: '/dashboard/reviews',
-      gradient: 'from-amber-500 to-orange-500',
-      bg: 'bg-amber-500/10',
-      text: 'text-amber-500',
     },
     {
       label: 'Saved Comics',
@@ -100,6 +113,15 @@ export default async function DashboardPage() {
       bg: 'bg-teal-500/10',
       text: 'text-teal-500',
     },
+    {
+      label: 'Following',
+      value: followingCount ?? 0,
+      icon: Users,
+      href: '/feed',
+      gradient: 'from-primary to-violet-500',
+      bg: 'bg-primary/10',
+      text: 'text-primary',
+    },
   ]
 
   const quickActions = [
@@ -111,11 +133,11 @@ export default async function DashboardPage() {
       gradient: 'from-violet-500 to-purple-600',
     },
     {
-      href: '/browse',
-      icon: Flame,
-      label: 'Browse Comics',
-      desc: 'Discover new recommendations',
-      gradient: 'from-rose-500 to-pink-600',
+      href: '/feed',
+      icon: Rss,
+      label: 'Following Feed',
+      desc: 'Latest from people you follow',
+      gradient: 'from-primary to-violet-500',
     },
     {
       href: '/dashboard/lists',
@@ -125,11 +147,11 @@ export default async function DashboardPage() {
       gradient: 'from-teal-500 to-cyan-500',
     },
     {
-      href: '/dashboard/saved',
-      icon: Bookmark,
-      label: 'Saved Comics',
-      desc: "Comics you've bookmarked",
-      gradient: 'from-emerald-500 to-teal-500',
+      href: '/browse',
+      icon: Flame,
+      label: 'Browse Comics',
+      desc: 'Discover new recommendations',
+      gradient: 'from-rose-500 to-pink-600',
     },
   ]
 
@@ -199,17 +221,14 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Currently Reading ── */}
+      {/* Currently Reading */}
       {currentlyReading && currentlyReading.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
               Currently Reading
             </h2>
-            <Link
-              href="/dashboard/lists"
-              className="text-xs text-primary hover:underline flex items-center gap-1"
-            >
+            <Link href="/dashboard/lists" className="text-xs text-primary hover:underline flex items-center gap-1">
               View all lists <ChevronRight size={12} />
             </Link>
           </div>
@@ -224,21 +243,15 @@ export default async function DashboardPage() {
                   href={`/comic/${rec.id}`}
                   className="group flex gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200"
                 >
-                  {/* Cover */}
                   <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                     {rec.cover_url ? (
-                      <img
-                        src={rec.cover_url}
-                        alt={rec.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
+                      <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <BookOpen size={12} className="text-muted-foreground opacity-40" />
                       </div>
                     )}
                   </div>
-                  {/* Info */}
                   <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
                     <p className="text-xs font-black line-clamp-2 group-hover:text-primary transition-colors leading-tight">
                       {rec.title}
@@ -247,6 +260,58 @@ export default async function DashboardPage() {
                       {rec.type}
                     </span>
                   </div>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Following Feed preview */}
+      {feedItems && feedItems.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              From People You Follow
+            </h2>
+            <Link href="/feed" className="text-xs text-primary hover:underline flex items-center gap-1">
+              View all <ChevronRight size={12} />
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {feedItems.map((rec: any) => {
+              const p = rec.profiles
+              const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
+              const initials = (p?.display_name || p?.username || '?').slice(0, 2).toUpperCase()
+              return (
+                <Link
+                  key={rec.id}
+                  href={`/comic/${rec.id}`}
+                  className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/30 transition-colors"
+                >
+                  <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
+                    {rec.cover_url ? (
+                      <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={12} className="text-muted-foreground opacity-40" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black line-clamp-1 group-hover:text-primary transition-colors">
+                      {rec.title}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border capitalize ${typeStyle}`}>
+                        {rec.type}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        by @{p?.username} · {timeAgo(rec.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight size={13} className="text-muted-foreground/30 group-hover:text-muted-foreground shrink-0" />
                 </Link>
               )
             })}

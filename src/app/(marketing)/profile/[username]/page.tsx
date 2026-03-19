@@ -5,11 +5,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import {
   CalendarDays, BookOpen, Star, ThumbsUp,
-  Shield, Globe, BookMarked, Lock,
+  Shield, Globe, BookMarked, Users,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import type { Profile, Recommendation } from '@/types/database.types'
 import type { Metadata } from 'next'
+import { FollowButton } from '@/components/user/FollowButton'
 
 interface Props {
   params: Promise<{ username: string }>
@@ -48,7 +49,6 @@ export default async function ProfilePage({ params }: Props) {
   const { username } = await params
   const supabase = await createClient()
 
-  // Get viewer identity
   const { data: { user: viewer } } = await supabase.auth.getUser()
 
   let viewerRole: string | null = null
@@ -61,7 +61,6 @@ export default async function ProfilePage({ params }: Props) {
     viewerRole = (vp as any)?.role ?? 'user'
   }
 
-  // Get profile being viewed
   const { data: profileData } = await supabase
     .from('profiles')
     .select('*')
@@ -69,15 +68,12 @@ export default async function ProfilePage({ params }: Props) {
     .single()
 
   if (!profileData) notFound()
-
   const profile = profileData as Profile
 
   const isOwner = viewer?.id === profile.id
   const isPrivileged = isOwner || viewerRole === 'admin' || viewerRole === 'moderator'
 
-  // Build recommendation query:
-  // - Privileged viewers (owner / admin / mod) see everything including adult
-  // - Everyone else sees only all_ages and teen
+  // Fetch everything in parallel
   let recQuery = supabase
     .from('recommendations')
     .select('id, title, cover_url, upvotes, type, genres, content_rating')
@@ -90,19 +86,42 @@ export default async function ProfilePage({ params }: Props) {
     recQuery = recQuery.not('content_rating', 'in', '("adult","mature")')
   }
 
-  const { data: recData } = await recQuery
+  const [
+    { data: recData },
+    { data: listsData },
+    { count: followersCount },
+    { count: followingCount },
+    { data: isFollowingData },
+  ] = await Promise.all([
+    recQuery,
+    supabase
+      .from('reading_lists')
+      .select('id, name, description, is_public')
+      .eq('user_id', profile.id)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+      .limit(6),
+    supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', profile.id),
+    supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', profile.id),
+    viewer && !isOwner
+      ? supabase
+          .from('follows')
+          .select('id')
+          .eq('follower_id', viewer.id)
+          .eq('following_id', profile.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
+
   const recommendations = (recData ?? []) as RecPreview[]
+  const isFollowing = !!isFollowingData
 
-  // Public reading lists
-  const { data: listsData } = await supabase
-    .from('reading_lists')
-    .select('id, name, description, is_public')
-    .eq('user_id', profile.id)
-    .eq('is_public', true)
-    .order('created_at', { ascending: false })
-    .limit(6)
-
-  // Get item counts for each list
   const lists: ReadingList[] = await Promise.all(
     (listsData ?? []).map(async (list: any) => {
       const { count } = await supabase
@@ -147,6 +166,17 @@ export default async function ProfilePage({ params }: Props) {
               </div>
               <p className="text-sm text-muted-foreground">@{profile.username}</p>
             </div>
+
+            {/* Follow button — only show if not owner */}
+            {!isOwner && (
+              <div className="shrink-0 sm:pb-1">
+                <FollowButton
+                  profileId={profile.id}
+                  initialFollowing={isFollowing}
+                  isLoggedIn={!!viewer}
+                />
+              </div>
+            )}
           </div>
 
           {profile.bio && (
@@ -154,6 +184,19 @@ export default async function ProfilePage({ params }: Props) {
           )}
 
           <div className="flex flex-wrap gap-4">
+            {/* Followers / Following counts */}
+            <Link
+              href={`/profile/${profile.username}`}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Users size={13} className="text-primary/60" />
+              <span><strong className="text-foreground font-black">{followersCount ?? 0}</strong> followers</span>
+            </Link>
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Users size={13} className="text-primary/60" />
+              <span><strong className="text-foreground font-black">{followingCount ?? 0}</strong> following</span>
+            </div>
+
             {[
               { icon: BookOpen, value: profile.total_recommendations, label: 'recommendations' },
               { icon: Star,     value: profile.total_reviews,          label: 'reviews'         },
@@ -194,7 +237,6 @@ export default async function ProfilePage({ params }: Props) {
               </span>
             )}
           </div>
-
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {recommendations.map((rec) => {
               const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
@@ -261,7 +303,6 @@ export default async function ProfilePage({ params }: Props) {
             <div className="h-0.5 flex-1 bg-gradient-to-r from-teal-500/40 to-transparent" />
             <span className="text-xs text-muted-foreground shrink-0">{lists.length} public</span>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {lists.map((list) => (
               <Link
@@ -269,7 +310,6 @@ export default async function ProfilePage({ params }: Props) {
                 href={`/lists/${list.id}`}
                 className="group relative p-4 rounded-2xl border border-border bg-card hover:border-teal-500/40 hover:shadow-md transition-all duration-200 space-y-3"
               >
-                {/* List header */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500/20 to-cyan-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
@@ -288,8 +328,6 @@ export default async function ProfilePage({ params }: Props) {
                   </div>
                   <Globe size={12} className="text-emerald-500 shrink-0 mt-1" />
                 </div>
-
-                {/* Footer */}
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <BookOpen size={11} className="text-teal-500/60" />
@@ -307,7 +345,6 @@ export default async function ProfilePage({ params }: Props) {
           </div>
         </section>
       )}
-
     </div>
   )
 }
