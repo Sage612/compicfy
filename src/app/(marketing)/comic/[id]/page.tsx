@@ -30,13 +30,82 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = await createClient()
   const { data } = await supabase
     .from('recommendations')
-    .select('title, description')
+    .select('title, description, type, genres, author, cover_url, status')
     .eq('id', id)
     .single()
-  const rec = data as Pick<Recommendation, 'title' | 'description'> | null
+
+  const rec = data as Pick<
+    Recommendation,
+    'title' | 'description' | 'type' | 'genres' | 'author' | 'cover_url' | 'status'
+  > | null
+  if (!rec) return { title: 'Comic | Compicfy' }
+
+  const typeLabel = rec.type
+    ? rec.type.charAt(0).toUpperCase() + rec.type.slice(1)
+    : 'Comic'
+
+  const genreList = rec.genres?.slice(0, 3).join(', ') ?? ''
+
+  // Title optimised for search — e.g. "Solo Leveling Manhwa | Compicfy"
+  const title = `${rec.title} ${typeLabel} | Compicfy`
+
+  // Description targets "where to read", "review" search intent
+  const descParts = [
+    `${rec.title} is a ${typeLabel.toLowerCase()}`,
+    rec.author ? `by ${rec.author}` : null,
+    genreList ? `in the genres ${genreList}` : null,
+    rec.status ? `— currently ${rec.status}` : null,
+    rec.description
+      ? `. ${rec.description.slice(0, 100)}`
+      : '. Discover where to read it and what the community thinks.',
+  ].filter(Boolean).join(' ')
+
+  const description = descParts.slice(0, 160)
+
+  // Keywords target high-intent searches
+  const keywords = [
+    rec.title,
+    `${rec.title} ${rec.type}`,
+    `${rec.title} review`,
+    `${rec.title} where to read`,
+    `${rec.title} recommendation`,
+    ...(rec.genres ?? []),
+    rec.author ?? '',
+    typeLabel,
+    'manga recommendation',
+    'manhwa recommendation',
+    'webtoon recommendation',
+  ].filter(Boolean)
+
   return {
-    title: rec?.title ?? 'Comic',
-    description: rec?.description?.slice(0, 160),
+    title,
+    description,
+    keywords,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      url: `https://compicfy.site/comic/${id}`,
+      images: rec.cover_url
+        ? [
+            {
+              url: rec.cover_url,
+              width: 400,
+              height: 600,
+              alt: `${rec.title} cover`,
+            },
+          ]
+        : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: rec.cover_url ? [rec.cover_url] : [],
+    },
+    alternates: {
+      canonical: `https://compicfy.site/comic/${id}`,
+    },
   }
 }
 

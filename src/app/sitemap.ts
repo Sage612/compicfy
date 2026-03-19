@@ -2,44 +2,48 @@ import { createClient } from '@/lib/supabase/server'
 import type { MetadataRoute } from 'next'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
   const supabase = await createClient()
 
- const { data: recommendations } = await supabase
-  .from('recommendations')
-  .select('id, updated_at')
-  .eq('is_approved', true)
-  .order('created_at', { ascending: false })
-  .limit(1000) as { data: { id: string; updated_at: string }[] | null }
+  const { data: comics } = await supabase
+    .from('recommendations')
+    .select('id, updated_at')
+    .eq('is_approved', true)
+    .order('updated_at', { ascending: false })
+    .limit(1000)
 
-const { data: news } = await supabase
-  .from('news')
-  .select('slug, updated_at')
-  .eq('is_published', true)
-  .order('published_at', { ascending: false })
-  .limit(500) as { data: { slug: string; updated_at: string }[] | null }
+  const { data: news } = await supabase
+    .from('news')
+    .select('slug, updated_at')
+    .eq('is_published', true)
+    .order('updated_at', { ascending: false })
+    .limit(200)
 
-  const staticRoutes: MetadataRoute.Sitemap = [
-    { url: baseUrl, lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
-    { url: `${baseUrl}/browse`, lastModified: new Date(), changeFrequency: 'hourly', priority: 0.9 },
-    { url: `${baseUrl}/news`, lastModified: new Date(), changeFrequency: 'hourly', priority: 0.8 },
-    { url: `${baseUrl}/about`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.3 },
-    { url: `${baseUrl}/faq`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.3 },
+  const base = 'https://compicfy.site'
+
+  const staticPages: MetadataRoute.Sitemap = [
+    { url: base,               lastModified: new Date(), changeFrequency: 'daily',   priority: 1.0 },
+    { url: `${base}/browse`,   lastModified: new Date(), changeFrequency: 'daily',   priority: 0.9 },
+    { url: `${base}/news`,     lastModified: new Date(), changeFrequency: 'daily',   priority: 0.8 },
+    { url: `${base}/affiliate`,lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.6 },
+    { url: `${base}/about`,    lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${base}/faq`,      lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
   ]
 
-  const comicRoutes: MetadataRoute.Sitemap = (recommendations ?? []).map((rec) => ({
-    url: `${baseUrl}/comic/${rec.id}`,
-    lastModified: new Date(rec.updated_at),
-    changeFrequency: 'weekly',
-    priority: 0.7,
-  }))
+ // For comics (Lines 32-37)
+const comicPages: MetadataRoute.Sitemap = (comics as { id: string, updated_at: string }[] ?? []).map((comic) => ({
+  url: `${base}/comic/${comic.id}`,
+  lastModified: new Date(comic.updated_at),
+  changeFrequency: 'weekly',
+  priority: 0.8,
+}))
 
-  const newsRoutes: MetadataRoute.Sitemap = (news ?? []).map((item) => ({
-    url: `${baseUrl}/news/${item.slug}`,
-    lastModified: new Date(item.updated_at),
-    changeFrequency: 'monthly',
-    priority: 0.6,
-  }))
+// For news (Lines 39-44)
+const newsPages: MetadataRoute.Sitemap = (news as { slug: string, updated_at: string }[] ?? []).map((article) => ({
+  url: `${base}/news/${article.slug}`,
+  lastModified: new Date(article.updated_at),
+  changeFrequency: 'monthly',
+  priority: 0.6,
+}))
 
-  return [...staticRoutes, ...comicRoutes, ...newsRoutes]
+  return [...staticPages, ...comicPages, ...newsPages]
 }
