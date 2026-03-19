@@ -46,40 +46,57 @@ export default function SignupPage() {
   })
 
   const onSubmit = async (data: SignupForm) => {
-    setLoading(true)
-    const { data: existingUser } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('username', data.username.toLowerCase())
-      .single()
+  setLoading(true)
 
-    if (existingUser) {
-      toast.error('Username is already taken')
-      setLoading(false)
-      return
-    }
+  // Check username availability
+  const { data: existingUser } = await supabase
+    .from('profiles')
+    .select('username')
+    .eq('username', data.username.toLowerCase())
+    .single()
 
-    const { error } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        data: {
-          username: data.username.toLowerCase(),
-          display_name: data.username,
-        },
-        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
-      },
-    })
-
-    if (error) {
-      toast.error(error.message)
-      setLoading(false)
-      return
-    }
-
-    toast.success('Account created! You can now sign in.')
-    router.push('/login?redirect=/onboarding')
+  if (existingUser) {
+    toast.error('Username is already taken')
+    setLoading(false)
+    return
   }
+
+  // Create account
+  const { error } = await supabase.auth.signUp({
+    email: data.email,
+    password: data.password,
+    options: {
+      data: {
+        username: data.username.toLowerCase(),
+        display_name: data.username,
+      },
+      emailRedirectTo: `${window.location.origin}/api/auth/callback`,
+    },
+  })
+
+  if (error) {
+    toast.error(error.message)
+    setLoading(false)
+    return
+  }
+
+  // Since email verification is disabled, sign them in immediately
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: data.email,
+    password: data.password,
+  })
+
+  if (signInError) {
+    // Account created but auto sign-in failed — send to login
+    toast.success('Account created! Please sign in.')
+    router.push('/login')
+    return
+  }
+
+  toast.success('Welcome to Compicfy! 🎉')
+  router.push('/onboarding')
+  router.refresh()
+}
 
   return (
     <div className="w-full max-w-md space-y-6">

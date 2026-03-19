@@ -33,18 +33,32 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginForm) => {
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     })
+
     if (error) {
       toast.error(error.message)
       setLoading(false)
       return
     }
+
+    // Check if user has completed onboarding
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('id', authData.user.id)
+      .single()
+
     toast.success('Welcome back!')
-    router.push('/browse')
     router.refresh()
+
+    if (!(profile as any)?.onboarding_completed) {
+      router.push('/onboarding')
+    } else {
+      router.push('/browse')
+    }
   }
 
   return (
@@ -62,17 +76,14 @@ export default function LoginPage() {
       {/* Card */}
       <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm shadow-xl shadow-black/5 p-6 space-y-5">
 
-        {/* Google */}
         <GoogleButton mode="signin" />
 
-        {/* Divider */}
         <div className="relative flex items-center gap-3">
           <div className="flex-1 h-px bg-border" />
           <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">or</span>
           <div className="flex-1 h-px bg-border" />
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="email" className="text-sm font-semibold">Email</Label>
@@ -129,7 +140,6 @@ export default function LoginPage() {
         </form>
       </div>
 
-      {/* Footer link */}
       <p className="text-sm text-muted-foreground text-center">
         Don&apos;t have an account?{' '}
         <Link href="/signup" className="text-primary hover:underline font-semibold">
