@@ -104,14 +104,14 @@ export default async function HomePage() {
     // Recent activity for social proof
     supabase
       .from('recommendations')
-      .select('title, type, profiles(username)')
+      .select('title, type, user_id, profiles!recommendations_user_id_fkey(username)')
       .eq('is_approved', true)
       .not('content_rating', 'in', '("adult","mature")')
       .order('created_at', { ascending: false })
       .limit(6),
-  ])
+  ]); // <-- Added the closing parenthesis and semicolon for Promise.all
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser();
 
   const topComics    = (trending   as Recommendation[]) ?? []
   const latestNews   = (recentNews as News[])           ?? []
