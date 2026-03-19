@@ -4,7 +4,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
   BookOpen, Bookmark, Star, ThumbsUp,
-  Plus, Settings, Flame, Trophy, ArrowRight, BookMarked
+  Plus, Settings, Flame, Trophy, ArrowRight,
+  BookMarked, ChevronRight,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils/format'
@@ -12,6 +13,14 @@ import type { Profile } from '@/types/database.types'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Dashboard' }
+
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
+  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -26,6 +35,29 @@ export default async function DashboardPage() {
 
   if (!profileData) redirect('/login')
   const profile = profileData as Profile
+
+  // Fetch reading lists count + currently reading items in parallel
+  const [
+    { count: listsCount },
+    { count: savedCount },
+    { data: currentlyReading },
+  ] = await Promise.all([
+    supabase
+      .from('reading_lists')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id),
+    supabase
+      .from('saves')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id),
+    supabase
+      .from('reading_list_items')
+      .select('*, reading_lists!inner(user_id), recommendations(id, title, cover_url, type, status)')
+      .eq('reading_lists.user_id', user.id)
+      .eq('status', 'reading')
+      .order('added_at', { ascending: false })
+      .limit(6),
+  ])
 
   const initials = (profile.display_name || profile.username)
     .slice(0, 2)
@@ -51,22 +83,22 @@ export default async function DashboardPage() {
       text: 'text-amber-500',
     },
     {
-      label: 'Votes Received',
-      value: profile.total_votes_received ?? 0,
-      icon: ThumbsUp,
-      href: '/dashboard/recommendations',
-      gradient: 'from-emerald-500 to-teal-500',
-      bg: 'bg-emerald-500/10',
-      text: 'text-emerald-500',
-    },
-    {
       label: 'Saved Comics',
-      value: '—',
+      value: savedCount ?? 0,
       icon: Bookmark,
       href: '/dashboard/saved',
       gradient: 'from-rose-500 to-pink-500',
       bg: 'bg-rose-500/10',
       text: 'text-rose-500',
+    },
+    {
+      label: 'Reading Lists',
+      value: listsCount ?? 0,
+      icon: BookMarked,
+      href: '/dashboard/lists',
+      gradient: 'from-teal-500 to-cyan-500',
+      bg: 'bg-teal-500/10',
+      text: 'text-teal-500',
     },
   ]
 
@@ -90,13 +122,13 @@ export default async function DashboardPage() {
       icon: BookMarked,
       label: 'Reading Lists',
       desc: 'Manage your reading collection',
-      gradient: 'from-amber-500 to-orange-500',
+      gradient: 'from-teal-500 to-cyan-500',
     },
     {
       href: '/dashboard/saved',
       icon: Bookmark,
       label: 'Saved Comics',
-      desc: 'Comics you\'ve bookmarked',
+      desc: "Comics you've bookmarked",
       gradient: 'from-emerald-500 to-teal-500',
     },
   ]
@@ -106,14 +138,11 @@ export default async function DashboardPage() {
 
       {/* Hero welcome banner */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 md:p-8">
-        {/* Background decoration */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-primary/5 blur-2xl" />
           <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-violet-500/5 blur-xl" />
         </div>
-
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
-          {/* Avatar with ring */}
           <div className="relative shrink-0">
             <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-primary to-violet-500 opacity-30 blur-sm" />
             <Avatar className="relative h-16 w-16 border-2 border-background">
@@ -123,18 +152,14 @@ export default async function DashboardPage() {
               </AvatarFallback>
             </Avatar>
           </div>
-
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h1 className="text-xl font-black truncate">
-                Hey, {profile.display_name || profile.username}! 👋
-              </h1>
-            </div>
+            <h1 className="text-xl font-black truncate">
+              Hey, {profile.display_name || profile.username}! 👋
+            </h1>
             <p className="text-sm text-muted-foreground">
               Member since {formatDate(profile.member_since)} · Keep sharing great reads.
             </p>
           </div>
-
           <div className="flex gap-2 shrink-0">
             <Link href="/dashboard/settings">
               <Button variant="outline" size="sm" className="gap-1.5">
@@ -162,20 +187,72 @@ export default async function DashboardPage() {
               href={href}
               className="group relative overflow-hidden p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200"
             >
-              {/* Background glow on hover */}
               <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br ${gradient} opacity-[0.03]`} />
-
               <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-3`}>
                 <Icon size={18} className={text} />
               </div>
               <p className="text-2xl font-black tabular-nums">{value}</p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{label}</p>
-
               <ArrowRight size={12} className="absolute bottom-4 right-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 group-hover:translate-x-0.5 transition-all" />
             </Link>
           ))}
         </div>
       </div>
+
+      {/* ── Currently Reading ── */}
+      {currentlyReading && currentlyReading.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Currently Reading
+            </h2>
+            <Link
+              href="/dashboard/lists"
+              className="text-xs text-primary hover:underline flex items-center gap-1"
+            >
+              View all lists <ChevronRight size={12} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {currentlyReading.map((item: any) => {
+              const rec = item.recommendations
+              if (!rec) return null
+              const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
+              return (
+                <Link
+                  key={item.id}
+                  href={`/comic/${rec.id}`}
+                  className="group flex gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200"
+                >
+                  {/* Cover */}
+                  <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
+                    {rec.cover_url ? (
+                      <img
+                        src={rec.cover_url}
+                        alt={rec.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={12} className="text-muted-foreground opacity-40" />
+                      </div>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
+                    <p className="text-xs font-black line-clamp-2 group-hover:text-primary transition-colors leading-tight">
+                      {rec.title}
+                    </p>
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border capitalize ${typeStyle}`}>
+                      {rec.type}
+                    </span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Quick actions */}
       <div>

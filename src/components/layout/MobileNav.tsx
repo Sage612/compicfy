@@ -3,42 +3,34 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  House, Compass, Search, Plus, Newspaper, Bell, ShoppingBag,
+  House, Compass, Plus, Newspaper, BookMarked, Search
 } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
+import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
 const navItems = [
-  { href: '/',                              label: 'Home',   icon: House,        exact: true    },
-  { href: '/browse',                        label: 'Browse', icon: Search                      },
-  { href: '/dashboard/recommendations/new', label: 'Add',    icon: Plus,         isAdd: true    },
-  { href: '/news',                          label: 'News',   icon: Newspaper                    },
-  { href: '/affiliate',                     label: 'Shop',   icon: ShoppingBag                  },
+  { href: '/',                              label: 'Home',   icon: House,        exact: true  },
+  { href: '/browse',                        label: 'Browse', icon: Search                    },
+  { href: '/dashboard/recommendations/new', label: 'Add',    icon: Plus,         isAdd: true  },
+  { href: '/news',                          label: 'News',   icon: Newspaper                  },
+  { href: '/dashboard/lists',               label: 'Lists',  icon: BookMarked,   authOnly: true },
 ]
 
 export function MobileNav() {
   const pathname = usePathname()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(0)
   const supabase = createClient()
 
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       setIsLoggedIn(!!user)
-
-      if (user) {
-        const { count } = await supabase
-          .from('notifications')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('is_read', false)
-        setUnreadCount(count ?? 0)
-      }
     }
     checkAuth()
   }, [])
+
+  const visibleItems = navItems.filter(item => !item.authOnly || isLoggedIn)
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
@@ -46,9 +38,9 @@ export function MobileNav() {
       <div className="absolute inset-0 bg-background/95 backdrop-blur-lg border-t border-border" />
 
       <div className="relative flex items-center justify-around px-2 h-16">
-        {navItems.map(({ href, label, icon: Icon, exact, isAdd }) => {
+        {visibleItems.map(({ href, label, icon: Icon, exact, isAdd, authOnly }) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
-          const target = isAdd && !isLoggedIn ? '/login' : href
+          const target = (isAdd || authOnly) && !isLoggedIn ? '/login' : href
 
           // ── Add button ────────────────────────────────────────────────────
           if (isAdd) {
@@ -86,13 +78,6 @@ export function MobileNav() {
                   : 'text-muted-foreground hover:bg-accent/60'
               )}>
                 <Icon size={18} strokeWidth={isActive ? 2.5 : 1.75} />
-
-                {/* Unread badge for alerts — kept on Bell in dropdown */}
-                {label === 'Alerts' && unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-black flex items-center justify-center leading-none">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
               </div>
 
               <span className={cn(
