@@ -22,47 +22,22 @@ export default async function FeedPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Single query — join follows → recommendations → profiles
-  // Avoids the .in() UUID array bug entirely
-  const { data: feedData, error } = await supabase
-    .from('follows')
-    .select(`
-      following_id,
-      recommendations!inner(
-        id,
-        title,
-        cover_url,
-        type,
-        status,
-        genres,
-        upvotes,
-        created_at,
-        description,
-        content_rating,
-        is_approved,
-        profiles(username, display_name, avatar_url)
-      )
-    `)
-    .eq('follower_id', user.id)
-    .eq('recommendations.is_approved', true)
-    .not('recommendations.content_rating', 'in', '("adult","mature")')
-    .order('recommendations.created_at', { ascending: false })
-    .limit(30)
-
-  // Check if user follows anyone
+  // Check following count separately — reliable
   const { count: followingCount } = await supabase
     .from('follows')
     .select('*', { count: 'exact', head: true })
     .eq('follower_id', user.id)
 
-  // Flatten — each follow row has a recommendations object
-  const items = (feedData ?? [])
-    .map((row: any) => row.recommendations)
-    .filter(Boolean)
-    .sort((a: any, b: any) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    ) as any[]
+  // Use RPC function — bypasses RLS join issues entirely
+  const { data: feedData, error } = await (supabase as any)
+    .rpc('get_following_feed', {
+      p_user_id: user.id,
+      p_limit: 30,
+    })
 
+  if (error) console.error('Feed error:', error)
+
+  const items = (feedData ?? []) as any[]
   const isFollowingNobody = (followingCount ?? 0) === 0
 
   return (
@@ -81,7 +56,7 @@ export default async function FeedPage() {
         </div>
       </div>
 
-      {/* Empty — not following anyone */}
+      {/* Not following anyone */}
       {isFollowingNobody && (
         <div className="text-center py-20 rounded-2xl border border-dashed border-border space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
@@ -102,7 +77,7 @@ export default async function FeedPage() {
         </div>
       )}
 
-      {/* Empty — following but no recs */}
+      {/* Following but no items */}
       {!isFollowingNobody && items.length === 0 && (
         <div className="text-center py-20 rounded-2xl border border-dashed border-border space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
@@ -127,9 +102,8 @@ export default async function FeedPage() {
       {items.length > 0 && (
         <div className="space-y-3">
           {items.map((rec: any) => {
-            const profile = rec.profiles
             const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
-            const initials = (profile?.display_name || profile?.username || '?')
+            const initials = (rec.display_name || rec.username || '?')
               .slice(0, 2).toUpperCase()
 
             return (
@@ -139,9 +113,9 @@ export default async function FeedPage() {
               >
                 {/* Who posted */}
                 <div className="flex items-center gap-2.5 px-4 pt-4 pb-3 border-b border-border/50">
-                  <Link href={`/profile/${profile?.username}`}>
+                  <Link href={`/profile/${rec.username}`}>
                     <Avatar className="h-7 w-7">
-                      <AvatarImage src={profile?.avatar_url ?? undefined} />
+                      <AvatarImage src={rec.avatar_url ?? undefined} />
                       <AvatarFallback className="text-[10px] font-black bg-gradient-to-br from-primary to-violet-500 text-white">
                         {initials}
                       </AvatarFallback>
@@ -149,10 +123,10 @@ export default async function FeedPage() {
                   </Link>
                   <div className="flex-1 min-w-0">
                     <Link
-                      href={`/profile/${profile?.username}`}
+                      href={`/profile/${rec.username}`}
                       className="text-xs font-bold hover:text-primary transition-colors"
                     >
-                      @{profile?.username}
+                      @{rec.username}
                     </Link>
                     <span className="text-xs text-muted-foreground ml-1.5">
                       recommended · {timeAgo(rec.created_at)}

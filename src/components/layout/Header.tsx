@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Sun, Moon, Monitor, BookOpen, Newspaper,
+  Sun, Moon, Monitor, BookOpen, Search, Newspaper,
   LayoutDashboard, Settings, LogOut, Plus,
   User as UserIcon, Bookmark, Bell,
   ShoppingBag, Rss, BookMarked,
@@ -106,7 +106,7 @@ export function Header() {
 
   // Public nav — always visible
   const publicNavLinks = [
-    { href: '/browse',    label: 'Browse', icon: BookOpen    },
+    { href: '/browse',    label: 'Browse', icon: Search    },
     { href: '/news',      label: 'News',   icon: Newspaper   },
     { href: '/affiliate', label: 'Shop',   icon: ShoppingBag },
   ]
