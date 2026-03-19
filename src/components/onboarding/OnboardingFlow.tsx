@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
-  BookOpen, Compass, Rss, ShoppingBag,
+  BookOpen, Compass, Search, Rss, ShoppingBag,
   BookMarked, ChevronDown, Check, ArrowRight,
   Sparkles, Globe, Bell, Loader2,
 } from 'lucide-react'
@@ -24,7 +24,7 @@ type Step = typeof STEPS[number]
 
 const TOUR_ITEMS = [
   {
-    icon: Compass,
+    icon: Search,
     color: 'from-rose-500 to-pink-600',
     bg: 'bg-rose-500/10',
     text: 'text-rose-500',
