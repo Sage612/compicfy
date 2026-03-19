@@ -88,7 +88,6 @@ export default async function BrowsePage({ searchParams }: Props) {
       getInitialGrid(params),
     ])
 
-  // Build clean searchParams object for client (no undefined values)
   const clientParams: Record<string, string> = {}
   if (params.q)      clientParams.q      = params.q
   if (params.type)   clientParams.type   = params.type
@@ -97,40 +96,44 @@ export default async function BrowsePage({ searchParams }: Props) {
   if (params.sort)   clientParams.sort   = params.sort
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-10">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-      {/* ── Header ── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* ── Header — title + button always on same line ── */}
+      <div className="flex items-center justify-between gap-3">
+
+        {/* Left: icon + title */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
             <Compass size={17} className="text-white" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">Browse Comics</h1>
-            <p className="text-muted-foreground text-xs sm:text-sm leading-snug mt-0.5 truncate">
+            <h1 className="text-xl sm:text-3xl font-black tracking-tight leading-tight">Browse Comics</h1>
+            <p className="text-muted-foreground text-xs leading-snug mt-0.5 hidden sm:block">
               Community recommendations · manga, manhwa, manhua &amp; webtoons
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+
+        {/* Right: buttons — always visible, same line as title */}
+        <div className="flex items-center gap-2 shrink-0">
           {adultEnabled && (
             <Link href="/browse/adult">
-              <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 whitespace-nowrap">
-                🔞 <span className="hidden xs:inline">18+</span>
+              <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 h-8 px-2.5">
+                🔞
               </Button>
             </Link>
           )}
           <Link href="/dashboard/recommendations/new">
-            <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 whitespace-nowrap">
+            <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 h-8 px-3">
               <Plus size={14} />
               <span className="hidden sm:inline">Add Comic</span>
-              <span className="sm:hidden">Add</span>
+              <span className="sm:hidden text-xs font-semibold">Add</span>
             </Button>
           </Link>
         </div>
       </div>
 
-      {/* ── Featured Carousel ── */}
+      {/* ── Featured Carousel — tighter top spacing on mobile ── */}
       {!isFiltering && featured.length > 0 && (
         <Suspense fallback={<div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />}>
           <FeaturedCarousel recommendations={featured} />
