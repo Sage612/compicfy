@@ -338,13 +338,6 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                    <Link href="/dashboard/lists">
-                      <BookMarked size={13} className="text-muted-foreground" />
-                      Reading Lists
-                    </Link>
-                  </DropdownMenuItem>
-
                   <DropdownMenuSeparator className="my-1" />
 
                   <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">

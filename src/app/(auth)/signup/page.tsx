@@ -78,7 +78,7 @@ export default function SignupPage() {
     }
 
     toast.success('Account created! You can now sign in.')
-    router.push('/login')
+    router.push('/login?redirect=/onboarding')
   }
 
   return (
