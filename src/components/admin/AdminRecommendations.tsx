@@ -12,6 +12,8 @@ import {
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/format'
 import Link from 'next/link'
+import { PlatformSelector } from '@/components/recommendations/PlatformSelector'
+import { GenreSelector } from '@/components/recommendations/GenreSelector'
 
 const FILTERS = [
   { value: 'pending',  label: 'Pending',     color: 'text-amber-500'   },
@@ -29,25 +31,19 @@ const TYPE_COLORS: Record<string, string> = {
   comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
 }
 
-const TYPES     = ['manga', 'manhwa', 'manhua', 'webtoon', 'comic', 'other']
-const STATUSES  = ['ongoing', 'completed', 'hiatus', 'cancelled']
-const RATINGS   = ['all_ages', 'teen', 'mature', 'adult']
-const PLATFORMS = ['Webtoon', 'Tapas', 'MangaPlus', 'Viz', 'Crunchyroll', 'Lezhin', 'Toomics', 'Other']
+const TYPES    = ['manga', 'manhwa', 'manhua', 'webtoon', 'comic', 'other']
+const STATUSES = ['ongoing', 'completed', 'hiatus', 'cancelled']
+const RATINGS  = ['all_ages', 'teen', 'mature', 'adult']
 
-// Sanitise editData before sending to the API:
-// - Convert empty strings to null for numeric fields
-// - Strip out any keys with undefined values
 function sanitisePayload(data: Record<string, any>): Record<string, any> {
   const numericFields = ['chapter_count', 'year_released']
   const result: Record<string, any> = {}
   for (const [key, value] of Object.entries(data)) {
     if (numericFields.includes(key)) {
-      // empty string → null, otherwise cast to number
       result[key] = value === '' || value === null || value === undefined
         ? null
         : Number(value)
     } else if (typeof value === 'string') {
-      // keep empty strings as-is for text fields (DB accepts them)
       result[key] = value
     } else {
       result[key] = value
@@ -107,25 +103,20 @@ export function AdminRecommendations() {
   const handleEdit = async (id: string) => {
     setActionLoading(`${id}-edit`)
     try {
-      // Sanitise payload — converts empty strings to null for numeric fields
       const payload = sanitisePayload(editData)
-
       const res = await fetch(`/api/admin/recommendations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload), // no `action` key = field edit path in the route
+        body: JSON.stringify(payload),
       })
-
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error ?? 'Failed to update')
       }
-
       toast.success('Recommendation updated!')
       setEditingId(null)
       fetchRecs()
     } catch (err: any) {
-      console.error('Edit recommendation error:', err)
       toast.error(err.message ?? 'Failed to update')
     } finally {
       setActionLoading(null)
@@ -152,33 +143,20 @@ export function AdminRecommendations() {
   const startEdit = (rec: any) => {
     setEditingId(rec.id)
     setEditData({
-      title:             rec.title             ?? '',
-      description:       rec.description       ?? '',
-      type:              rec.type              ?? 'manga',
-      status:            rec.status            ?? 'ongoing',
-      author:            rec.author            ?? '',
-      artist:            rec.artist            ?? '',
-      publisher:         rec.publisher         ?? '',
-      cover_url:         rec.cover_url         ?? '',
-      why_recommend:     rec.why_recommend     ?? '',
-      content_rating:    rec.content_rating    ?? 'all_ages',
-      // Store as raw value — sanitisePayload handles conversion on save
-      chapter_count:     rec.chapter_count     ?? '',
-      year_released:     rec.year_released     ?? '',
-      genres:            rec.genres            ?? [],
+      title:              rec.title              ?? '',
+      description:        rec.description        ?? '',
+      type:               rec.type               ?? 'manga',
+      status:             rec.status             ?? 'ongoing',
+      author:             rec.author             ?? '',
+      artist:             rec.artist             ?? '',
+      publisher:          rec.publisher          ?? '',
+      cover_url:          rec.cover_url          ?? '',
+      why_recommend:      rec.why_recommend      ?? '',
+      content_rating:     rec.content_rating     ?? 'all_ages',
+      chapter_count:      rec.chapter_count      ?? '',
+      year_released:      rec.year_released      ?? '',
+      genres:             rec.genres             ?? [],
       official_platforms: rec.official_platforms ?? [],
-    })
-  }
-
-  const toggleArrayItem = (field: string, value: string) => {
-    setEditData(d => {
-      const arr: string[] = d[field] ?? []
-      return {
-        ...d,
-        [field]: arr.includes(value)
-          ? arr.filter((v: string) => v !== value)
-          : [...arr, value],
-      }
     })
   }
 
@@ -327,22 +305,11 @@ export function AdminRecommendations() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        type="number"
-                        value={editData.chapter_count ?? ''}
-                        onChange={e => setEditData(d => ({ ...d, chapter_count: e.target.value }))}
-                        placeholder="Chapters"
-                        className="text-sm h-9"
-                      />
-                      <Input
-                        type="number"
-                        value={editData.year_released ?? ''}
-                        onChange={e => setEditData(d => ({ ...d, year_released: e.target.value }))}
-                        placeholder="Year"
-                        className="text-sm h-9"
-                      />
+                      <Input type="number" value={editData.chapter_count ?? ''} onChange={e => setEditData(d => ({ ...d, chapter_count: e.target.value }))} placeholder="Chapters" className="text-sm h-9" />
+                      <Input type="number" value={editData.year_released ?? ''} onChange={e => setEditData(d => ({ ...d, year_released: e.target.value }))} placeholder="Year" className="text-sm h-9" />
                     </div>
 
+                    {/* Type / Status / Rating toggles */}
                     {[
                       { label: 'Type',   field: 'type',           items: TYPES    },
                       { label: 'Status', field: 'status',         items: STATUSES },
@@ -369,24 +336,22 @@ export function AdminRecommendations() {
                       </div>
                     ))}
 
+                    {/* Genres — full selector with custom input */}
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Genres</p>
+                      <GenreSelector
+                        value={editData.genres ?? []}
+                        onChange={(genres) => setEditData(d => ({ ...d, genres }))}
+                      />
+                    </div>
+
+                    {/* Platforms — full selector with custom input */}
                     <div className="space-y-1.5">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Platforms</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {PLATFORMS.map(p => (
-                          <button
-                            key={p}
-                            onClick={() => toggleArrayItem('official_platforms', p)}
-                            className={cn(
-                              'px-2.5 py-1 rounded-full text-xs border transition-colors',
-                              (editData.official_platforms ?? []).includes(p)
-                                ? 'bg-primary text-primary-foreground border-primary'
-                                : 'border-border text-muted-foreground hover:border-primary'
-                            )}
-                          >
-                            {p}
-                          </button>
-                        ))}
-                      </div>
+                      <PlatformSelector
+                        value={editData.official_platforms ?? []}
+                        onChange={(platforms) => setEditData(d => ({ ...d, official_platforms: platforms }))}
+                      />
                     </div>
 
                     <div className="flex gap-2 justify-end pt-1">

@@ -4,7 +4,7 @@ import { FilterBar } from '@/components/recommendations/FilterBar'
 import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
 import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
-import { BookOpen, Compass, Plus } from 'lucide-react'
+import { BookOpen, Compass, Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import type { Recommendation } from '@/types/database.types'
@@ -104,7 +104,7 @@ export default async function BrowsePage({ searchParams }: Props) {
         {/* Left: icon + title */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
-            <Compass size={17} className="text-white" />
+            <Search size={17} className="text-white" />
           </div>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-3xl font-black tracking-tight leading-tight">Browse Comics</h1>
