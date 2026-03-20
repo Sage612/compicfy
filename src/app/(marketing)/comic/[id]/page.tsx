@@ -7,7 +7,7 @@ import { SimilarComics } from '@/components/recommendations/SimilarComics'
 import {
   BookOpen, Calendar, Hash, User, Palette,
   Globe, ExternalLink, ArrowLeft, ShieldAlert,
-  Star, ThumbsUp, Bookmark, MessageSquare,
+  Star, ThumbsUp, Bookmark, MessageSquare, PenLine,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils/format'
@@ -271,6 +271,19 @@ export default async function ComicDetailPage({ params }: Props) {
             />
             <SaveButton recommendationId={id} initialSaved={isSaved} isLoggedIn={!!user} />
             {user && <AddToListButton recommendationId={id} userId={user.id} />}
+            
+            {/* Recommend button */}
+<Link href={`/dashboard/recommendations/new?title=${encodeURIComponent(rec.title)}`}>
+  <Button
+    variant="outline"
+    size="sm"
+    className="gap-2 w-full hover:border-primary/40 hover:text-primary transition-colors"
+  >
+    <PenLine size={14} />
+    Recommend This
+  </Button>
+</Link>
+
             {/* Share button */}
 <ShareButton
   title={rec.title}

@@ -85,9 +85,12 @@ function FormSection({ icon: Icon, title, accent = 'from-primary to-violet-500',
   )
 }
 
-interface Props { userId: string }
+interface Props {
+  userId: string
+  prefillTitle?: string
+}
 
-export function RecommendationForm({ userId }: Props) {
+export function RecommendationForm({ userId, prefillTitle }: Props) {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
   const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
@@ -96,16 +99,20 @@ export function RecommendationForm({ userId }: Props) {
 
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
-    defaultValues: { genres: [], official_platforms: [], cover_url: '', content_rating: 'all_ages', why_recommend: '', author: '', artist: '' },
+    defaultValues: { title: prefillTitle ?? '', genres: [], official_platforms: [], cover_url: '', content_rating: 'all_ages', why_recommend: '', author: '', artist: '' },
   })
 
   const descValue = watch('description') || ''
   const whyValue  = watch('why_recommend') || ''
 
   useEffect(() => {
-    return () => { if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current) }
+  // Auto check duplicate if title was pre-filled from comic page
+  if (prefillTitle) {
+    checkDuplicate(prefillTitle)
+  }
+  return () => { if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current) }
   }, [])
-
+  
   const checkDuplicate = async (title: string) => {
     if (title.trim().length < 2) { setDuplicateWarning(null); return }
     setCheckingDuplicate(true)
