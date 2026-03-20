@@ -105,13 +105,14 @@ export function RecommendationForm({ userId, prefillTitle }: Props) {
   const descValue = watch('description') || ''
   const whyValue  = watch('why_recommend') || ''
 
-  useEffect(() => {
-  // Auto check duplicate if title was pre-filled from comic page
+ useEffect(() => {
+  // Pre-fill title from URL param and trigger duplicate check
   if (prefillTitle) {
-    checkDuplicate(prefillTitle)
+    setValue('title', prefillTitle)
+    duplicateDebounceRef.current = setTimeout(() => checkDuplicate(prefillTitle), 300)
   }
   return () => { if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current) }
-  }, [])
+}, [prefillTitle])
   
   const checkDuplicate = async (title: string) => {
     if (title.trim().length < 2) { setDuplicateWarning(null); return }
