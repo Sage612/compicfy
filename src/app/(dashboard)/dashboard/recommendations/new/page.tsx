@@ -6,6 +6,10 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Submit a Recommendation' }
 
+interface Props {
+  searchParams: Promise<{ title?: string }>
+}
+
 export default async function NewRecommendationPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -27,7 +31,7 @@ export default async function NewRecommendationPage() {
         </p>
       </div>
 
-      <RecommendationForm userId={user.id} />
+  <RecommendationForm userId={user.id} />
     </div>
   )
 }
