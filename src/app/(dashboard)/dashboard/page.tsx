@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { Button } from '@/components/ui/button'
 import {
   BookOpen, Bookmark, Star, ThumbsUp,
@@ -198,6 +199,13 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Profile completion banner */}
+<ProfileCompletionBanner
+  hasAvatar={!!profile.avatar_url}
+  hasBio={!!profile.bio}
+  hasWebsite={!!profile.website}
+/>
 
       {/* Stats grid */}
       <div>
