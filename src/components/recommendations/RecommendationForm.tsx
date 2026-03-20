@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -87,11 +87,12 @@ function FormSection({ icon: Icon, title, accent = 'from-primary to-violet-500',
 
 interface Props {
   userId: string
-  prefillTitle?: string
 }
 
-export function RecommendationForm({ userId, prefillTitle }: Props) {
+export function RecommendationForm({ userId }: Props) {
   const router = useRouter()
+const searchParams = useSearchParams()
+const prefillTitle = searchParams.get('title') ?? ''
   const [submitting, setSubmitting] = useState(false)
   const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
   const [checkingDuplicate, setCheckingDuplicate] = useState(false)
