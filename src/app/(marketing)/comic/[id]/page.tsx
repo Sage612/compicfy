@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { formatDate } from '@/lib/utils/format'
 import { VoteButtons } from '@/components/recommendations/VoteButtons'
 import { SaveButton } from '@/components/recommendations/SaveButton'
+import { ShareButton } from '@/components/recommendations/ShareButton'
 import type { Metadata } from 'next'
 import type { Recommendation } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
@@ -270,6 +271,11 @@ export default async function ComicDetailPage({ params }: Props) {
             />
             <SaveButton recommendationId={id} initialSaved={isSaved} isLoggedIn={!!user} />
             {user && <AddToListButton recommendationId={id} userId={user.id} />}
+            {/* Share button */}
+<ShareButton
+  title={rec.title}
+  url={`https://compicfy.site/comic/${id}`}
+/>
 
             {/* Platforms */}
             {rec.official_platforms && rec.official_platforms.length > 0 && (
