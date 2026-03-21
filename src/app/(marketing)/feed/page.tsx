@@ -122,14 +122,12 @@ export default async function FeedPage({ searchParams }: Props) {
                     Discover Comics
                   </Button>
                 </Link>
-                <Button
-                  variant="outline"
-                  onClick={() => {}}
-                  className="gap-2"
-                  asChild
-                >
-                  <Link href="/feed?tab=discover">Try Discover</Link>
-                </Button>
+                <Link
+  href="/feed?tab=discover"
+  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+>
+  Try Discover
+</Link>
               </div>
             </div>
           )}
