@@ -5,6 +5,7 @@ import { ComicCard } from '@/components/recommendations/ComicCard'
 import { NewsCard } from '@/components/news/NewsCard'
 import { ParticleCanvas } from '@/components/layout/ParticleCanvas'
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter'
+import { LiveTicker } from '@/components/layout/LiveTicker'
 import {
   ArrowRight, BookOpen, Users, TrendingUp,
   Star, Sparkles, ChevronRight, Heart, Zap,
@@ -307,30 +308,15 @@ export default async function HomePage() {
       </section>
 
       {/* ── SOCIAL PROOF TICKER ──────────────────────────────────── */}
-      {activity.length > 0 && (
-        <div className="border-y border-border bg-muted/30 overflow-hidden py-3">
-          <div className="flex items-center gap-6 animate-none">
-            <div className="flex items-center gap-8 px-4 flex-nowrap overflow-x-auto no-scrollbar">
-              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground shrink-0">
-                🔴 Live
-              </span>
-              {activity.map((rec: any, i: number) => (
-                <span key={i} className="text-xs text-muted-foreground shrink-0 flex items-center gap-1.5">
-                  <span className="text-primary font-bold">@{rec.profiles?.username ?? 'someone'}</span>
-                  recommended
-                  <Link href={`/browse`} className="font-semibold text-foreground hover:text-primary transition-colors truncate max-w-[120px]">
-                    {rec.title}
-                  </Link>
-                  <span className="capitalize text-muted-foreground/50 text-[10px]">· {rec.type}</span>
-                </span>
-              ))}
-              <Link href="/browse" className="text-xs text-primary font-bold shrink-0 hover:underline">
-                See all →
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+{activity.length > 0 && (
+  <LiveTicker
+    items={activity.map((rec: any) => ({
+      title: rec.title,
+      type: rec.type,
+      username: rec.profiles?.username ?? 'someone',
+    }))}
+  />
+)}
 
       {/* ── PLATFORM TRUST BAR ───────────────────────────────────── */}
       <section className="border-b border-border bg-muted/10">
