@@ -11,12 +11,11 @@ import { formatDate } from '@/lib/utils/format'
 import type { Profile, Recommendation } from '@/types/database.types'
 import type { Metadata } from 'next'
 import { FollowButton } from '@/components/user/FollowButton'
+import { ComicCard } from '@/components/recommendations/ComicCard'
 
 interface Props {
   params: Promise<{ username: string }>
 }
-
-type RecPreview = Pick<Recommendation, 'id' | 'title' | 'cover_url' | 'upvotes' | 'type' | 'genres' | 'content_rating'>
 
 interface ReadingList {
   id: string
@@ -29,14 +28,6 @@ interface ReadingList {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params
   return { title: `@${username}` }
-}
-
-const TYPE_COLORS: Record<string, string> = {
-  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
-  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
-  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
-  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
-  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
 }
 
 const ROLE_STYLES: Record<string, { badge: string; icon: boolean }> = {
@@ -73,10 +64,10 @@ export default async function ProfilePage({ params }: Props) {
   const isOwner = viewer?.id === profile.id
   const isPrivileged = isOwner || viewerRole === 'admin' || viewerRole === 'moderator'
 
-  // Fetch everything in parallel
+  // Fetch full recommendation data so ComicCard has everything it needs
   let recQuery = supabase
     .from('recommendations')
-    .select('id, title, cover_url, upvotes, type, genres, content_rating')
+    .select('*')
     .eq('user_id', profile.id)
     .eq('is_approved', true)
     .order('created_at', { ascending: false })
@@ -119,8 +110,11 @@ export default async function ProfilePage({ params }: Props) {
       : Promise.resolve({ data: null }),
   ])
 
-  const recommendations = (recData ?? []) as RecPreview[]
+  const recommendations = (recData ?? []) as Recommendation[]
   const isFollowing = !!isFollowingData
+  const hasAdultRecs = recommendations.some(
+    r => r.content_rating === 'adult' || r.content_rating === 'mature'
+  )
 
   const lists: ReadingList[] = await Promise.all(
     (listsData ?? []).map(async (list: any) => {
@@ -134,9 +128,6 @@ export default async function ProfilePage({ params }: Props) {
 
   const initials = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
   const roleStyle = ROLE_STYLES[profile.role] ?? ROLE_STYLES.user
-  const hasAdultRecs = recommendations.some(
-    r => r.content_rating === 'adult' || r.content_rating === 'mature'
-  )
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-10">
@@ -167,7 +158,6 @@ export default async function ProfilePage({ params }: Props) {
               <p className="text-sm text-muted-foreground">@{profile.username}</p>
             </div>
 
-            {/* Follow button — only show if not owner */}
             {!isOwner && (
               <div className="shrink-0 sm:pb-1">
                 <FollowButton
@@ -184,7 +174,6 @@ export default async function ProfilePage({ params }: Props) {
           )}
 
           <div className="flex flex-wrap gap-4">
-            {/* Followers / Following counts */}
             <Link
               href={`/profile/${profile.username}`}
               className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -196,7 +185,6 @@ export default async function ProfilePage({ params }: Props) {
               <Users size={13} className="text-primary/60" />
               <span><strong className="text-foreground font-black">{followingCount ?? 0}</strong> following</span>
             </div>
-
             {[
               { icon: BookOpen, value: profile.total_recommendations, label: 'recommendations' },
               { icon: Star,     value: profile.total_reviews,          label: 'reviews'         },
@@ -225,7 +213,7 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       </div>
 
-      {/* ── Recommendations ── */}
+      {/* ── Recommendations — now uses ComicCard matching browse style ── */}
       {recommendations.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
@@ -237,48 +225,10 @@ export default async function ProfilePage({ params }: Props) {
               </span>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {recommendations.map((rec) => {
-              const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
-              const isAdult = rec.content_rating === 'adult' || rec.content_rating === 'mature'
-              return (
-                <Link
-                  key={rec.id}
-                  href={`/comic/${rec.id}`}
-                  className="group block rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-lg transition-all duration-200"
-                >
-                  <div className="aspect-[3/4] bg-muted relative overflow-hidden">
-                    {rec.cover_url ? (
-                      <img
-                        src={rec.cover_url}
-                        alt={rec.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <BookOpen size={28} className="text-muted-foreground opacity-30" />
-                      </div>
-                    )}
-                    {rec.upvotes > 0 && (
-                      <div className="absolute top-2 right-2 flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold">
-                        ↑ {rec.upvotes}
-                      </div>
-                    )}
-                    {isAdult && isPrivileged && (
-                      <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-full bg-destructive/80 text-white text-[9px] font-black">
-                        18+
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3 space-y-1.5">
-                    <p className="text-xs font-black truncate">{rec.title}</p>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${typeStyle}`}>
-                      {rec.type}
-                    </span>
-                  </div>
-                </Link>
-              )
-            })}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {recommendations.map((rec) => (
+              <ComicCard key={rec.id} recommendation={rec} />
+            ))}
           </div>
         </section>
       ) : (
