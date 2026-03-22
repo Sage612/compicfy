@@ -13,23 +13,69 @@ export async function GET(request: Request) {
     const genre  = searchParams.get('genre')
     const status = searchParams.get('status')
     const sort   = searchParams.get('sort') ?? 'score'
-    const q      = searchParams.get('q')
+    const q      = searchParams.get('q')?.trim()
     const adult  = searchParams.get('adult') === 'true'
     const offset = (page - 1) * limit
 
+    // Search query present — use the search_recommendations RPC function
+    // which searches title, author, artist, description, genres with relevance ranking
+    if (q && q.length >= 2) {
+      // Get matching rows via RPC
+      const { data: searchData, error: searchError } = await (supabase.rpc as any) (
+        'search_recommendations',
+        {
+          p_query:  q,
+          p_adult:  adult,
+          p_limit:  limit,
+          p_offset: offset,
+          p_type:   type   || null,
+          p_genre:  genre  || null,
+          p_status: status || null,
+          p_sort:   sort,
+        }
+      )
+      if (searchError) throw searchError
+
+      // RPC returns rows only — get total count with a separate lightweight call
+      const { data: countData, error: countError } = await (supabase.rpc as any) (
+        'search_recommendations',
+        {
+          p_query:  q,
+          p_adult:  adult,
+          p_limit:  10000, // large enough to count all matches
+          p_offset: 0,
+          p_type:   type   || null,
+          p_genre:  genre  || null,
+          p_status: status || null,
+          p_sort:   sort,
+        }
+      )
+      if (countError) throw countError
+
+      const total = (countData ?? []).length
+
+      return NextResponse.json({
+        recommendations: searchData ?? [],
+        total,
+        page,
+        limit,
+        hasMore: total > offset + limit,
+      })
+    }
+
+    // No search query — standard filter query
     let query = supabase
       .from('recommendations')
       .select('*', { count: 'exact' })
       .eq('is_approved', true)
 
-    // Content rating — adult page passes adult=true
+    // Content rating gate
     if (adult) {
       query = query.in('content_rating', ['adult', 'mature'])
     } else {
       query = query.not('content_rating', 'in', '("adult","mature")')
     }
 
-    if (q)      query = query.ilike('title', `%${q}%`)
     if (type)   query = query.eq('type', type as any)
     if (genre)  query = query.contains('genres', [genre])
     if (status) query = query.eq('status', status)
