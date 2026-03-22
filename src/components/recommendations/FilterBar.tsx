@@ -144,14 +144,14 @@ function SearchDropdown({
                 onClick={onSelect}
                 className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/60 transition-colors group"
               >
-                <div className="w-9 h-12 rounded-lg overflow-hidden bg-muted shrink-0 border border-border">
+                <div className="relative w-9 h-12 rounded-lg overflow-hidden bg-muted shrink-0 border border-border">
                   {r.cover_url ? (
                     <Image
                       src={r.cover_url}
                       alt={r.title}
-                      width={36}
-                      height={48}
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="36px"
+                      className="object-cover"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
@@ -226,8 +226,8 @@ export function FilterBar({ isAdult = false }: { isAdult?: boolean }) {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const searchContainerRef = useRef<HTMLDivElement>(null)
   
-  // FIXED: Ref for URL update debouncing
-  const urlUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // FIX: Ref to track the URL update debounce timer
+  const searchTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -241,7 +241,8 @@ export function FilterBar({ isAdult = false }: { isAdult?: boolean }) {
     document.addEventListener('mousedown', handleClick)
     return () => {
       document.removeEventListener('mousedown', handleClick)
-      if (urlUpdateTimeoutRef.current) clearTimeout(urlUpdateTimeoutRef.current)
+      // Cleanup timer on unmount
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     }
   }, [])
 
@@ -263,19 +264,18 @@ export function FilterBar({ isAdult = false }: { isAdult?: boolean }) {
   const clearAll = () => {
     setInputValue('')
     setDropdownOpen(false)
-    if (urlUpdateTimeoutRef.current) clearTimeout(urlUpdateTimeoutRef.current)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
     startTransition(() => router.push(pathname))
   }
 
-  // FIXED: Proper debounced URL update
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value
     setInputValue(val)
     setDropdownOpen(true)
 
-    if (urlUpdateTimeoutRef.current) clearTimeout(urlUpdateTimeoutRef.current)
-    
-    urlUpdateTimeoutRef.current = setTimeout(() => {
+    // FIX: Properly clear the previous timer before starting a new one
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => {
       updateParam('q', val)
     }, 500)
   }
@@ -312,7 +312,7 @@ export function FilterBar({ isAdult = false }: { isAdult?: boolean }) {
               onClick={() => {
                 setInputValue('')
                 setDropdownOpen(false)
-                if (urlUpdateTimeoutRef.current) clearTimeout(urlUpdateTimeoutRef.current)
+                if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
                 updateParam('q', '')
               }}
               aria-label="Clear search"
@@ -481,7 +481,11 @@ export function FilterBar({ isAdult = false }: { isAdult?: boolean }) {
             <ActiveBadge label={`Status: ${currentStatus}`} onRemove={() => updateParam('status', '')} />
           )}
           {currentSearch && (
-            <ActiveBadge label={`"${currentSearch}"`} onRemove={() => { setInputValue(''); updateParam('q', '') }} />
+            <ActiveBadge label={`"${currentSearch}"`} onRemove={() => { 
+              setInputValue(''); 
+              if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+              updateParam('q', ''); 
+            }} />
           )}
         </div>
       )}

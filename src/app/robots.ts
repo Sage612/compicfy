@@ -13,6 +13,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: 'https://compicfy.site/sitemap.xml',
+    sitemap: 'https://compicfy.cloud/sitemap.xml',
   }
 }
