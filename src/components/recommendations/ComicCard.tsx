@@ -31,7 +31,7 @@ const typeColors: Record<string, string> = {
 export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
   const status = statusConfig[rec.status as keyof typeof statusConfig]
   const typeGradient = typeColors[rec.type] || typeColors.other
-  const comicUrl = `https://compicfy.site/comic/${rec.id}`
+ const comicUrl = `https://compicfy.cloud/comic/${rec.id}`
 
   return (
     <div className={cn('group relative flex flex-col', className)}>
