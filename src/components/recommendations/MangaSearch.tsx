@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Search, Loader2, Sparkles, BookOpen, X } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
@@ -29,15 +28,15 @@ interface Props {
 }
 
 const sourceColors = {
-  jikan: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  jikan:    'bg-blue-500/10   text-blue-600   border-blue-500/20',
   mangadex: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-  anilist: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
+  anilist:  'bg-purple-500/10 text-purple-600 border-purple-500/20',
 }
 
 const sourceLabels = {
-  jikan: 'MAL',
+  jikan:    'MAL',
   mangadex: 'MangaDex',
-  anilist: 'AniList',
+  anilist:  'AniList',
 }
 
 export function MangaSearch({ onSelect }: Props) {
@@ -47,6 +46,18 @@ export function MangaSearch({ onSelect }: Props) {
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<MangaResult | null>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const search = useCallback(async (q: string) => {
     if (q.length < 2) { setResults([]); setOpen(false); return }
@@ -96,8 +107,8 @@ export function MangaSearch({ onSelect }: Props) {
         Search across MyAnimeList, MangaDex, and AniList to auto-fill the form.
       </p>
 
-      {/* Search input */}
-      <div className="relative">
+      {/* Search input — wrapped in ref container */}
+      <div className="relative" ref={containerRef}>
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
           <Input
@@ -107,13 +118,13 @@ export function MangaSearch({ onSelect }: Props) {
             placeholder="Search manga title..."
             className="pl-9 pr-9"
           />
-          {(loading) && (
+          {loading && (
             <Loader2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground animate-spin" />
           )}
           {selected && !loading && (
             <button
-                          onClick={handleClear}
-                          aria-label="Clear selection"
+              onClick={handleClear}
+              aria-label="Clear selection"
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
             >
               <X size={15} />
@@ -186,6 +197,7 @@ export function MangaSearch({ onSelect }: Props) {
           </div>
         )}
 
+        {/* No results */}
         {open && !loading && results.length === 0 && query.length >= 2 && (
           <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl border border-border bg-card shadow-xl p-4 text-center">
             <p className="text-sm text-muted-foreground">No results found for "{query}"</p>

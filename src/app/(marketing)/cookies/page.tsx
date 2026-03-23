@@ -128,8 +128,8 @@ export default function CookiePolicyPage() {
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed pl-8">
             Questions about cookies or privacy? Email us at{' '}
-            <a href="mailto:privacy@compicfy.site" className="text-primary hover:underline font-medium">
-              privacy@compicfy.site
+            <a href="mailto:privacy@compicfy.cloud" className="text-primary hover:underline font-medium">
+              privacy@compicfy.cloud
             </a>
           </p>
         </section>

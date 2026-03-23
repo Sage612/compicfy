@@ -17,7 +17,7 @@ const FAQS = [
   { q: 'Can I report inappropriate content?', a: 'Yes. On any review, there\'s a "Report" button. Our moderation team reviews all reports and takes appropriate action, usually within 24 hours.' },
   { q: 'Is there a Compicfy app?', a: 'Not yet! Compicfy is fully mobile-optimised as a web app. A native app is on our roadmap.' },
   { q: 'Where do cover images come from?', a: 'Cover images are sourced from official publisher or platform assets where available. When official covers cannot be used, we may use promotional art sourced from community databases such as MyAnimeList or AniList. All cover images are used for identification and recommendation purposes only.' },
-  { q: 'How do I contact Compicfy?', a: 'Join our Discord community for quick answers, or email us at support@compicfy.com for account-related issues.' },
+  { q: 'How do I contact Compicfy?', a: 'Join our Discord community for quick answers, or email us at support@compicfy.cloud for account-related issues.' },
 ]
 
 export default function FAQPage() {
@@ -54,7 +54,7 @@ export default function FAQPage() {
             className="px-4 py-2 rounded-xl bg-[#5865F2] text-white text-sm font-semibold hover:opacity-90 transition-opacity">
             Join Discord
           </a>
-          <a href="mailto:support@compicfy.site"
+          <a href="mailto:support@compicfy.cloud"
             className="px-4 py-2 rounded-xl border border-border text-sm font-semibold hover:border-primary transition-colors">
             Email Us
           </a>
