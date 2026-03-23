@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { reviewSchema } from '@/lib/utils/validators'
+import { sendReviewNotificationEmail } from '@/lib/email/send'
 
 export async function GET(
   request: Request,
@@ -9,7 +10,7 @@ export async function GET(
   try {
     const { id } = await params
     const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') ?? '10')
+    const limit  = parseInt(searchParams.get('limit')  ?? '10')
     const offset = parseInt(searchParams.get('offset') ?? '0')
 
     const supabase = await createClient()
@@ -43,9 +44,7 @@ export async function POST(
     const supabase = await createClient()
 
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     // Check if user already reviewed this comic
     const { data: existing } = await supabase
@@ -63,14 +62,12 @@ export async function POST(
     }
 
     const body = await request.json()
-
     const normalized = {
       ...body,
       rating: body.rating ? Number(body.rating) : null,
     }
 
     const parsed = reviewSchema.safeParse(normalized)
-
     if (!parsed.success) {
       return NextResponse.json(
         { error: 'Validation failed', details: parsed.error.flatten() },
@@ -80,40 +77,44 @@ export async function POST(
 
     const { data: review, error } = await ((supabase.from('reviews') as any)
       .insert({
-        user_id: user.id,
-        recommendation_id: id,
-        content: parsed.data.content,
-        rating: parsed.data.rating ?? null,
-        contains_spoilers: parsed.data.contains_spoilers,
+        user_id:            user.id,
+        recommendation_id:  id,
+        content:            parsed.data.content,
+        rating:             parsed.data.rating ?? null,
+        contains_spoilers:  parsed.data.contains_spoilers,
       })
       .select('*, profiles(username, display_name, avatar_url)')
       .single())
 
     if (error) throw error
 
-    // Notify the comic owner (don't notify yourself)
+    // Notify comic owner — don't notify yourself
     try {
-      const { data: rec } = await (supabase as any)
-        .from('recommendations')
-        .select('user_id, title')
-        .eq('id', id)
-        .single()
+      const [{ data: rec }, { data: reviewer }] = await Promise.all([
+        (supabase as any).from('recommendations').select('user_id, title').eq('id', id).single(),
+        (supabase as any).from('profiles').select('username, display_name').eq('id', user.id).single(),
+      ])
 
       if (rec && rec.user_id !== user.id) {
-        const { data: reviewer } = await (supabase as any)
-          .from('profiles')
-          .select('username, display_name')
-          .eq('id', user.id)
-          .single()
+        const reviewerUsername = reviewer?.username ?? 'someone'
+        const reviewerName     = reviewer?.display_name || reviewerUsername
 
-        const reviewerName = reviewer?.display_name || reviewer?.username || 'Someone'
-
+        // In-app notification
         await (supabase as any).from('notifications').insert({
           user_id: rec.user_id,
-          type: 'new_review',
-          title: `${reviewerName} reviewed your recommendation "${rec.title}"`,
-          data: { recommendation_id: id, reviewer_id: user.id },
+          type:    'review',
+          title:   `${reviewerName} reviewed your recommendation "${rec.title}"`,
+          data:    { recommendation_id: id, reviewer_id: user.id },
         })
+
+        // Email notification — fire and forget
+        sendReviewNotificationEmail(
+          rec.user_id,
+          reviewerUsername,
+          rec.title,
+          id,
+          parsed.data.content
+        ).catch(console.error)
       }
     } catch (notifError) {
       console.error('Notification error (non-fatal):', notifError)

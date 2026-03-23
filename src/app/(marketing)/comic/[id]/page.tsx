@@ -86,7 +86,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       type: 'article',
-      url: `https://compicfy.site/comic/${id}`,
+      url: `https://compicfy.cloud/comic/${id}`,
       images: rec.cover_url
         ? [
             {
@@ -105,7 +105,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: rec.cover_url ? [rec.cover_url] : [],
     },
     alternates: {
-      canonical: `https://compicfy.site/comic/${id}`,
+      canonical: `https://compicfy.cloud/comic/${id}`,
     },
   }
 }
@@ -271,7 +271,7 @@ export default async function ComicDetailPage({ params }: Props) {
             />
             <SaveButton recommendationId={id} initialSaved={isSaved} isLoggedIn={!!user} />
             {user && <AddToListButton recommendationId={id} userId={user.id} />}
-            
+
             {/* Recommend button */}
 <Link href={`/dashboard/recommendations/new?title=${encodeURIComponent(rec.title)}`}>
   <Button
@@ -287,7 +287,7 @@ export default async function ComicDetailPage({ params }: Props) {
             {/* Share button */}
 <ShareButton
   title={rec.title}
-  url={`https://compicfy.site/comic/${id}`}
+  url={`https://compicfy.cloud/comic/${id}`}
 />
 
             {/* Platforms */}

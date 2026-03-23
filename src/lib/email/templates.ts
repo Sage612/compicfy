@@ -123,4 +123,39 @@ export const templates = {
     ${divider()}
     ${btn('Go to Dashboard', `${SITE_URL}/dashboard`)}
   `),
+
+  newFollower: (username: string, followerUsername: string, followerDisplayName: string) => base(`
+    <div style="display:inline-block;background:#6366f11a;border:1px solid #6366f133;border-radius:8px;padding:6px 12px;margin-bottom:20px;">
+      <span style="color:#6366f1;font-size:13px;font-weight:600;">👤 New Follower</span>
+    </div>
+    ${h1(`@${followerUsername} is now following you!`)}
+    ${p(`<strong style="color:#f9fafb;">${followerDisplayName}</strong> just followed you on ${SITE_NAME}. They'll see your recommendations in their feed.`)}
+    ${divider()}
+    ${btn('View Their Profile', `${SITE_URL}/profile/${followerUsername}`)}
+  `),
+
+  newVote: (username: string, voterUsername: string, title: string, recId: string, voteType: 'up' | 'down') => base(`
+    <div style="display:inline-block;background:${voteType === 'up' ? '#16a34a1a' : '#dc26261a'};border:1px solid ${voteType === 'up' ? '#16a34a33' : '#dc262633'};border-radius:8px;padding:6px 12px;margin-bottom:20px;">
+      <span style="color:${voteType === 'up' ? '#16a34a' : '#dc2626'};font-size:13px;font-weight:600;">
+        ${voteType === 'up' ? '👍 New Upvote' : '👎 New Downvote'}
+      </span>
+    </div>
+    ${h1(`Your recommendation got a ${voteType === 'up' ? 'thumbs up' : 'thumbs down'}!`)}
+    ${p(`<strong style="color:#f9fafb;">@${voterUsername}</strong> ${voteType === 'up' ? 'upvoted' : 'downvoted'} your recommendation for <strong style="color:#f9fafb;">"${title}"</strong>.`)}
+    ${divider()}
+    ${btn('View Recommendation', `${SITE_URL}/comic/${recId}`)}
+  `),
+
+  newReview: (username: string, reviewerUsername: string, title: string, recId: string, reviewSnippet: string) => base(`
+    <div style="display:inline-block;background:#f59e0b1a;border:1px solid #f59e0b33;border-radius:8px;padding:6px 12px;margin-bottom:20px;">
+      <span style="color:#f59e0b;font-size:13px;font-weight:600;">⭐ New Review</span>
+    </div>
+    ${h1(`@${reviewerUsername} reviewed your recommendation!`)}
+    ${p(`Someone left a review on your recommendation for <strong style="color:#f9fafb;">"${title}"</strong>.`)}
+    <div style="background:#2a2d3a;border-left:3px solid #f59e0b;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:20px;">
+      <p style="color:#9ca3af;font-size:13px;margin:0;font-style:italic;">"${reviewSnippet}${reviewSnippet.length >= 120 ? '…' : ''}"</p>
+    </div>
+    ${divider()}
+    ${btn('Read Full Review', `${SITE_URL}/comic/${recId}`)}
+  `),
 }

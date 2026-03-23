@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendFollowNotificationEmail } from '@/lib/email/send'
 
 export async function POST(request: Request) {
   try {
@@ -18,23 +19,32 @@ export async function POST(request: Request) {
 
     if (error) throw error
 
-    // Get follower profile for notification
-    const { data: followerProfile } = await supabase 
+    // Get follower profile
+    const { data: followerProfile } = await supabase
       .from('profiles')
       .select('username, display_name')
       .eq('id', user.id)
       .single()
 
-    const name = (followerProfile as any)?.display_name || (followerProfile as any)?.username || 'Someone'
+    const followerUsername    = (followerProfile as any)?.username    ?? 'someone'
+    const followerDisplayName = (followerProfile as any)?.display_name ?? followerUsername
+    const name = followerDisplayName || followerUsername
 
-    // Send notification to the followed user
+    // In-app notification
     await (supabase as any).from('notifications').insert({
       user_id: following_id,
       type: 'system',
       title: `${name} followed you`,
-      content: `@${(followerProfile as any)?.username} is now following you.`,
-      data: { follower_id: user.id, username: (followerProfile as any)?.username },
+      content: `@${followerUsername} is now following you.`,
+      data: { follower_id: user.id, username: followerUsername },
     })
+
+    // Email notification — fire and forget
+    sendFollowNotificationEmail(
+      following_id,
+      followerUsername,
+      followerDisplayName
+    ).catch(console.error)
 
     return NextResponse.json({ following: true })
   } catch {
