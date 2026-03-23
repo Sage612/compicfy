@@ -4,7 +4,7 @@ import { FilterBar } from '@/components/recommendations/FilterBar'
 import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
 import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
-import { BookOpen, Compass, Plus, Search } from 'lucide-react'
+import { BookOpen, Compass, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import type { Recommendation } from '@/types/database.types'
@@ -23,12 +23,36 @@ interface Props {
 
 const PAGE_SIZE = 24
 
-async function getFeatured()           { const s = await createClient(); const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating','in','("adult","mature")').order('daily_votes',{ascending:false}).limit(8);  return (data as Recommendation[]) ?? [] }
-async function getTrending()           { const s = await createClient(); const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating','in','("adult","mature")').order('daily_votes',{ascending:false}).limit(12); return (data as Recommendation[]) ?? [] }
-async function getRecent()             { const s = await createClient(); const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating','in','("adult","mature")').order('created_at', {ascending:false}).limit(12); return (data as Recommendation[]) ?? [] }
-async function getAdminPicks()         { const s = await createClient(); const { data } = await s.from('recommendations').select('*').eq('is_approved', true).eq('is_featured',true).not('content_rating','in','("adult","mature")').order('featured_at',{ascending:false}).limit(12); return (data as Recommendation[]) ?? [] }
-async function getCommunityFavourites(){ const s = await createClient(); const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating','in','("adult","mature")').order('score',{ascending:false}).limit(12);       return (data as Recommendation[]) ?? [] }
-async function getHiddenGems()         { const s = await createClient(); const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating','in','("adult","mature")').order('save_count',{ascending:false}).limit(12);  return (data as Recommendation[]) ?? [] }
+async function getFeatured() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('daily_votes', { ascending: false }).limit(8)
+  return (data as Recommendation[]) ?? []
+}
+async function getTrending() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('daily_votes', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+async function getRecent() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('created_at', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+async function getAdminPicks() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).not('content_rating', 'in', '("adult","mature")').order('featured_at', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+async function getCommunityFavourites() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+async function getHiddenGems() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('save_count', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
 async function getYouMightLike(userId: string | null) {
   const s = await createClient()
   const { data } = await (s as any).rpc('get_personalized_recommendations', { p_user_id: userId, p_exclude_id: null, p_limit: 12, p_content_ratings: ['all_ages', 'teen'] })
@@ -37,26 +61,28 @@ async function getYouMightLike(userId: string | null) {
 
 async function getInitialGrid(params: SearchParams) {
   const supabase = await createClient()
-  let query = supabase
+
+  const { data } = await (supabase as any).rpc('search_recommendations', {
+    p_query:  params.q      || null,
+    p_type:   params.type   || null,
+    p_genre:  params.genre  || null,
+    p_status: params.status || null,
+    p_sort:   params.sort   ?? 'score',
+    p_adult:  false,
+    p_limit:  PAGE_SIZE,
+    p_offset: 0,
+  })
+
+  const { count } = await supabase
     .from('recommendations')
-    .select('*', { count: 'exact' })
+    .select('*', { count: 'exact', head: true })
     .eq('is_approved', true)
     .not('content_rating', 'in', '("adult","mature")')
 
-  if (params.q)      query = query.ilike('title', `%${params.q}%`)
-  if (params.type)   query = query.eq('type', params.type)
-  if (params.genre)  query = query.contains('genres', [params.genre])
-  if (params.status) query = query.eq('status', params.status)
-
-  switch (params.sort) {
-    case 'trending': query = query.order('daily_votes', { ascending: false }); break
-    case 'recent':   query = query.order('created_at',  { ascending: false }); break
-    default:         query = query.order('score',        { ascending: false })
+  return {
+    items: (data as Recommendation[]) ?? [],
+    total: count ?? 0,
   }
-
-  query = query.range(0, PAGE_SIZE - 1)
-  const { data, count } = await query
-  return { items: (data as Recommendation[]) ?? [], total: count ?? 0 }
 }
 
 function hasActiveFilters(p: SearchParams) {
@@ -88,7 +114,7 @@ export default async function BrowsePage({ searchParams }: Props) {
       getInitialGrid(params),
     ])
 
-  const clientParams: Record<string, string> = {}
+  const clientParams: Record<string, string> = { adult: 'false' }
   if (params.q)      clientParams.q      = params.q
   if (params.type)   clientParams.type   = params.type
   if (params.genre)  clientParams.genre  = params.genre
@@ -98,13 +124,11 @@ export default async function BrowsePage({ searchParams }: Props) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-      {/* ── Header — title + button always on same line ── */}
+      {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3">
-
-        {/* Left: icon + title */}
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
-            <Search size={17} className="text-white" />
+            <Compass size={17} className="text-white" />
           </div>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-3xl font-black tracking-tight leading-tight">Browse Comics</h1>
@@ -114,7 +138,6 @@ export default async function BrowsePage({ searchParams }: Props) {
           </div>
         </div>
 
-        {/* Right: buttons — always visible, same line as title */}
         <div className="flex items-center gap-2 shrink-0">
           {adultEnabled && (
             <Link href="/browse/adult">
@@ -133,7 +156,7 @@ export default async function BrowsePage({ searchParams }: Props) {
         </div>
       </div>
 
-      {/* ── Featured Carousel — tighter top spacing on mobile ── */}
+      {/* ── Featured Carousel ── */}
       {!isFiltering && featured.length > 0 && (
         <Suspense fallback={<div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />}>
           <FeaturedCarousel recommendations={featured} />
@@ -168,17 +191,16 @@ export default async function BrowsePage({ searchParams }: Props) {
 
       {/* ── Filter Bar ── */}
       <Suspense fallback={<div className="h-24 bg-muted/30 rounded-xl animate-pulse" />}>
-        <FilterBar />
+        <FilterBar adult={false} />
       </Suspense>
 
-      {/* ── Comic Grid with Load More ── */}
+      {/* ── Comic Grid ── */}
       <ComicGridClient
         initialItems={items}
         initialTotal={total}
         searchParams={clientParams}
         apiPath="/api/recommendations"
       />
-
     </div>
   )
 }

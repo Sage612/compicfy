@@ -9,91 +9,50 @@ export async function GET(request: Request) {
 
     const page   = parseInt(searchParams.get('page')  ?? '1')
     const limit  = parseInt(searchParams.get('limit') ?? '24')
-    const type   = searchParams.get('type')
-    const genre  = searchParams.get('genre')
-    const status = searchParams.get('status')
-    const sort   = searchParams.get('sort') ?? 'score'
-    const q      = searchParams.get('q')?.trim()
-    const adult  = searchParams.get('adult') === 'true'
+    const type   = searchParams.get('type')   ?? ''
+    const genre  = searchParams.get('genre')  ?? ''
+    const status = searchParams.get('status') ?? ''
+    const sort   = searchParams.get('sort')   ?? 'score'
+    const q      = searchParams.get('q')      ?? ''
+    const adult  = searchParams.get('adult')  === 'true'
     const offset = (page - 1) * limit
 
-    // Search query present — use the search_recommendations RPC function
-    // which searches title, author, artist, description, genres with relevance ranking
-    if (q && q.length >= 2) {
-      // Get matching rows via RPC
-      const { data: searchData, error: searchError } = await (supabase.rpc as any) (
-        'search_recommendations',
-        {
-          p_query:  q,
-          p_adult:  adult,
-          p_limit:  limit,
-          p_offset: offset,
-          p_type:   type   || null,
-          p_genre:  genre  || null,
-          p_status: status || null,
-          p_sort:   sort,
-        }
-      )
-      if (searchError) throw searchError
+    // Use RPC search function — searches title, author, artist, description, genres
+    const { data, error } = await (supabase as any).rpc('search_recommendations', {
+      p_query:  q      || null,
+      p_type:   type   || null,
+      p_genre:  genre  || null,
+      p_status: status || null,
+      p_sort:   sort,
+      p_adult:  adult,
+      p_limit:  limit,
+      p_offset: offset,
+    })
 
-      // RPC returns rows only — get total count with a separate lightweight call
-      const { data: countData, error: countError } = await (supabase.rpc as any) (
-        'search_recommendations',
-        {
-          p_query:  q,
-          p_adult:  adult,
-          p_limit:  10000, // large enough to count all matches
-          p_offset: 0,
-          p_type:   type   || null,
-          p_genre:  genre  || null,
-          p_status: status || null,
-          p_sort:   sort,
-        }
-      )
-      if (countError) throw countError
-
-      const total = (countData ?? []).length
-
-      return NextResponse.json({
-        recommendations: searchData ?? [],
-        total,
-        page,
-        limit,
-        hasMore: total > offset + limit,
-      })
-    }
-
-    // No search query — standard filter query
-    let query = supabase
-      .from('recommendations')
-      .select('*', { count: 'exact' })
-      .eq('is_approved', true)
-
-    // Content rating gate
-    if (adult) {
-      query = query.in('content_rating', ['adult', 'mature'])
-    } else {
-      query = query.not('content_rating', 'in', '("adult","mature")')
-    }
-
-    if (type)   query = query.eq('type', type as any)
-    if (genre)  query = query.contains('genres', [genre])
-    if (status) query = query.eq('status', status)
-
-    switch (sort) {
-      case 'trending': query = query.order('daily_votes', { ascending: false }); break
-      case 'recent':   query = query.order('created_at',  { ascending: false }); break
-      default:         query = query.order('score',        { ascending: false })
-    }
-
-    query = query.range(offset, offset + limit - 1)
-
-    const { data, error, count } = await query
     if (error) throw error
 
+    // Get total count for pagination
+    let countQuery = supabase
+      .from('recommendations')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_approved', true)
+
+    if (adult) {
+      countQuery = countQuery.in('content_rating', ['adult', 'mature'])
+    } else {
+      countQuery = countQuery.not('content_rating', 'in', '("adult","mature")')
+    }
+
+    if (q)      countQuery = countQuery.or(`title.ilike.%${q}%,author.ilike.%${q}%,artist.ilike.%${q}%,description.ilike.%${q}%`)
+    if (type)   countQuery = countQuery.eq('type', type as any)
+    if (genre)  countQuery = countQuery.contains('genres', [genre])
+    if (status) countQuery = countQuery.eq('status', status)
+
+    const { count } = await countQuery
+
     return NextResponse.json({
-      recommendations: data,
-      total:   count,
+      recommendations: data ?? [],
+      total:   count ?? 0,
       page,
       limit,
       hasMore: (count ?? 0) > offset + limit,
@@ -127,7 +86,6 @@ export async function POST(request: Request) {
     const parsed = recommendationSchema.safeParse(body)
 
     if (!parsed.success) {
-      console.error('Validation errors:', parsed.error.flatten())
       return NextResponse.json(
         { error: 'Validation failed', details: parsed.error.issues },
         { status: 400 }
@@ -167,7 +125,7 @@ export async function POST(request: Request) {
         status:             data.status,
         genres:             data.genres,
         official_platforms: data.official_platforms,
-        cover_url:          data.cover_url   || null,
+        cover_url:          data.cover_url    || null,
         content_rating:     data.content_rating,
         why_recommend:      data.why_recommend || null,
         author:             data.author        || null,
@@ -180,7 +138,6 @@ export async function POST(request: Request) {
       .single()
 
     if (error) {
-      console.error('Supabase insert error:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
