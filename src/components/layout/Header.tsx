@@ -328,10 +328,10 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
 
-                  {/* Feed + Lists in dropdown for mobile access */}
-                  <DropdownMenuSeparator className="my-1" />
+                  {/* Feed — mobile only (already visible in desktop header nav) */}
+                  <DropdownMenuSeparator className="my-1 md:hidden" />
 
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg md:hidden">
                     <Link href="/feed">
                       <Rss size={13} className="text-muted-foreground" />
                       Following Feed
