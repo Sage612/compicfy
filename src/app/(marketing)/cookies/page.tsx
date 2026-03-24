@@ -8,16 +8,39 @@ export const metadata: Metadata = {
 export default function CookiePolicyPage() {
   const lastUpdated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
+  const cookies = [
+    {
+      category: 'Necessary',
+      purpose: 'Authentication (Supabase session), security tokens, and your cookie consent choice.',
+      required: true,
+    },
+    {
+      category: 'Preferences',
+      purpose: 'Theme (light/dark mode), age verification status, and UI preferences.',
+      required: false,
+    },
+    {
+      category: 'Referrals',
+      purpose: 'Attribution for merchandise links to help support the platform. Third-party partners (e.g., Amazon) may set their own cookies upon clicking links.',
+      required: false,
+    },
+    {
+      category: 'Analytics',
+      purpose: 'Anonymous usage data to understand how people use Compicfy. No personal data collected.',
+      required: false,
+    },
+  ]
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-12 space-y-10">
 
       {/* Header */}
       <div className="space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
             <span className="text-lg">🍪</span>
           </div>
-          <h1 className="text-3xl font-black tracking-tight">Cookie Policy</h1>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Cookie Policy</h1>
         </div>
         <p className="text-muted-foreground text-sm pl-0.5">Last updated: {lastUpdated}</p>
       </div>
@@ -35,54 +58,66 @@ export default function CookiePolicyPage() {
           </p>
         </section>
 
-        {/* Cookie table */}
+        {/* Cookie table — desktop */}
         <section className="space-y-3">
           <h2 className="text-base font-black flex items-center gap-2">
             <span className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 text-xs font-black flex items-center justify-center shrink-0">2</span>
             What cookies does Compicfy use?
           </h2>
-          <div className="pl-8">
+
+          {/* Desktop table — hidden on mobile */}
+          <div className="pl-0 sm:pl-8 hidden sm:block">
             <div className="rounded-2xl border border-border overflow-hidden">
-              <table className="w-full text-sm table-fixed">
+              <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="text-left px-4 py-3 font-black text-xs uppercase tracking-wide w-1/4">Category</th>
-                    <th className="text-left px-4 py-3 font-black text-xs uppercase tracking-wide w-1/2">Purpose</th>
-                    <th className="text-left px-4 py-3 font-black text-xs uppercase tracking-wide w-1/4">Required?</th>
+                    <th className="text-left px-4 py-3 font-black text-xs uppercase tracking-wide">Purpose</th>
+                    <th className="text-left px-4 py-3 font-black text-xs uppercase tracking-wide w-28">Required?</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  <tr>
-                    <td className="px-4 py-3 font-semibold text-sm align-middle">Necessary</td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs align-middle leading-relaxed">Authentication (Supabase session), security tokens, and your cookie consent choice.</td>
-                    <td className="px-4 py-3 align-middle">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-600 border-emerald-500/20 whitespace-nowrap">Always on</span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 font-semibold text-sm align-middle">Preferences</td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs align-middle leading-relaxed">Theme (light/dark mode), age verification status, and UI preferences.</td>
-                    <td className="px-4 py-3 align-middle">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">Optional</span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 font-semibold text-sm align-middle">Referrals</td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs align-middle leading-relaxed">Attribution for merchandise links to help support the platform. Third-party partners (e.g., Amazon) may set their own cookies upon clicking links.</td>
-                    <td className="px-4 py-3 align-middle">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">Optional</span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 font-semibold text-sm align-middle">Analytics</td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs align-middle leading-relaxed">Anonymous usage data to understand how people use Compicfy. No personal data collected.</td>
-                    <td className="px-4 py-3 align-middle">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">Optional</span>
-                    </td>
-                  </tr>
+                  {cookies.map(({ category, purpose, required }) => (
+                    <tr key={category}>
+                      <td className="px-4 py-3 font-semibold text-sm align-top">{category}</td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs align-top leading-relaxed">{purpose}</td>
+                      <td className="px-4 py-3 align-top">
+                        {required ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-600 border-emerald-500/20 whitespace-nowrap">
+                            Always on
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">
+                            Optional
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Mobile cards — shown only on mobile */}
+          <div className="sm:hidden space-y-3">
+            {cookies.map(({ category, purpose, required }) => (
+              <div key={category} className="rounded-2xl border border-border bg-card p-4 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-black text-sm">{category}</span>
+                  {required ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-600 border-emerald-500/20 whitespace-nowrap shrink-0">
+                      Always on
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20 shrink-0">
+                      Optional
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">{purpose}</p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -115,7 +150,9 @@ export default function CookiePolicyPage() {
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed pl-8">
             You can reset your cookie preferences at any time by going to your browser&apos;s developer tools → Application → Local Storage → delete the{' '}
-            <code className="text-xs bg-muted border border-border px-1.5 py-0.5 rounded font-mono">compicfy_cookie_consent</code>{' '}
+            <code className="text-xs bg-muted border border-border px-1.5 py-0.5 rounded font-mono break-all">
+              compicfy_cookie_consent
+            </code>{' '}
             key, then refresh the page.
           </p>
         </section>
@@ -128,7 +165,7 @@ export default function CookiePolicyPage() {
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed pl-8">
             Questions about cookies or privacy? Email us at{' '}
-            <a href="mailto:privacy@compicfy.cloud" className="text-primary hover:underline font-medium">
+            <a href="mailto:privacy@compicfy.cloud" className="text-primary hover:underline font-medium break-all">
               privacy@compicfy.cloud
             </a>
           </p>
