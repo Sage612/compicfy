@@ -273,14 +273,14 @@ export default async function ComicDetailPage({ params }: Props) {
             {user && <AddToListButton recommendationId={id} userId={user.id} />}
 
             {/* Recommend button */}
-<Link href={`/dashboard/recommendations/new?title=${encodeURIComponent(rec.title)}`}>
+<Link href={`/dashboard/recommendations/new`}>
   <Button
     variant="outline"
     size="sm"
     className="gap-2 w-full hover:border-primary/40 hover:text-primary transition-colors"
   >
     <PenLine size={14} />
-    Recommend This
+    Have A Recommendation?
   </Button>
 </Link>
 
