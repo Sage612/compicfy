@@ -1,0 +1,885 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { ReadingListsClient } from '@/components/user/ReadingListsClient'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Reading Lists' }
+
+export default async function ReadingListsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: lists } = await supabase
+    .from('reading_lists')
+    .select('*, reading_list_items(count)')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <ReadingListsClient initialLists={lists ?? []} />
+    </div>
+  )
+}import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { NotificationsClient } from '@/components/user/NotificationsClient'
+import { Bell } from 'lucide-react'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Notifications' }
+
+export default async function NotificationsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: notifications } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  await (supabase as any)
+    .from('notifications')
+    .update({ is_read: true })
+    .eq('user_id', user.id)
+    .eq('is_read', false)
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+
+      {/* Header */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <Bell size={16} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-black tracking-tight">Notifications</h1>
+        </div>
+        <p className="text-muted-foreground text-sm pl-0.5">
+          {(notifications ?? []).length} notification{(notifications ?? []).length !== 1 ? 's' : ''}
+        </p>
+      </div>
+
+      <NotificationsClient initialNotifications={notifications ?? []} />
+    </div>
+  )
+}import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import {
+  Plus, BookOpen, Clock, CheckCircle, XCircle,
+  ThumbsUp, ThumbsDown, MessageSquare, Bookmark,
+} from 'lucide-react'
+import { formatDate } from '@/lib/utils/format'
+import type { Metadata } from 'next'
+import type { Recommendation } from '@/types/database.types'
+import { AppealButton } from '@/components/user/AppealButton'
+
+export const metadata: Metadata = { title: 'My Recommendations' }
+
+type ExtendedRecommendation = Recommendation & {
+  rejection_reason: string | null
+  appeal_status: 'none' | 'pending' | 'approved' | 'rejected' | null
+}
+
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
+  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+}
+
+export default async function MyRecommendationsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: recommendationsData } = await supabase
+    .from('recommendations')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  const recommendations = (recommendationsData ?? []) as ExtendedRecommendation[]
+
+  const getStatus = (rec: ExtendedRecommendation) => {
+    if (rec.is_approved)      return { label: 'Approved',       icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500/20' }
+    if (rec.rejection_reason) return { label: 'Rejected',       icon: XCircle,     color: 'text-red-500',     bg: 'bg-red-500/10     border-red-500/20'     }
+    return                           { label: 'Pending Review', icon: Clock,       color: 'text-amber-500',   bg: 'bg-amber-500/10  border-amber-500/20'   }
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+      {/* ── Header ── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* Left: icon + title + count — all on one line, never wraps awkwardly */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20 shrink-0">
+            <BookOpen size={16} className="text-white" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-black tracking-tight leading-tight">My Recommendations</h1>
+            <p className="text-muted-foreground text-sm mt-0.5">
+              {recommendations.length} total submission{recommendations.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+
+        {/* Right: Add New button — sits on its own row on mobile, inline on sm+ */}
+        <Link href="/dashboard/recommendations/new" className="self-start sm:self-auto shrink-0">
+          <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
+            <Plus size={15} />
+            Add New
+          </Button>
+        </Link>
+      </div>
+
+      {/* ── Empty state ── */}
+      {!recommendations.length ? (
+        <div className="text-center py-20 rounded-2xl border border-dashed border-border">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <BookOpen size={24} className="text-muted-foreground opacity-40" />
+          </div>
+          <h3 className="font-black text-lg mb-1">No recommendations yet</h3>
+          <p className="text-sm text-muted-foreground mb-5">Share your first comic with the community</p>
+          <Link href="/dashboard/recommendations/new">
+            <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
+              <Plus size={15} />
+              Submit a Recommendation
+            </Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {recommendations.map((rec) => {
+            const status = getStatus(rec)
+            const StatusIcon = status.icon
+            const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
+
+            return (
+              <div key={rec.id} className="group flex gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200">
+
+                {/* Cover */}
+                <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
+                  {rec.cover_url ? (
+                    <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <BookOpen size={16} className="text-muted-foreground opacity-40" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0 space-y-2">
+                  {/* Title row + status badge */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-black truncate group-hover:text-primary transition-colors text-sm leading-snug">
+                        {rec.title}
+                      </h3>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${typeStyle}`}>
+                          {rec.type}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{formatDate(rec.created_at)}</span>
+                      </div>
+                    </div>
+                    {/* Status badge — shrinks to icon only on very small screens */}
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border shrink-0 ${status.bg} ${status.color}`}>
+                      <StatusIcon size={11} />
+                      <span className="hidden xs:inline">{status.label}</span>
+                    </span>
+                  </div>
+
+                  {/* Stats row */}
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                    <span className="flex items-center gap-1"><ThumbsUp   size={11} className="text-emerald-500" />{rec.upvotes}</span>
+                    <span className="flex items-center gap-1"><ThumbsDown size={11} className="text-red-400"     />{rec.downvotes}</span>
+                    <span className="flex items-center gap-1"><MessageSquare size={11} className="text-blue-400" />{rec.review_count}</span>
+                    <span className="flex items-center gap-1"><Bookmark   size={11} className="text-violet-400"  />{rec.save_count}</span>
+                  </div>
+
+                  {/* Rejection reason + appeal */}
+                  {rec.rejection_reason && (
+                    <div className="space-y-1.5 pt-1">
+                      <p className="text-xs text-red-500 bg-red-500/5 border border-red-500/10 rounded-lg px-2.5 py-1.5 leading-relaxed">
+                        Reason: {rec.rejection_reason}
+                      </p>
+                      {(!rec.appeal_status || rec.appeal_status === 'none') && (
+                        <AppealButton recommendationId={rec.id} />
+                      )}
+                      {rec.appeal_status === 'pending'  && <span className="text-xs text-amber-500">🚩 Appeal pending review</span>}
+                      {rec.appeal_status === 'approved' && <span className="text-xs text-emerald-500">✅ Appeal approved</span>}
+                      {rec.appeal_status === 'rejected' && <span className="text-xs text-muted-foreground">Appeal rejected</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { BookOpen, Bookmark, ArrowRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { formatDate } from '@/lib/utils/format'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Saved Comics' }
+
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
+  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  ongoing:   'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+  completed: 'bg-blue-500/10   text-blue-600    border-blue-500/20',
+  hiatus:    'bg-amber-500/10  text-amber-600   border-amber-500/20',
+  cancelled: 'bg-red-500/10    text-red-600     border-red-500/20',
+}
+
+export default async function SavedPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: savesData } = await supabase
+    .from('saves')
+    .select('*, recommendations(*)')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  const saves = (savesData ?? []) as { created_at: string; recommendations: any }[]
+  const savedComics = saves.map((s) => ({ savedAt: s.created_at, rec: s.recommendations }))
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+      {/* Header */}
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg shadow-rose-500/20">
+              <Bookmark size={16} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-black tracking-tight">Saved Comics</h1>
+          </div>
+          <p className="text-muted-foreground text-sm pl-0.5">
+            {savedComics.length} comic{savedComics.length !== 1 ? 's' : ''} saved
+          </p>
+        </div>
+        <Link href="/browse">
+          <Button variant="outline" size="sm" className="gap-2 shrink-0">
+            <BookOpen size={14} />
+            Browse More
+          </Button>
+        </Link>
+      </div>
+
+      {/* Empty state */}
+      {savedComics.length === 0 ? (
+        <div className="text-center py-20 rounded-2xl border border-dashed border-border">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <Bookmark size={24} className="text-muted-foreground opacity-40" />
+          </div>
+          <h3 className="font-black text-lg mb-1">No saved comics yet</h3>
+          <p className="text-sm text-muted-foreground mb-5">Browse comics and click Save to add them here</p>
+          <Link href="/browse">
+            <Button className="gap-2"><BookOpen size={15} />Browse Comics</Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {savedComics.map(({ savedAt, rec }) => (
+            <Link
+              key={rec.id}
+              href={`/comic/${rec.id}`}
+              className="group flex gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200"
+            >
+              {/* Cover */}
+              <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
+                {rec.cover_url ? (
+                  <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <BookOpen size={16} className="text-muted-foreground opacity-40" />
+                  </div>
+                )}
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-black text-sm truncate group-hover:text-primary transition-colors">{rec.title}</h3>
+                  <ArrowRight size={13} className="text-muted-foreground/30 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                    {rec.type}
+                  </span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${STATUS_COLORS[rec.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                    {rec.status}
+                  </span>
+                </div>
+                {rec.genres?.slice(0, 2).map((g: string) => (
+                  <span key={g} className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted border border-border text-muted-foreground mr-1">
+                    {g}
+                  </span>
+                ))}
+                <p className="text-[10px] text-muted-foreground">Saved {formatDate(savedAt)}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { SettingsForm } from '@/components/user/SettingsForm'
+import { Settings } from 'lucide-react'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Settings' }
+
+export default async function SettingsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) redirect('/login')
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+
+      {/* Header */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-zinc-600 to-zinc-800 dark:from-zinc-500 dark:to-zinc-700 flex items-center justify-center shadow-lg">
+            <Settings size={16} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-black tracking-tight">Settings</h1>
+        </div>
+        <p className="text-muted-foreground text-sm pl-0.5">
+          Manage your profile and account preferences
+        </p>
+      </div>
+
+      <SettingsForm profile={profile} userId={user.id} />
+    </div>
+  )
+}import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { Star, BookOpen, ArrowRight } from 'lucide-react'
+import { StarRating } from '@/components/recommendations/StarRating'
+import { formatDate } from '@/lib/utils/format'
+import type { Metadata } from 'next'
+import type { Review } from '@/types/database.types'
+
+export const metadata: Metadata = { title: 'My Reviews' }
+
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
+  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+}
+
+export default async function MyReviewsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: reviewsData } = await supabase
+    .from('reviews')
+    .select('*, recommendations(id, title, cover_url, type)')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  const reviews = (reviewsData ?? []) as (Review & {
+    recommendations: { id: string; title: string; cover_url: string | null; type: string } | null
+  })[]
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+      {/* Header */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <Star size={16} className="text-white" />
+          </div>
+          <h1 className="text-2xl font-black tracking-tight">My Reviews</h1>
+        </div>
+        <p className="text-muted-foreground text-sm pl-0.5">
+          {reviews.length} review{reviews.length !== 1 ? 's' : ''} written
+        </p>
+      </div>
+
+      {/* Empty state */}
+      {!reviews.length ? (
+        <div className="text-center py-20 rounded-2xl border border-dashed border-border">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+            <Star size={24} className="text-muted-foreground opacity-40" />
+          </div>
+          <h3 className="font-black text-lg mb-1">No reviews yet</h3>
+          <p className="text-sm text-muted-foreground mb-5">Visit a comic and write your first review</p>
+          <Link href="/browse" className="text-primary hover:underline text-sm font-semibold">
+            Browse Comics →
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {reviews.map((review) => {
+            const rec = review.recommendations
+            const typeStyle = TYPE_COLORS[rec?.type ?? ''] ?? 'bg-muted text-muted-foreground border-border'
+            return (
+              <Link
+                key={review.id}
+                href={`/comic/${rec?.id}`}
+                className="group flex gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200"
+              >
+                {/* Cover */}
+                <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
+                  {rec?.cover_url ? (
+                    <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <BookOpen size={14} className="text-muted-foreground opacity-40" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h3 className="font-black text-sm truncate group-hover:text-primary transition-colors">{rec?.title}</h3>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${typeStyle}`}>
+                          {rec?.type}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">{formatDate(review.created_at)}</span>
+                      </div>
+                    </div>
+                    <ArrowRight size={13} className="text-muted-foreground/30 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
+                  </div>
+
+                  {review.rating && <StarRating value={review.rating} readonly size={13} />}
+
+                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{review.content}</p>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {review.contains_spoilers && (
+                      <span className="text-[10px] text-amber-600 bg-amber-500/8 border border-amber-500/15 px-2 py-0.5 rounded-full font-semibold">⚠️ Spoilers</span>
+                    )}
+                    {review.is_edited && (
+                      <span className="text-[10px] text-muted-foreground italic">Edited</span>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}import { createClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
+import {
+  CalendarDays, BookOpen, Star, ThumbsUp,
+  Shield, Globe, BookMarked, Users,
+} from 'lucide-react'
+import { formatDate } from '@/lib/utils/format'
+import type { Profile, Recommendation } from '@/types/database.types'
+import type { Metadata } from 'next'
+import { FollowButton } from '@/components/user/FollowButton'
+import { ComicCard } from '@/components/recommendations/ComicCard'
+
+interface Props {
+  params: Promise<{ username: string }>
+}
+
+interface ReadingList {
+  id: string
+  name: string
+  description: string | null
+  is_public: boolean
+  item_count: number
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { username } = await params
+  return { title: `@${username}` }
+}
+
+const ROLE_STYLES: Record<string, { badge: string; icon: boolean }> = {
+  admin:     { badge: 'bg-primary/10 text-primary border-primary/20',      icon: true  },
+  moderator: { badge: 'bg-blue-500/10 text-blue-600 border-blue-500/20',   icon: false },
+  user:      { badge: 'bg-muted text-muted-foreground border-border',       icon: false },
+}
+
+export default async function ProfilePage({ params }: Props) {
+  const { username } = await params
+  const supabase = await createClient()
+
+  const { data: { user: viewer } } = await supabase.auth.getUser()
+
+  let viewerRole: string | null = null
+  if (viewer) {
+    const { data: vp } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', viewer.id)
+      .single()
+    viewerRole = (vp as any)?.role ?? 'user'
+  }
+
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('username', username.toLowerCase())
+    .single()
+
+  if (!profileData) notFound()
+  const profile = profileData as Profile
+
+  const isOwner = viewer?.id === profile.id
+  const isPrivileged = isOwner || viewerRole === 'admin' || viewerRole === 'moderator'
+
+  // Fetch full recommendation data so ComicCard has everything it needs
+  let recQuery = supabase
+    .from('recommendations')
+    .select('*')
+    .eq('user_id', profile.id)
+    .eq('is_approved', true)
+    .order('created_at', { ascending: false })
+    .limit(6)
+
+  if (!isPrivileged) {
+    recQuery = recQuery.not('content_rating', 'in', '("adult","mature")')
+  }
+
+  const [
+    { data: recData },
+    { data: listsData },
+    { count: followersCount },
+    { count: followingCount },
+    { data: isFollowingData },
+  ] = await Promise.all([
+    recQuery,
+    supabase
+      .from('reading_lists')
+      .select('id, name, description, is_public')
+      .eq('user_id', profile.id)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+      .limit(6),
+    supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', profile.id),
+    supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', profile.id),
+    viewer && !isOwner
+      ? supabase
+          .from('follows')
+          .select('id')
+          .eq('follower_id', viewer.id)
+          .eq('following_id', profile.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ])
+
+  const recommendations = (recData ?? []) as Recommendation[]
+  const isFollowing = !!isFollowingData
+  const hasAdultRecs = recommendations.some(
+    r => r.content_rating === 'adult' || r.content_rating === 'mature'
+  )
+
+  const lists: ReadingList[] = await Promise.all(
+    (listsData ?? []).map(async (list: any) => {
+      const { count } = await supabase
+        .from('reading_list_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('list_id', list.id)
+      return { ...list, item_count: count ?? 0 }
+    })
+  )
+
+  const initials = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
+  const roleStyle = ROLE_STYLES[profile.role] ?? ROLE_STYLES.user
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-10 space-y-10">
+
+      {/* ── Profile card ── */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="h-24 bg-gradient-to-br from-primary/20 via-violet-500/10 to-transparent" />
+        <div className="px-6 pb-6 -mt-12 space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+            <Avatar className="h-20 w-20 border-4 border-card ring-2 ring-border shadow-lg shrink-0">
+              <AvatarImage src={profile.avatar_url ?? undefined} />
+              <AvatarFallback className="text-xl font-black bg-gradient-to-br from-primary to-violet-500 text-white">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0 space-y-1.5 sm:pb-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-black truncate">
+                  {profile.display_name || profile.username}
+                </h1>
+                {profile.role !== 'user' && (
+                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${roleStyle.badge}`}>
+                    {roleStyle.icon && <Shield size={10} />}
+                    {profile.role}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">@{profile.username}</p>
+            </div>
+
+            {!isOwner && (
+              <div className="shrink-0 sm:pb-1">
+                <FollowButton
+                  profileId={profile.id}
+                  initialFollowing={isFollowing}
+                  isLoggedIn={!!viewer}
+                />
+              </div>
+            )}
+          </div>
+
+          {profile.bio && (
+            <p className="text-sm leading-relaxed text-muted-foreground max-w-lg">{profile.bio}</p>
+          )}
+
+          <div className="flex flex-wrap gap-4">
+            <Link
+              href={`/profile/${profile.username}`}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Users size={13} className="text-primary/60" />
+              <span><strong className="text-foreground font-black">{followersCount ?? 0}</strong> followers</span>
+            </Link>
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Users size={13} className="text-primary/60" />
+              <span><strong className="text-foreground font-black">{followingCount ?? 0}</strong> following</span>
+            </div>
+            {[
+              { icon: BookOpen, value: profile.total_recommendations, label: 'recommendations' },
+              { icon: Star,     value: profile.total_reviews,          label: 'reviews'         },
+              { icon: ThumbsUp, value: profile.total_votes_received,   label: 'votes received'  },
+            ].map(({ icon: Icon, value, label }) => (
+              <div key={label} className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Icon size={13} className="text-primary/60" />
+                <span><strong className="text-foreground font-black">{value ?? 0}</strong> {label}</span>
+              </div>
+            ))}
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <CalendarDays size={13} className="text-primary/60" />
+              <span>Joined {formatDate(profile.member_since)}</span>
+            </div>
+          </div>
+
+          {profile.favorite_genres?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {profile.favorite_genres.map((genre: string) => (
+                <Badge key={genre} variant="secondary" className="text-xs rounded-full">
+                  {genre}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Recommendations — now uses ComicCard matching browse style ── */}
+      {recommendations.length > 0 ? (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-black">Recent Recommendations</h2>
+            <div className="h-0.5 flex-1 bg-gradient-to-r from-primary/40 to-transparent" />
+            {isPrivileged && hasAdultRecs && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 shrink-0">
+                Includes 18+
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {recommendations.map((rec) => (
+              <ComicCard key={rec.id} recommendation={rec} />
+            ))}
+          </div>
+        </section>
+      ) : (
+        <div className="text-center py-14 rounded-2xl border border-dashed border-border space-y-3">
+          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
+            <BookOpen size={22} className="text-muted-foreground opacity-40" />
+          </div>
+          <div>
+            <p className="font-black text-sm">No recommendations yet</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              @{profile.username} hasn't shared any recommendations yet.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Public Reading Lists ── */}
+      {lists.length > 0 && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-black">Reading Lists</h2>
+            <div className="h-0.5 flex-1 bg-gradient-to-r from-teal-500/40 to-transparent" />
+            <span className="text-xs text-muted-foreground shrink-0">{lists.length} public</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {lists.map((list) => (
+              <Link
+                key={list.id}
+                href={`/lists/${list.id}`}
+                className="group relative p-4 rounded-2xl border border-border bg-card hover:border-teal-500/40 hover:shadow-md transition-all duration-200 space-y-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500/20 to-cyan-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
+                      <BookMarked size={14} className="text-teal-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-black truncate group-hover:text-teal-600 transition-colors">
+                        {list.name}
+                      </p>
+                      {list.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                          {list.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Globe size={12} className="text-emerald-500 shrink-0 mt-1" />
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <BookOpen size={11} className="text-teal-500/60" />
+                    <span>
+                      <strong className="text-foreground font-black">{list.item_count}</strong>{' '}
+                      comic{list.item_count !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-teal-600 group-hover:translate-x-0.5 transition-transform">
+                    View →
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  )
+}import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
+import {
+  Users, BookOpen, Clock, Newspaper,
+  Star, Flag, ArrowRight, Shield, ShoppingBag,
+} from 'lucide-react'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Admin Dashboard' }
+
+export default async function AdminPage() {
+  const supabase = await createClient()
+
+  const [
+    { count: totalUsers },
+    { count: totalRecs },
+    { count: pendingRecs },
+    { count: totalNews },
+    { count: totalReviews },
+    { count: pendingReports },
+    { count: totalAffiliateClicks },
+  ] = await Promise.all([
+    supabase.from('profiles').select('*', { count: 'exact', head: true }),
+    supabase.from('recommendations').select('*', { count: 'exact', head: true }),
+    supabase.from('recommendations').select('*', { count: 'exact', head: true }).eq('is_approved', false),
+    supabase.from('news').select('*', { count: 'exact', head: true }),
+    supabase.from('reviews').select('*', { count: 'exact', head: true }),
+    supabase.from('reports').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    supabase.from('affiliate_clicks').select('*', { count: 'exact', head: true }),
+  ])
+
+  const stats = [
+    { label: 'Total Users',        value: totalUsers           ?? 0, icon: Users,        href: '/admin/users',           gradient: 'from-violet-500 to-purple-600', bg: 'bg-violet-500/10', text: 'text-violet-500', urgent: false },
+    { label: 'Recommendations',    value: totalRecs            ?? 0, icon: BookOpen,     href: '/admin/recommendations', gradient: 'from-blue-500 to-indigo-600',   bg: 'bg-blue-500/10',   text: 'text-blue-500',   urgent: false },
+    { label: 'Pending Approval',   value: pendingRecs          ?? 0, icon: Clock,        href: '/admin/recommendations', gradient: 'from-amber-500 to-orange-500',  bg: 'bg-amber-500/10',  text: 'text-amber-500',  urgent: (pendingRecs  ?? 0) > 0 },
+    { label: 'News Articles',      value: totalNews            ?? 0, icon: Newspaper,    href: '/admin/news',            gradient: 'from-teal-500 to-cyan-600',     bg: 'bg-teal-500/10',   text: 'text-teal-500',   urgent: false },
+    { label: 'Reviews',            value: totalReviews         ?? 0, icon: Star,         href: '/admin/reviews',         gradient: 'from-amber-500 to-yellow-500',  bg: 'bg-amber-500/10',  text: 'text-amber-500',  urgent: false },
+    { label: 'Pending Reports',    value: pendingReports       ?? 0, icon: Flag,         href: '/admin/reports',         gradient: 'from-red-500 to-rose-600',      bg: 'bg-red-500/10',    text: 'text-red-500',    urgent: (pendingReports ?? 0) > 0 },
+    { label: 'Affiliate Clicks',   value: totalAffiliateClicks ?? 0, icon: ShoppingBag,  href: '/admin/affiliate',       gradient: 'from-emerald-500 to-green-600', bg: 'bg-emerald-500/10',text: 'text-emerald-500',urgent: false },
+  ]
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20">
+          <Shield size={16} className="text-white" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-black tracking-tight">Admin Dashboard</h1>
+          <p className="text-muted-foreground text-sm">Manage Compicfy content and users</p>
+        </div>
+      </div>
+
+      {/* Stats grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {stats.map(({ label, value, icon: Icon, href, bg, text, urgent }) => (
+          <Link
+            key={label}
+            href={href}
+            className={`group relative overflow-hidden p-5 rounded-2xl border bg-card hover:shadow-lg transition-all duration-200 ${
+              urgent ? 'border-red-500/40 bg-red-500/5' : 'border-border hover:border-primary/40'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl ${urgent ? 'bg-red-500/15' : bg} flex items-center justify-center mb-3`}>
+              <Icon size={18} className={urgent ? 'text-red-500' : text} />
+            </div>
+            <p className={`text-3xl font-black tabular-nums ${urgent ? 'text-red-500' : ''}`}>{value}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{label}</p>
+            <ArrowRight size={12} className="absolute bottom-4 right-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 group-hover:translate-x-0.5 transition-all" />
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+}
