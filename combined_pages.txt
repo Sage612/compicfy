@@ -1,0 +1,1657 @@
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import { Button } from '@/components/ui/button'
+import { ComicCard } from '@/components/recommendations/ComicCard'
+import { NewsCard } from '@/components/news/NewsCard'
+import { ParticleCanvas } from '@/components/layout/ParticleCanvas'
+import { AnimatedCounter } from '@/components/ui/AnimatedCounter'
+import { LiveTicker } from '@/components/layout/LiveTicker'
+import {
+  ArrowRight, BookOpen, Users, TrendingUp,
+  Star, Sparkles, ChevronRight, Heart, Zap,
+  ThumbsUp, MessageSquare, Bookmark,
+} from 'lucide-react'
+import type { Recommendation } from '@/types/database.types'
+import type { News } from '@/types/database.types'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Compicfy — Find your next obsession.',
+  description:
+    'A warm community for manga, manhwa, manhua, and webtoon fans. Discover, recommend, and vote for the best comics.',
+  openGraph: {
+    title: 'Compicfy — Find your next obsession.',
+    description: 'Community-powered comic discovery. Browse, recommend, and vote.',
+  },
+}
+
+const GENRES = [
+  { label: 'Action',        emoji: '⚔️',  href: '/browse?genre=Action'        },
+  { label: 'Romance',       emoji: '🌸',  href: '/browse?genre=Romance'       },
+  { label: 'Fantasy',       emoji: '✨',  href: '/browse?genre=Fantasy'       },
+  { label: 'Comedy',        emoji: '😂',  href: '/browse?genre=Comedy'        },
+  { label: 'Sci-Fi',        emoji: '🚀',  href: '/browse?genre=Sci-Fi'        },
+  { label: 'Drama',         emoji: '🎭',  href: '/browse?genre=Drama'         },
+  { label: 'Horror',        emoji: '👻',  href: '/browse?genre=Horror'        },
+  { label: 'Sports',        emoji: '⚡',  href: '/browse?genre=Sports'        },
+  { label: 'Slice of Life', emoji: '🍵',  href: '/browse?genre=Slice-of-Life' },
+  { label: 'Mystery',       emoji: '🔍',  href: '/browse?genre=Mystery'       },
+]
+
+const PLATFORMS = [
+  { name: 'Webtoon',     color: '#00d564' },
+  { name: 'Tapas',       color: '#ff6b35' },
+  { name: 'MangaPlus',   color: '#e40026' },
+  { name: 'Viz Media',   color: '#f6821f' },
+  { name: 'Crunchyroll', color: '#f47521' },
+  { name: 'Lezhin',      color: '#1a1a1a' },
+  { name: 'Manta',       color: '#6c5ce7' },
+  { name: 'Tappytoon',   color: '#ff4081' },
+]
+
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'bg-rose-500/20   text-rose-400   border-rose-500/30',
+  manhwa:  'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  manhua:  'bg-amber-500/20  text-amber-400  border-amber-500/30',
+  webtoon: 'bg-teal-500/20   text-teal-400   border-teal-500/30',
+  comic:   'bg-blue-500/20   text-blue-400   border-blue-500/30',
+  other:   'bg-zinc-500/20   text-zinc-400   border-zinc-500/30',
+}
+
+export default async function HomePage() {
+  const supabase = await createClient()
+
+  const [
+    { data: trending },
+    { data: recentNews },
+    { count: memberCount },
+    { count: comicCount },
+    { count: reviewCount },
+    { data: featuredData },
+    { data: recentActivity },
+  ] = await Promise.all([
+    supabase
+      .from('recommendations')
+      .select('*')
+      .eq('is_approved', true)
+      .not('content_rating', 'in', '("adult","mature")')
+      .order('score', { ascending: false })
+      .limit(6),
+    supabase
+      .from('news')
+      .select('*')
+      .eq('is_published', true)
+      .order('published_at', { ascending: false })
+      .limit(3),
+    supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true }),
+    supabase
+      .from('recommendations')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_approved', true),
+    supabase
+      .from('reviews')
+      .select('id', { count: 'exact', head: true }),
+    // Top voted comic for spotlight
+    supabase
+      .from('recommendations')
+      .select('*')
+      .eq('is_approved', true)
+      .eq('is_featured', true)
+      .not('content_rating', 'in', '("adult","mature")')
+      .order('score', { ascending: false })
+      .limit(1),
+    // Recent activity for social proof
+    supabase
+      .from('recommendations')
+      .select('title, type, user_id, profiles!recommendations_user_id_fkey(username)')
+      .eq('is_approved', true)
+      .not('content_rating', 'in', '("adult","mature")')
+      .order('created_at', { ascending: false })
+      .limit(6),
+  ]); // <-- Added the closing parenthesis and semicolon for Promise.all
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const topComics    = (trending   as Recommendation[]) ?? []
+  const latestNews   = (recentNews as News[])           ?? []
+  const totalMembers = memberCount ?? 0
+  const totalComics  = comicCount  ?? 0
+  const totalReviews = reviewCount ?? 0
+  const spotlight    = featuredData?.[0] as Recommendation | undefined
+  const activity     = (recentActivity ?? []) as any[]
+
+  const spotlightTypeStyle = spotlight
+    ? TYPE_COLORS[spotlight.type] ?? TYPE_COLORS.other
+    : ''
+
+  return (
+    <div className="flex flex-col">
+
+      {/* ── HERO ─────────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden min-h-[92vh] flex flex-col items-center justify-center">
+
+        <div className="absolute inset-0 bg-background" />
+
+        {/* Glow blobs */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full bg-violet-500/8 dark:bg-violet-500/12 blur-[140px]" />
+          <div className="absolute top-1/3 -left-32 w-[400px] h-[400px] rounded-full bg-rose-500/6 dark:bg-rose-500/10 blur-[100px]" />
+          <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full bg-primary/5 dark:bg-primary/8 blur-[120px]" />
+        </div>
+
+        {/* Particles */}
+        <div className="absolute inset-0 opacity-50 dark:opacity-90">
+          <ParticleCanvas />
+        </div>
+
+        {/* Decorative panels — desktop only */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
+          <div className="absolute top-16 right-20 w-32 h-44 rounded-2xl border border-primary/10 dark:border-primary/15 rotate-6 bg-primary/[0.02]" />
+          <div className="absolute top-8  right-40 w-24 h-32 rounded-2xl border border-violet-500/10 dark:border-violet-500/15 -rotate-3 bg-violet-500/[0.02]" />
+          <div className="absolute top-40 right-12 w-16 h-24 rounded-xl border border-rose-500/8 dark:border-rose-500/12 rotate-12" />
+          <div className="absolute bottom-20 right-52 w-28 h-36 rounded-2xl border border-primary/8 dark:border-primary/12 -rotate-6 bg-primary/[0.01]" />
+          <div className="absolute bottom-16 left-10 text-[100px] font-black leading-none select-none opacity-[0.03] dark:opacity-[0.05] text-foreground tracking-tighter">
+            読む
+          </div>
+        </div>
+
+        {/* Hero content */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 py-16 md:py-24 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+
+            {/* Left — text */}
+            <div className="space-y-6 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/15 to-primary/15 border border-primary/20 text-primary text-sm font-semibold">
+                <Zap size={13} className="fill-primary" />
+                Community-Powered Discovery
+              </div>
+
+              <div className="space-y-1">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tight">
+                  Find your
+                </h1>
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tight">
+                  next{' '}
+                  <span className="relative inline-block">
+                    <span className="bg-gradient-to-r from-primary via-violet-500 to-rose-500 bg-clip-text text-transparent">
+                      obsession.
+                    </span>
+                    <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" preserveAspectRatio="none">
+                      <path d="M2,9 Q75,2 150,6 Q225,10 298,4" stroke="url(#heroGrad)" strokeWidth="3" fill="none" strokeLinecap="round" />
+                      <defs>
+                        <linearGradient id="heroGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.6" />
+                          <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.6" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                  </span>
+                </h1>
+              </div>
+
+              <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-lg mx-auto md:mx-0">
+                The community where manga, manhwa, manhua &amp; webtoon fans discover, recommend, and vote for the best reads.
+              </p>
+
+              <div className="flex flex-wrap gap-3 justify-center md:justify-start">
+                <Link href="/browse">
+                  <Button size="lg" className="gap-2 h-12 px-6 font-bold shadow-xl shadow-primary/20 border-0 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 text-white">
+                    <BookOpen size={17} />
+                    Browse Comics
+                    <ArrowRight size={15} />
+                  </Button>
+                </Link>
+                {!user ? (
+                  <Link href="/signup">
+                    <Button size="lg" variant="outline" className="gap-2 h-12 px-6 font-semibold hover:border-primary/50">
+                      <Users size={17} />
+                      Join Free
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/dashboard/recommendations/new">
+                    <Button size="lg" variant="outline" className="gap-2 h-12 px-6 font-semibold hover:border-primary/50">
+                      <Sparkles size={17} />
+                      Share a Pick
+                    </Button>
+                  </Link>
+                )}
+              </div>
+
+              {/* Stats */}
+              <div className="flex flex-wrap gap-5 pt-2 justify-center md:justify-start">
+                {[
+                  { label: 'Members',       value: totalMembers, icon: Users,          color: 'text-violet-500', bg: 'bg-violet-500/10' },
+                  { label: 'Comics Shared', value: totalComics,  icon: BookOpen,       color: 'text-rose-500',   bg: 'bg-rose-500/10'   },
+                  { label: 'Reviews',       value: totalReviews, icon: MessageSquare,  color: 'text-amber-500',  bg: 'bg-amber-500/10'  },
+                ].map(({ label, value, icon: Icon, color, bg }) => (
+                  <div key={label} className="flex items-center gap-2 text-sm">
+                    <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center ${color}`}>
+                      <Icon size={14} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-foreground tabular-nums leading-tight">
+                        {value > 0 ? <AnimatedCounter target={value} suffix="+" /> : 'Growing'}
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-tight">{label}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right — Featured comic spotlight */}
+            {spotlight && (
+              <div className="hidden md:flex justify-center items-center">
+                <Link href={`/comic/${spotlight.id}`} className="group relative">
+                  {/* Glow behind card */}
+                  <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-primary/20 to-violet-500/20 blur-2xl opacity-60 group-hover:opacity-80 transition-opacity" />
+
+                  <div className="relative w-64 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+                    {spotlight.cover_url ? (
+                      <img
+                        src={spotlight.cover_url}
+                        alt={spotlight.title}
+                        className="w-full aspect-[3/4] object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[3/4] bg-muted flex items-center justify-center">
+                        <BookOpen size={40} className="text-muted-foreground opacity-30" />
+                      </div>
+                    )}
+
+                    {/* Overlay info */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-5 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${spotlightTypeStyle}`}>
+                          {spotlight.type}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 font-bold">
+                          <Star size={9} className="fill-amber-400" />
+                          Featured
+                        </span>
+                      </div>
+                      <p className="text-white font-black text-lg leading-tight line-clamp-2">
+                        {spotlight.title}
+                      </p>
+                      <div className="flex items-center gap-3 text-white/60 text-xs">
+                        <span className="flex items-center gap-1">
+                          <ThumbsUp size={10} />
+                          {spotlight.upvotes}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Bookmark size={10} />
+                          {spotlight.save_count}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Featured badge top */}
+                    <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-[10px] font-black text-white border border-white/10">
+                      ✨ Top Pick
+                    </div>
+                  </div>
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Scroll indicator */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 text-muted-foreground/30 text-[10px] tracking-widest uppercase pointer-events-none">
+          <span>scroll</span>
+          <div className="w-px h-8 bg-gradient-to-b from-muted-foreground/20 to-transparent" />
+        </div>
+      </section>
+
+      {/* ── SOCIAL PROOF TICKER ──────────────────────────────────── */}
+{activity.length > 0 && (
+  <LiveTicker
+    items={activity.map((rec: any) => ({
+      title: rec.title,
+      type: rec.type,
+      username: rec.profiles?.username ?? 'someone',
+    }))}
+  />
+)}
+
+      {/* ── PLATFORM TRUST BAR ───────────────────────────────────── */}
+      <section className="border-b border-border bg-muted/10">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <p className="text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">
+            Comics from official platforms including
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6">
+            {PLATFORMS.map((p) => (
+              <div
+                key={p.name}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card text-xs font-bold text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: p.color }}
+                />
+                {p.name}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── GENRE MOOD PILLS ──────────────────────────────────────── */}
+      <section className="border-b border-border bg-muted/20">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <p className="text-center text-xs font-bold uppercase tracking-widest text-muted-foreground mb-5">
+            Browse by mood
+          </p>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {GENRES.map((g) => (
+              <Link key={g.label} href={g.href}>
+                <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-border bg-background hover:bg-primary/8 hover:border-primary/40 hover:text-primary hover:scale-105 text-sm text-muted-foreground transition-all duration-150 cursor-pointer select-none font-medium">
+                  <span className="text-base leading-none">{g.emoji}</span>
+                  {g.label}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── TRENDING COMICS ──────────────────────────────────────── */}
+      {topComics.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 py-16 space-y-6 w-full">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🔥</span>
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">Trending Now</h2>
+                <div className="h-0.5 w-10 rounded-full bg-rose-500 mt-1" />
+              </div>
+            </div>
+            <Link href="/browse?sort=score">
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground">
+                View all <ChevronRight size={14} />
+              </Button>
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {topComics.map((rec) => (
+              <ComicCard key={rec.id} recommendation={rec} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── HOW IT WORKS ─────────────────────────────────────────── */}
+      <section className="relative overflow-hidden border-y border-border bg-muted/20">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-violet-500/5 blur-3xl" />
+          <div className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full bg-rose-500/5 blur-3xl" />
+        </div>
+
+        <div className="relative max-w-7xl mx-auto px-4 py-16 space-y-12">
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest">
+              <Sparkles size={11} />
+              How it works
+            </div>
+            <h2 className="text-3xl font-black tracking-tight">Simple as Sunday morning</h2>
+            <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+              No algorithms. Just real readers sharing what they love.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                step: '01',
+                icon: BookOpen,
+                title: 'Submit a Recommendation',
+                desc: 'Share a manga, manhwa, or webtoon you love. Add genres, a cover, and tell us why others need to read it.',
+                gradient: 'from-violet-500 to-purple-600',
+                glow: 'group-hover:shadow-violet-500/20',
+              },
+              {
+                step: '02',
+                icon: TrendingUp,
+                title: 'Community Votes',
+                desc: 'The community upvotes great picks. The best ones rise to the top and land on the featured carousel.',
+                gradient: 'from-primary to-blue-600',
+                glow: 'group-hover:shadow-primary/20',
+              },
+              {
+                step: '03',
+                icon: Heart,
+                title: 'Discover & Save',
+                desc: 'Find your next obsession through community picks. Leave reviews, save favourites, track your reading list.',
+                gradient: 'from-rose-500 to-pink-600',
+                glow: 'group-hover:shadow-rose-500/20',
+              },
+            ].map(({ step, icon: Icon, title, desc, gradient, glow }) => (
+              <div key={step} className={`group relative p-7 rounded-3xl bg-card border border-border space-y-4 hover:border-transparent hover:shadow-2xl ${glow} transition-all duration-300`}>
+                <span className="absolute top-5 right-6 text-5xl font-black text-muted-foreground/8 group-hover:text-muted-foreground/12 transition-colors select-none">
+                  {step}
+                </span>
+                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
+                  <Icon size={21} className="text-white" />
+                </div>
+                <h3 className="font-black text-lg leading-snug">{title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── LATEST NEWS ──────────────────────────────────────────── */}
+      {latestNews.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 py-16 space-y-6 w-full">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">📰</span>
+              <div>
+                <h2 className="text-2xl font-black tracking-tight">Latest News</h2>
+                <div className="h-0.5 w-10 rounded-full bg-primary mt-1" />
+              </div>
+            </div>
+            <Link href="/news">
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground">
+                All news <ChevronRight size={14} />
+              </Button>
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {latestNews.map((item) => (
+              <NewsCard key={item.id} news={item} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── CTA BANNER ───────────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 py-16 w-full">
+        <div className="relative overflow-hidden rounded-3xl p-8 md:p-14 bg-zinc-950 dark:bg-zinc-900 border border-white/5">
+          <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-violet-500/20 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-20 -left-10 w-80 h-80 rounded-full bg-rose-500/15 blur-3xl pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
+
+          <div className="relative max-w-2xl space-y-6">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 text-white text-sm font-semibold border border-white/10">
+              <Star size={13} className="fill-amber-400 text-amber-400" />
+              Got a hidden gem?
+            </div>
+
+            <h2 className="text-3xl md:text-4xl font-black text-white leading-tight tracking-tight">
+              Help others find their<br className="hidden md:block" />
+              <span className="bg-gradient-to-r from-violet-400 to-rose-400 bg-clip-text text-transparent"> next favourite read.</span>
+            </h2>
+
+            <p className="text-white/60 leading-relaxed text-base max-w-lg">
+              Share your favourite manga, manhwa, or webtoon with thousands of readers. Every good rec helps someone fall in love with a new story.
+            </p>
+
+            <div className="flex flex-wrap gap-3 pt-1">
+              <Link href={user ? '/dashboard/recommendations/new' : '/signup'}>
+                <Button size="lg" className="gap-2 h-12 bg-gradient-to-r from-violet-500 to-rose-500 hover:from-violet-400 hover:to-rose-400 text-white font-bold shadow-xl border-0">
+                  <BookOpen size={15} />
+                  {user ? 'Submit a Recommendation' : "Join Compicfy — it's free"}
+                </Button>
+              </Link>
+              <Link href="/browse">
+                <Button size="lg" className="gap-2 h-12 bg-white/8 text-white hover:bg-white/15 border border-white/15 font-semibold">
+                  Browse First
+                  <ArrowRight size={15} />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  )
+}import { createClient } from '@/lib/supabase/server'
+import { Suspense } from 'react'
+import { FilterBar } from '@/components/recommendations/FilterBar'
+import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
+import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
+import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
+import { BookOpen, Compass, Plus } from 'lucide-react'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import type { Recommendation } from '@/types/database.types'
+
+interface SearchParams {
+  q?: string
+  type?: string
+  genre?: string
+  status?: string
+  sort?: string
+}
+
+interface Props {
+  searchParams: Promise<SearchParams>
+}
+
+const PAGE_SIZE = 24
+
+async function getFeatured() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('daily_votes', { ascending: false }).limit(8)
+  return (data as Recommendation[]) ?? []
+}
+async function getTrending() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('daily_votes', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+async function getRecent() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('created_at', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+async function getAdminPicks() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).not('content_rating', 'in', '("adult","mature")').order('featured_at', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+async function getCommunityFavourites() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+async function getHiddenGems() {
+  const s = await createClient()
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('save_count', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+async function getYouMightLike(userId: string | null) {
+  const s = await createClient()
+  const { data } = await (s as any).rpc('get_personalized_recommendations', { p_user_id: userId, p_exclude_id: null, p_limit: 12, p_content_ratings: ['all_ages', 'teen'] })
+  return (data as Recommendation[]) ?? []
+}
+
+async function getInitialGrid(params: SearchParams) {
+  const supabase = await createClient()
+
+  const { data } = await (supabase as any).rpc('search_recommendations', {
+    p_query:  params.q      || null,
+    p_type:   params.type   || null,
+    p_genre:  params.genre  || null,
+    p_status: params.status || null,
+    p_sort:   params.sort   ?? 'score',
+    p_adult:  false,
+    p_limit:  PAGE_SIZE,
+    p_offset: 0,
+  })
+
+  const { count } = await supabase
+    .from('recommendations')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_approved', true)
+    .not('content_rating', 'in', '("adult","mature")')
+
+  return {
+    items: (data as Recommendation[]) ?? [],
+    total: count ?? 0,
+  }
+}
+
+function hasActiveFilters(p: SearchParams) {
+  return !!(p.q || p.type || p.genre || p.status || p.sort)
+}
+
+export default async function BrowsePage({ searchParams }: Props) {
+  const params = await searchParams
+  const isFiltering = hasActiveFilters(params)
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let adultEnabled = false
+  if (user) {
+    const { data: profile } = await supabase.from('profiles').select('adult_content_enabled').eq('id', user.id).single()
+    adultEnabled = (profile as any)?.adult_content_enabled === true
+  }
+
+  const [featured, trending, recent, adminPicks, communityFavs, hiddenGems, youMightLike, { items, total }] =
+    await Promise.all([
+      isFiltering ? Promise.resolve([]) : getFeatured(),
+      isFiltering ? Promise.resolve([]) : getTrending(),
+      isFiltering ? Promise.resolve([]) : getRecent(),
+      isFiltering ? Promise.resolve([]) : getAdminPicks(),
+      isFiltering ? Promise.resolve([]) : getCommunityFavourites(),
+      isFiltering ? Promise.resolve([]) : getHiddenGems(),
+      isFiltering ? Promise.resolve([]) : getYouMightLike(user?.id ?? null),
+      getInitialGrid(params),
+    ])
+
+  const clientParams: Record<string, string> = { adult: 'false' }
+  if (params.q)      clientParams.q      = params.q
+  if (params.type)   clientParams.type   = params.type
+  if (params.genre)  clientParams.genre  = params.genre
+  if (params.status) clientParams.status = params.status
+  if (params.sort)   clientParams.sort   = params.sort
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
+            <Compass size={17} className="text-white" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-3xl font-black tracking-tight leading-tight">Browse Comics</h1>
+            <p className="text-muted-foreground text-xs leading-snug mt-0.5 hidden sm:block">
+              Community recommendations · manga, manhwa, manhua &amp; webtoons
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {adultEnabled && (
+            <Link href="/browse/adult">
+              <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 h-8 px-2.5">
+                🔞
+              </Button>
+            </Link>
+          )}
+          <Link href="/dashboard/recommendations/new">
+            <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 h-8 px-3">
+              <Plus size={14} />
+              <span className="hidden sm:inline">Add Comic</span>
+              <span className="sm:hidden text-xs font-semibold">Add</span>
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Featured Carousel ── */}
+      {!isFiltering && featured.length > 0 && (
+        <Suspense fallback={<div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />}>
+          <FeaturedCarousel recommendations={featured} />
+        </Suspense>
+      )}
+
+      {/* ── Horizontal Sections ── */}
+      {!isFiltering && (
+        <div className="space-y-10">
+          <HorizontalSection title="Trending Today"       emoji="🔥" recommendations={trending}      viewAllHref="/browse?sort=trending" />
+          <HorizontalSection title="Recently Added"       emoji="✨" recommendations={recent}        viewAllHref="/browse?sort=recent"   />
+          {adminPicks.length > 0 && <HorizontalSection title="Admin Picks" emoji="👑" recommendations={adminPicks} />}
+          <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse?sort=score"    />
+          {hiddenGems.length > 0 && <HorizontalSection title="Hidden Gems" emoji="💎" recommendations={hiddenGems} />}
+          {youMightLike.length > 0 && (
+            <HorizontalSection title={user ? 'You Might Like' : 'Popular Picks'} emoji="🎯" recommendations={youMightLike} />
+          )}
+        </div>
+      )}
+
+      {/* ── All Comics divider ── */}
+      {!isFiltering && (
+        <div className="relative flex items-center gap-4 py-2">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
+          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card shrink-0">
+            <BookOpen size={13} className="text-muted-foreground" />
+            <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">All Comics</span>
+          </div>
+          <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />
+        </div>
+      )}
+
+      {/* ── Filter Bar ── */}
+      <Suspense fallback={<div className="h-24 bg-muted/30 rounded-xl animate-pulse" />}>
+        <FilterBar adult={false} />
+      </Suspense>
+
+      {/* ── Comic Grid ── */}
+      <ComicGridClient
+        initialItems={items}
+        initialTotal={total}
+        searchParams={clientParams}
+        apiPath="/api/recommendations"
+      />
+    </div>
+  )
+}import { createClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
+import { Badge } from '@/components/ui/badge'
+import { ReviewSection } from '@/components/recommendations/ReviewSection'
+import { AddToListButton } from '@/components/recommendations/AddToListButton'
+import { SimilarComics } from '@/components/recommendations/SimilarComics'
+import {
+  BookOpen, Calendar, Hash, User, Palette,
+  Globe, ExternalLink, ArrowLeft, ShieldAlert,
+  Star, ThumbsUp, Bookmark, MessageSquare, PenLine,
+} from 'lucide-react'
+import Link from 'next/link'
+import { formatDate } from '@/lib/utils/format'
+import { VoteButtons } from '@/components/recommendations/VoteButtons'
+import { SaveButton } from '@/components/recommendations/SaveButton'
+import { ShareButton } from '@/components/recommendations/ShareButton'
+import type { Metadata } from 'next'
+import type { Recommendation } from '@/types/database.types'
+import { Button } from '@/components/ui/button'
+
+// NEW IMPORT: Affiliate Components and Suspense
+import { Suspense } from 'react'
+import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
+
+interface Props {
+  params: Promise<{ id: string }>
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('recommendations')
+    .select('title, description, type, genres, author, cover_url, status')
+    .eq('id', id)
+    .single()
+
+  const rec = data as Pick<
+    Recommendation,
+    'title' | 'description' | 'type' | 'genres' | 'author' | 'cover_url' | 'status'
+  > | null
+  if (!rec) return { title: 'Comic | Compicfy' }
+
+  const typeLabel = rec.type
+    ? rec.type.charAt(0).toUpperCase() + rec.type.slice(1)
+    : 'Comic'
+
+  const genreList = rec.genres?.slice(0, 3).join(', ') ?? ''
+
+  // Title optimised for search — e.g. "Solo Leveling Manhwa | Compicfy"
+  const title = `${rec.title} ${typeLabel} | Compicfy`
+
+  // Description targets "where to read", "review" search intent
+  const descParts = [
+    `${rec.title} is a ${typeLabel.toLowerCase()}`,
+    rec.author ? `by ${rec.author}` : null,
+    genreList ? `in the genres ${genreList}` : null,
+    rec.status ? `— currently ${rec.status}` : null,
+    rec.description
+      ? `. ${rec.description.slice(0, 100)}`
+      : '. Discover where to read it and what the community thinks.',
+  ].filter(Boolean).join(' ')
+
+  const description = descParts.slice(0, 160)
+
+  // Keywords target high-intent searches
+  const keywords = [
+    rec.title,
+    `${rec.title} ${rec.type}`,
+    `${rec.title} review`,
+    `${rec.title} where to read`,
+    `${rec.title} recommendation`,
+    ...(rec.genres ?? []),
+    rec.author ?? '',
+    typeLabel,
+    'manga recommendation',
+    'manhwa recommendation',
+    'webtoon recommendation',
+  ].filter(Boolean)
+
+  return {
+    title,
+    description,
+    keywords,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      url: `https://compicfy.cloud/comic/${id}`,
+      images: rec.cover_url
+        ? [
+            {
+              url: rec.cover_url,
+              width: 400,
+              height: 600,
+              alt: `${rec.title} cover`,
+            },
+          ]
+        : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: rec.cover_url ? [rec.cover_url] : [],
+    },
+    alternates: {
+      canonical: `https://compicfy.cloud/comic/${id}`,
+    },
+  }
+}
+
+const TYPE_STYLES: Record<string, { gradient: string; badge: string; glow: string; border: string }> = {
+  manga:   { gradient: 'from-rose-500   to-pink-600',    badge: 'bg-rose-500/15   text-rose-500   border-rose-500/25',   glow: 'bg-rose-500/20',   border: 'border-rose-500/30'   },
+  manhwa:  { gradient: 'from-violet-500 to-purple-600',  badge: 'bg-violet-500/15 text-violet-500 border-violet-500/25', glow: 'bg-violet-500/20', border: 'border-violet-500/30' },
+  manhua:  { gradient: 'from-amber-500  to-orange-500',  badge: 'bg-amber-500/15  text-amber-500  border-amber-500/25',  glow: 'bg-amber-500/20',  border: 'border-amber-500/30'  },
+  webtoon: { gradient: 'from-teal-500   to-cyan-600',    badge: 'bg-teal-500/15   text-teal-500   border-teal-500/25',   glow: 'bg-teal-500/20',   border: 'border-teal-500/30'   },
+  comic:   { gradient: 'from-blue-500   to-indigo-600',  badge: 'bg-blue-500/15   text-blue-500   border-blue-500/25',   glow: 'bg-blue-500/20',   border: 'border-blue-500/30'   },
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  ongoing:   'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+  completed: 'bg-blue-500/10   text-blue-600    dark:text-blue-400    border-blue-500/20',
+  hiatus:    'bg-amber-500/10  text-amber-600   dark:text-amber-400   border-amber-500/20',
+  cancelled: 'bg-red-500/10    text-red-600     dark:text-red-400     border-red-500/20',
+}
+
+export default async function ComicDetailPage({ params }: Props) {
+  const { id } = await params
+  const supabase = await createClient()
+
+  await (supabase as any).rpc('increment_view_count', { rec_id: id })
+
+  const { data: rawRec } = await supabase
+    .from('recommendations')
+    .select('*')
+    .eq('id', id)
+    .eq('is_approved', true)
+    .single()
+
+  if (!rawRec) notFound()
+  const rec = rawRec as Recommendation
+
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (rec.content_rating === 'adult' || rec.content_rating === 'mature') {
+    if (!user) {
+      return (
+        <div className="max-w-md mx-auto px-4 py-24 text-center space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
+            <ShieldAlert size={32} className="text-destructive" />
+          </div>
+          <h1 className="text-2xl font-black">Age Restricted</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            This comic contains {rec.content_rating === 'adult' ? '18+' : '17+'} content. Log in and enable adult content in settings to view it.
+          </p>
+          <div className="flex justify-center gap-3">
+            <Link href="/browse"><Button variant="outline">Back to Browse</Button></Link>
+            <Link href="/login"><Button>Log In</Button></Link>
+          </div>
+        </div>
+      )
+    }
+    const { data: profileFlag } = await supabase.from('profiles').select('adult_content_enabled').eq('id', user.id).single()
+    if (!(profileFlag as any)?.adult_content_enabled) {
+      return (
+        <div className="max-w-md mx-auto px-4 py-24 text-center space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
+            <ShieldAlert size={32} className="text-destructive" />
+          </div>
+          <h1 className="text-2xl font-black">Adult Content Disabled</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed">Enable adult content in your profile settings to view this comic.</p>
+          <div className="flex justify-center gap-3">
+            <Link href="/browse"><Button variant="outline">Back to Browse</Button></Link>
+            <Link href="/dashboard/settings"><Button>Go to Settings</Button></Link>
+          </div>
+        </div>
+      )
+    }
+  }
+
+  const { data: profileData } = await supabase
+    .from('profiles').select('username, display_name, avatar_url').eq('id', rec.user_id).maybeSingle()
+  const profile = profileData as { username: string; display_name: string; avatar_url: string | null } | null
+
+  let userVote: 'up' | 'down' | null = null
+  let isSaved = false
+  if (user) {
+    const [voteRes, saveRes] = await Promise.all([
+      (supabase as any).from('votes').select('vote_type').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle(),
+      (supabase as any).from('saves').select('id').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle(),
+    ])
+    userVote = (voteRes.data?.vote_type as 'up' | 'down') ?? null
+    isSaved  = !!saveRes.data
+  }
+
+  const typeStyle = TYPE_STYLES[rec.type] ?? {
+    gradient: 'from-primary to-violet-500',
+    badge: 'bg-primary/15 text-primary border-primary/25',
+    glow: 'bg-primary/20',
+    border: 'border-primary/30',
+  }
+
+  return (
+    <div className="min-h-screen">
+
+      {/* ── CINEMATIC HERO ── */}
+      <div className="relative h-56 md:h-72 overflow-hidden">
+        {rec.cover_url && (
+          <img
+            src={rec.cover_url}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-25 dark:opacity-20"
+            aria-hidden
+          />
+        )}
+        <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-15 dark:opacity-25`} />
+        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
+        <div className="absolute top-4 left-4 z-10">
+          <Link
+            href="/browse"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={13} />
+            Browse
+          </Link>
+        </div>
+      </div>
+
+      {/* ── CONTENT ── */}
+      <div className="max-w-5xl mx-auto px-4 -mt-28 md:-mt-40 relative z-10 pb-20">
+        <div className="flex flex-col md:flex-row gap-8">
+
+          {/* ── LEFT: Cover + actions ── */}
+          <div className="flex flex-col gap-3 md:w-52 shrink-0">
+
+            {/* Cover with glow */}
+            <div className="relative">
+              <div className={`absolute -inset-3 rounded-3xl ${typeStyle.glow} blur-2xl opacity-60`} />
+              <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted border border-border shadow-2xl">
+                {rec.cover_url ? (
+                  <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <BookOpen size={40} className="text-muted-foreground opacity-40" />
+                  </div>
+                )}
+                <div className="absolute top-2 left-2">
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize backdrop-blur-sm ${typeStyle.badge}`}>
+                    {rec.type}
+                  </span>
+                </div>
+                {rec.is_featured && (
+                  <div className="absolute top-2 right-2">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/30 backdrop-blur-sm">
+                      <Star size={8} className="fill-amber-500" />
+                      Featured
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <VoteButtons
+              recommendationId={id}
+              initialUpvotes={rec.upvotes}
+              initialDownvotes={rec.downvotes}
+              initialVote={userVote}
+              isLoggedIn={!!user}
+            />
+            <SaveButton recommendationId={id} initialSaved={isSaved} isLoggedIn={!!user} />
+            {user && <AddToListButton recommendationId={id} userId={user.id} />}
+
+            {/* Recommend button */}
+<Link href={`/dashboard/recommendations/new?title=${encodeURIComponent(rec.title)}`}>
+  <Button
+    variant="outline"
+    size="sm"
+    className="gap-2 w-full hover:border-primary/40 hover:text-primary transition-colors"
+  >
+    <PenLine size={14} />
+    Recommend This
+  </Button>
+</Link>
+
+            {/* Share button */}
+<ShareButton
+  title={rec.title}
+  url={`https://compicfy.cloud/comic/${id}`}
+/>
+
+            {/* Platforms */}
+            {rec.official_platforms && rec.official_platforms.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Read On</p>
+                {rec.official_platforms.map((platform: string, i: number) => (
+                  <div key={platform} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card text-xs hover:border-primary/40 transition-colors">
+                    <Globe size={11} className="text-muted-foreground shrink-0" />
+                    <span className="truncate flex-1">{platform}</span>
+                    {rec.official_links?.[i] && (
+                      <a href={rec.official_links[i]} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                        <ExternalLink size={11} className="text-muted-foreground hover:text-primary transition-colors" />
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── RIGHT: Details ── */}
+          <div className="flex-1 min-w-0 space-y-6 pt-2 md:pt-20">
+
+            {/* Header */}
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
+                  {rec.status}
+                </span>
+                <span className="text-xs text-muted-foreground border border-border rounded-full px-2.5 py-1 capitalize">
+                  {rec.content_rating?.replace('_', ' ')}
+                </span>
+              </div>
+
+              <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-tight">{rec.title}</h1>
+
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+                {rec.author && <span className="flex items-center gap-1.5"><User size={13} />{rec.author}</span>}
+                {rec.artist && rec.artist !== rec.author && <span className="flex items-center gap-1.5"><Palette size={13} />{rec.artist}</span>}
+                {rec.year_released && <span className="flex items-center gap-1.5"><Calendar size={13} />{rec.year_released}</span>}
+                {rec.chapter_count && <span className="flex items-center gap-1.5"><Hash size={13} />{rec.chapter_count} ch.</span>}
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {rec.genres?.map((genre: string) => (
+                  <Link key={genre} href={`/browse?genre=${genre}`}>
+                    <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-muted border border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-colors cursor-pointer">
+                      {genre}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { icon: ThumbsUp,      label: 'Upvotes', value: rec.upvotes,      color: 'text-emerald-500', bg: 'bg-emerald-500/8' },
+                { icon: Star,          label: 'Reviews', value: rec.review_count, color: 'text-amber-500',   bg: 'bg-amber-500/8'  },
+                { icon: Bookmark,      label: 'Saves',   value: rec.save_count,   color: 'text-blue-500',    bg: 'bg-blue-500/8'   },
+                { icon: MessageSquare, label: 'Score',   value: rec.score,        color: 'text-violet-500',  bg: 'bg-violet-500/8' },
+              ].map(({ icon: Icon, label, value, color, bg }) => (
+                <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-2xl ${bg} border border-border`}>
+                  <Icon size={14} className={color} />
+                  <p className="text-lg font-black tabular-nums leading-none">{value ?? 0}</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* About */}
+            <div className="space-y-2">
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">About</h2>
+              <p className="text-sm leading-relaxed text-foreground/80">{rec.description}</p>
+            </div>
+
+            {/* Why recommend */}
+            {rec.why_recommend && (
+              <div className="space-y-2">
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Why Read This?</h2>
+                <div className={`relative pl-5 pr-4 py-4 rounded-2xl border ${typeStyle.border} bg-card`}>
+                  <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-full bg-gradient-to-b ${typeStyle.gradient}`} />
+                  <p className="text-sm leading-relaxed italic text-muted-foreground">"{rec.why_recommend}"</p>
+                </div>
+              </div>
+            )}
+
+            {/* Submitted by */}
+            <div className="flex items-center justify-between py-3 border-t border-border text-xs text-muted-foreground">
+              <span>
+                Recommended by{' '}
+                <Link href={`/profile/${profile?.username}`} className="text-foreground hover:text-primary font-semibold transition-colors">
+                  @{profile?.display_name || profile?.username || 'unknown'}
+                </Link>
+              </span>
+              <span>{formatDate(rec.created_at)}</span>
+            </div>
+
+            {/* Reviews */}
+            <div className="space-y-3">
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reviews</h2>
+              <ReviewSection recommendationId={id} currentUserId={user?.id ?? null} isLoggedIn={!!user} />
+            </div>
+
+            {/* ── NEW: AFFILIATE MERCHANDISE SECTION ── */}
+            <Suspense fallback={<div className="h-40 bg-muted/30 animate-pulse rounded-2xl border border-border mt-6" />}>
+              <ContextualOffers 
+                comicId={id} 
+                comicTitle={rec.title} 
+                genre={rec.genres?.[0] || 'Action'} // Passes primary genre or defaults to Action
+              />
+            </Suspense>
+
+            {/* Similar */}
+            <div className="space-y-3 pt-2">
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">You Might Also Like</h2>
+              <SimilarComics comicId={id} contentRating={rec.content_rating} />
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}import { createClient } from '@/lib/supabase/server'
+import { Suspense } from 'react'
+import { NewsCarousel } from '@/components/news/NewsCarousel'
+import { NewsCard } from '@/components/news/NewsCard'
+import { NewsFilters } from '@/components/news/NewsFilters'
+import { Newspaper } from 'lucide-react'
+import type { News } from '@/types/database.types'
+
+interface Props {
+  searchParams: Promise<{
+    category?: string
+    q?: string
+    page?: string
+  }>
+}
+
+async function NewsGrid({ searchParams }: Props) {
+  const params = await searchParams
+  const supabase = await createClient()
+
+  const page = parseInt(params.page ?? '1')
+  const limit = 12
+  const offset = (page - 1) * limit
+
+  let query = supabase
+    .from('news')
+    .select('*', { count: 'exact' })
+    .eq('is_published', true)
+    .order('published_at', { ascending: false })
+
+  if (params.category) query = query.eq('category', params.category)
+  if (params.q)        query = query.ilike('title', `%${params.q}%`)
+
+  query = query.range(offset, offset + limit - 1)
+
+  const { data, count } = await query
+  const news = (data as News[]) ?? []
+  const totalPages = Math.ceil((count ?? 0) / limit)
+
+  if (!news.length) {
+    return (
+      <div className="text-center py-20">
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+          <Newspaper size={28} className="text-muted-foreground opacity-40" />
+        </div>
+        <p className="font-black text-lg">No news found</p>
+        <p className="text-sm text-muted-foreground mt-1">Check back soon for updates!</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        {count} article{count !== 1 ? 's' : ''}
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {news.map((item) => (
+          <NewsCard key={item.id} news={item} />
+        ))}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 pt-4">
+          {page > 1 && (
+            <a
+              href={`/news?page=${page - 1}`}
+              className="px-4 py-2 rounded-xl border border-border bg-card text-sm font-semibold hover:border-primary/50 transition-colors"
+            >
+              ← Previous
+            </a>
+          )}
+          <span className="text-sm text-muted-foreground font-medium">Page {page} of {totalPages}</span>
+          {page < totalPages && (
+            <a
+              href={`/news?page=${page + 1}`}
+              className="px-4 py-2 rounded-xl border border-border bg-card text-sm font-semibold hover:border-primary/50 transition-colors"
+            >
+              Next →
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default async function NewsPage({ searchParams }: Props) {
+  const supabase = await createClient()
+
+  const { data: featuredNews } = await supabase
+    .from('news')
+    .select('*')
+    .eq('is_published', true)
+    .order('view_count', { ascending: false })
+    .limit(5)
+
+  const featured = (featuredNews as News[]) ?? []
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
+
+      {/* ── PAGE HEADER ── */}
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center shadow-lg shadow-rose-500/20">
+              <Newspaper size={17} className="text-white" />
+            </div>
+            <h1 className="text-3xl font-black tracking-tight">News</h1>
+          </div>
+          <p className="text-muted-foreground text-sm pl-0.5">
+            Latest updates from the manga &amp; comics world
+          </p>
+        </div>
+      </div>
+
+      {/* Featured carousel */}
+      {featured.length > 0 && (
+        <Suspense fallback={<div className="aspect-[16/9] max-h-96 rounded-2xl bg-muted animate-pulse" />}>
+          <NewsCarousel news={featured} />
+        </Suspense>
+      )}
+
+      {/* Divider */}
+      <div className="relative flex items-center gap-4 py-1">
+        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card shrink-0">
+          <Newspaper size={12} className="text-muted-foreground" />
+          <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">All Articles</span>
+        </div>
+        <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />
+      </div>
+
+      {/* Filters */}
+      <Suspense fallback={<div className="h-20 bg-muted/30 rounded-xl animate-pulse" />}>
+        <NewsFilters />
+      </Suspense>
+
+      {/* Grid */}
+      <Suspense
+        fallback={
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="aspect-[4/3] rounded-2xl bg-muted animate-pulse" />
+            ))}
+          </div>
+        }
+      >
+        <NewsGrid searchParams={searchParams} />
+      </Suspense>
+    </div>
+  )
+}import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
+import { Button } from '@/components/ui/button'
+import {
+  BookOpen, Bookmark, Star, ThumbsUp,
+  Plus, Settings, Flame, Trophy, ArrowRight,
+  BookMarked, ChevronRight, Rss, Users,
+} from 'lucide-react'
+import Link from 'next/link'
+import { formatDate, timeAgo } from '@/lib/utils/format'
+import type { Profile } from '@/types/database.types'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Dashboard' }
+
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
+  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+}
+
+export default async function DashboardPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single()
+
+  if (!profileData) redirect('/login')
+  const profile = profileData as Profile
+
+  // Get following IDs first
+  const { data: followData } = await supabase
+    .from('follows')
+    .select('following_id')
+    .eq('follower_id', user.id)
+
+  const followingIds = (followData ?? []).map((f: any) => f.following_id)
+
+  const [
+    { count: listsCount },
+    { count: savedCount },
+    { count: followingCount },
+    { data: currentlyReading },
+    { data: feedItems },
+  ] = await Promise.all([
+    supabase
+      .from('reading_lists')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id),
+    supabase
+      .from('saves')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id),
+    supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', user.id),
+    supabase
+      .from('reading_list_items')
+      .select('*, reading_lists!inner(user_id), recommendations(id, title, cover_url, type, status)')
+      .eq('reading_lists.user_id', user.id)
+      .eq('status', 'reading')
+      .order('added_at', { ascending: false })
+      .limit(6),
+    followingIds.length > 0
+      ? supabase
+          .from('recommendations')
+          .select('id, title, cover_url, type, created_at, user_id, profiles(username, display_name, avatar_url)')
+          .in('user_id', followingIds)
+          .eq('is_approved', true)
+          .not('content_rating', 'in', '("adult","mature")')
+          .order('created_at', { ascending: false })
+          .limit(4)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const initials = (profile.display_name || profile.username)
+    .slice(0, 2).toUpperCase()
+
+  const stats = [
+    {
+      label: 'Recommendations',
+      value: profile.total_recommendations ?? 0,
+      icon: BookOpen,
+      href: '/dashboard/recommendations',
+      gradient: 'from-violet-500 to-purple-600',
+      bg: 'bg-violet-500/10',
+      text: 'text-violet-500',
+    },
+    {
+      label: 'Saved Comics',
+      value: savedCount ?? 0,
+      icon: Bookmark,
+      href: '/dashboard/saved',
+      gradient: 'from-rose-500 to-pink-500',
+      bg: 'bg-rose-500/10',
+      text: 'text-rose-500',
+    },
+    {
+      label: 'Reading Lists',
+      value: listsCount ?? 0,
+      icon: BookMarked,
+      href: '/dashboard/lists',
+      gradient: 'from-teal-500 to-cyan-500',
+      bg: 'bg-teal-500/10',
+      text: 'text-teal-500',
+    },
+    {
+      label: 'Following',
+      value: followingCount ?? 0,
+      icon: Users,
+      href: '/feed',
+      gradient: 'from-primary to-violet-500',
+      bg: 'bg-primary/10',
+      text: 'text-primary',
+    },
+  ]
+
+  const quickActions = [
+    {
+      href: '/dashboard/recommendations/new',
+      icon: Plus,
+      label: 'Submit a Recommendation',
+      desc: 'Share a comic with the community',
+      gradient: 'from-violet-500 to-purple-600',
+    },
+    {
+      href: '/feed',
+      icon: Rss,
+      label: 'Following Feed',
+      desc: 'Latest from people you follow',
+      gradient: 'from-primary to-violet-500',
+    },
+    {
+      href: '/dashboard/lists',
+      icon: BookMarked,
+      label: 'Reading Lists',
+      desc: 'Manage your reading collection',
+      gradient: 'from-teal-500 to-cyan-500',
+    },
+    {
+      href: '/browse',
+      icon: Flame,
+      label: 'Browse Comics',
+      desc: 'Discover new recommendations',
+      gradient: 'from-rose-500 to-pink-600',
+    },
+  ]
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+
+      {/* Hero welcome banner */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 md:p-8">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-primary/5 blur-2xl" />
+          <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-violet-500/5 blur-xl" />
+        </div>
+        <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
+          <div className="relative shrink-0">
+            <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-primary to-violet-500 opacity-30 blur-sm" />
+            <Avatar className="relative h-16 w-16 border-2 border-background">
+              <AvatarImage src={profile.avatar_url ?? undefined} />
+              <AvatarFallback className="text-xl bg-gradient-to-br from-primary to-violet-500 text-white font-bold">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-black truncate">
+              Hey, {profile.display_name || profile.username}! 👋
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Member since {formatDate(profile.member_since)} · Keep sharing great reads.
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Link href="/dashboard/settings">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Settings size={13} />
+                Settings
+              </Button>
+            </Link>
+            <Link href="/dashboard/recommendations/new">
+              <Button size="sm" className="gap-1.5">
+                <Plus size={13} />
+                Add Comic
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Profile completion banner */}
+<ProfileCompletionBanner
+  hasAvatar={!!profile.avatar_url}
+  hasBio={!!profile.bio}
+  hasWebsite={!!profile.website}
+/>
+
+      {/* Stats grid */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Your Stats</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {stats.map(({ label, value, icon: Icon, href, gradient, bg, text }) => (
+            <Link
+              key={label}
+              href={href}
+              className="group relative overflow-hidden p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200"
+            >
+              <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br ${gradient} opacity-[0.03]`} />
+              <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-3`}>
+                <Icon size={18} className={text} />
+              </div>
+              <p className="text-2xl font-black tabular-nums">{value}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{label}</p>
+              <ArrowRight size={12} className="absolute bottom-4 right-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 group-hover:translate-x-0.5 transition-all" />
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Currently Reading */}
+      {currentlyReading && currentlyReading.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              Currently Reading
+            </h2>
+            <Link href="/dashboard/lists" className="text-xs text-primary hover:underline flex items-center gap-1">
+              View all lists <ChevronRight size={12} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {currentlyReading.map((item: any) => {
+              const rec = item.recommendations
+              if (!rec) return null
+              const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
+              return (
+                <Link
+                  key={item.id}
+                  href={`/comic/${rec.id}`}
+                  className="group flex gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200"
+                >
+                  <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
+                    {rec.cover_url ? (
+                      <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={12} className="text-muted-foreground opacity-40" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
+                    <p className="text-xs font-black line-clamp-2 group-hover:text-primary transition-colors leading-tight">
+                      {rec.title}
+                    </p>
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border capitalize ${typeStyle}`}>
+                      {rec.type}
+                    </span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Following Feed preview */}
+      {feedItems && feedItems.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              From People You Follow
+            </h2>
+            <Link href="/feed" className="text-xs text-primary hover:underline flex items-center gap-1">
+              View all <ChevronRight size={12} />
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {feedItems.map((rec: any) => {
+              const p = rec.profiles
+              const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
+              const initials = (p?.display_name || p?.username || '?').slice(0, 2).toUpperCase()
+              return (
+                <Link
+                  key={rec.id}
+                  href={`/comic/${rec.id}`}
+                  className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/30 transition-colors"
+                >
+                  <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
+                    {rec.cover_url ? (
+                      <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={12} className="text-muted-foreground opacity-40" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black line-clamp-1 group-hover:text-primary transition-colors">
+                      {rec.title}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border capitalize ${typeStyle}`}>
+                        {rec.type}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        by @{p?.username} · {timeAgo(rec.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight size={13} className="text-muted-foreground/30 group-hover:text-muted-foreground shrink-0" />
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Quick actions */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {quickActions.map(({ href, icon: Icon, label, desc, gradient }) => (
+            <Link key={href} href={href}>
+              <div className="group flex items-center gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer">
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm group-hover:scale-110 transition-transform`}>
+                  <Icon size={17} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold group-hover:text-primary transition-colors">{label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{desc}</p>
+                </div>
+                <ArrowRight size={14} className="text-muted-foreground/30 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Achievement teaser */}
+      <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+        <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-amber-500/10 blur-xl pointer-events-none" />
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 flex items-center justify-center shrink-0">
+            <Trophy size={22} className="text-amber-500" />
+          </div>
+          <div className="flex-1">
+            <p className="font-bold text-sm">Achievements coming soon</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Earn badges for sharing great comics and helping the community grow
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  )
+}
