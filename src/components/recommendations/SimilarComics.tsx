@@ -14,23 +14,29 @@ export function SimilarComics({ comicId, contentRating }: Props) {
   const [comics, setComics] = useState<Recommendation[]>([])
   const [loading, setLoading] = useState(true)
 
+  // If the comic itself is adult/mature, we want similar adult content.
+  // If it's a regular comic, we exclude adult content.
+  const isAdultComic = contentRating === 'adult' || contentRating === 'mature'
+
   useEffect(() => {
     const fetchSimilar = async () => {
       try {
-        // Always exclude adult/mature from similar comics — adult content
-        // belongs exclusively on /browse/adult regardless of user toggle.
-        // We pass exclude_adult=true so the API never returns 18+ here.
         const res = await fetch(
-          `/api/recommendations/personalized?mode=similar&comic_id=${comicId}&limit=8&exclude_adult=true`
+          `/api/recommendations/personalized?mode=similar&comic_id=${comicId}&limit=8&exclude_adult=${!isAdultComic}`
         )
         const data = await res.json()
 
-        // Double-filter client-side as a safety net in case the API
-        // doesn't yet support exclude_adult param
-        const safe = (data.recommendations ?? []).filter(
-          (r: Recommendation) => r.content_rating !== 'adult' && r.content_rating !== 'mature'
-        )
-        setComics(safe)
+        const filtered = (data.recommendations ?? []).filter((r: Recommendation) => {
+          if (isAdultComic) {
+            // Adult comic — only show adult/mature similar comics
+            return r.content_rating === 'adult' || r.content_rating === 'mature'
+          } else {
+            // Regular comic — exclude adult/mature
+            return r.content_rating !== 'adult' && r.content_rating !== 'mature'
+          }
+        })
+
+        setComics(filtered)
       } catch {
         console.error('Failed to fetch similar comics')
       } finally {
@@ -38,7 +44,7 @@ export function SimilarComics({ comicId, contentRating }: Props) {
       }
     }
     fetchSimilar()
-  }, [comicId])
+  }, [comicId, isAdultComic])
 
   if (loading) {
     return (
