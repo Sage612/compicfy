@@ -84,14 +84,14 @@ export function FilterBar({ adult = false }: Props) {
   const hasActiveFilters = currentType || currentGenre || currentStatus || currentSearch
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
 
       {/* ── Row 1: Search + mobile filter trigger ── */}
       <div className="flex gap-2">
         <div className="relative flex-1" ref={searchRef}>
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
           <Input
-            placeholder="Search by title, author, genre, description…"
+            placeholder="Search by title, author, genre…"
             defaultValue={currentSearch}
             className="pl-9 h-10 bg-card border-border focus:border-primary transition-colors"
             onFocus={() => setShowDropdown(true)}
@@ -131,14 +131,14 @@ export function FilterBar({ adult = false }: Props) {
           )}
         </div>
 
-        {/* Mobile sheet */}
+        {/* Mobile sheet trigger */}
         <Sheet>
           <SheetTrigger asChild>
             <Button
               variant="outline"
               size="sm"
               className={cn(
-                'h-10 gap-1.5 md:hidden relative',
+                'h-10 gap-1.5 md:hidden relative shrink-0',
                 hasActiveFilters && 'border-primary text-primary bg-primary/5'
               )}
             >
@@ -169,7 +169,7 @@ export function FilterBar({ adult = false }: Props) {
             variant="ghost"
             size="sm"
             onClick={clearAll}
-            className="h-10 text-muted-foreground hover:text-foreground gap-1"
+            className="h-10 text-muted-foreground hover:text-foreground gap-1 shrink-0"
           >
             <X size={13} />
             <span className="hidden sm:inline">Clear all</span>
@@ -180,14 +180,14 @@ export function FilterBar({ adult = false }: Props) {
       {/* Search hint */}
       {currentSearch && (
         <p className="text-xs text-muted-foreground px-1">
-          Searching titles, authors, artists, genres and descriptions for
+          Searching for
           <span className="text-foreground font-semibold ml-1">"{currentSearch}"</span>
         </p>
       )}
 
       {/* ── Row 2: Sort pills ── */}
       <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider hidden sm:block shrink-0">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
           Sort
         </span>
         <div className="flex gap-1.5">
@@ -196,14 +196,14 @@ export function FilterBar({ adult = false }: Props) {
               key={value}
               onClick={() => updateParam('sort', value)}
               className={cn(
-                'flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all duration-150',
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all duration-150',
                 currentSort === value
                   ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
                   : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
               )}
             >
               <span>{label}</span>
-              <span className="hidden sm:inline">{full}</span>
+              <span className="hidden sm:inline text-xs">{full}</span>
             </button>
           ))}
         </div>
