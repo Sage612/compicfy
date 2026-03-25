@@ -180,16 +180,6 @@ export default async function AdminPage() {
           </Link>
         ))}
       </div>
-
-      {/* Role indicator for moderators */}
-      {!isAdmin && (
-        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
-          <p className="text-sm text-amber-600">
-            <strong>Moderator View:</strong> Some admin-only features are hidden. 
-            Contact an admin for elevated permissions.
-          </p>
-        </div>
-      )}
     </div>
   )
 }
