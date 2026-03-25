@@ -26,7 +26,8 @@ const adminOnlyItems = [
 ]
 
 const mobileShared = [
-  { href: '/admin',                 label: 'Overview', icon: LayoutDashboard, exact: true },
+  { href: '/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
+  { href: '/admin/analytics',        label: 'Analytics',       icon: BarChart3                 },
   { href: '/admin/recommendations', label: 'Recs',     icon: BookOpen                     },
   { href: '/admin/news',            label: 'News',     icon: Newspaper                    },
   { href: '/admin/reports',         label: 'Reports',  icon: Flag                         },
