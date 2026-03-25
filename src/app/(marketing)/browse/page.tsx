@@ -4,8 +4,7 @@ import { FilterBar } from '@/components/recommendations/FilterBar'
 import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
 import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
-import { PersonalizedGrid } from '@/components/recommendations/PersonalizedGrid' // Added missing import
-import { BookOpen, Search, Plus } from 'lucide-react'
+import { BookOpen, Compass, Plus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import type { Recommendation } from '@/types/database.types'
@@ -196,19 +195,12 @@ export default async function BrowsePage({ searchParams }: Props) {
       </Suspense>
 
       {/* ── Comic Grid ── */}
-      {user ? (
-        <PersonalizedGrid 
-          initialItems={items} 
-          adult={false} 
-        />
-      ) : (
-        <ComicGridClient
-          initialItems={items}
-          initialTotal={total}
-          searchParams={clientParams}
-          apiPath="/api/recommendations"
-        />
-      )}
+      <ComicGridClient
+        initialItems={items}
+        initialTotal={total}
+        searchParams={clientParams}
+        apiPath="/api/recommendations"
+      />
     </div>
   )
 }

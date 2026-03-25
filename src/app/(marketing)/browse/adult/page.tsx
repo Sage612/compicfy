@@ -4,7 +4,6 @@ import { FilterBar } from '@/components/recommendations/FilterBar'
 import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
 import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
-import { PersonalizedGrid } from '@/components/recommendations/PersonalizedGrid' // Added missing import
 import { ShieldAlert, BookOpen, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -214,10 +213,10 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         <div className="space-y-8">
           {trending.length > 0      && <HorizontalSection title="Trending Today"       emoji="🔥" recommendations={trending}      viewAllHref="/browse/adult?sort=trending" />}
           {recent.length > 0        && <HorizontalSection title="Recently Added"       emoji="✨" recommendations={recent}        viewAllHref="/browse/adult?sort=recent"   />}
-          {adminPicks.length > 0    && <HorizontalSection title="Admin Picks"          emoji="👑" recommendations={adminPicks}                                              />}
+          {adminPicks.length > 0    && <HorizontalSection title="Admin Picks"          emoji="👑" recommendations={adminPicks}                                               />}
           {communityFavs.length > 0 && <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse/adult?sort=score"    />}
-          {hiddenGems.length > 0    && <HorizontalSection title="Hidden Gems"          emoji="💎" recommendations={hiddenGems}                                              />}
-          {youMightLike.length > 0  && <HorizontalSection title="You Might Like"       emoji="🎯" recommendations={youMightLike}                                            />}
+          {hiddenGems.length > 0    && <HorizontalSection title="Hidden Gems"          emoji="💎" recommendations={hiddenGems}                                               />}
+          {youMightLike.length > 0  && <HorizontalSection title="You Might Like"       emoji="🎯" recommendations={youMightLike}                                             />}
         </div>
       )}
 
@@ -239,19 +238,12 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
       </Suspense>
 
       {/* ── Comic Grid ── */}
-      {user ? (
-        <PersonalizedGrid 
-          initialItems={items} 
-          adult={true} 
-        />
-      ) : (
-        <ComicGridClient
-          initialItems={items}
-          initialTotal={total}
-          searchParams={clientParams}
-          apiPath="/api/recommendations"
-        />
-      )}
+      <ComicGridClient
+        initialItems={items}
+        initialTotal={total}
+        searchParams={clientParams}
+        apiPath="/api/recommendations"
+      />
     </div>
   )
 }
