@@ -4,14 +4,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, BookOpen, Newspaper,
-  Users, Flag, ScrollText, Star, Mail, Shield,
+  Users, Flag, ScrollText, Star, Mail, Shield, BarChart3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props { role: 'admin' | 'moderator' }
 
 const sharedItems = [
-  { href: '/admin',                  label: 'Overview',        icon: LayoutDashboard, exact: true },
+  { href: '/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
+  { href: '/admin/analytics',        label: 'Analytics',       icon: BarChart3                 },
   { href: '/admin/recommendations',  label: 'Recommendations', icon: BookOpen                     },
   { href: '/admin/news',             label: 'News',            icon: Newspaper                    },
   { href: '/admin/reports',          label: 'Reports',         icon: Flag                         },
