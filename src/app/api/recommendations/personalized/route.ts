@@ -6,7 +6,7 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     
-    const mode = searchParams.get('mode') || 'grid' // 'grid' or 'similar'
+    const mode = searchParams.get('mode') || 'grid'
     const comicId = searchParams.get('comic_id')
     const page = parseInt(searchParams.get('page') ?? '1')
     const limit = parseInt(searchParams.get('limit') ?? '24')
@@ -15,9 +15,7 @@ export async function GET(request: Request) {
 
     const { data: { user } } = await supabase.auth.getUser()
     
-    // SIMILAR MODE: Get comics similar to a specific comic
     if (mode === 'similar' && comicId) {
-      // Get the source comic details
       const { data: sourceComic } = await (supabase as any)
         .from('recommendations')
         .select('genres, type, author, artist, content_rating')
@@ -28,23 +26,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Source comic not found' }, { status: 404 })
       }
 
-      let query = (supabase as any)
-        .from('recommendations')
-        .select('*')
-        .eq('is_approved', true)
-        .neq('id', comicId)
-        .limit(limit)
-
-      // Content rating filter
-      if (adult) {
-        query = query.in('content_rating', ['adult', 'mature'])
-      } else {
-        query = query.not('content_rating', 'in', '("adult","mature")')
-      }
-
-      // If user is logged in, use personalization
       if (user) {
-        // Get user's taste profile
         const { data: tasteProfile } = await (supabase as any)
           .from('user_taste_profiles')
           .select('*')
@@ -52,17 +34,15 @@ export async function GET(request: Request) {
           .single()
 
         if (tasteProfile && Object.keys(tasteProfile.genre_weights || {}).length > 0) {
-          // Hybrid: Content similarity + User taste + Collaborative
           const { data: similarComics } = await (supabase as any).rpc('get_similar_comics_personalized', {
             p_source_comic_id: comicId,
             p_user_id: user.id,
             p_limit: limit,
             p_adult: adult
-          })
+          } as any)
 
-          // Generate explanation based on match type
-          const sharedGenres = sourceComic.genres?.filter((g: string) => 
-            tasteProfile.genre_weights && tasteProfile.genre_weights[g] > 0.3
+          const sharedGenres = (sourceComic.genres || []).filter((g: string) => 
+            (tasteProfile.genre_weights || {})[g] > 0.3
           ) || []
           
           const explanation = sharedGenres.length > 0 
@@ -70,34 +50,40 @@ export async function GET(request: Request) {
             : 'Similar to this'
 
           return NextResponse.json({
-            recommendations: similarComics || [],
+            recommendations: (similarComics || []).map((c: any) => ({
+              ...c,
+              isPersonalized: c.is_personalized,
+              isWildcard: false
+            })),
             personalized: true,
             explanation,
             source: 'hybrid_similarity'
-          })
+          } as any)
         }
       }
 
-      // Fallback: Content-based similarity only (for logged out or new users)
       const { data: similarComics } = await (supabase as any).rpc('get_similar_comics_content_only', {
         p_source_comic_id: comicId,
         p_limit: limit,
         p_adult: adult
-      })
+      } as any)
 
-      const explanation = sourceComic.genres?.[0] 
+      const explanation = (sourceComic.genres || [])[0]
         ? `More ${sourceComic.genres[0]}`
         : 'Similar comics'
 
       return NextResponse.json({
-        recommendations: similarComics || [],
+        recommendations: (similarComics || []).map((c: any) => ({
+          ...c,
+          isPersonalized: false,
+          isWildcard: false
+        })),
         personalized: false,
         explanation,
         source: 'content_similarity'
-      })
+      } as any)
     }
 
-    // GRID MODE: Main personalized feed (existing logic)
     if (!user) {
       const { data, count } = await (supabase as any)
         .from('recommendations')
@@ -112,7 +98,7 @@ export async function GET(request: Request) {
         total: count,
         personalized: false,
         explanation: 'Popular picks'
-      })
+      } as any)
     }
 
     const { data: tasteProfile } = await (supabase as any)
@@ -126,7 +112,7 @@ export async function GET(request: Request) {
         p_user_id: user.id,
         p_limit: limit,
         p_offset: offset
-      })
+      } as any)
       
       return NextResponse.json({
         recommendations: data,
@@ -134,7 +120,7 @@ export async function GET(request: Request) {
         personalized: true,
         explanation: 'Discovering your taste...',
         isOnboarding: true
-      })
+      } as any)
     }
 
     const wildcardCount = Math.floor(limit * 0.1)
@@ -153,7 +139,7 @@ export async function GET(request: Request) {
         p_user_id: user.id,
         p_limit: wildcardCount,
         p_exclude_ids: personalized?.map((p: any) => p.recommendation_id) ?? []
-      })
+      } as any)
       wildcards = data ?? []
     }
 
@@ -185,7 +171,7 @@ export async function GET(request: Request) {
           .slice(0, 3)
           .map(([g]: any) => g)
       }
-    })
+    } as any)
 
   } catch (error) {
     console.error('Personalization error:', error)
