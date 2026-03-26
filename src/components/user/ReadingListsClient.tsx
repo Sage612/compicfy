@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import {
   BookMarked, Plus, Trash2, Globe, Lock,
-  Loader2, BookOpen, Pencil, ArrowRight,
+  Loader2, BookOpen, Pencil, ArrowRight, Crown, Sparkles,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
+import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
 
 interface ReadingList {
   id: string
@@ -20,6 +21,8 @@ interface ReadingList {
   created_at: string
   reading_list_items: { count: number }[]
 }
+
+const FREE_LIST_LIMIT = 3
 
 export function ReadingListsClient({ initialLists }: { initialLists: ReadingList[] }) {
   const [lists, setLists] = useState(initialLists)
@@ -31,6 +34,11 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [isProUser, setIsProUser] = useState<boolean | null>(null)
+
+  // Check if user is near or at the free limit
+  const atLimit = !isProUser && isProUser !== null && lists.length >= FREE_LIST_LIMIT
+  const nearLimit = !isProUser && isProUser !== null && lists.length === FREE_LIST_LIMIT - 1
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -42,9 +50,35 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
         body: JSON.stringify({ name: newName, description: newDesc, is_public: isPublic }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+
+      if (!res.ok) {
+        // Hit the list limit
+        if (res.status === 403) {
+          setShowCreate(false)
+          toast.error(
+            <div className="flex flex-col gap-1.5">
+              <p className="font-black text-sm">List limit reached</p>
+              <p className="text-xs text-muted-foreground">{data.message}</p>
+              <Link
+                href="/pricing"
+                className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5"
+              >
+                <Crown size={11} />
+                Upgrade to Pro for unlimited lists
+              </Link>
+            </div>,
+            { duration: 6000 }
+          )
+          return
+        }
+        throw new Error(data.error)
+      }
+
       setLists(prev => [{ ...data.list, reading_list_items: [] }, ...prev])
-      setNewName(''); setNewDesc(''); setIsPublic(false); setShowCreate(false)
+      setNewName('')
+      setNewDesc('')
+      setIsPublic(false)
+      setShowCreate(false)
       toast.success('List created!')
     } catch {
       toast.error('Failed to create list')
@@ -99,6 +133,29 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
     }
   }
 
+  const handleNewListClick = () => {
+    if (atLimit) {
+      toast.error(
+        <div className="flex flex-col gap-1.5">
+          <p className="font-black text-sm">List limit reached</p>
+          <p className="text-xs text-muted-foreground">
+            Free users can create up to {FREE_LIST_LIMIT} reading lists.
+          </p>
+          <Link
+            href="/pricing"
+            className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5"
+          >
+            <Crown size={11} />
+            Upgrade to Pro for unlimited lists
+          </Link>
+        </div>,
+        { duration: 6000 }
+      )
+      return
+    }
+    setShowCreate(true)
+  }
+
   const itemCount = (list: ReadingList) =>
     list.reading_list_items?.[0]?.count ?? 0
 
@@ -115,20 +172,51 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
             <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
             <p className="text-muted-foreground text-sm">
               {lists.length} list{lists.length !== 1 ? 's' : ''}
+              {isProUser === false && (
+                <span className="text-muted-foreground/60 ml-1">
+                  · {FREE_LIST_LIMIT - lists.length} free slot{FREE_LIST_LIMIT - lists.length !== 1 ? 's' : ''} remaining
+                </span>
+              )}
             </p>
           </div>
         </div>
         {!showCreate && (
           <Button
             size="sm"
-            onClick={() => setShowCreate(true)}
-            className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+            onClick={handleNewListClick}
+            className={cn(
+              'gap-1.5 border-0 shadow-lg',
+              atLimit
+                ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-amber-500/20'
+                : 'bg-gradient-to-r from-primary to-violet-500 shadow-primary/20 hover:opacity-90'
+            )}
           >
-            <Plus size={14} />
-            New List
+            {atLimit ? <Crown size={14} /> : <Plus size={14} />}
+            {atLimit ? 'Upgrade for More' : 'New List'}
           </Button>
         )}
       </div>
+
+      {/* Near limit upgrade banner */}
+      {nearLimit && (
+        <UpgradeBanner
+          current={lists.length}
+          limit={FREE_LIST_LIMIT}
+          feature="reading lists"
+          message="You're almost at your reading list limit"
+          dismissible
+        />
+      )}
+
+      {/* At limit upgrade banner */}
+      {atLimit && !showCreate && (
+        <UpgradeBanner
+          current={lists.length}
+          limit={FREE_LIST_LIMIT}
+          feature="reading lists"
+          dismissible={false}
+        />
+      )}
 
       {/* Create form */}
       {showCreate && (
@@ -314,7 +402,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
                   <span className="text-xs text-muted-foreground">{formatDate(list.created_at)}</span>
                 </div>
 
-                {/* Hover arrow to open list */}
+                {/* Hover arrow */}
                 <Link
                   href={`/dashboard/lists/${list.id}`}
                   className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
@@ -327,6 +415,20 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
           })}
         </div>
       )}
+
+      {/* Bottom upgrade CTA for free users with lists */}
+      {isProUser === false && lists.length > 0 && lists.length < FREE_LIST_LIMIT && (
+        <div className="flex items-center justify-center pt-2">
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-500 transition-colors"
+          >
+            <Sparkles size={11} />
+            Upgrade to Pro for unlimited reading lists
+          </Link>
+        </div>
+      )}
+
     </div>
   )
 }
