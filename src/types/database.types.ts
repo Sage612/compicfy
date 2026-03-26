@@ -25,6 +25,8 @@ export type Database = {
           email_notifications: boolean
           theme_preference: 'dark' | 'light' | 'system'
           role: 'user' | 'moderator' | 'admin'
+          is_pro: boolean // Added
+          pro_expires_at: string | null // Added
           is_banned: boolean
           ban_reason: string | null
           banned_at: string | null
@@ -46,6 +48,8 @@ export type Database = {
           email_notifications?: boolean
           theme_preference?: 'dark' | 'light' | 'system'
           role?: 'user' | 'moderator' | 'admin'
+          is_pro?: boolean // Added
+          pro_expires_at?: string | null // Added
           is_banned?: boolean
           ban_reason?: string | null
           banned_at?: string | null
@@ -64,6 +68,8 @@ export type Database = {
           email_notifications?: boolean
           theme_preference?: 'dark' | 'light' | 'system'
           role?: 'user' | 'moderator' | 'admin'
+          is_pro?: boolean // Added
+          pro_expires_at?: string | null // Added
           is_banned?: boolean
           ban_reason?: string | null
           banned_at?: string | null
@@ -276,6 +282,8 @@ export type Database = {
           is_affiliate: boolean
           affiliate_url: string | null
           affiliate_disclaimer: string
+          is_premium: boolean // Added
+          premium_preview_lines: number | null // Added
           is_ai_generated: boolean
           ai_model: string | null
           view_count: number
@@ -303,6 +311,8 @@ export type Database = {
           is_affiliate?: boolean
           affiliate_url?: string | null
           affiliate_disclaimer?: string
+          is_premium?: boolean // Added
+          premium_preview_lines?: number | null // Added
           is_ai_generated?: boolean
           ai_model?: string | null
           is_published?: boolean
@@ -323,6 +333,8 @@ export type Database = {
           cover_alt?: string | null
           is_affiliate?: boolean
           affiliate_url?: string | null
+          is_premium?: boolean // Added
+          premium_preview_lines?: number | null // Added
           is_published?: boolean
           published_by?: string | null
           published_at?: string

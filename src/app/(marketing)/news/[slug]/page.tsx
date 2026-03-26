@@ -2,11 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { AffiliateBadge } from '@/components/news/AffiliateBadge'
 import { NewsCard } from '@/components/news/NewsCard'
+import { PremiumNewsGate } from '@/components/news/PremiumNewsGate' // Assuming this exists
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Eye, ArrowLeft, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, formatNumber } from '@/lib/utils/format'
-import type { News } from '@/types/database.types'
+import type { News, Profile } from '@/types/database.types'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -17,17 +18,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const supabase = await createClient()
   const { data } = await supabase
-  .from('news')
-  .select('title, excerpt')
-  .eq('slug', slug)
-  .single()
+    .from('news')
+    .select('title, excerpt')
+    .eq('slug', slug)
+    .single()
 
-const meta = data as { title: string; excerpt: string } | null
+  const meta = data as { title: string; excerpt: string } | null
 
-return {
-  title: meta?.title ?? 'News',
-  description: meta?.excerpt,
-}
+  return {
+    title: meta?.title ?? 'News',
+    description: meta?.excerpt,
+  }
 }
 
 const categoryLabels: Record<string, string> = {
@@ -43,6 +44,22 @@ export default async function NewsDetailPage({ params }: Props) {
   const { slug } = await params
   const supabase = await createClient()
 
+  // 1. Get User and Profile for Pro check
+  const { data: { user } } = await supabase.auth.getUser()
+  let userHasAccess = false
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_pro, pro_expires_at')
+      .eq('id', user.id)
+      .single()
+    
+    const p = profile as Profile | null
+    userHasAccess = !!(p?.is_pro && (!p.pro_expires_at || new Date(p.pro_expires_at) > new Date()))
+  }
+
+  // 2. Get News Data
   const { data } = await supabase
     .from('news')
     .select('*')
@@ -52,7 +69,11 @@ export default async function NewsDetailPage({ params }: Props) {
 
   if (!data) notFound()
 
-  const news = data as News
+  const news = data as News & { 
+    is_premium?: boolean; 
+    premium_preview_lines?: number;
+    cover_alt?: string;
+  }
 
   // Increment view count
   await (supabase as any)
@@ -74,7 +95,6 @@ export default async function NewsDetailPage({ params }: Props) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
-      {/* Back */}
       <Link
         href="/news"
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
@@ -84,7 +104,6 @@ export default async function NewsDetailPage({ params }: Props) {
       </Link>
 
       <article className="space-y-6">
-        {/* Cover image */}
         {news.cover_url && (
           <div className="aspect-[16/9] rounded-2xl overflow-hidden bg-muted">
             <img
@@ -95,12 +114,16 @@ export default async function NewsDetailPage({ params }: Props) {
           </div>
         )}
 
-        {/* Header */}
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">
               {categoryLabels[news.category] ?? news.category}
             </Badge>
+            {news.is_premium && (
+              <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                ⭐ Premium
+              </Badge>
+            )}
             {news.is_affiliate && (
               <Badge className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
                 💰 Affiliate
@@ -130,23 +153,21 @@ export default async function NewsDetailPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Excerpt */}
         <p className="text-lg text-muted-foreground leading-relaxed border-l-4 border-primary pl-4">
           {news.excerpt}
         </p>
 
-        {/* Content */}
-        {news.content && (
-          <div className="prose prose-sm dark:prose-invert max-w-none space-y-4">
-            {news.content.split('\n\n').map((paragraph, i) => (
-              <p key={i} className="text-sm leading-relaxed text-muted-foreground">
-                {paragraph}
-              </p>
-            ))}
-          </div>
-        )}
+        {/* Content Section with Premium Gate */}
+        <div className="prose prose-sm dark:prose-invert max-w-none">
+          {news.is_premium && !userHasAccess ? (
+            <PremiumNewsGate previewLines={news.premium_preview_lines ?? 3}>
+              <div dangerouslySetInnerHTML={{ __html: news.content ?? '' }} />
+            </PremiumNewsGate>
+          ) : (
+            <div dangerouslySetInnerHTML={{ __html: news.content ?? '' }} />
+          )}
+        </div>
 
-        {/* Affiliate section */}
         {news.is_affiliate && news.affiliate_url && (
           <div className="p-5 rounded-xl border border-yellow-500/20 bg-yellow-500/5 space-y-3">
             <AffiliateBadge
@@ -156,26 +177,24 @@ export default async function NewsDetailPage({ params }: Props) {
           </div>
         )}
 
-        {/* Source */}
         <div className="flex items-center gap-2 p-4 rounded-xl border border-border bg-card">
           <div className="flex-1">
             <p className="text-xs text-muted-foreground">Original Source</p>
             <p className="text-sm font-medium">{news.source_name}</p>
           </div>
           
-   <a         
-    href={news.source_url}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm hover:border-primary transition-colors"
->
-  <ExternalLink size={13} />
-  View Source
-</a>
+          <a         
+            href={news.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm hover:border-primary transition-colors"
+          >
+            <ExternalLink size={13} />
+            View Source
+          </a>
         </div>
 
-        {/* Tags */}
-        {news.tags?.length > 0 && (
+        {news.tags && news.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {news.tags.map((tag) => (
               <Badge key={tag} variant="secondary" className="text-xs">
@@ -186,7 +205,6 @@ export default async function NewsDetailPage({ params }: Props) {
         )}
       </article>
 
-      {/* Related news */}
       {related.length > 0 && (
         <div className="mt-12 space-y-4">
           <h2 className="text-lg font-bold">Related News</h2>

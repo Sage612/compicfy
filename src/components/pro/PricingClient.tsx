@@ -316,10 +316,6 @@ export function PricingClient({ user, profile }: Props) {
               a: 'Your data is never deleted. If you go back to free, you keep everything you created. You just lose access to Pro features until you resubscribe.',
             },
             {
-              q: 'Do admins and moderators need to pay?',
-              a: 'Admins get all Pro features completely free. Moderators get most Pro features free, but need a paid subscription for analytics, custom themes, and profile views.',
-            },
-            {
               q: 'Is there a refund policy?',
               a: 'If you have an issue with your subscription, contact us at support@compicfy.cloud and we will sort it out.',
             },

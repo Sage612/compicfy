@@ -28,7 +28,7 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profileData } = await supabase
+  const { data: profileData } = await (supabase as any)
     .from('profiles')
     .select('*')
     .eq('id', user.id)
@@ -37,8 +37,18 @@ export default async function DashboardPage() {
   if (!profileData) redirect('/login')
   const profile = profileData as Profile
 
+  // ── Redirect Pro users to Pro dashboard ──
+  const isPro = profile.is_pro &&
+    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+  const isAdmin = profile.role === 'admin'
+
+  // Pro users go to /pro/dashboard, admins stay here
+  if (isPro && !isAdmin) {
+    redirect('/pro/dashboard')
+  }
+
   // Get following IDs first
-  const { data: followData } = await supabase
+  const { data: followData } = await (supabase as any)
     .from('follows')
     .select('following_id')
     .eq('follower_id', user.id)
@@ -52,19 +62,19 @@ export default async function DashboardPage() {
     { data: currentlyReading },
     { data: feedItems },
   ] = await Promise.all([
-    supabase
+    (supabase as any)
       .from('reading_lists')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id),
-    supabase
+    (supabase as any)
       .from('saves')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id),
-    supabase
+    (supabase as any)
       .from('follows')
       .select('*', { count: 'exact', head: true })
       .eq('follower_id', user.id),
-    supabase
+    (supabase as any)
       .from('reading_list_items')
       .select('*, reading_lists!inner(user_id), recommendations(id, title, cover_url, type, status)')
       .eq('reading_lists.user_id', user.id)
@@ -72,7 +82,7 @@ export default async function DashboardPage() {
       .order('added_at', { ascending: false })
       .limit(6),
     followingIds.length > 0
-      ? supabase
+      ? (supabase as any)
           .from('recommendations')
           .select('id, title, cover_url, type, created_at, user_id, profiles(username, display_name, avatar_url)')
           .in('user_id', followingIds)
@@ -201,11 +211,11 @@ export default async function DashboardPage() {
       </div>
 
       {/* Profile completion banner */}
-<ProfileCompletionBanner
-  hasAvatar={!!profile.avatar_url}
-  hasBio={!!profile.bio}
-  hasWebsite={!!profile.website}
-/>
+      <ProfileCompletionBanner
+        hasAvatar={!!profile.avatar_url}
+        hasBio={!!profile.bio}
+        hasWebsite={!!profile.website}
+      />
 
       {/* Stats grid */}
       <div>

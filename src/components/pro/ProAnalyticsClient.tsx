@@ -1,0 +1,195 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import {
+  BarChart2, Eye, Bookmark, ThumbsUp,
+  TrendingUp, BookOpen, ArrowUpRight,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { formatNumber, formatDate } from '@/lib/utils/format'
+
+interface Rec {
+  id: string
+  title: string
+  cover_url: string | null
+  type: string
+  upvotes: number
+  downvotes: number
+  save_count: number
+  view_count: number
+  review_count: number
+  score: number
+  created_at: string
+}
+
+interface AnalyticsRow {
+  recommendation_id: string
+  date: string
+  views: number
+  saves: number
+  upvotes: number
+  downvotes: number
+}
+
+interface Props {
+  recommendations: Rec[]
+  analytics: AnalyticsRow[]
+}
+
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
+  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+}
+
+export function ProAnalyticsClient({ recommendations, analytics }: Props) {
+  const [selectedRec, setSelectedRec] = useState<string | null>(null)
+
+  const totalViews  = recommendations.reduce((a, r) => a + r.view_count, 0)
+  const totalSaves  = recommendations.reduce((a, r) => a + r.save_count, 0)
+  const totalVotes  = recommendations.reduce((a, r) => a + r.upvotes, 0)
+  const totalScore  = recommendations.reduce((a, r) => a + r.score, 0)
+
+  const selected = recommendations.find(r => r.id === selectedRec)
+  const selectedAnalytics = analytics
+    .filter(a => a.recommendation_id === selectedRec)
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(-30)
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+          <BarChart2 size={16} className="text-white" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-black tracking-tight">Analytics</h1>
+          <p className="text-muted-foreground text-sm">Your recommendation performance</p>
+        </div>
+      </div>
+
+      {/* Totals */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: 'Total Views',   value: totalViews,  icon: Eye,       color: 'text-blue-500',   bg: 'bg-blue-500/10'   },
+          { label: 'Total Saves',   value: totalSaves,  icon: Bookmark,  color: 'text-rose-500',   bg: 'bg-rose-500/10'   },
+          { label: 'Total Upvotes', value: totalVotes,  icon: ThumbsUp,  color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+          { label: 'Total Score',   value: totalScore,  icon: TrendingUp, color: 'text-violet-500', bg: 'bg-violet-500/10' },
+        ].map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} className="p-4 rounded-2xl border border-border bg-card space-y-3">
+            <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', bg)}>
+              <Icon size={18} className={color} />
+            </div>
+            <p className="text-2xl font-black tabular-nums">{formatNumber(value)}</p>
+            <p className="text-xs text-muted-foreground">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Rec table */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+          All Recommendations ({recommendations.length})
+        </h2>
+
+        {recommendations.length === 0 ? (
+          <div className="text-center py-16 rounded-2xl border border-dashed border-border">
+            <BookOpen size={28} className="text-muted-foreground opacity-40 mx-auto mb-3" />
+            <p className="font-black text-sm">No approved recommendations yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Submit recommendations to see analytics here</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recommendations.map((rec) => (
+              <div
+                key={rec.id}
+                className={cn(
+                  'group flex gap-3 p-3 rounded-2xl border bg-card cursor-pointer transition-all duration-150',
+                  selectedRec === rec.id
+                    ? 'border-amber-500/40 bg-amber-500/5'
+                    : 'border-border hover:border-primary/30'
+                )}
+                onClick={() => setSelectedRec(selectedRec === rec.id ? null : rec.id)}
+              >
+                {/* Cover */}
+                <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
+                  {rec.cover_url ? (
+                    <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <BookOpen size={12} className="text-muted-foreground opacity-40" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-black line-clamp-1">{rec.title}</p>
+                    <Link
+                      href={`/comic/${rec.id}`}
+                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <ArrowUpRight size={12} className="text-muted-foreground" />
+                    </Link>
+                  </div>
+                  <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border capitalize mt-1', TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border')}>
+                    {rec.type}
+                  </span>
+                </div>
+
+                {/* Stats */}
+                <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+                  <span className="flex items-center gap-1 hidden sm:flex"><Eye size={10} className="text-blue-500" />{formatNumber(rec.view_count)}</span>
+                  <span className="flex items-center gap-1"><ThumbsUp size={10} className="text-emerald-500" />{rec.upvotes}</span>
+                  <span className="flex items-center gap-1"><Bookmark size={10} className="text-rose-500" />{rec.save_count}</span>
+                  <span className="flex items-center gap-1 font-black text-amber-500">
+                    {rec.score > 0 ? '+' : ''}{rec.score}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Selected rec detail */}
+      {selected && (
+        <div className="p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-black text-sm">{selected.title} — Last 30 Days</h3>
+            <button
+              onClick={() => setSelectedRec(null)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Close
+            </button>
+          </div>
+
+          {selectedAnalytics.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No daily analytics data yet. Data starts tracking from today.</p>
+          ) : (
+            <div className="space-y-2">
+              {selectedAnalytics.map((row) => (
+                <div key={row.date} className="flex items-center gap-3 text-xs">
+                  <span className="text-muted-foreground w-20 shrink-0">{formatDate(row.date)}</span>
+                  <div className="flex gap-3 flex-1">
+                    <span className="flex items-center gap-1"><Eye size={9} className="text-blue-500" />{row.views}</span>
+                    <span className="flex items-center gap-1"><ThumbsUp size={9} className="text-emerald-500" />{row.upvotes}</span>
+                    <span className="flex items-center gap-1"><Bookmark size={9} className="text-rose-500" />{row.saves}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

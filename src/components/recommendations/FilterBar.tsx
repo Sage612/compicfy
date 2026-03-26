@@ -210,49 +210,49 @@ export function FilterBar({ adult = false }: Props) {
       </div>
 
       {/* ── Row 3: Desktop type + status chips ── */}
-      <div className="hidden md:flex items-center gap-3 flex-wrap">
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-          Type
-        </span>
-        <div className="flex gap-1.5 flex-wrap">
-          {TYPES.map(({ value, label }) => (
-            <button
-              key={value}
-              data-active={currentType === value}
-              onClick={() => updateParam('type', value)}
-              className={cn(
-                'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
-                TYPE_COLORS[value] ?? TYPE_COLORS[''],
-                currentType !== value && 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+<div className="hidden md:flex items-center gap-3 flex-wrap">
+  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+    Type
+  </span>
+  <div className="flex gap-1.5 flex-wrap">
+    {TYPES.map(({ value, label }) => (
+      <button
+        key={value}
+        data-active={currentType === value}
+        onClick={() => updateParam('type', value)}
+        className={cn(
+          'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
+          TYPE_COLORS[value] ?? TYPE_COLORS[''],
+          currentType !== value && 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+        )}
+      >
+        {label}
+      </button>
+    ))}
+  </div>
 
-        <div className="w-px h-5 bg-border" />
+  <div className="w-px h-5 bg-border" />
 
-        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-          Status
-        </span>
-        <div className="flex gap-1.5 flex-wrap">
-          {STATUSES.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => updateParam('status', value)}
-              className={cn(
-                'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
-                currentStatus === value
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
+  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+    Status
+  </span>
+  <div className="flex gap-1.5 flex-wrap">
+    {STATUSES.map(({ value, label }) => (
+      <button
+        key={value}
+        onClick={() => updateParam('status', value)}
+        className={cn(
+          'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
+          currentStatus === value
+            ? 'bg-primary text-primary-foreground border-primary'
+            : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+        )}
+      >
+        {label}
+      </button>
+    ))}
+  </div>
+</div>
 
       {/* ── Active genre badge ── */}
       {currentGenre && (
