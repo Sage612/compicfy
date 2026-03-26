@@ -3,26 +3,17 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  House, Compass, Plus, Newspaper, BookMarked, Search, Crown
+  House, Plus, Newspaper, BookMarked, Search, Crown
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
-const navItems = [
-  { href: '/',                              label: 'Home',    icon: House,     exact: true   },
-  { href: '/browse',                        label: 'Browse',  icon: Search                   },
-  { href: '/dashboard/recommendations/new', label: 'Add',     icon: Plus,      isAdd: true   },
-  { href: '/news',                          label: 'News',    icon: Newspaper                },
-  { href: '/dashboard/lists',               label: 'Lists',   icon: BookMarked, authOnly: true },
-  { href: '/pricing',                       label: 'Pro',     icon: Crown,      guestOnly: true },
-]
-
 export function MobileNav() {
   const pathname = usePathname()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isPro, setIsPro] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [isPrivileged, setIsPrivileged] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -38,10 +29,12 @@ export function MobileNav() {
           .single()
 
         if (profile) {
-          setIsAdmin(['admin', 'moderator'].includes(profile.role))
+          const privileged = ['admin', 'moderator'].includes(profile.role)
+          setIsPrivileged(privileged)
           setIsPro(
-            profile.is_pro &&
-            (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+            privileged ||
+            (profile.is_pro &&
+              (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
           )
         }
       }
@@ -49,25 +42,31 @@ export function MobileNav() {
     checkAuth()
   }, [])
 
-  const visibleItems = navItems.filter(item => {
-    // authOnly — only show when logged in
-    if (item.authOnly) return isLoggedIn
-    // guestOnly — show when logged out OR logged in but not pro and not admin
-    if ((item as any).guestOnly) return !isLoggedIn || (!isPro && !isAdmin)
-    return true
-  })
+  // Nav items built dynamically based on auth/pro state
+  const navItems = [
+    { href: '/',       label: 'Home',   icon: House,      exact: true  },
+    { href: '/browse', label: 'Browse', icon: Search                   },
+    {
+      href: '/dashboard/recommendations/new',
+      label: 'Add',
+      icon: Plus,
+      isAdd: true,
+    },
+    { href: '/news',   label: 'News',   icon: Newspaper                },
+    // Logged out → show Pro link | Logged in → show Lists
+    isLoggedIn
+      ? { href: '/dashboard/lists', label: 'Lists', icon: BookMarked  }
+      : { href: '/pricing',         label: 'Pro',   icon: Crown, isPro: true },
+  ]
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-background/95 backdrop-blur-lg border-t border-border" />
 
       <div className="relative flex items-center justify-around px-2 h-16">
-        {visibleItems.map(({ href, label, icon: Icon, exact, isAdd, authOnly, ...rest }) => {
+        {navItems.map(({ href, label, icon: Icon, exact, isAdd, isPro: isProItem }: any) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
-          const isGuestOnly = (rest as any).guestOnly
-          const target = (isAdd || authOnly) && !isLoggedIn ? '/login' : href
-          const isPricingItem = href === '/pricing'
+          const target = isAdd && !isLoggedIn ? '/login' : href
 
           // ── Add button ──────────────────────────────────────────────────
           if (isAdd) {
@@ -92,7 +91,7 @@ export function MobileNav() {
           }
 
           // ── Pro / Pricing button ────────────────────────────────────────
-          if (isPricingItem) {
+          if (isProItem) {
             return (
               <Link
                 key={href}
@@ -101,9 +100,7 @@ export function MobileNav() {
               >
                 <div className={cn(
                   'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150',
-                  isActive
-                    ? 'bg-amber-500/20 text-amber-500'
-                    : 'text-amber-500/70 hover:bg-amber-500/10'
+                  isActive ? 'bg-amber-500/20 text-amber-500' : 'text-amber-500/70 hover:bg-amber-500/10'
                 )}>
                   <Icon size={18} strokeWidth={isActive ? 2.5 : 1.75} />
                 </div>
@@ -124,25 +121,21 @@ export function MobileNav() {
           return (
             <Link
               key={href}
-              href={target}
+              href={href}
               className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px]"
             >
               <div className={cn(
                 'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150',
-                isActive
-                  ? 'bg-primary/15 text-primary'
-                  : 'text-muted-foreground hover:bg-accent/60'
+                isActive ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-accent/60'
               )}>
                 <Icon size={18} strokeWidth={isActive ? 2.5 : 1.75} />
               </div>
-
               <span className={cn(
                 'text-[10px] font-semibold leading-none',
                 isActive ? 'text-primary' : 'text-muted-foreground'
               )}>
                 {label}
               </span>
-
               {isActive && (
                 <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
               )}

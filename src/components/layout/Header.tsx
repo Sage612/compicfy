@@ -20,8 +20,7 @@ import {
   Sun, Moon, Monitor, BookOpen, Search, Newspaper,
   LayoutDashboard, Settings, LogOut, Plus,
   User as UserIcon, Bookmark, Bell,
-  ShoppingBag, Rss, BookMarked,
-  Crown,
+  ShoppingBag, Rss, BookMarked, Crown, CreditCard, Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -51,6 +50,8 @@ export function Header() {
   const [displayName, setDisplayName] = useState<string | null>(null)
   const [username, setUsername] = useState<string | null>(null)
   const [scrolled, setScrolled] = useState(false)
+  const [isPro, setIsPro] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const supabase = createClient()
 
   useEffect(() => setMounted(true), [])
@@ -70,10 +71,17 @@ export function Header() {
       if (currentUser) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('avatar_url, display_name, username')
+          .select('avatar_url, display_name, username, is_pro, pro_expires_at, role')
           .eq('id', currentUser.id)
           .single() as {
-            data: { avatar_url: string | null; display_name: string | null; username: string } | null
+            data: {
+              avatar_url: string | null
+              display_name: string | null
+              username: string
+              is_pro: boolean
+              pro_expires_at: string | null
+              role: string
+            } | null
             error: unknown
           }
 
@@ -81,6 +89,12 @@ export function Header() {
           setAvatarUrl(profile.avatar_url)
           setDisplayName(profile.display_name || profile.username)
           setUsername(profile.username)
+          setIsAdmin(['admin', 'moderator'].includes(profile.role))
+          setIsPro(
+            ['admin'].includes(profile.role) ||
+            (profile.is_pro &&
+              (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+          )
         }
       }
     }
@@ -92,6 +106,8 @@ export function Header() {
         setAvatarUrl(null)
         setDisplayName(null)
         setUsername(null)
+        setIsPro(false)
+        setIsAdmin(false)
       }
     })
 
@@ -105,17 +121,18 @@ export function Header() {
     router.refresh()
   }
 
-  // Public nav — always visible
+  // Show Pro link for: logged-out users, free users, mods who haven't paid
+  // Hide for: admins, paid pro users
+  const showProLink = mounted && !isPro
+
   const publicNavLinks = [
-    { href: '/browse',    label: 'Browse', icon: Search    },
-    { href: '/news',      label: 'News',   icon: Newspaper   },
-    { href: '/affiliate', label: 'Shop', icon: ShoppingBag },
-    { href: '/pricing',                       label: 'Pro',     icon: Crown,      guestOnly: true },
+    { href: '/browse',    label: 'Browse', icon: Search     },
+    { href: '/news',      label: 'News',   icon: Newspaper  },
+    { href: '/affiliate', label: 'Shop',   icon: ShoppingBag },
   ]
 
-  // Auth nav — only visible when logged in
   const authNavLinks = [
-    { href: '/feed',            label: 'Feed',  icon: Rss       },
+    { href: '/feed',            label: 'Feed',  icon: Rss        },
     { href: '/dashboard/lists', label: 'Lists', icon: BookMarked },
   ]
 
@@ -158,7 +175,7 @@ export function Header() {
 
         {/* ── Center nav ── */}
         <nav className="hidden md:flex items-center gap-0.5">
-          {/* Always show public links */}
+          {/* Public links */}
           {publicNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
             return (
@@ -179,9 +196,7 @@ export function Header() {
           })}
 
           {/* Divider when logged in */}
-          {user && (
-            <div className="w-px h-4 bg-border mx-1" />
-          )}
+          {user && <div className="w-px h-4 bg-border mx-1" />}
 
           {/* Auth-only links */}
           {user && authNavLinks.map(({ href, label, icon: Icon }) => {
@@ -202,6 +217,22 @@ export function Header() {
               </Link>
             )
           })}
+
+          {/* ── Pro link — hidden for admin and paid pro users ── */}
+          {showProLink && (
+            <Link
+              href="/pricing"
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all duration-150 ml-1 border',
+                pathname === '/pricing'
+                  ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
+                  : 'text-amber-500 border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/40'
+              )}
+            >
+              <Crown size={13} className="fill-amber-500 shrink-0" />
+              Pro
+            </Link>
+          )}
         </nav>
 
         {/* ── Right actions ── */}
@@ -330,9 +361,8 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
 
-                  {/* Feed — mobile only (already visible in desktop header nav) */}
+                  {/* Feed — mobile only */}
                   <DropdownMenuSeparator className="my-1 md:hidden" />
-
                   <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg md:hidden">
                     <Link href="/feed">
                       <Rss size={13} className="text-muted-foreground" />
@@ -355,6 +385,26 @@ export function Header() {
                       Settings
                     </Link>
                   </DropdownMenuItem>
+
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                    <Link href="/dashboard/billing">
+                      <CreditCard size={13} className="text-muted-foreground" />
+                      Billing
+                    </Link>
+                  </DropdownMenuItem>
+
+                  {/* Upgrade to Pro — only for non-pro users */}
+                  {showProLink && (
+                    <>
+                      <DropdownMenuSeparator className="my-1" />
+                      <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg bg-amber-500/5 hover:bg-amber-500/10 focus:bg-amber-500/10">
+                        <Link href="/pricing">
+                          <Sparkles size={13} className="text-amber-500" />
+                          <span className="text-amber-600 font-semibold">Upgrade to Pro</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
 
                   <DropdownMenuSeparator className="my-1" />
 

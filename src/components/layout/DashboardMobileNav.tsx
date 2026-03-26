@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, BookOpen, Bookmark,
-  Star, Bell, Settings, BookMarked,
+  Star, Bell, Settings, BookMarked, CreditCard,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -16,6 +16,7 @@ const items = [
   { href: '/dashboard/notifications',   label: 'Alerts',   icon: Bell                         },
   { href: '/dashboard/reviews',         label: 'Reviews',  icon: Star                         },
   { href: '/dashboard/settings',        label: 'Settings', icon: Settings                     },
+  { href: '/dashboard/billing',         label: 'Billing',  icon: CreditCard                   },
 ]
 
 export function DashboardMobileNav() {
