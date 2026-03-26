@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Bookmark } from 'lucide-react'
+import { Bookmark, Crown } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils/cn'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface Props {
   recommendationId: string
@@ -16,7 +16,6 @@ interface Props {
 
 export function SaveButton({ recommendationId, initialSaved, isLoggedIn }: Props) {
   const router = useRouter()
-  const supabase = createClient()
   const [saved, setSaved] = useState(initialSaved)
   const [loading, setLoading] = useState(false)
 
@@ -30,27 +29,61 @@ export function SaveButton({ recommendationId, initialSaved, isLoggedIn }: Props
     if (loading) return
     setLoading(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
-
     try {
       if (saved) {
-        await supabase
-          .from('saves')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('recommendation_id', recommendationId)
+        // Unsave
+        const res = await fetch('/api/saves', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recommendation_id: recommendationId }),
+        })
+
+        if (!res.ok) {
+          const data = await res.json()
+          toast.error(data.error ?? 'Failed to remove save')
+          return
+        }
+
         setSaved(false)
         toast.success('Removed from saved')
       } else {
-        await (supabase as any)
-          .from('saves')
-          .insert({ user_id: user.id, recommendation_id: recommendationId })
+        // Save
+        const res = await fetch('/api/saves', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recommendation_id: recommendationId }),
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          // Hit the save limit — show upgrade prompt
+          if (res.status === 403) {
+            toast.error(
+              <div className="flex flex-col gap-1.5">
+                <p className="font-black text-sm">Save limit reached</p>
+                <p className="text-xs text-muted-foreground">{data.message}</p>
+                <Link
+                  href="/pricing"
+                  className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5"
+                >
+                  <Crown size={11} />
+                  Upgrade to Pro for unlimited saves
+                </Link>
+              </div>,
+              { duration: 6000 }
+            )
+            return
+          }
+          toast.error(data.error ?? 'Failed to save')
+          return
+        }
+
         setSaved(true)
         toast.success('Saved!')
       }
     } catch {
-      toast.error('Failed to save')
+      toast.error('Something went wrong')
     } finally {
       setLoading(false)
     }
@@ -68,7 +101,7 @@ export function SaveButton({ recommendationId, initialSaved, isLoggedIn }: Props
       )}
     >
       <Bookmark size={14} className={cn(saved && 'fill-current')} />
-      {saved ? 'Saved' : 'Save Comic'}
+      {loading ? 'Saving...' : saved ? 'Saved' : 'Save Comic'}
     </Button>
   )
 }
