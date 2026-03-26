@@ -21,6 +21,7 @@ import {
   LayoutDashboard, Settings, LogOut, Plus,
   User as UserIcon, Bookmark, Bell,
   ShoppingBag, Rss, BookMarked,
+  Crown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -108,7 +109,8 @@ export function Header() {
   const publicNavLinks = [
     { href: '/browse',    label: 'Browse', icon: Search    },
     { href: '/news',      label: 'News',   icon: Newspaper   },
-    { href: '/affiliate', label: 'Shop',   icon: ShoppingBag },
+    { href: '/affiliate', label: 'Shop', icon: ShoppingBag },
+    { href: '/pricing',                       label: 'Pro',     icon: Crown,      guestOnly: true },
   ]
 
   // Auth nav — only visible when logged in
