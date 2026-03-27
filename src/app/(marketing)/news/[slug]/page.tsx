@@ -2,12 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { AffiliateBadge } from '@/components/news/AffiliateBadge'
 import { NewsCard } from '@/components/news/NewsCard'
-import { PremiumNewsGate } from '@/components/news/PremiumNewsGate' // Assuming this exists
+import { PremiumNewsGate } from '@/components/news/PremiumNewsGate'
 import { Badge } from '@/components/ui/badge'
 import { Calendar, Eye, ArrowLeft, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, formatNumber } from '@/lib/utils/format'
-import type { News, Profile } from '@/types/database.types'
+import type { News } from '@/types/database.types'
 import type { Metadata } from 'next'
 
 interface Props {
@@ -32,11 +32,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const categoryLabels: Record<string, string> = {
-  industry: '🏭 Industry',
-  release: '📚 New Release',
-  adaptation: '🎬 Adaptation',
-  event: '🎪 Event',
-  creator: '✍️ Creator',
+  industry:     '🏭 Industry',
+  release:      '📚 New Release',
+  adaptation:   '🎬 Adaptation',
+  event:        '🎪 Event',
+  creator:      '✍️ Creator',
   announcement: '📢 Announcement',
 }
 
@@ -44,22 +44,24 @@ export default async function NewsDetailPage({ params }: Props) {
   const { slug } = await params
   const supabase = await createClient()
 
-  // 1. Get User and Profile for Pro check
   const { data: { user } } = await supabase.auth.getUser()
   let userHasAccess = false
 
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_pro, pro_expires_at')
+      .select('is_pro, pro_expires_at, role')
       .eq('id', user.id)
-      .single()
-    
-    const p = profile as Profile | null
-    userHasAccess = !!(p?.is_pro && (!p.pro_expires_at || new Date(p.pro_expires_at) > new Date()))
+      .single() as { data: { is_pro: boolean; pro_expires_at: string | null; role: string } | null }
+
+    if (profile) {
+      const isPrivileged = ['admin', 'moderator'].includes(profile.role)
+      const isPro = profile.is_pro &&
+        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+      userHasAccess = isPrivileged || isPro
+    }
   }
 
-  // 2. Get News Data
   const { data } = await supabase
     .from('news')
     .select('*')
@@ -69,19 +71,17 @@ export default async function NewsDetailPage({ params }: Props) {
 
   if (!data) notFound()
 
-  const news = data as News & { 
-    is_premium?: boolean; 
-    premium_preview_lines?: number;
-    cover_alt?: string;
+  const news = data as News & {
+    is_premium?: boolean
+    premium_preview_lines?: number
+    cover_alt?: string
   }
 
-  // Increment view count
   await (supabase as any)
     .from('news')
     .update({ view_count: news.view_count + 1 })
     .eq('id', news.id)
 
-  // Related news
   const { data: relatedData } = await supabase
     .from('news')
     .select('*')
@@ -121,7 +121,7 @@ export default async function NewsDetailPage({ params }: Props) {
             </Badge>
             {news.is_premium && (
               <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">
-                ⭐ Premium
+                👑 Premium
               </Badge>
             )}
             {news.is_affiliate && (
@@ -147,9 +147,7 @@ export default async function NewsDetailPage({ params }: Props) {
               <Eye size={14} />
               {formatNumber(news.view_count)} views
             </span>
-            {news.author && (
-              <span>By {news.author}</span>
-            )}
+            {news.author && <span>By {news.author}</span>}
           </div>
         </div>
 
@@ -157,7 +155,6 @@ export default async function NewsDetailPage({ params }: Props) {
           {news.excerpt}
         </p>
 
-        {/* Content Section with Premium Gate */}
         <div className="prose prose-sm dark:prose-invert max-w-none">
           {news.is_premium && !userHasAccess ? (
             <PremiumNewsGate previewLines={news.premium_preview_lines ?? 3}>
@@ -182,8 +179,7 @@ export default async function NewsDetailPage({ params }: Props) {
             <p className="text-xs text-muted-foreground">Original Source</p>
             <p className="text-sm font-medium">{news.source_name}</p>
           </div>
-          
-          <a         
+          <a
             href={news.source_url}
             target="_blank"
             rel="noopener noreferrer"

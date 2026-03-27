@@ -1,17 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import {
   CalendarDays, BookOpen, Star, ThumbsUp,
-  Shield, Globe, BookMarked, Users,
+  Shield, Globe, BookMarked, Users, Pin,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import type { Profile, Recommendation } from '@/types/database.types'
 import type { Metadata } from 'next'
 import { FollowButton } from '@/components/user/FollowButton'
 import { ComicCard } from '@/components/recommendations/ComicCard'
+import { ProAvatar } from '@/components/pro/ProAvatar'
+import { ProBadge } from '@/components/pro/ProBadge'
+import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
 
 interface Props {
   params: Promise<{ username: string }>
@@ -31,9 +33,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const ROLE_STYLES: Record<string, { badge: string; icon: boolean }> = {
-  admin:     { badge: 'bg-primary/10 text-primary border-primary/20',      icon: true  },
-  moderator: { badge: 'bg-blue-500/10 text-blue-600 border-blue-500/20',   icon: false },
-  user:      { badge: 'bg-muted text-muted-foreground border-border',       icon: false },
+  admin:     { badge: 'bg-primary/10 text-primary border-primary/20',    icon: true  },
+  moderator: { badge: 'bg-blue-500/10 text-blue-600 border-blue-500/20', icon: false },
+  user:      { badge: 'bg-muted text-muted-foreground border-border',     icon: false },
+}
+
+// Profile theme gradients
+const THEME_GRADIENTS: Record<string, string> = {
+  default:  'from-primary/20 via-violet-500/10 to-transparent',
+  gold:     'from-amber-400/30 via-orange-500/15 to-transparent',
+  rose:     'from-rose-500/25 via-pink-500/10 to-transparent',
+  teal:     'from-teal-500/25 via-cyan-500/10 to-transparent',
+  violet:   'from-violet-600/25 via-purple-500/10 to-transparent',
+  amber:    'from-amber-500/25 via-yellow-500/10 to-transparent',
+  midnight: 'from-slate-700/25 via-blue-900/10 to-transparent',
 }
 
 export default async function ProfilePage({ params }: Props) {
@@ -59,12 +72,46 @@ export default async function ProfilePage({ params }: Props) {
     .single()
 
   if (!profileData) notFound()
-  const profile = profileData as Profile
+  const profile = profileData as Profile & {
+    is_pro: boolean
+    pro_expires_at: string | null
+    profile_theme: string | null
+    verified_recommender: boolean
+    pinned_recommendation_id: string | null
+  }
 
   const isOwner = viewer?.id === profile.id
   const isPrivileged = isOwner || viewerRole === 'admin' || viewerRole === 'moderator'
 
-  // Fetch full recommendation data so ComicCard has everything it needs
+  const isPro = profile.is_pro &&
+    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+  const isAdmin = profile.role === 'admin'
+  const showGold = isPro && !isAdmin
+  const profileTheme = profile.profile_theme ?? 'default'
+  const bannerGradient = showGold
+    ? THEME_GRADIENTS[profileTheme] ?? THEME_GRADIENTS.default
+    : THEME_GRADIENTS.default
+
+  // Track profile view (don't block render)
+  if (viewer?.id && viewer.id !== profile.id) {
+    (supabase as any).rpc('track_profile_view', {
+      p_profile_id: profile.id,
+      p_viewer_id: viewer.id,
+    }).catch(() => {}) // fire and forget
+  }
+
+  // Fetch pinned recommendation if exists
+  let pinnedRec: Recommendation | null = null
+  if (profile.pinned_recommendation_id) {
+    const { data: pinned } = await supabase
+      .from('recommendations')
+      .select('*')
+      .eq('id', profile.pinned_recommendation_id)
+      .eq('is_approved', true)
+      .maybeSingle()
+    pinnedRec = pinned as Recommendation | null
+  }
+
   let recQuery = supabase
     .from('recommendations')
     .select('*')
@@ -75,6 +122,11 @@ export default async function ProfilePage({ params }: Props) {
 
   if (!isPrivileged) {
     recQuery = recQuery.not('content_rating', 'in', '("adult","mature")')
+  }
+
+  // Exclude pinned from regular list
+  if (profile.pinned_recommendation_id) {
+    recQuery = recQuery.neq('id', profile.pinned_recommendation_id)
   }
 
   const [
@@ -133,27 +185,48 @@ export default async function ProfilePage({ params }: Props) {
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-10">
 
       {/* ── Profile card ── */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <div className="h-24 bg-gradient-to-br from-primary/20 via-violet-500/10 to-transparent" />
+      <div className={`rounded-2xl border overflow-hidden ${showGold ? 'border-amber-500/30' : 'border-border'} bg-card`}>
+
+        {/* Banner — gold gradient for Pro users */}
+        <div className={`h-24 bg-gradient-to-br ${bannerGradient} relative`}>
+          {/* Gold shimmer line for Pro */}
+          {showGold && (
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+          )}
+        </div>
+
         <div className="px-6 pb-6 -mt-12 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-            <Avatar className="h-20 w-20 border-4 border-card ring-2 ring-border shadow-lg shrink-0">
-              <AvatarImage src={profile.avatar_url ?? undefined} />
-              <AvatarFallback className="text-xl font-black bg-gradient-to-br from-primary to-violet-500 text-white">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+
+            {/* Pro Avatar with gold ring */}
+            <ProAvatar
+              src={profile.avatar_url}
+              fallback={initials}
+              size="xl"
+              isPro={isPro}
+              isAdmin={isAdmin}
+              className="border-4 border-card shadow-lg shrink-0"
+            />
+
             <div className="flex-1 min-w-0 space-y-1.5 sm:pb-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-black truncate">
                   {profile.display_name || profile.username}
                 </h1>
+
+                {/* Role badge */}
                 {profile.role !== 'user' && (
                   <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${roleStyle.badge}`}>
                     {roleStyle.icon && <Shield size={10} />}
                     {profile.role}
                   </span>
                 )}
+
+                {/* Pro badge */}
+                <ProBadge role={profile.role} isPro={isPro} />
+
+                {/* Verified badge */}
+                {profile.verified_recommender && <VerifiedBadge />}
               </div>
               <p className="text-sm text-muted-foreground">@{profile.username}</p>
             </div>
@@ -213,12 +286,25 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       </div>
 
-      {/* ── Recommendations — now uses ComicCard matching browse style ── */}
+      {/* ── Pinned Recommendation — Pro only ── */}
+      {pinnedRec && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Pin size={14} className="text-amber-500" />
+            <h2 className="text-sm font-black text-amber-600 uppercase tracking-wider">Pinned</h2>
+          </div>
+          <div className={`rounded-2xl border ${showGold ? 'border-amber-500/30 bg-amber-500/5' : 'border-border'}`}>
+            <ComicCard recommendation={pinnedRec} />
+          </div>
+        </section>
+      )}
+
+      {/* ── Recommendations ── */}
       {recommendations.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-black">Recent Recommendations</h2>
-            <div className="h-0.5 flex-1 bg-gradient-to-r from-primary/40 to-transparent" />
+            <div className={`h-0.5 flex-1 bg-gradient-to-r ${showGold ? 'from-amber-500/40' : 'from-primary/40'} to-transparent`} />
             {isPrivileged && hasAdultRecs && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 shrink-0">
                 Includes 18+
@@ -271,8 +357,7 @@ export default async function ProfilePage({ params }: Props) {
                       </p>
                       {list.description && (
                         <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                          {list.description}
-                        </p>
+                          {list.description}</p>
                       )}
                     </div>
                   </div>
