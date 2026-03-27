@@ -7,7 +7,7 @@ import {
   Shield, Globe, BookMarked, Users, Pin,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
-import type { Profile, Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/database.types'
 import type { Metadata } from 'next'
 import { FollowButton } from '@/components/user/FollowButton'
 import { ComicCard } from '@/components/recommendations/ComicCard'
@@ -17,6 +17,29 @@ import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
 
 interface Props {
   params: Promise<{ username: string }>
+}
+
+interface ProfileData {
+  id: string
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+  bio: string | null
+  website: string | null
+  role: string
+  is_banned: boolean
+  member_since: string
+  total_recommendations: number | null
+  total_reviews: number | null
+  total_votes_received: number | null
+  favorite_genres: string[] | null
+  favorite_platforms: string[] | null
+  // Pro fields
+  is_pro: boolean | null
+  pro_expires_at: string | null
+  profile_theme: string | null
+  verified_recommender: boolean | null
+  pinned_recommendation_id: string | null
 }
 
 interface ReadingList {
@@ -38,7 +61,6 @@ const ROLE_STYLES: Record<string, { badge: string; icon: boolean }> = {
   user:      { badge: 'bg-muted text-muted-foreground border-border',     icon: false },
 }
 
-// Profile theme gradients
 const THEME_GRADIENTS: Record<string, string> = {
   default:  'from-primary/20 via-violet-500/10 to-transparent',
   gold:     'from-amber-400/30 via-orange-500/15 to-transparent',
@@ -72,44 +94,52 @@ export default async function ProfilePage({ params }: Props) {
     .single()
 
   if (!profileData) notFound()
-  const profile = profileData as Profile & {
-    is_pro: boolean
-    pro_expires_at: string | null
-    profile_theme: string | null
-    verified_recommender: boolean
-    pinned_recommendation_id: string | null
+
+  // Cast safely with fallbacks for new columns
+  const profile: ProfileData = {
+    ...(profileData as any),
+    is_pro: (profileData as any).is_pro ?? false,
+    pro_expires_at: (profileData as any).pro_expires_at ?? null,
+    profile_theme: (profileData as any).profile_theme ?? 'default',
+    verified_recommender: (profileData as any).verified_recommender ?? false,
+    pinned_recommendation_id: (profileData as any).pinned_recommendation_id ?? null,
+    favorite_genres: (profileData as any).favorite_genres ?? [],
   }
 
   const isOwner = viewer?.id === profile.id
   const isPrivileged = isOwner || viewerRole === 'admin' || viewerRole === 'moderator'
 
-  const isPro = profile.is_pro &&
-    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+  const isPro = !!(profile.is_pro &&
+    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
   const isAdmin = profile.role === 'admin'
   const showGold = isPro && !isAdmin
   const profileTheme = profile.profile_theme ?? 'default'
   const bannerGradient = showGold
-    ? THEME_GRADIENTS[profileTheme] ?? THEME_GRADIENTS.default
+    ? (THEME_GRADIENTS[profileTheme] ?? THEME_GRADIENTS.default)
     : THEME_GRADIENTS.default
 
-  // Track profile view (don't block render)
+  // Track profile view — awaited properly to avoid floating promise crash
   if (viewer?.id && viewer.id !== profile.id) {
-    (supabase as any).rpc('track_profile_view', {
-      p_profile_id: profile.id,
-      p_viewer_id: viewer.id,
-    }).catch(() => {}) // fire and forget
+    try {
+      await (supabase as any).rpc('track_profile_view', {
+        p_profile_id: profile.id,
+        p_viewer_id: viewer.id,
+      })
+    } catch {
+      // Non-critical — don't crash render
+    }
   }
 
   // Fetch pinned recommendation if exists
   let pinnedRec: Recommendation | null = null
   if (profile.pinned_recommendation_id) {
-    const { data: pinned } = await supabase
+    const { data: pinned } = await (supabase as any)
       .from('recommendations')
       .select('*')
       .eq('id', profile.pinned_recommendation_id)
       .eq('is_approved', true)
       .maybeSingle()
-    pinnedRec = pinned as Recommendation | null
+    pinnedRec = (pinned as Recommendation) ?? null
   }
 
   let recQuery = supabase
@@ -124,7 +154,6 @@ export default async function ProfilePage({ params }: Props) {
     recQuery = recQuery.not('content_rating', 'in', '("adult","mature")')
   }
 
-  // Exclude pinned from regular list
   if (profile.pinned_recommendation_id) {
     recQuery = recQuery.neq('id', profile.pinned_recommendation_id)
   }
@@ -180,6 +209,7 @@ export default async function ProfilePage({ params }: Props) {
 
   const initials = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
   const roleStyle = ROLE_STYLES[profile.role] ?? ROLE_STYLES.user
+  const favoriteGenres = Array.isArray(profile.favorite_genres) ? profile.favorite_genres : []
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-10">
@@ -187,9 +217,8 @@ export default async function ProfilePage({ params }: Props) {
       {/* ── Profile card ── */}
       <div className={`rounded-2xl border overflow-hidden ${showGold ? 'border-amber-500/30' : 'border-border'} bg-card`}>
 
-        {/* Banner — gold gradient for Pro users */}
+        {/* Banner */}
         <div className={`h-24 bg-gradient-to-br ${bannerGradient} relative`}>
-          {/* Gold shimmer line for Pro */}
           {showGold && (
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
           )}
@@ -198,7 +227,6 @@ export default async function ProfilePage({ params }: Props) {
         <div className="px-6 pb-6 -mt-12 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-end gap-4">
 
-            {/* Pro Avatar with gold ring */}
             <ProAvatar
               src={profile.avatar_url}
               fallback={initials}
@@ -214,7 +242,6 @@ export default async function ProfilePage({ params }: Props) {
                   {profile.display_name || profile.username}
                 </h1>
 
-                {/* Role badge */}
                 {profile.role !== 'user' && (
                   <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${roleStyle.badge}`}>
                     {roleStyle.icon && <Shield size={10} />}
@@ -222,10 +249,8 @@ export default async function ProfilePage({ params }: Props) {
                   </span>
                 )}
 
-                {/* Pro badge */}
                 <ProBadge role={profile.role} isPro={isPro} />
 
-                {/* Verified badge */}
                 {profile.verified_recommender && <VerifiedBadge />}
               </div>
               <p className="text-sm text-muted-foreground">@{profile.username}</p>
@@ -274,9 +299,9 @@ export default async function ProfilePage({ params }: Props) {
             </div>
           </div>
 
-          {profile.favorite_genres?.length > 0 && (
+          {favoriteGenres.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
-              {profile.favorite_genres.map((genre: string) => (
+              {favoriteGenres.map((genre: string) => (
                 <Badge key={genre} variant="secondary" className="text-xs rounded-full">
                   {genre}
                 </Badge>
@@ -286,7 +311,7 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       </div>
 
-      {/* ── Pinned Recommendation — Pro only ── */}
+      {/* ── Pinned Recommendation ── */}
       {pinnedRec && (
         <section className="space-y-3">
           <div className="flex items-center gap-2">
@@ -357,7 +382,8 @@ export default async function ProfilePage({ params }: Props) {
                       </p>
                       {list.description && (
                         <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                          {list.description}</p>
+                          {list.description}
+                        </p>
                       )}
                     </div>
                   </div>
