@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     const data = await paystackRequest('/transaction/initialize', 'POST', {
       email: user.email,
       amount: selectedPlan.amount * 100, // Paystack uses kobo/cents * 100
-      currency: 'USD',
+      currency: 'NGN',
       callback_url: callbackUrl,
       metadata: {
         user_id: user.id,
