@@ -74,6 +74,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
 
             return (
               <div key={rec.id} className="relative flex-none w-full min-w-0">
+                {/* Fixed height container — this is the boundary, nothing escapes it */}
                 <div className="relative h-[300px] sm:h-[380px] md:h-[460px] overflow-hidden bg-zinc-950">
 
                   {/* Full bleed background cover */}
@@ -102,18 +103,17 @@ export function FeaturedCarousel({ recommendations }: Props) {
                     style={{ background: `linear-gradient(to bottom, transparent, ${accentColor}, transparent)` }}
                   />
 
-                  {/* Content */}
-                  <div className="relative h-full flex items-center px-6 md:px-12 gap-8">
+                  {/* Content — fills entire card height, padded top/bottom */}
+                  <div className="relative h-full flex items-center px-6 md:px-12 gap-8 py-8">
 
-                    {/* Cover art */}
+                    {/* Cover art — fixed size, never shrinks */}
                     <div className="hidden sm:block shrink-0">
                       <div className="relative">
-                        {/* Glow behind cover */}
                         <div
                           className="absolute -inset-3 rounded-2xl blur-xl opacity-40"
                           style={{ background: accentColor }}
                         />
-                        <div className="relative w-32 md:w-48 aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                        <div className="relative w-32 md:w-44 aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                           {rec.cover_url ? (
                             <img
                               src={rec.cover_url}
@@ -129,11 +129,11 @@ export function FeaturedCarousel({ recommendations }: Props) {
                       </div>
                     </div>
 
-                    {/* Text content */}
-                    <div className="flex-1 min-w-0 flex flex-col justify-center gap-3 overflow-hidden">
+                    {/* Text content — flex column, strictly contained, no overflow */}
+                    <div className="flex-1 min-w-0 min-h-0 flex flex-col justify-center gap-2.5 overflow-hidden">
 
-                      {/* Type + featured badge */}
-                      <div className="flex items-center gap-2 shrink-0">
+                      {/* Type + featured badge — always visible, never pushed */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <span
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-widest text-white"
                           style={{ background: `${accentColor}33`, border: `1px solid ${accentColor}55` }}
@@ -147,34 +147,41 @@ export function FeaturedCarousel({ recommendations }: Props) {
                         </span>
                       </div>
 
-                      {/* Title */}
-                      <h2 className="text-2xl sm:text-3xl md:text-5xl font-black leading-[1.0] text-white tracking-tight line-clamp-2 shrink-0">
+                      {/* Title — clamped, never wraps more than 2 lines */}
+                      <h2 className="text-xl sm:text-3xl md:text-4xl font-black leading-[1.05] text-white tracking-tight line-clamp-2 flex-shrink-0">
                         {rec.title}
                       </h2>
 
-                      {/* Status + genres */}
-                      <div className="flex flex-wrap items-center gap-2 shrink-0 overflow-hidden max-h-8">
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
-                          <span className={cn('w-1.5 h-1.5 rounded-full', status?.color)} />
-                          <span className="text-xs text-white/70 capitalize">{status?.label ?? rec.status}</span>
+                      {/* Status + genres — single row, truncated */}
+                      <div className="flex flex-wrap items-center gap-1.5 flex-shrink-0 overflow-hidden" style={{ maxHeight: '28px' }}>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 shrink-0">
+                          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status?.color)} />
+                          <span className="text-xs text-white/70 capitalize whitespace-nowrap">{status?.label ?? rec.status}</span>
                         </div>
                         {rec.genres?.slice(0, 3).map((genre) => (
                           <span
                             key={genre}
-                            className="px-2 py-0.5 rounded-full text-xs text-white/60 bg-white/5 border border-white/10"
+                            className="px-2 py-0.5 rounded-full text-xs text-white/60 bg-white/5 border border-white/10 whitespace-nowrap shrink-0"
                           >
                             {genre}
                           </span>
                         ))}
                       </div>
 
-                      {/* Description */}
-                      <p className="text-sm text-white/50 leading-relaxed hidden sm:block shrink-0 overflow-hidden line-clamp-2 max-w-md">
+                      {/* Description — strictly clamped, flexible shrink */}
+                      <p className="text-sm text-white/50 leading-relaxed hidden sm:block max-w-md overflow-hidden"
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                        }}
+                      >
                         {rec.description}
                       </p>
 
-                      {/* CTA + stats */}
-                      <div className="flex items-center gap-4 shrink-0">
+                      {/* CTA + stats — always at bottom, never pushed out */}
+                      <div className="flex items-center gap-4 flex-shrink-0 mt-auto pt-1">
                         <Link href={`/comic/${rec.id}`}>
                           <Button
                             size="sm"
