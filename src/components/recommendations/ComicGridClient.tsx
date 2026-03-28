@@ -16,23 +16,81 @@ interface Props {
 
 const PAGE_SIZE = 24
 
+function getSessionKey(searchParams: Record<string, string>) {
+  return `comic_grid_${JSON.stringify(searchParams)}`
+}
+
 export function ComicGridClient({
   initialItems,
   initialTotal,
   searchParams,
   apiPath = '/api/recommendations',
 }: Props) {
-  const [items, setItems] = useState<Recommendation[]>(initialItems)
-  const [total, setTotal] = useState(initialTotal)
+  const sessionKey = getSessionKey(searchParams)
+  const scrollKey = `${sessionKey}_scroll`
+
+  // Try to restore from sessionStorage on mount
+  const getInitialState = () => {
+    if (typeof window === 'undefined') return { items: initialItems, total: initialTotal, page: 1 }
+    try {
+      const saved = sessionStorage.getItem(sessionKey)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        // Only restore if searchParams match — prevents stale data
+        if (parsed.paramsKey === sessionKey) {
+          return { items: parsed.items, total: parsed.total, page: parsed.page }
+        }
+      }
+    } catch {}
+    return { items: initialItems, total: initialTotal, page: 1 }
+  }
+
+  const initial = getInitialState()
+  const [items, setItems] = useState<Recommendation[]>(initial.items)
+  const [total, setTotal] = useState(initial.total)
+  const [page, setPage] = useState(initial.page)
   const [loading, setLoading] = useState(false)
-  const [page, setPage] = useState(1)
+  const prevSearchParamsRef = useRef<string>(sessionKey)
+  const restoredScroll = useRef(false)
 
-  // Track previous searchParams to detect filter changes
-  const prevSearchParamsRef = useRef<string>(JSON.stringify(searchParams))
+  // Restore scroll position after items render
+  useEffect(() => {
+    if (restoredScroll.current) return
+    restoredScroll.current = true
+    try {
+      const savedScroll = sessionStorage.getItem(scrollKey)
+      if (savedScroll) {
+        const y = parseInt(savedScroll)
+        // Small delay to let DOM render first
+        setTimeout(() => window.scrollTo({ top: y, behavior: 'instant' }), 80)
+      }
+    } catch {}
+  }, [scrollKey])
 
-  // Sync items when searchParams or initialItems change
-  // This fires when the user picks a new sort/filter and the server
-  // re-renders with fresh initialItems
+  // Save scroll position as user scrolls
+  useEffect(() => {
+    const handleScroll = () => {
+      try {
+        sessionStorage.setItem(scrollKey, String(window.scrollY))
+      } catch {}
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [scrollKey])
+
+  // Save items to sessionStorage whenever they change
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(sessionKey, JSON.stringify({
+        paramsKey: sessionKey,
+        items,
+        total,
+        page,
+      }))
+    } catch {}
+  }, [items, total, page, sessionKey])
+
+  // Reset when searchParams change (new filter selected)
   useEffect(() => {
     const currentKey = JSON.stringify(searchParams)
     if (prevSearchParamsRef.current !== currentKey) {
@@ -40,16 +98,15 @@ export function ComicGridClient({
       setItems(initialItems)
       setTotal(initialTotal)
       setPage(1)
+      // Clear saved state for old params
+      try {
+        sessionStorage.removeItem(sessionKey)
+        sessionStorage.removeItem(scrollKey)
+      } catch {}
+      // Scroll to top of grid
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
-  }, [searchParams, initialItems, initialTotal])
-
-  // Also sync on first mount if initialItems changes identity
-  // (handles RSC revalidation without full navigation)
-  useEffect(() => {
-    setItems(initialItems)
-    setTotal(initialTotal)
-    setPage(1)
-  }, [initialItems, initialTotal])
+  }, [searchParams, initialItems, initialTotal, sessionKey, scrollKey])
 
   const hasMore = items.length < total
 
