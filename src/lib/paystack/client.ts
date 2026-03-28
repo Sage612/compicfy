@@ -3,12 +3,12 @@ export const PAYSTACK_PUBLIC_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY!
 
 export const PAYSTACK_PLANS = {
   monthly: {
-    amount: 499,  // $4.99 in cents
+    amount: 49900,  // $4.99 in cents (499 * 100) OR ₦4,999 in kobo
     label: 'Pro Monthly',
     interval: 'monthly',
   },
   yearly: {
-    amount: 3999, // $39.99 in cents
+    amount: 399900, // $39.99 in cents (3999 * 100) OR ₦39,999 in kobo
     label: 'Pro Yearly',
     interval: 'annually',
   },
