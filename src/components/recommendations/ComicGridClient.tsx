@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { Button } from '@/components/ui/button'
 import { BookOpen, Loader2, Plus } from 'lucide-react'
@@ -17,7 +17,11 @@ interface Props {
 const PAGE_SIZE = 24
 
 function getSessionKey(searchParams: Record<string, string>) {
-  return `comic_grid_${JSON.stringify(searchParams)}`
+  // Stable key based on sorted params to avoid key mismatch
+  const sorted = Object.keys(searchParams)
+    .sort()
+    .reduce<Record<string, string>>((acc, k) => { acc[k] = searchParams[k]; return acc }, {})
+  return `cgrid_${btoa(JSON.stringify(sorted)).replace(/=/g, '')}`
 }
 
 export function ComicGridClient({
@@ -27,86 +31,90 @@ export function ComicGridClient({
   apiPath = '/api/recommendations',
 }: Props) {
   const sessionKey = getSessionKey(searchParams)
-  const scrollKey = `${sessionKey}_scroll`
+  const scrollKey = `${sessionKey}_y`
 
-  // Try to restore from sessionStorage on mount
-  const getInitialState = () => {
-    if (typeof window === 'undefined') return { items: initialItems, total: initialTotal, page: 1 }
-    try {
-      const saved = sessionStorage.getItem(sessionKey)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        // Only restore if searchParams match — prevents stale data
-        if (parsed.paramsKey === sessionKey) {
-          return { items: parsed.items, total: parsed.total, page: parsed.page }
-        }
-      }
-    } catch {}
-    return { items: initialItems, total: initialTotal, page: 1 }
-  }
-
-  const initial = getInitialState()
-  const [items, setItems] = useState<Recommendation[]>(initial.items)
-  const [total, setTotal] = useState(initial.total)
-  const [page, setPage] = useState(initial.page)
+  const [items, setItems] = useState<Recommendation[]>(initialItems)
+  const [total, setTotal] = useState(initialTotal)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
-  const prevSearchParamsRef = useRef<string>(sessionKey)
-  const restoredScroll = useRef(false)
+  const [hydrated, setHydrated] = useState(false)
 
-  // Restore scroll position after items render
-  useEffect(() => {
-    if (restoredScroll.current) return
-    restoredScroll.current = true
+  const prevKeyRef = useRef(sessionKey)
+  const scrollSavedRef = useRef(false)
+
+  // ── Step 1: Restore from sessionStorage after hydration ──────────
+  // useLayoutEffect fires synchronously after DOM paint — before user sees anything
+  // This prevents the flash of server-rendered items being replaced by restored items
+  useLayoutEffect(() => {
+    setHydrated(true)
     try {
-      const savedScroll = sessionStorage.getItem(scrollKey)
-      if (savedScroll) {
-        const y = parseInt(savedScroll)
-        // Small delay to let DOM render first
-        setTimeout(() => window.scrollTo({ top: y, behavior: 'instant' }), 80)
+      const raw = sessionStorage.getItem(sessionKey)
+      if (!raw) return
+      const saved = JSON.parse(raw)
+      if (
+        Array.isArray(saved.items) &&
+        saved.items.length > 0 &&
+        typeof saved.total === 'number' &&
+        typeof saved.page === 'number'
+      ) {
+        setItems(saved.items)
+        setTotal(saved.total)
+        setPage(saved.page)
       }
     } catch {}
-  }, [scrollKey])
+  }, [sessionKey])
 
-  // Save scroll position as user scrolls
+  // ── Step 2: Restore scroll position after items are set ──────────
   useEffect(() => {
-    const handleScroll = () => {
-      try {
-        sessionStorage.setItem(scrollKey, String(window.scrollY))
-      } catch {}
-    }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [scrollKey])
-
-  // Save items to sessionStorage whenever they change
-  useEffect(() => {
+    if (!hydrated) return
     try {
-      sessionStorage.setItem(sessionKey, JSON.stringify({
-        paramsKey: sessionKey,
-        items,
-        total,
-        page,
-      }))
+      const y = sessionStorage.getItem(scrollKey)
+      if (!y) return
+      const target = parseInt(y, 10)
+      if (isNaN(target) || target <= 0) return
+      // Wait for layout to settle then snap to position
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: target, behavior: 'instant' })
+        })
+      })
     } catch {}
-  }, [items, total, page, sessionKey])
+  }, [hydrated, scrollKey])
 
-  // Reset when searchParams change (new filter selected)
+  // ── Step 3: Save scroll position continuously ────────────────────
   useEffect(() => {
-    const currentKey = JSON.stringify(searchParams)
-    if (prevSearchParamsRef.current !== currentKey) {
-      prevSearchParamsRef.current = currentKey
-      setItems(initialItems)
-      setTotal(initialTotal)
-      setPage(1)
-      // Clear saved state for old params
+    const save = () => {
       try {
-        sessionStorage.removeItem(sessionKey)
-        sessionStorage.removeItem(scrollKey)
+        sessionStorage.setItem(scrollKey, String(Math.round(window.scrollY)))
       } catch {}
-      // Scroll to top of grid
-      window.scrollTo({ top: 0, behavior: 'smooth' })
     }
-  }, [searchParams, initialItems, initialTotal, sessionKey, scrollKey])
+    window.addEventListener('scroll', save, { passive: true })
+    return () => window.removeEventListener('scroll', save)
+  }, [scrollKey])
+
+  // ── Step 4: Save items to sessionStorage whenever they change ────
+  useEffect(() => {
+    if (!hydrated) return
+    try {
+      sessionStorage.setItem(sessionKey, JSON.stringify({ items, total, page }))
+    } catch {}
+  }, [items, total, page, hydrated, sessionKey])
+
+  // ── Step 5: Reset when filters change ───────────────────────────
+  useEffect(() => {
+    if (prevKeyRef.current === sessionKey) return
+    prevKeyRef.current = sessionKey
+    // New filter selected — clear cache and reset
+    try {
+      // Clear all cgrid_ keys to avoid sessionStorage bloat
+      Object.keys(sessionStorage).forEach(k => {
+        if (k.startsWith('cgrid_')) sessionStorage.removeItem(k)
+      })
+    } catch {}
+    setItems(initialItems)
+    setTotal(initialTotal)
+    setPage(1)
+  }, [sessionKey, initialItems, initialTotal])
 
   const hasMore = items.length < total
 
@@ -121,7 +129,7 @@ export function ComicGridClient({
       })
       const res = await fetch(`${apiPath}?${params}`)
       const data = await res.json()
-      const newItems = data.recommendations ?? data.data ?? []
+      const newItems: Recommendation[] = data.recommendations ?? data.data ?? []
       setItems(prev => [...prev, ...newItems])
       setPage(nextPage)
     } catch {
