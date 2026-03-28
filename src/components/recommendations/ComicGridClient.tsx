@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { Button } from '@/components/ui/button'
 import { BookOpen, Loader2, Plus } from 'lucide-react'
@@ -11,7 +11,7 @@ interface Props {
   initialItems: Recommendation[]
   initialTotal: number
   searchParams: Record<string, string>
-  apiPath?: string // '/api/recommendations' by default
+  apiPath?: string
 }
 
 const PAGE_SIZE = 24
@@ -23,9 +23,35 @@ export function ComicGridClient({
   apiPath = '/api/recommendations',
 }: Props) {
   const [items, setItems] = useState<Recommendation[]>(initialItems)
+  const [total, setTotal] = useState(initialTotal)
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
-  const hasMore = items.length < initialTotal
+
+  // Track previous searchParams to detect filter changes
+  const prevSearchParamsRef = useRef<string>(JSON.stringify(searchParams))
+
+  // Sync items when searchParams or initialItems change
+  // This fires when the user picks a new sort/filter and the server
+  // re-renders with fresh initialItems
+  useEffect(() => {
+    const currentKey = JSON.stringify(searchParams)
+    if (prevSearchParamsRef.current !== currentKey) {
+      prevSearchParamsRef.current = currentKey
+      setItems(initialItems)
+      setTotal(initialTotal)
+      setPage(1)
+    }
+  }, [searchParams, initialItems, initialTotal])
+
+  // Also sync on first mount if initialItems changes identity
+  // (handles RSC revalidation without full navigation)
+  useEffect(() => {
+    setItems(initialItems)
+    setTotal(initialTotal)
+    setPage(1)
+  }, [initialItems, initialTotal])
+
+  const hasMore = items.length < total
 
   const loadMore = useCallback(async () => {
     setLoading(true)
@@ -56,7 +82,7 @@ export function ComicGridClient({
         </div>
         <h3 className="text-lg font-black mb-1">No comics found</h3>
         <p className="text-muted-foreground text-sm mb-6">
-          {Object.keys(searchParams).some(k => ['q','type','genre','status'].includes(k))
+          {Object.keys(searchParams).some(k => ['q', 'type', 'genre', 'status'].includes(k))
             ? 'Try adjusting your filters'
             : 'Be the first to add a recommendation!'
           }
@@ -74,7 +100,7 @@ export function ComicGridClient({
   return (
     <div className="space-y-6">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-        {items.length} of {initialTotal} comic{initialTotal !== 1 ? 's' : ''}
+        {items.length} of {total} comic{total !== 1 ? 's' : ''}
       </p>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
@@ -101,7 +127,7 @@ export function ComicGridClient({
 
       {!hasMore && items.length > PAGE_SIZE && (
         <p className="text-center text-xs text-muted-foreground py-2">
-          You've seen all {initialTotal} comics 🎉
+          You've seen all {total} comics 🎉
         </p>
       )}
     </div>
