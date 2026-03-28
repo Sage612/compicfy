@@ -14,7 +14,7 @@ interface MangaResult {
   year: number | null
   chapters: number | null
   score: number | null
-  source: 'jikan' | 'mangadex' | 'anilist'
+  source: 'jikan' | 'mangadex' | 'anilist' | 'mangaupdates'
 }
 
 // ── Jikan (MyAnimeList) ──────────────────────────────────────────
@@ -41,7 +41,7 @@ async function searchJikan(query: string): Promise<MangaResult[]> {
       year: item.published?.prop?.from?.year ?? null,
       chapters: item.chapters ?? null,
       score: item.score ?? null,
-      source: 'jikan',
+      source: 'jikan' as const,
     }))
   } catch {
     return []
@@ -95,7 +95,7 @@ async function searchMangaDex(query: string): Promise<MangaResult[]> {
         year: attr.year ?? null,
         chapters: attr.lastChapter ? parseInt(attr.lastChapter) : null,
         score: null,
-        source: 'mangadex',
+        source: 'mangadex' as const,
       }
     })
   } catch {
@@ -163,7 +163,100 @@ async function searchAniList(query: string): Promise<MangaResult[]> {
         year: item.startDate?.year ?? null,
         chapters: item.chapters ?? null,
         score: item.averageScore ? item.averageScore / 10 : null,
-        source: 'anilist',
+        source: 'anilist' as const,
+      }
+    })
+  } catch {
+    return []
+  }
+}
+
+// ── MangaUpdates ──────────────────────────────────────────────────
+async function searchMangaUpdates(query: string): Promise<MangaResult[]> {
+  try {
+    const res = await fetch(
+      'https://api.mangaupdates.com/v1/series/search',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          search: query,
+          perpage: 5,
+          type: 'series',
+        }),
+        next: { revalidate: 3600 },
+      }
+    )
+    if (!res.ok) return []
+    const data = await res.json()
+    const items = data.results ?? []
+
+    return items.map((item: any) => {
+      const record = item.record ?? {}
+
+      // Authors and artists
+      const authors = (record.authors ?? [])
+        .filter((a: any) => a.type === 'Author')
+        .map((a: any) => a.name)
+      const artists = (record.authors ?? [])
+        .filter((a: any) => a.type === 'Artist')
+        .map((a: any) => a.name)
+
+      // Genres
+      const genres = (record.genres ?? []).map((g: any) => g.genre ?? g)
+
+      // Categories (used as additional genre hints)
+      const categories = (record.categories ?? [])
+        .slice(0, 3)
+        .map((c: any) => c.category ?? c)
+
+      // Type mapping
+      const muType = record.type?.toLowerCase() ?? ''
+      let type = 'manga'
+      if (muType.includes('manhwa') || muType.includes('korean')) type = 'manhwa'
+      else if (muType.includes('manhua') || muType.includes('chinese')) type = 'manhua'
+      else if (muType.includes('webtoon')) type = 'webtoon'
+      else if (muType.includes('comic')) type = 'comic'
+
+      // Status
+      let status = 'ongoing'
+      const muStatus = (record.status ?? '').toLowerCase()
+      if (muStatus.includes('complete')) status = 'completed'
+      else if (muStatus.includes('hiatus')) status = 'hiatus'
+      else if (muStatus.includes('cancel') || muStatus.includes('discontinu')) status = 'cancelled'
+
+      // Cover image
+      const coverUrl = record.image?.url?.original ?? record.image?.url?.thumb ?? ''
+
+      // Description — strip HTML tags
+      const rawDesc = record.description ?? ''
+      const description = rawDesc.replace(/<[^>]*>/g, '').trim().slice(0, 2000)
+
+      // Year from first published
+      const year = record.year ? parseInt(record.year) : null
+
+      // Alternative titles
+      const altTitles: string[] = []
+      if (record.title && record.title !== record.title) altTitles.push(record.title)
+      ;(record.associated ?? []).forEach((a: any) => {
+        if (a.title) altTitles.push(a.title)
+      })
+
+      return {
+        id: `mangaupdates-${record.series_id}`,
+        title: record.title ?? '',
+        alternativeTitles: altTitles.slice(0, 5),
+        author: authors[0] ?? '',
+        artist: artists[0] ?? authors[0] ?? '',
+        description,
+        genres: [...new Set([...genres, ...categories])].slice(0, 8),
+        type,
+        status,
+        coverUrl,
+        year,
+        chapters: record.latest_chapter ?? null,
+        score: record.bayesian_rating ? parseFloat(record.bayesian_rating) : null,
+        source: 'mangaupdates' as const,
       }
     })
   } catch {
@@ -207,7 +300,8 @@ function mapAniListStatus(status: string): string {
 function deduplicateResults(results: MangaResult[]): MangaResult[] {
   const seen = new Set<string>()
   return results.filter((r) => {
-    const key = r.title.toLowerCase().replace(/\s+/g, '')
+    const key = r.title.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '')
+    if (!key) return false
     if (seen.has(key)) return false
     seen.add(key)
     return true
@@ -224,22 +318,24 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Run all three in parallel with fallback
-    const [jikan, mangadex, anilist] = await Promise.allSettled([
+    // Run all four in parallel with individual fallbacks
+    const [jikan, mangadex, anilist, mangaupdates] = await Promise.allSettled([
       searchJikan(query),
       searchMangaDex(query),
       searchAniList(query),
+      searchMangaUpdates(query),
     ])
 
     const all: MangaResult[] = [
-      ...(jikan.status === 'fulfilled' ? jikan.value : []),
-      ...(mangadex.status === 'fulfilled' ? mangadex.value : []),
-      ...(anilist.status === 'fulfilled' ? anilist.value : []),
+      ...(jikan.status         === 'fulfilled' ? jikan.value         : []),
+      ...(mangadex.status      === 'fulfilled' ? mangadex.value      : []),
+      ...(anilist.status       === 'fulfilled' ? anilist.value       : []),
+      ...(mangaupdates.status  === 'fulfilled' ? mangaupdates.value  : []),
     ]
 
     const deduplicated = deduplicateResults(all)
 
-    return NextResponse.json({ results: deduplicated.slice(0, 10) })
+    return NextResponse.json({ results: deduplicated.slice(0, 12) })
   } catch {
     return NextResponse.json({ results: [] })
   }
