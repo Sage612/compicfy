@@ -52,6 +52,7 @@ export function Header() {
   const [scrolled, setScrolled] = useState(false)
   const [isPro, setIsPro] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [role, setRole] = useState<string>('user')
   const supabase = createClient()
 
   useEffect(() => setMounted(true), [])
@@ -69,29 +70,21 @@ export function Header() {
       setUser(currentUser)
 
       if (currentUser) {
-        const { data: profile } = await supabase
+        const { data: profile } = await (supabase as any)
           .from('profiles')
           .select('avatar_url, display_name, username, is_pro, pro_expires_at, role')
           .eq('id', currentUser.id)
-          .single() as {
-            data: {
-              avatar_url: string | null
-              display_name: string | null
-              username: string
-              is_pro: boolean
-              pro_expires_at: string | null
-              role: string
-            } | null
-            error: unknown
-          }
+          .single()
 
         if (profile) {
           setAvatarUrl(profile.avatar_url)
           setDisplayName(profile.display_name || profile.username)
           setUsername(profile.username)
+          setRole(profile.role)
           setIsAdmin(['admin', 'moderator'].includes(profile.role))
+          // Admin = lifetime pro, no flag or expiry check needed
           setIsPro(
-            ['admin'].includes(profile.role) ||
+            profile.role === 'admin' ||
             (profile.is_pro &&
               (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
           )
@@ -108,6 +101,7 @@ export function Header() {
         setUsername(null)
         setIsPro(false)
         setIsAdmin(false)
+        setRole('user')
       }
     })
 
@@ -121,13 +115,18 @@ export function Header() {
     router.refresh()
   }
 
-  // Show Pro link for: logged-out users, free users, mods who haven't paid
-  // Hide for: admins, paid pro users
   const showProLink = mounted && !isPro
 
+  // Dashboard routing:
+  // - Admin (lifetime pro)  → Pro Dashboard + regular Dashboard beneath it
+  // - Paid pro (any role)   → Pro Dashboard only
+  // - Everyone else         → regular Dashboard
+  const dashboardHref = isPro ? '/pro/dashboard' : '/dashboard'
+  const dashboardLabel = isPro ? 'Pro Dashboard' : 'Dashboard'
+
   const publicNavLinks = [
-    { href: '/browse',    label: 'Browse', icon: Search     },
-    { href: '/news',      label: 'News',   icon: Newspaper  },
+    { href: '/browse',    label: 'Browse', icon: Search      },
+    { href: '/news',      label: 'News',   icon: Newspaper   },
     { href: '/affiliate', label: 'Shop',   icon: ShoppingBag },
   ]
 
@@ -175,7 +174,6 @@ export function Header() {
 
         {/* ── Center nav ── */}
         <nav className="hidden md:flex items-center gap-0.5">
-          {/* Public links */}
           {publicNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
             return (
@@ -195,10 +193,8 @@ export function Header() {
             )
           })}
 
-          {/* Divider when logged in */}
           {user && <div className="w-px h-4 bg-border mx-1" />}
 
-          {/* Auth-only links */}
           {user && authNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
             return (
@@ -218,7 +214,6 @@ export function Header() {
             )
           })}
 
-          {/* ── Pro link — hidden for admin and paid pro users ── */}
           {showProLink && (
             <Link
               href="/pricing"
@@ -286,7 +281,6 @@ export function Header() {
           {user && (
             <div className="flex items-center gap-1 ml-0.5">
 
-              {/* Add comic button */}
               <Link href="/dashboard/recommendations/new">
                 <Button
                   size="sm"
@@ -297,10 +291,9 @@ export function Header() {
                 </Button>
               </Link>
 
-              {/* Notification bell */}
               <NotificationBell userId={user.id} />
 
-              {/* User dropdown */}
+              {/* ── User dropdown ── */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/40 focus-visible:ring-primary/40 transition-all outline-none">
@@ -314,6 +307,8 @@ export function Header() {
                 </DropdownMenuTrigger>
 
                 <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
+
+                  {/* User info header */}
                   <DropdownMenuLabel className="font-normal px-2 py-2 mb-0.5">
                     <div className="flex items-center gap-2.5">
                       <Avatar className="h-9 w-9 shrink-0">
@@ -340,12 +335,36 @@ export function Header() {
                     </DropdownMenuItem>
                   )}
 
+                  {/*
+                    Dashboard routing:
+                    - Admin (lifetime pro)  → Pro Dashboard (/pro/dashboard) + regular Dashboard beneath
+                    - Paid pro (any role)   → Pro Dashboard (/pro/dashboard) only
+                    - Mod without pro       → regular Dashboard
+                    - Regular user          → regular Dashboard
+                  */}
                   <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                    <Link href="/dashboard">
-                      <LayoutDashboard size={13} className="text-muted-foreground" />
-                      Dashboard
+                    <Link
+                      href={dashboardHref}
+                      className={cn(isPro && 'text-amber-600 font-semibold')}
+                    >
+                      {isPro ? (
+                        <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
+                      ) : (
+                        <LayoutDashboard size={13} className="text-muted-foreground shrink-0" />
+                      )}
+                      {dashboardLabel}
                     </Link>
                   </DropdownMenuItem>
+
+                  {/* Admin also gets regular Dashboard link beneath Pro Dashboard */}
+                  {role === 'admin' && (
+                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                      <Link href="/dashboard">
+                        <LayoutDashboard size={13} className="text-muted-foreground shrink-0" />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
 
                   <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
                     <Link href="/dashboard/recommendations">
@@ -361,7 +380,7 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
 
-                  {/* Feed — mobile only */}
+                  {/* Feed — mobile only, already in bottom nav */}
                   <DropdownMenuSeparator className="my-1 md:hidden" />
                   <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg md:hidden">
                     <Link href="/feed">

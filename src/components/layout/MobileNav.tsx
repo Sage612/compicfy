@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  House, Plus, Newspaper, BookMarked, Search, Crown
+  House, Plus, Newspaper, BookMarked, Search, Crown, BarChart2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -13,7 +13,7 @@ export function MobileNav() {
   const pathname = usePathname()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isPro, setIsPro] = useState(false)
-  const [isPrivileged, setIsPrivileged] = useState(false)
+  const [role, setRole] = useState<string>('user')
   const supabase = createClient()
 
   useEffect(() => {
@@ -29,10 +29,10 @@ export function MobileNav() {
           .single()
 
         if (profile) {
-          const privileged = ['admin', 'moderator'].includes(profile.role)
-          setIsPrivileged(privileged)
+          setRole(profile.role)
+          // Admin = lifetime pro
           setIsPro(
-            privileged ||
+            profile.role === 'admin' ||
             (profile.is_pro &&
               (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
           )
@@ -40,23 +40,26 @@ export function MobileNav() {
       }
     }
     checkAuth()
-  }, [])
+  }, [supabase])
 
-  // Nav items built dynamically based on auth/pro state
+  /*
+    Mobile nav slot 5 logic:
+    - Logged out  → Pricing/Pro link
+    - Admin       → Pro Panel shortcut at /pro/dashboard
+    - Everyone else → Lists
+  */
+  const lastSlot = !isLoggedIn
+    ? { href: '/pricing',       label: 'Pro',       icon: Crown,      isPro: true      }
+    : role === 'admin'
+    ? { href: '/pro/dashboard', label: 'Pro Panel', icon: BarChart2,  isProPanel: true }
+    : { href: '/dashboard/lists', label: 'Lists',   icon: BookMarked                   }
+
   const navItems = [
-    { href: '/',       label: 'Home',   icon: House,      exact: true  },
-    { href: '/browse', label: 'Browse', icon: Search                   },
-    {
-      href: '/dashboard/recommendations/new',
-      label: 'Add',
-      icon: Plus,
-      isAdd: true,
-    },
-    { href: '/news',   label: 'News',   icon: Newspaper                },
-    // Logged out → show Pro link | Logged in → show Lists
-    isLoggedIn
-      ? { href: '/dashboard/lists', label: 'Lists', icon: BookMarked  }
-      : { href: '/pricing',         label: 'Pro',   icon: Crown, isPro: true },
+    { href: '/',       label: 'Home',   icon: House, exact: true },
+    { href: '/browse', label: 'Browse', icon: Search             },
+    { href: '/dashboard/recommendations/new', label: 'Add', icon: Plus, isAdd: true },
+    { href: '/news',   label: 'News',   icon: Newspaper          },
+    lastSlot,
   ]
 
   return (
@@ -64,11 +67,12 @@ export function MobileNav() {
       <div className="absolute inset-0 bg-background/95 backdrop-blur-lg border-t border-border" />
 
       <div className="relative flex items-center justify-around px-2 h-16">
-        {navItems.map(({ href, label, icon: Icon, exact, isAdd, isPro: isProItem }: any) => {
+        {navItems.map((item: any) => {
+          const { href, label, icon: Icon, exact, isAdd, isPro: isProItem, isProPanel } = item
           const isActive = exact ? pathname === href : pathname.startsWith(href)
           const target = isAdd && !isLoggedIn ? '/login' : href
 
-          // ── Add button ──────────────────────────────────────────────────
+          // ── Add button (center FAB) ──
           if (isAdd) {
             return (
               <Link
@@ -90,7 +94,7 @@ export function MobileNav() {
             )
           }
 
-          // ── Pro / Pricing button ────────────────────────────────────────
+          // ── Pricing/Pro link (logged out) ──
           if (isProItem) {
             return (
               <Link
@@ -117,7 +121,36 @@ export function MobileNav() {
             )
           }
 
-          // ── Regular nav items ───────────────────────────────────────────
+          // ── Admin Pro Panel shortcut ──
+          if (isProPanel) {
+            return (
+              <Link
+                key={href}
+                href={href}
+                className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px]"
+              >
+                <div className={cn(
+                  'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150',
+                  isActive
+                    ? 'bg-amber-500/20 text-amber-500'
+                    : 'text-amber-500/60 hover:bg-amber-500/10'
+                )}>
+                  <Icon size={18} strokeWidth={isActive ? 2.5 : 1.75} />
+                </div>
+                <span className={cn(
+                  'text-[10px] font-semibold leading-none',
+                  isActive ? 'text-amber-500' : 'text-amber-500/60'
+                )}>
+                  {label}
+                </span>
+                {isActive && (
+                  <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-amber-500" />
+                )}
+              </Link>
+            )
+          }
+
+          // ── Regular nav items ──
           return (
             <Link
               key={href}

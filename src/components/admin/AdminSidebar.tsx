@@ -4,15 +4,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, BookOpen, Newspaper,
-  Users, Flag, ScrollText, Star, Mail, Shield, BarChart3,
+  Users, Flag, ScrollText, Star, Mail, Shield, BarChart3, Crown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props { role: 'admin' | 'moderator' }
 
 const sharedItems = [
-  { href: '/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
-  { href: '/admin/analytics',        label: 'Analytics',       icon: BarChart3                 },
+  { href: '/admin',                  label: 'Overview',        icon: LayoutDashboard, exact: true },
+  { href: '/admin/analytics',        label: 'Analytics',       icon: BarChart3                    },
   { href: '/admin/recommendations',  label: 'Recommendations', icon: BookOpen                     },
   { href: '/admin/news',             label: 'News',            icon: Newspaper                    },
   { href: '/admin/reports',          label: 'Reports',         icon: Flag                         },
@@ -26,26 +26,30 @@ const adminOnlyItems = [
 ]
 
 const mobileShared = [
-  { href: '/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
-  { href: '/admin/analytics',        label: 'Analytics',       icon: BarChart3                 },
-  { href: '/admin/recommendations', label: 'Recs',     icon: BookOpen                     },
-  { href: '/admin/news',            label: 'News',     icon: Newspaper                    },
-  { href: '/admin/reports',         label: 'Reports',  icon: Flag                         },
-  { href: '/admin/reviews',         label: 'Reviews',  icon: Star                         },
+  { href: '/admin',                  label: 'Overview', icon: LayoutDashboard, exact: true },
+  { href: '/admin/analytics',        label: 'Analytics', icon: BarChart3                  },
+  { href: '/admin/recommendations',  label: 'Recs',     icon: BookOpen                    },
+  { href: '/admin/news',             label: 'News',     icon: Newspaper                   },
+  { href: '/admin/reports',          label: 'Reports',  icon: Flag                        },
+  { href: '/admin/reviews',          label: 'Reviews',  icon: Star                        },
 ]
 
 const mobileAdminOnly = [
   { href: '/admin/users',      label: 'Users',  icon: Users      },
   { href: '/admin/logs',       label: 'Logs',   icon: ScrollText },
   { href: '/admin/test-email', label: 'Emails', icon: Mail       },
+  { href: '/pro/dashboard',    label: 'Pro',    icon: Crown,     isPro: true },
 ]
 
 export function AdminSidebar({ role }: Props) {
   const pathname = usePathname()
-  const navItems = role === 'admin' ? [...sharedItems, ...adminOnlyItems] : sharedItems
+  const navItems = role === 'admin'
+    ? [...sharedItems, ...adminOnlyItems]
+    : sharedItems
 
   return (
     <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border p-3 gap-0.5">
+
       {/* Panel header */}
       <div className="flex items-center justify-between px-3 py-2.5 mb-1">
         <div className="flex items-center gap-2">
@@ -64,6 +68,7 @@ export function AdminSidebar({ role }: Props) {
         </span>
       </div>
 
+      {/* Regular nav items */}
       {navItems.map(({ href, label, icon: Icon, exact }: any) => {
         const isActive = exact ? pathname === href : pathname.startsWith(href)
         return (
@@ -90,19 +95,90 @@ export function AdminSidebar({ role }: Props) {
           </Link>
         )
       })}
+
+      {/*
+        Pro Dashboard — admin only, separated at bottom.
+        Admin always has lifetime pro access.
+      */}
+      {role === 'admin' && (
+        <>
+          <div className="my-2 border-t border-border" />
+          <Link
+            href="/pro/dashboard"
+            className={cn(
+              'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150',
+              pathname.startsWith('/pro/dashboard')
+                ? 'bg-amber-500/15 text-amber-600'
+                : 'text-amber-500/70 hover:text-amber-600 hover:bg-amber-500/10'
+            )}
+          >
+            <div className={cn(
+              'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all',
+              pathname.startsWith('/pro/dashboard')
+                ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30'
+                : 'bg-amber-500/10 group-hover:bg-amber-500/20'
+            )}>
+              <Crown
+                size={14}
+                className={pathname.startsWith('/pro/dashboard') ? 'text-white' : 'text-amber-500'}
+              />
+            </div>
+            <span className="truncate">Pro Dashboard</span>
+            {pathname.startsWith('/pro/dashboard') && (
+              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+            )}
+          </Link>
+        </>
+      )}
     </aside>
   )
 }
 
 export function AdminMobileNav({ role }: Props) {
   const pathname = usePathname()
-  const items = role === 'admin' ? [...mobileShared, ...mobileAdminOnly] : mobileShared
+  const items = role === 'admin'
+    ? [...mobileShared, ...mobileAdminOnly]
+    : mobileShared
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-lg border-t border-border">
       <div className="flex overflow-x-auto no-scrollbar px-1 py-1.5">
-        {items.map(({ href, label, icon: Icon, exact }: any) => {
+        {items.map(({ href, label, icon: Icon, exact, isPro: isProItem }: any) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
+
+          // ── Pro Dashboard tab — amber styling ──
+          if (isProItem) {
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  'relative flex flex-col items-center gap-1 px-3 py-1.5 min-w-[56px] flex-none rounded-xl transition-all duration-150',
+                  isActive ? 'text-amber-500' : 'text-amber-500/60 hover:text-amber-500'
+                )}
+              >
+                <div className={cn(
+                  'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150',
+                  isActive
+                    ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30'
+                    : 'hover:bg-amber-500/10'
+                )}>
+                  <Icon size={17} />
+                </div>
+                <span className={cn(
+                  'text-[9px] font-semibold whitespace-nowrap leading-none',
+                  isActive ? 'text-amber-500' : 'text-amber-500/60'
+                )}>
+                  {label}
+                </span>
+                {isActive && (
+                  <span className="absolute -bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-amber-500" />
+                )}
+              </Link>
+            )
+          }
+
+          // ── Regular admin nav tab ──
           return (
             <Link
               key={href}

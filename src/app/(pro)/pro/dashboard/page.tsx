@@ -7,11 +7,11 @@ import { ProBadge } from '@/components/pro/ProBadge'
 import { Button } from '@/components/ui/button'
 import {
   Crown, BarChart2, Eye, Download, Trophy,
-  BookOpen, Bookmark, Star, ThumbsUp,
+  BookOpen, Bookmark, ThumbsUp,
   ArrowRight, Sparkles, Zap, ChevronRight,
 } from 'lucide-react'
 import { formatDate, formatNumber } from '@/lib/utils/format'
-import { cn } from '@/lib/utils' // Using your existing utility
+import { cn } from '@/lib/utils'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Pro Dashboard | Compicfy' }
@@ -21,7 +21,7 @@ export default async function ProDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profileData } = await supabase
+  const { data: profileData } = await (supabase as any)
     .from('profiles')
     .select('*')
     .eq('id', user.id)
@@ -30,13 +30,14 @@ export default async function ProDashboardPage() {
   if (!profileData) redirect('/login')
   const profile = profileData as any
 
-  const isPro = profile.is_pro &&
-    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+  // Admin = lifetime pro access, no flag or expiry check needed
   const isAdmin = profile.role === 'admin'
+  const isPro = isAdmin ||
+    (profile.is_pro &&
+      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
 
-  if (!isPro && !isAdmin) redirect('/pricing?reason=pro_required')
+  if (!isPro) redirect('/pricing?reason=pro_required')
 
-  // Stats - Explicitly typing the results to avoid 'never' inference
   const [
     { count: totalRecs },
     { count: savedCount },
@@ -47,20 +48,18 @@ export default async function ProDashboardPage() {
     supabase.from('recommendations').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_approved', true),
     supabase.from('saves').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     supabase.from('recommendations').select('id, title, cover_url, upvotes, save_count, view_count, type').eq('user_id', user.id).eq('is_approved', true).order('score', { ascending: false }).limit(3),
-    supabase.from('pro_leaderboard').select('rank, score').eq('user_id', user.id).order('month', { ascending: false }).limit(1).maybeSingle(),
-    supabase.from('profile_views').select('*', { count: 'exact', head: true }).eq('profile_id', user.id).gte('viewed_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
+    (supabase as any).from('pro_leaderboard').select('rank, score').eq('user_id', user.id).order('month', { ascending: false }).limit(1).maybeSingle(),
+    (supabase as any).from('profile_views').select('*', { count: 'exact', head: true }).eq('profile_id', user.id).gte('viewed_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
   ])
 
-  // Cast the leaderboard entry to access properties safely
   const leaderboardEntry = leaderboardData as { rank: number; score: number } | null
-
   const initials = (profile.display_name || profile.username || 'U').slice(0, 2).toUpperCase()
 
   const quickActions = [
-    { href: '/pro/analytics',     icon: BarChart2, label: 'View Analytics',      desc: 'See your rec performance',     color: 'from-violet-500 to-purple-600' },
-    { href: '/pro/profile-views', icon: Eye,        label: 'Profile Views',       desc: `${viewsThisMonth ?? 0} this month`, color: 'from-blue-500 to-indigo-600'  },
-    { href: '/pro/export',         icon: Download,  label: 'Export Lists',        desc: 'Download as CSV or PDF',       color: 'from-teal-500 to-cyan-600'     },
-    { href: '/pro/leaderboard',   icon: Trophy,    label: 'Leaderboard',         desc: leaderboardEntry?.rank ? `Rank #${leaderboardEntry.rank}` : 'See your rank', color: 'from-amber-400 to-orange-500' },
+    { href: '/pro/analytics',     icon: BarChart2, label: 'View Analytics',  desc: 'See your rec performance',          color: 'from-violet-500 to-purple-600' },
+    { href: '/pro/profile-views', icon: Eye,       label: 'Profile Views',   desc: `${viewsThisMonth ?? 0} this month`, color: 'from-blue-500 to-indigo-600'   },
+    { href: '/pro/export',        icon: Download,  label: 'Export Lists',    desc: 'Download as CSV or PDF',            color: 'from-teal-500 to-cyan-600'     },
+    { href: '/pro/leaderboard',   icon: Trophy,    label: 'Leaderboard',     desc: leaderboardEntry?.rank ? `Rank #${leaderboardEntry.rank}` : 'See your rank', color: 'from-amber-400 to-orange-500' },
   ]
 
   const TYPE_COLORS: Record<string, string> = {
@@ -97,10 +96,10 @@ export default async function ProDashboardPage() {
               {profile.verified_recommender && <VerifiedBadge />}
             </div>
             <p className="text-sm text-muted-foreground">
-              Pro since {formatDate(profile.member_since)} ·{' '}
-              {profile.pro_expires_at
-                ? `Renews ${formatDate(profile.pro_expires_at)}`
-                : 'Lifetime access'}
+              {isAdmin
+                ? 'Admin · Lifetime Pro access'
+                : <>Pro since {formatDate(profile.member_since)} · {profile.pro_expires_at ? `Renews ${formatDate(profile.pro_expires_at)}` : 'Lifetime access'}</>
+              }
             </p>
             {leaderboardEntry?.rank && (
               <p className="text-xs text-amber-600 font-semibold flex items-center gap-1">
@@ -128,10 +127,10 @@ export default async function ProDashboardPage() {
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: 'Recommendations', value: totalRecs ?? 0,        icon: BookOpen, color: 'text-violet-500', bg: 'bg-violet-500/10' },
-          { label: 'Saved Comics',     value: savedCount ?? 0,       icon: Bookmark, color: 'text-rose-500',   bg: 'bg-rose-500/10'   },
-          { label: 'Profile Views',    value: viewsThisMonth ?? 0,  icon: Eye,       color: 'text-blue-500',   bg: 'bg-blue-500/10'   },
-          { label: 'Leaderboard',      value: leaderboardEntry?.rank ? `#${leaderboardEntry.rank}` : '—', icon: Trophy, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+          { label: 'Recommendations', value: totalRecs ?? 0,      icon: BookOpen, color: 'text-violet-500', bg: 'bg-violet-500/10' },
+          { label: 'Saved Comics',    value: savedCount ?? 0,     icon: Bookmark, color: 'text-rose-500',   bg: 'bg-rose-500/10'   },
+          { label: 'Profile Views',   value: viewsThisMonth ?? 0, icon: Eye,      color: 'text-blue-500',   bg: 'bg-blue-500/10'   },
+          { label: 'Leaderboard',     value: leaderboardEntry?.rank ? `#${leaderboardEntry.rank}` : '—', icon: Trophy, color: 'text-amber-500', bg: 'bg-amber-500/10' },
         ].map(({ label, value, icon: Icon, color, bg }) => (
           <div key={label} className="p-4 rounded-2xl border border-border bg-card space-y-3">
             <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', bg)}>
@@ -174,7 +173,7 @@ export default async function ProDashboardPage() {
             </Link>
           </div>
           <div className="space-y-2">
-            {topRecs.map((rec: any, i: number) => (
+            {(topRecs as any[]).map((rec: any, i: number) => (
               <Link
                 key={rec.id}
                 href={`/comic/${rec.id}`}
@@ -215,7 +214,9 @@ export default async function ProDashboardPage() {
             <Zap size={18} className="text-white" />
           </div>
           <div className="flex-1">
-            <p className="font-black text-sm text-amber-700 dark:text-amber-400">All Pro perks active</p>
+            <p className="font-black text-sm text-amber-700 dark:text-amber-400">
+              {isAdmin ? 'Admin · All Pro perks active forever' : 'All Pro perks active'}
+            </p>
             <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
               Unlimited recommendations · Unlimited saves · Advanced filters · Priority review · Ad-free
             </p>
