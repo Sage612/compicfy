@@ -6,9 +6,10 @@ interface ContextualOffersProps {
   comicId: string
   comicTitle: string
   genre: string
+  maxOffers?: number
 }
 
-export async function ContextualOffers({ comicId, comicTitle, genre }: ContextualOffersProps) {
+export async function ContextualOffers({ comicId, comicTitle, genre, maxOffers = 3 }: ContextualOffersProps) {
   const enabled = await isAffiliateEnabled()
   if (!enabled) return null
 
@@ -19,7 +20,9 @@ export async function ContextualOffers({ comicId, comicTitle, genre }: Contextua
           Find Related Products
         </h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Search for <span className="text-foreground font-semibold">{comicTitle}</span> merchandise across platforms. Links open search results — availability varies.
+          Search for{' '}
+          <span className="text-foreground font-semibold">{comicTitle}</span>{' '}
+          merchandise across platforms. Links open search results — availability varies.
         </p>
       </div>
 
@@ -27,6 +30,7 @@ export async function ContextualOffers({ comicId, comicTitle, genre }: Contextua
         comicId={comicId}
         comicTitle={comicTitle}
         genre={genre}
+        maxOffers={maxOffers}
       />
 
       <AffiliateDisclaimer />

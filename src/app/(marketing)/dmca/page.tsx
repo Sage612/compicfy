@@ -56,7 +56,7 @@ export default function DMCAPage() {
       if (!res.ok) throw new Error()
       setStep('success')
     } catch {
-      toast.error('Failed to submit. Please email legal@compicfy.cloud directly.')
+      toast.error('Failed to submit. Please email support@compicfy.cloud directly.')
     } finally {
       setLoading(false)
     }
@@ -82,7 +82,7 @@ export default function DMCAPage() {
         </div>
         <p className="text-xs text-muted-foreground">
           Need to follow up? Email{' '}
-          <a href="mailto:legal@compicfy.cloud" className="text-primary hover:underline">legal@compicfy.cloud</a>
+          <a href="mailto:support@compicfy.cloud" className="text-primary hover:underline">support@compicfy.cloud</a>
         </p>
       </div>
     )
@@ -172,7 +172,7 @@ export default function DMCAPage() {
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed pl-8">
               You may also send a DMCA notice directly to{' '}
-              <a href="mailto:legal@compicfy.cloud" className="text-primary hover:underline font-medium">legal@compicfy.cloud</a>{' '}
+              <a href="mailto:support@compicfy.cloud" className="text-primary hover:underline font-medium">support@compicfy.cloud</a>{' '}
               with the subject line <span className="font-mono text-xs bg-muted border border-border px-1.5 py-0.5 rounded">DMCA Takedown Notice</span>.
             </p>
           </section>

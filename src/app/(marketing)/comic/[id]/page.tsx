@@ -17,10 +17,9 @@ import { ShareButton } from '@/components/recommendations/ShareButton'
 import type { Metadata } from 'next'
 import type { Recommendation } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
-
-// NEW IMPORT: Affiliate Components and Suspense
 import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
+import { UserBadges } from '@/components/pro/UserBadges'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -35,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq('id', id)
     .single()
 
-  const rec = data as Pick<
+  const rec = data as Pick <
     Recommendation,
     'title' | 'description' | 'type' | 'genres' | 'author' | 'cover_url' | 'status'
   > | null
@@ -46,11 +45,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : 'Comic'
 
   const genreList = rec.genres?.slice(0, 3).join(', ') ?? ''
-
-  // Title optimised for search — e.g. "Solo Leveling Manhwa | Compicfy"
   const title = `${rec.title} ${typeLabel} | Compicfy`
 
-  // Description targets "where to read", "review" search intent
   const descParts = [
     `${rec.title} is a ${typeLabel.toLowerCase()}`,
     rec.author ? `by ${rec.author}` : null,
@@ -63,7 +59,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const description = descParts.slice(0, 160)
 
-  // Keywords target high-intent searches
   const keywords = [
     rec.title,
     `${rec.title} ${rec.type}`,
@@ -88,14 +83,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       type: 'article',
       url: `https://compicfy.cloud/comic/${id}`,
       images: rec.cover_url
-        ? [
-            {
-              url: rec.cover_url,
-              width: 400,
-              height: 600,
-              alt: `${rec.title} cover`,
-            },
-          ]
+        ? [{ url: rec.cover_url, width: 400, height: 600, alt: `${rec.title} cover` }]
         : [],
     },
     twitter: {
@@ -111,11 +99,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const TYPE_STYLES: Record<string, { gradient: string; badge: string; glow: string; border: string }> = {
-  manga:   { gradient: 'from-rose-500   to-pink-600',    badge: 'bg-rose-500/15   text-rose-500   border-rose-500/25',   glow: 'bg-rose-500/20',   border: 'border-rose-500/30'   },
-  manhwa:  { gradient: 'from-violet-500 to-purple-600',  badge: 'bg-violet-500/15 text-violet-500 border-violet-500/25', glow: 'bg-violet-500/20', border: 'border-violet-500/30' },
-  manhua:  { gradient: 'from-amber-500  to-orange-500',  badge: 'bg-amber-500/15  text-amber-500  border-amber-500/25',  glow: 'bg-amber-500/20',  border: 'border-amber-500/30'  },
-  webtoon: { gradient: 'from-teal-500   to-cyan-600',    badge: 'bg-teal-500/15   text-teal-500   border-teal-500/25',   glow: 'bg-teal-500/20',   border: 'border-teal-500/30'   },
-  comic:   { gradient: 'from-blue-500   to-indigo-600',  badge: 'bg-blue-500/15   text-blue-500   border-blue-500/25',   glow: 'bg-blue-500/20',   border: 'border-blue-500/30'   },
+  manga:   { gradient: 'from-rose-500   to-pink-600',   badge: 'bg-rose-500/15   text-rose-500   border-rose-500/25',   glow: 'bg-rose-500/20',   border: 'border-rose-500/30'   },
+  manhwa:  { gradient: 'from-violet-500 to-purple-600', badge: 'bg-violet-500/15 text-violet-500 border-violet-500/25', glow: 'bg-violet-500/20', border: 'border-violet-500/30' },
+  manhua:  { gradient: 'from-amber-500  to-orange-500', badge: 'bg-amber-500/15  text-amber-500  border-amber-500/25',  glow: 'bg-amber-500/20',  border: 'border-amber-500/30'  },
+  webtoon: { gradient: 'from-teal-500   to-cyan-600',   badge: 'bg-teal-500/15   text-teal-500   border-teal-500/25',   glow: 'bg-teal-500/20',   border: 'border-teal-500/30'   },
+  comic:   { gradient: 'from-blue-500   to-indigo-600', badge: 'bg-blue-500/15   text-blue-500   border-blue-500/25',   glow: 'bg-blue-500/20',   border: 'border-blue-500/30'   },
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -143,6 +131,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Age gate
   if (rec.content_rating === 'adult' || rec.content_rating === 'mature') {
     if (!user) {
       return (
@@ -161,7 +150,11 @@ export default async function ComicDetailPage({ params }: Props) {
         </div>
       )
     }
-    const { data: profileFlag } = await supabase.from('profiles').select('adult_content_enabled').eq('id', user.id).single()
+    const { data: profileFlag } = await supabase
+      .from('profiles')
+      .select('adult_content_enabled')
+      .eq('id', user.id)
+      .single()
     if (!(profileFlag as any)?.adult_content_enabled) {
       return (
         <div className="max-w-md mx-auto px-4 py-24 text-center space-y-5">
@@ -169,7 +162,9 @@ export default async function ComicDetailPage({ params }: Props) {
             <ShieldAlert size={32} className="text-destructive" />
           </div>
           <h1 className="text-2xl font-black">Adult Content Disabled</h1>
-          <p className="text-muted-foreground text-sm leading-relaxed">Enable adult content in your profile settings to view this comic.</p>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Enable adult content in your profile settings to view this comic.
+          </p>
           <div className="flex justify-center gap-3">
             <Link href="/browse"><Button variant="outline">Back to Browse</Button></Link>
             <Link href="/dashboard/settings"><Button>Go to Settings</Button></Link>
@@ -179,9 +174,32 @@ export default async function ComicDetailPage({ params }: Props) {
     }
   }
 
-  const { data: profileData } = await supabase
-    .from('profiles').select('username, display_name, avatar_url').eq('id', rec.user_id).maybeSingle()
-  const profile = profileData as { username: string; display_name: string; avatar_url: string | null } | null
+  // Fetch recommender profile — now includes role, is_pro, verified_recommender
+  // so we can show the correct badge on the "recommended by" line
+  const { data: profileData } = await (supabase as any)
+    .from('profiles')
+    .select('username, display_name, avatar_url, role, is_pro, pro_expires_at, verified_recommender')
+    .eq('id', rec.user_id)
+    .maybeSingle()
+
+  const profile = profileData as {
+    username: string
+    display_name: string | null
+    avatar_url: string | null
+    role: string
+    is_pro: boolean
+    pro_expires_at: string | null
+    verified_recommender: boolean
+  } | null
+
+  // Resolve recommender's effective pro status
+  const recommenderIsPro = profile
+    ? profile.role === 'admin' ||
+      (profile.is_pro &&
+        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+    : false
+
+  const recommenderIsVerified = profile?.verified_recommender ?? false
 
   let userVote: 'up' | 'down' | null = null
   let isSaved = false
@@ -191,7 +209,7 @@ export default async function ComicDetailPage({ params }: Props) {
       (supabase as any).from('saves').select('id').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle(),
     ])
     userVote = (voteRes.data?.vote_type as 'up' | 'down') ?? null
-    isSaved  = !!saveRes.data
+    isSaved = !!saveRes.data
   }
 
   const typeStyle = TYPE_STYLES[rec.type] ?? {
@@ -272,23 +290,21 @@ export default async function ComicDetailPage({ params }: Props) {
             <SaveButton recommendationId={id} initialSaved={isSaved} isLoggedIn={!!user} />
             {user && <AddToListButton recommendationId={id} userId={user.id} />}
 
-            {/* Recommend button */}
-<Link href={`/dashboard/recommendations/new`}>
-  <Button
-    variant="outline"
-    size="sm"
-    className="gap-2 w-full hover:border-primary/40 hover:text-primary transition-colors"
-  >
-    <PenLine size={14} />
-    Have A Recommendation?
-  </Button>
-</Link>
+            <Link href="/dashboard/recommendations/new">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 w-full hover:border-primary/40 hover:text-primary transition-colors"
+              >
+                <PenLine size={14} />
+                Have A Recommendation?
+              </Button>
+            </Link>
 
-            {/* Share button */}
-<ShareButton
-  title={rec.title}
-  url={`https://compicfy.cloud/comic/${id}`}
-/>
+            <ShareButton
+              title={rec.title}
+              url={`https://compicfy.cloud/comic/${id}`}
+            />
 
             {/* Platforms */}
             {rec.official_platforms && rec.official_platforms.length > 0 && (
@@ -376,15 +392,28 @@ export default async function ComicDetailPage({ params }: Props) {
               </div>
             )}
 
-            {/* Submitted by */}
+            {/*
+              ── RECOMMENDED BY ──
+              Shows recommender username + their badge (Pro/Verified/Combined)
+            */}
             <div className="flex items-center justify-between py-3 border-t border-border text-xs text-muted-foreground">
-              <span>
-                Recommended by{' '}
-                <Link href={`/profile/${profile?.username}`} className="text-foreground hover:text-primary font-semibold transition-colors">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span>Recommended by</span>
+                <Link
+                  href={`/profile/${profile?.username}`}
+                  className="text-foreground hover:text-primary font-semibold transition-colors"
+                >
                   @{profile?.display_name || profile?.username || 'unknown'}
                 </Link>
-              </span>
-              <span>{formatDate(rec.created_at)}</span>
+                {/* Badge — Pro (gold), Verified (purple), both → red combined */}
+                <UserBadges
+                  role={profile?.role}
+                  isPro={recommenderIsPro}
+                  isVerified={recommenderIsVerified}
+                  size="sm"
+                />
+              </div>
+              <span className="shrink-0">{formatDate(rec.created_at)}</span>
             </div>
 
             {/* Reviews */}
@@ -393,12 +422,16 @@ export default async function ComicDetailPage({ params }: Props) {
               <ReviewSection recommendationId={id} currentUserId={user?.id ?? null} isLoggedIn={!!user} />
             </div>
 
-            {/* ── NEW: AFFILIATE MERCHANDISE SECTION ── */}
+            {/*
+              ── CONTEXTUAL OFFERS ──
+              Capped at 3 max per spec (P3 fix applied here directly)
+            */}
             <Suspense fallback={<div className="h-40 bg-muted/30 animate-pulse rounded-2xl border border-border mt-6" />}>
-              <ContextualOffers 
-                comicId={id} 
-                comicTitle={rec.title} 
-                genre={rec.genres?.[0] || 'Action'} // Passes primary genre or defaults to Action
+              <ContextualOffers
+                comicId={id}
+                comicTitle={rec.title}
+                genre={rec.genres?.[0] || 'Action'}
+                maxOffers={3}
               />
             </Suspense>
 

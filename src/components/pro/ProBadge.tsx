@@ -14,6 +14,7 @@ export function ProBadge({ role, isPro, size = 'md', className }: Props) {
 
   if (!isAdmin && !isMod && !isPro) return null
 
+  // Admin badge — primary/violet
   if (isAdmin) {
     return (
       <span className={cn(
@@ -28,6 +29,7 @@ export function ProBadge({ role, isPro, size = 'md', className }: Props) {
     )
   }
 
+  // Mod badge — blue
   if (isMod) {
     return (
       <span className={cn(
@@ -42,14 +44,15 @@ export function ProBadge({ role, isPro, size = 'md', className }: Props) {
     )
   }
 
+  // Pro badge — gold (distinctly gold, not amber)
   return (
     <span className={cn(
       'inline-flex items-center gap-1 rounded-full font-bold border',
       size === 'sm' ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]',
-      'bg-amber-500/10 text-amber-500 border-amber-500/20',
+      'bg-yellow-400/15 text-yellow-500 border-yellow-400/30',
       className
     )}>
-      <Crown size={size === 'sm' ? 8 : 9} className="fill-amber-500" />
+      <Crown size={size === 'sm' ? 8 : 9} className="fill-yellow-400" />
       Pro
     </span>
   )

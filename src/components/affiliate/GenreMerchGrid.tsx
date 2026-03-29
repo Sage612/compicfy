@@ -8,6 +8,7 @@ interface GenreMerchGridProps {
   comicId: string
   comicTitle: string
   genre: string
+  maxOffers?: number
 }
 
 function getIcon(productType: string) {
@@ -23,12 +24,23 @@ function getIcon(productType: string) {
   return <ShoppingBag className="w-4 h-4" />
 }
 
-export function GenreMerchGrid({ comicId, comicTitle, genre }: GenreMerchGridProps) {
-  const products = AFFILIATE_MAPPINGS.filter(
+export function GenreMerchGrid({ comicId, comicTitle, genre, maxOffers = 3 }: GenreMerchGridProps) {
+  const allProducts = AFFILIATE_MAPPINGS.filter(
     (m) => m.genre.toLowerCase() === genre.toLowerCase()
   )
 
-  if (products.length === 0) return null
+  if (allProducts.length === 0) return null
+
+  // One offer per platform, capped at maxOffers (default 3)
+  // This guarantees variety — Amazon, RightStuf, Crunchyroll etc. not duplicated
+  const seenPlatforms = new Set<string>()
+  const products = allProducts
+    .filter((m) => {
+      if (seenPlatforms.has(m.platform)) return false
+      seenPlatforms.add(m.platform)
+      return true
+    })
+    .slice(0, maxOffers)
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -47,9 +59,10 @@ export function GenreMerchGrid({ comicId, comicTitle, genre }: GenreMerchGridPro
               <span className="text-xs font-bold">{product.productType}</span>
             </div>
 
-            {/* Honest description — makes clear this is a search */}
+            {/* Platform label */}
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Search for <span className="text-foreground font-medium">{comicTitle}</span>{' '}
+              Search for{' '}
+              <span className="text-foreground font-medium">{comicTitle}</span>{' '}
               {product.productType.toLowerCase()} on {product.platform}.
               Results may vary.
             </p>
@@ -64,7 +77,6 @@ export function GenreMerchGrid({ comicId, comicTitle, genre }: GenreMerchGridPro
                 genre={genre}
                 className="text-xs font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-xl w-full justify-center hover:bg-primary/20 transition-colors"
               >
-                {/* Label clearly says Search, not Shop */}
                 <Search className="w-3 h-3" />
                 Search on {product.platform}
               </AffiliateLink>

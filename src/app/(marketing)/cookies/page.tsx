@@ -11,7 +11,7 @@ export default function CookiePolicyPage() {
   const cookies = [
     {
       category: 'Necessary',
-      purpose: 'Authentication (Supabase session), security tokens, and your cookie consent choice.',
+      purpose: 'Authentication, security tokens, and your cookie consent choice.',
       required: true,
     },
     {
@@ -165,8 +165,8 @@ export default function CookiePolicyPage() {
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed pl-8">
             Questions about cookies or privacy? Email us at{' '}
-            <a href="mailto:privacy@compicfy.cloud" className="text-primary hover:underline font-medium break-all">
-              privacy@compicfy.cloud
+            <a href="mailto:support@compicfy.cloud" className="text-primary hover:underline font-medium break-all">
+              support@compicfy.cloud
             </a>
           </p>
         </section>
