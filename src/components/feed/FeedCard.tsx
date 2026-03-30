@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { BookOpen, MessageSquare } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { ReactionButton } from './ReactionButton'
+import { UserBadges } from '@/components/pro/UserBadges'
 import { cn } from '@/lib/utils'
 
 const TYPE_COLORS: Record<string, string> = {
@@ -24,6 +25,13 @@ export function FeedCard({ rec, isLoggedIn, reactionCount, userReacted }: Props)
   const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
   const initials = (rec.display_name || rec.username || '?').slice(0, 2).toUpperCase()
 
+  // Resolve effective pro status from feed item data
+  // RPC may or may not return these fields — graceful fallback to false
+  const recommenderIsPro = rec.role === 'admin' ||
+    (rec.is_pro === true &&
+      (!rec.pro_expires_at || new Date(rec.pro_expires_at) > new Date()))
+  const recommenderIsVerified = rec.verified_recommender === true
+
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/20 transition-colors">
 
@@ -37,14 +45,21 @@ export function FeedCard({ rec, isLoggedIn, reactionCount, userReacted }: Props)
             </AvatarFallback>
           </Avatar>
         </Link>
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
           <Link
             href={`/profile/${rec.username}`}
             className="text-xs font-bold hover:text-primary transition-colors"
           >
             @{rec.username}
           </Link>
-          <span className="text-xs text-muted-foreground ml-1.5">
+          {/* Badge — Pro (gold), Verified (purple), both → red */}
+          <UserBadges
+            role={rec.role}
+            isPro={recommenderIsPro}
+            isVerified={recommenderIsVerified}
+            size="sm"
+          />
+          <span className="text-xs text-muted-foreground">
             recommended · {timeAgo(rec.created_at)}
           </span>
         </div>
@@ -91,15 +106,12 @@ export function FeedCard({ rec, isLoggedIn, reactionCount, userReacted }: Props)
       {/* Actions row */}
       <div className="flex items-center justify-between px-4 pb-3 pt-1 border-t border-border/50">
         <div className="flex items-center gap-2">
-          {/* Heart reaction */}
           <ReactionButton
             recommendationId={rec.id}
             initialCount={reactionCount}
             initialReacted={userReacted}
             isLoggedIn={isLoggedIn}
           />
-
-          {/* Comments — coming soon */}
           <button
             disabled
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-semibold border border-border bg-muted/30 text-muted-foreground/40 cursor-not-allowed"
@@ -110,7 +122,6 @@ export function FeedCard({ rec, isLoggedIn, reactionCount, userReacted }: Props)
             <span className="text-[9px] bg-muted px-1.5 py-0.5 rounded-full font-bold">Soon</span>
           </button>
         </div>
-
         <Link
           href={`/comic/${rec.id}`}
           className="text-[10px] text-muted-foreground hover:text-primary transition-colors font-medium"
