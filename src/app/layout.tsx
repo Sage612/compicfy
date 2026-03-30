@@ -7,7 +7,7 @@ import { CookieBanner } from '@/components/ui/CookieBanner'
 import './globals.css'
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.site'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'),
   title: {
     default: 'Compicfy — Find your next obsession',
     template: '%s | Compicfy',
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.site',
+    url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud',
     siteName: 'Compicfy',
     title: 'Compicfy — Find your next obsession',
     description: 'Community-driven recommendations for manga, manhwa, manhua, and webtoons.',

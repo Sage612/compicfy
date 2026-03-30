@@ -11,13 +11,20 @@ export default async function SettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await supabase
+  const { data: profileData } = await (supabase as any)
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single()
 
-  if (!profile) redirect('/login')
+  if (!profileData) redirect('/login')
+  const profile = profileData as any
+
+  // Admin = lifetime pro, paid pro = active subscription
+  const isPro =
+    profile.role === 'admin' ||
+    (profile.is_pro &&
+      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -35,7 +42,7 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      <SettingsForm profile={profile} userId={user.id} />
+      <SettingsForm profile={profile} userId={user.id} isPro={isPro} />
     </div>
   )
 }

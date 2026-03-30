@@ -4,17 +4,27 @@ import Link from 'next/link'
 import { ProAvatar } from '@/components/pro/ProAvatar'
 import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
 import { ProBadge } from '@/components/pro/ProBadge'
+import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { Button } from '@/components/ui/button'
 import {
   Crown, BarChart2, Eye, Download, Trophy,
-  BookOpen, Bookmark, ThumbsUp,
-  ArrowRight, Sparkles, Zap, ChevronRight,
+  BookOpen, Bookmark, ThumbsUp, ArrowRight,
+  Sparkles, Zap, ChevronRight, Plus, Settings,
+  Rss, BookMarked, Flame, Users, Star,
 } from 'lucide-react'
-import { formatDate, formatNumber } from '@/lib/utils/format'
+import { formatDate, formatNumber, timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Pro Dashboard | Compicfy' }
+
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
+  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+}
 
 export default async function ProDashboardPage() {
   const supabase = await createClient()
@@ -30,7 +40,7 @@ export default async function ProDashboardPage() {
   if (!profileData) redirect('/login')
   const profile = profileData as any
 
-  // Admin = lifetime pro access, no flag or expiry check needed
+  // Admin = lifetime pro access
   const isAdmin = profile.role === 'admin'
   const isPro = isAdmin ||
     (profile.is_pro &&
@@ -38,37 +48,68 @@ export default async function ProDashboardPage() {
 
   if (!isPro) redirect('/pricing?reason=pro_required')
 
+  // Get following IDs for feed
+  const { data: followData } = await (supabase as any)
+    .from('follows')
+    .select('following_id')
+    .eq('follower_id', user.id)
+
+  const followingIds = (followData ?? []).map((f: any) => f.following_id)
+
   const [
     { count: totalRecs },
     { count: savedCount },
+    { count: listsCount },
+    { count: followingCount },
     { data: topRecs },
     { data: leaderboardData },
     { count: viewsThisMonth },
+    { data: currentlyReading },
+    { data: feedItems },
   ] = await Promise.all([
     supabase.from('recommendations').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_approved', true),
     supabase.from('saves').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+    (supabase as any).from('reading_lists').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+    (supabase as any).from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
     supabase.from('recommendations').select('id, title, cover_url, upvotes, save_count, view_count, type').eq('user_id', user.id).eq('is_approved', true).order('score', { ascending: false }).limit(3),
     (supabase as any).from('pro_leaderboard').select('rank, score').eq('user_id', user.id).order('month', { ascending: false }).limit(1).maybeSingle(),
     (supabase as any).from('profile_views').select('*', { count: 'exact', head: true }).eq('profile_id', user.id).gte('viewed_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
+    (supabase as any).from('reading_list_items').select('*, reading_lists!inner(user_id), recommendations(id, title, cover_url, type, status)').eq('reading_lists.user_id', user.id).eq('status', 'reading').order('added_at', { ascending: false }).limit(6),
+    followingIds.length > 0
+      ? (supabase as any).from('recommendations').select('id, title, cover_url, type, created_at, user_id, profiles(username, display_name, avatar_url)').in('user_id', followingIds).eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('created_at', { ascending: false }).limit(4)
+      : Promise.resolve({ data: [] }),
   ])
 
   const leaderboardEntry = leaderboardData as { rank: number; score: number } | null
   const initials = (profile.display_name || profile.username || 'U').slice(0, 2).toUpperCase()
 
-  const quickActions = [
+  const proTools = [
     { href: '/pro/analytics',     icon: BarChart2, label: 'View Analytics',  desc: 'See your rec performance',          color: 'from-violet-500 to-purple-600' },
     { href: '/pro/profile-views', icon: Eye,       label: 'Profile Views',   desc: `${viewsThisMonth ?? 0} this month`, color: 'from-blue-500 to-indigo-600'   },
     { href: '/pro/export',        icon: Download,  label: 'Export Lists',    desc: 'Download as CSV or PDF',            color: 'from-teal-500 to-cyan-600'     },
     { href: '/pro/leaderboard',   icon: Trophy,    label: 'Leaderboard',     desc: leaderboardEntry?.rank ? `Rank #${leaderboardEntry.rank}` : 'See your rank', color: 'from-amber-400 to-orange-500' },
   ]
 
-  const TYPE_COLORS: Record<string, string> = {
-    manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
-    manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
-    manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
-    webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
-    comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
-  }
+  // Quick actions — same as regular dashboard
+  const quickActions = [
+    { href: '/dashboard/recommendations/new', icon: Plus,     label: 'Submit a Recommendation', desc: 'Share a comic with the community',    gradient: 'from-violet-500 to-purple-600' },
+    { href: '/feed',                           icon: Rss,      label: 'Following Feed',           desc: 'Latest from people you follow',       gradient: 'from-primary to-violet-500'    },
+    { href: '/dashboard/lists',                icon: BookMarked, label: 'Reading Lists',          desc: 'Manage your reading collection',      gradient: 'from-teal-500 to-cyan-600'     },
+    { href: '/browse',                         icon: Flame,    label: 'Browse Comics',            desc: 'Discover new recommendations',        gradient: 'from-rose-500 to-pink-600'     },
+  ]
+
+  // Stats — merged: pro stats + regular stats, no duplicates
+  const statsRow1 = [
+    { label: 'Recommendations', value: totalRecs ?? 0,      icon: BookOpen,  color: 'text-violet-500', bg: 'bg-violet-500/10', href: '/dashboard/recommendations' },
+    { label: 'Saved Comics',    value: savedCount ?? 0,     icon: Bookmark,  color: 'text-rose-500',   bg: 'bg-rose-500/10',   href: '/dashboard/saved'           },
+    { label: 'Reading Lists',   value: listsCount ?? 0,     icon: BookMarked, color: 'text-teal-500',  bg: 'bg-teal-500/10',   href: '/dashboard/lists'           },
+    { label: 'Following',       value: followingCount ?? 0, icon: Users,     color: 'text-primary',    bg: 'bg-primary/10',    href: '/feed'                      },
+  ]
+
+  const statsRow2 = [
+    { label: 'Profile Views',  value: viewsThisMonth ?? 0, icon: Eye,    color: 'text-blue-500',  bg: 'bg-blue-500/10'  },
+    { label: 'Leaderboard',    value: leaderboardEntry?.rank ? `#${leaderboardEntry.rank}` : '—', icon: Trophy, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+  ]
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
@@ -90,7 +131,7 @@ export default async function ProDashboardPage() {
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-black truncate">
-                {profile.display_name || profile.username}
+                Hey, {profile.display_name || profile.username}! 👋
               </h1>
               <ProBadge role={profile.role} isPro={isPro} />
               {profile.verified_recommender && <VerifiedBadge />}
@@ -109,9 +150,10 @@ export default async function ProDashboardPage() {
             )}
           </div>
           <div className="flex gap-2 shrink-0">
-            <Link href={`/profile/${profile.username}`}>
+            <Link href="/dashboard/settings">
               <Button variant="outline" size="sm" className="gap-1.5 border-amber-500/30 hover:border-amber-500/60">
-                View Profile
+                <Settings size={13} />
+                Settings
               </Button>
             </Link>
             <Link href="/pro/themes">
@@ -124,29 +166,54 @@ export default async function ProDashboardPage() {
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { label: 'Recommendations', value: totalRecs ?? 0,      icon: BookOpen, color: 'text-violet-500', bg: 'bg-violet-500/10' },
-          { label: 'Saved Comics',    value: savedCount ?? 0,     icon: Bookmark, color: 'text-rose-500',   bg: 'bg-rose-500/10'   },
-          { label: 'Profile Views',   value: viewsThisMonth ?? 0, icon: Eye,      color: 'text-blue-500',   bg: 'bg-blue-500/10'   },
-          { label: 'Leaderboard',     value: leaderboardEntry?.rank ? `#${leaderboardEntry.rank}` : '—', icon: Trophy, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="p-4 rounded-2xl border border-border bg-card space-y-3">
-            <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', bg)}>
-              <Icon size={18} className={color} />
-            </div>
-            <p className="text-2xl font-black tabular-nums">{value}</p>
-            <p className="text-xs text-muted-foreground leading-tight">{label}</p>
-          </div>
-        ))}
+      {/* Profile completion banner */}
+      <ProfileCompletionBanner
+        hasAvatar={!!profile.avatar_url}
+        hasBio={!!profile.bio}
+        hasWebsite={!!profile.website}
+      />
+
+      {/* Stats row 1 — regular stats */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Your Stats</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {statsRow1.map(({ label, value, icon: Icon, color, bg, href }) => (
+            <Link
+              key={label}
+              href={href}
+              className="group p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-lg transition-all duration-200"
+            >
+              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center mb-3', bg)}>
+                <Icon size={18} className={color} />
+              </div>
+              <p className="text-2xl font-black tabular-nums">{value}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{label}</p>
+            </Link>
+          ))}
+        </div>
       </div>
 
-      {/* Quick actions */}
+      {/* Stats row 2 — Pro-only stats */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pro Stats</h2>
+        <div className="grid grid-cols-2 gap-3">
+          {statsRow2.map(({ label, value, icon: Icon, color, bg }) => (
+            <div key={label} className="p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5 space-y-3">
+              <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', bg)}>
+                <Icon size={18} className={color} />
+              </div>
+              <p className="text-2xl font-black tabular-nums">{value}</p>
+              <p className="text-xs text-muted-foreground leading-tight">{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Pro Tools */}
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pro Tools</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {quickActions.map(({ href, icon: Icon, label, desc, color }) => (
+          {proTools.map(({ href, icon: Icon, label, desc, color }) => (
             <Link key={href} href={href}>
               <div className="group flex items-center gap-4 p-4 rounded-2xl border border-border bg-card hover:border-amber-500/40 hover:shadow-md transition-all duration-200 cursor-pointer">
                 <div className={cn('w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shrink-0 shadow-sm group-hover:scale-110 transition-transform', color)}>
@@ -205,6 +272,114 @@ export default async function ProDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Currently Reading */}
+      {currentlyReading && currentlyReading.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Currently Reading</h2>
+            <Link href="/dashboard/lists" className="text-xs text-primary hover:underline flex items-center gap-1">
+              View all lists <ChevronRight size={12} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {(currentlyReading as any[]).map((item: any) => {
+              const rec = item.recommendations
+              if (!rec) return null
+              return (
+                <Link
+                  key={item.id}
+                  href={`/comic/${rec.id}`}
+                  className="group flex gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200"
+                >
+                  <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
+                    {rec.cover_url ? (
+                      <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={12} className="text-muted-foreground opacity-40" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
+                    <p className="text-xs font-black line-clamp-2 group-hover:text-primary transition-colors leading-tight">{rec.title}</p>
+                    <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border capitalize', TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border')}>
+                      {rec.type}
+                    </span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Following Feed preview */}
+      {feedItems && feedItems.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">From People You Follow</h2>
+            <Link href="/feed" className="text-xs text-primary hover:underline flex items-center gap-1">
+              View all <ChevronRight size={12} />
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {(feedItems as any[]).map((rec: any) => {
+              const p = rec.profiles
+              return (
+                <Link
+                  key={rec.id}
+                  href={`/comic/${rec.id}`}
+                  className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/30 transition-colors"
+                >
+                  <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
+                    {rec.cover_url ? (
+                      <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={12} className="text-muted-foreground opacity-40" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black line-clamp-1 group-hover:text-primary transition-colors">{rec.title}</p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border capitalize', TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border')}>
+                        {rec.type}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        by @{p?.username} · {timeAgo(rec.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight size={13} className="text-muted-foreground/30 group-hover:text-muted-foreground shrink-0" />
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {quickActions.map(({ href, icon: Icon, label, desc, gradient }) => (
+            <Link key={href} href={href}>
+              <div className="group flex items-center gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer">
+                <div className={cn('w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center shrink-0 shadow-sm group-hover:scale-110 transition-transform', gradient)}>
+                  <Icon size={17} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold group-hover:text-primary transition-colors">{label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{desc}</p>
+                </div>
+                <ArrowRight size={14} className="text-muted-foreground/30 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
 
       {/* Pro perks reminder */}
       <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -11,11 +11,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { AvatarUpload } from './AvatarUpload'
 import { toast } from 'sonner'
-import { Loader2, X, User, Heart, Shield, Globe } from 'lucide-react'
+import { Loader2, X, User, Heart, Shield, Globe, Sun, Moon, Monitor, Palette } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
 import type { Profile, Database } from '@/types/database.types'
 import { AdultContentToggle } from '@/components/user/AdultContentToggle'
 import { cn } from '@/lib/utils'
+import { useTheme } from 'next-themes'
 
 const settingsSchema = z.object({
   username: z
@@ -52,15 +53,20 @@ function FormSection({ icon: Icon, title, accent = 'from-primary to-violet-500',
 interface Props {
   profile: Profile
   userId: string
+  isPro: boolean
 }
 
-export function SettingsForm({ profile, userId }: Props) {
+export function SettingsForm({ profile, userId, isPro }: Props) {
   const supabase = createClient()
+  const { setTheme } = useTheme()
   const [saving, setSubmitting] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url)
   const [selectedGenres, setSelectedGenres] = useState<string[]>(profile.favorite_genres || [])
+  const [themePreference, setThemePreference] = useState<'dark' | 'light' | 'system'>(
+    profile.theme_preference ?? 'system'
+  )
 
-  const { register, handleSubmit, watch, formState: { errors, isDirty } } = useForm<SettingsFormValues>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
       username: profile.username,
@@ -97,7 +103,7 @@ export function SettingsForm({ profile, userId }: Props) {
         }
       }
 
-      const updateData: Database['public']['Tables']['profiles']['Update'] = {
+      const updateData: any = {
         username: data.username.toLowerCase(),
         display_name: data.display_name || null,
         bio: data.bio || null,
@@ -106,8 +112,23 @@ export function SettingsForm({ profile, userId }: Props) {
         updated_at: new Date().toISOString(),
       }
 
-      const { error } = await (supabase as any).from('profiles').update(updateData).eq('id', userId)
+      // Only save theme_preference for Pro/Admin users
+      if (isPro) {
+        updateData.theme_preference = themePreference
+      }
+
+      const { error } = await (supabase as any)
+        .from('profiles')
+        .update(updateData)
+        .eq('id', userId)
+
       if (error) throw error
+
+      // Apply the theme immediately after saving
+      if (isPro) {
+        setTheme(themePreference)
+      }
+
       toast.success('Profile updated!')
     } catch (error) {
       console.error(error)
@@ -116,6 +137,12 @@ export function SettingsForm({ profile, userId }: Props) {
       setSubmitting(false)
     }
   }
+
+  const themeOptions = [
+    { value: 'light'  as const, label: 'Light',  icon: Sun,     desc: 'Always light'         },
+    { value: 'dark'   as const, label: 'Dark',   icon: Moon,    desc: 'Always dark'           },
+    { value: 'system' as const, label: 'System', icon: Monitor, desc: 'Follows your OS theme' },
+  ]
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -168,10 +195,46 @@ export function SettingsForm({ profile, userId }: Props) {
             <Globe size={13} />
             Website
           </Label>
-          <Input id="website" {...register('website')} placeholder="https://yoursite.com" type="url" className="h-10" />
+          <Input
+            id="website"
+            {...register('website')}
+            placeholder="https://yoursite.com"
+            type="url"
+            className="h-10"
+          />
           {errors.website && <p className="text-xs text-destructive">{errors.website.message}</p>}
         </div>
       </FormSection>
+
+      {/* Theme Preference — Pro/Admin only */}
+      {isPro && (
+        <FormSection icon={Palette} title="Theme Preference" accent="from-amber-400 to-orange-500">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Choose your preferred theme. This is saved to your account and applies across all your sessions.
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {themeOptions.map(({ value, label, icon: Icon, desc }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setThemePreference(value)}
+                  className={cn(
+                    'flex flex-col items-center gap-2 p-3 rounded-xl border text-center transition-all duration-150',
+                    themePreference === value
+                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 shadow-sm'
+                      : 'border-border bg-card text-muted-foreground hover:border-amber-500/30 hover:text-foreground'
+                  )}
+                >
+                  <Icon size={18} />
+                  <span className="text-xs font-bold leading-none">{label}</span>
+                  <span className="text-[10px] leading-tight opacity-70">{desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </FormSection>
+      )}
 
       {/* Favourite Genres */}
       <FormSection icon={Heart} title="Favourite Genres" accent="from-rose-500 to-pink-600">
