@@ -16,7 +16,7 @@ import { formatDate, formatNumber, timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Pro Dashboard | Compicfy' }
+export const metadata: Metadata = { title: 'Pro Dashboard' }
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',

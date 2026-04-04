@@ -9,7 +9,7 @@ import { formatNumber } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Pro Leaderboard | Compicfy' }
+export const metadata: Metadata = { title: 'Pro Leaderboard' }
 
 export default async function ProLeaderboardPage() {
   const supabase = await createClient()

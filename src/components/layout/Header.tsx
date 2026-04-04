@@ -20,7 +20,7 @@ import {
   Sun, Moon, Monitor, BookOpen, Search, Newspaper,
   LayoutDashboard, Settings, LogOut, Plus,
   User as UserIcon, Bookmark, Bell,
-  ShoppingBag, Rss, BookMarked, Crown, CreditCard, Sparkles,
+  ShoppingBag, BookMarked, Crown, CreditCard, Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -53,6 +53,8 @@ export function Header() {
   const [isPro, setIsPro] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [role, setRole] = useState<string>('user')
+  // authReady prevents the flash of sign-up button for already-logged-in users
+  const [authReady, setAuthReady] = useState(false)
   const supabase = createClient()
 
   useEffect(() => setMounted(true), [])
@@ -82,7 +84,6 @@ export function Header() {
           setUsername(profile.username)
           setRole(profile.role)
           setIsAdmin(['admin', 'moderator'].includes(profile.role))
-          // Admin = lifetime pro, no flag or expiry check needed
           setIsPro(
             profile.role === 'admin' ||
             (profile.is_pro &&
@@ -90,6 +91,9 @@ export function Header() {
           )
         }
       }
+
+      // Auth state is known — safe to render auth-dependent UI
+      setAuthReady(true)
     }
     getUser()
 
@@ -103,6 +107,7 @@ export function Header() {
         setIsAdmin(false)
         setRole('user')
       }
+      setAuthReady(true)
     })
 
     return () => subscription.unsubscribe()
@@ -115,12 +120,8 @@ export function Header() {
     router.refresh()
   }
 
-  const showProLink = mounted && !isPro
+  const showProLink = mounted && authReady && !isPro
 
-  // Dashboard routing:
-  // - Admin (lifetime pro)  → Pro Dashboard + regular Dashboard beneath it
-  // - Paid pro (any role)   → Pro Dashboard only
-  // - Everyone else         → regular Dashboard
   const dashboardHref = isPro ? '/pro/dashboard' : '/dashboard'
   const dashboardLabel = isPro ? 'Pro Dashboard' : 'Dashboard'
 
@@ -131,7 +132,7 @@ export function Header() {
   ]
 
   const authNavLinks = [
-    { href: '/feed',            label: 'Feed',  icon: Rss        },
+    { href: '/feed',            label: 'Feed',  icon: BookOpen   },
     { href: '/dashboard/lists', label: 'Lists', icon: BookMarked },
   ]
 
@@ -172,7 +173,7 @@ export function Header() {
           </span>
         </Link>
 
-        {/* ── Center nav ── */}
+        {/* ── Center nav (desktop only) ── */}
         <nav className="hidden md:flex items-center gap-0.5">
           {publicNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
@@ -261,8 +262,8 @@ export function Header() {
             </DropdownMenu>
           )}
 
-          {/* ── Logged out ── */}
-          {!user && (
+          {/* ── Logged out — only render once auth state is known ── */}
+          {authReady && !user && (
             <div className="flex items-center gap-1.5 ml-1">
               <Link href="/login">
                 <Button variant="ghost" size="sm" className="hidden sm:flex h-8 text-sm font-medium">
@@ -281,13 +282,14 @@ export function Header() {
           {user && (
             <div className="flex items-center gap-1 ml-0.5">
 
-              <Link href="/dashboard/recommendations/new">
+              {/* Add button — desktop only, mobile nav handles this */}
+              <Link href="/dashboard/recommendations/new" className="hidden md:flex">
                 <Button
                   size="sm"
-                  className="h-8 w-8 md:w-auto md:px-3 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 flex items-center justify-center"
+                  className="h-8 px-3 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 flex items-center justify-center"
                 >
                   <Plus size={14} strokeWidth={2.5} />
-                  <span className="hidden md:inline text-sm">Add</span>
+                  <span className="text-sm">Add</span>
                 </Button>
               </Link>
 
@@ -335,13 +337,6 @@ export function Header() {
                     </DropdownMenuItem>
                   )}
 
-                  {/*
-                    Dashboard routing:
-                    - Admin (lifetime pro)  → Pro Dashboard (/pro/dashboard) + regular Dashboard beneath
-                    - Paid pro (any role)   → Pro Dashboard (/pro/dashboard) only
-                    - Mod without pro       → regular Dashboard
-                    - Regular user          → regular Dashboard
-                  */}
                   <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
                     <Link
                       href={dashboardHref}
@@ -356,7 +351,7 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
 
-                  {/* Admin also gets regular Dashboard link beneath Pro Dashboard */}
+                  {/* Admin also gets regular Dashboard link */}
                   {role === 'admin' && (
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
                       <Link href="/dashboard">
@@ -380,11 +375,14 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
 
-                  {/* Feed — mobile only, already in bottom nav */}
-                  <DropdownMenuSeparator className="my-1 md:hidden" />
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg md:hidden">
+                  {/*
+                    Feed in dropdown: desktop only.
+                    On mobile it lives in the bottom nav, so we hide it here on mobile.
+                  */}
+                  <DropdownMenuSeparator className="my-1 hidden md:block" />
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg hidden md:flex">
                     <Link href="/feed">
-                      <Rss size={13} className="text-muted-foreground" />
+                      <BookOpen size={13} className="text-muted-foreground" />
                       Following Feed
                     </Link>
                   </DropdownMenuItem>
@@ -412,7 +410,6 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
 
-                  {/* Upgrade to Pro — only for non-pro users */}
                   {showProLink && (
                     <>
                       <DropdownMenuSeparator className="my-1" />
