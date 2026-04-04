@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { recommendationSchema } from '@/lib/utils/validators'
+import { enforceRecLimit } from '@/lib/utils/proEnforce'
 
 export async function GET(request: Request) {
   try {
@@ -17,7 +18,6 @@ export async function GET(request: Request) {
     const adult  = searchParams.get('adult')  === 'true'
     const offset = (page - 1) * limit
 
-    // Use RPC search function — searches title, author, artist, description, genres
     const { data, error } = await (supabase as any).rpc('search_recommendations', {
       p_query:  q      || null,
       p_type:   type   || null,
@@ -31,7 +31,6 @@ export async function GET(request: Request) {
 
     if (error) throw error
 
-    // Get total count for pagination
     let countQuery = supabase
       .from('recommendations')
       .select('*', { count: 'exact', head: true })
@@ -81,6 +80,10 @@ export async function POST(request: Request) {
     if (profile?.is_banned) {
       return NextResponse.json({ error: 'Your account has been banned' }, { status: 403 })
     }
+
+    // ── Enforce monthly recommendation limit for free users ──
+    const { allowed, error: limitError } = await enforceRecLimit(user.id)
+    if (!allowed) return limitError!
 
     const body = await request.json()
     const parsed = recommendationSchema.safeParse(body)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,7 @@ import {
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
+import { createClient } from '@/lib/supabase/client'
 
 interface ReadingList {
   id: string
@@ -34,11 +35,39 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  // null = still loading, true/false = resolved
   const [isProUser, setIsProUser] = useState<boolean | null>(null)
 
-  // Check if user is near or at the free limit
-  const atLimit = !isProUser && isProUser !== null && lists.length >= FREE_LIST_LIMIT
-  const nearLimit = !isProUser && isProUser !== null && lists.length === FREE_LIST_LIMIT - 1
+  const supabase = createClient()
+
+  // ── Fetch real pro status on mount ──
+  useEffect(() => {
+    const fetchProStatus = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setIsProUser(false); return }
+
+      const { data: profile } = await (supabase as any)
+        .from('profiles')
+        .select('is_pro, pro_expires_at, role')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile) { setIsProUser(false); return }
+
+      const isPro =
+        profile.role === 'admin' ||
+        ['admin', 'moderator'].includes(profile.role) ||
+        (profile.is_pro &&
+          (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+
+      setIsProUser(isPro)
+    }
+    fetchProStatus()
+  }, [supabase])
+
+  // Limit checks — only active once pro status is resolved
+  const atLimit   = isProUser === false && lists.length >= FREE_LIST_LIMIT
+  const nearLimit = isProUser === false && lists.length === FREE_LIST_LIMIT - 1
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -52,7 +81,6 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
       const data = await res.json()
 
       if (!res.ok) {
-        // Hit the list limit
         if (res.status === 403) {
           setShowCreate(false)
           toast.error(
@@ -174,7 +202,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
               {lists.length} list{lists.length !== 1 ? 's' : ''}
               {isProUser === false && (
                 <span className="text-muted-foreground/60 ml-1">
-                  · {FREE_LIST_LIMIT - lists.length} free slot{FREE_LIST_LIMIT - lists.length !== 1 ? 's' : ''} remaining
+                  · {Math.max(0, FREE_LIST_LIMIT - lists.length)} free slot{FREE_LIST_LIMIT - lists.length !== 1 ? 's' : ''} remaining
                 </span>
               )}
             </p>
@@ -416,7 +444,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
         </div>
       )}
 
-      {/* Bottom upgrade CTA for free users with lists */}
+      {/* Bottom upgrade CTA for free users with lists but not at limit */}
       {isProUser === false && lists.length > 0 && lists.length < FREE_LIST_LIMIT && (
         <div className="flex items-center justify-center pt-2">
           <Link

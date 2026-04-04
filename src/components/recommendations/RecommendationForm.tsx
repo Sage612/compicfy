@@ -14,9 +14,15 @@ import { CoverUpload } from './CoverUpload'
 import { GenreSelector } from './GenreSelector'
 import { PlatformSelector } from './PlatformSelector'
 import { toast } from 'sonner'
-import { Loader2, BookOpen, Info, AlertTriangle, Sparkles, Tag, FileText, Globe } from 'lucide-react'
+import {
+  Loader2, BookOpen, Info, AlertTriangle, Sparkles,
+  Tag, FileText, Globe, Crown,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MangaSearch } from './MangaSearch'
+import { createClient } from '@/lib/supabase/client'
+
+const FREE_REC_LIMIT = 30
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Max 200 characters'),
@@ -91,30 +97,87 @@ interface Props {
 
 export function RecommendationForm({ userId }: Props) {
   const router = useRouter()
-const searchParams = useSearchParams()
-const prefillTitle = searchParams.get('title') ?? ''
+  const searchParams = useSearchParams()
+  const prefillTitle = searchParams.get('title') ?? ''
   const [submitting, setSubmitting] = useState(false)
   const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
   const [checkingDuplicate, setCheckingDuplicate] = useState(false)
   const duplicateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Monthly usage tracking
+  const [monthlyCount, setMonthlyCount] = useState<number | null>(null)
+  const [isPro, setIsPro] = useState<boolean | null>(null)
+
+  const supabase = createClient()
+
+  // ── Fetch pro status + this month's rec count ──
+  useEffect(() => {
+    const fetchUsage = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await (supabase as any)
+        .from('profiles')
+        .select('is_pro, pro_expires_at, role')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile) return
+
+      const proStatus =
+        profile.role === 'admin' ||
+        ['admin', 'moderator'].includes(profile.role) ||
+        (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+
+      setIsPro(proStatus)
+
+      // Only count for free users
+      if (!proStatus) {
+        const startOfMonth = new Date()
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+
+        const { count } = await supabase
+          .from('recommendations')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .gte('created_at', startOfMonth.toISOString())
+
+        setMonthlyCount(count ?? 0)
+      }
+    }
+    fetchUsage()
+  }, [supabase])
+
+  const atRecLimit  = isPro === false && monthlyCount !== null && monthlyCount >= FREE_REC_LIMIT
+  const nearRecLimit = isPro === false && monthlyCount !== null && monthlyCount >= FREE_REC_LIMIT - 5
+  const usagePct    = monthlyCount !== null ? Math.min(100, Math.round((monthlyCount / FREE_REC_LIMIT) * 100)) : 0
+
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
-    defaultValues: { title: prefillTitle ?? '', genres: [], official_platforms: [], cover_url: '', content_rating: 'all_ages', why_recommend: '', author: '', artist: '' },
+    defaultValues: {
+      title: prefillTitle ?? '',
+      genres: [],
+      official_platforms: [],
+      cover_url: '',
+      content_rating: 'all_ages',
+      why_recommend: '',
+      author: '',
+      artist: '',
+    },
   })
 
   const descValue = watch('description') || ''
   const whyValue  = watch('why_recommend') || ''
 
- useEffect(() => {
-  // Pre-fill title from URL param and trigger duplicate check
-  if (prefillTitle) {
-    setValue('title', prefillTitle)
-    duplicateDebounceRef.current = setTimeout(() => checkDuplicate(prefillTitle), 300)
-  }
-  return () => { if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current) }
-}, [prefillTitle])
-  
+  useEffect(() => {
+    if (prefillTitle) {
+      setValue('title', prefillTitle)
+      duplicateDebounceRef.current = setTimeout(() => checkDuplicate(prefillTitle), 300)
+    }
+    return () => { if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current) }
+  }, [prefillTitle])
+
   const checkDuplicate = async (title: string) => {
     if (title.trim().length < 2) { setDuplicateWarning(null); return }
     setCheckingDuplicate(true)
@@ -127,6 +190,10 @@ const prefillTitle = searchParams.get('title') ?? ''
 
   const onSubmit = async (data: FormValues) => {
     if (duplicateWarning) return
+    if (atRecLimit) {
+      toast.error('Monthly limit reached. Upgrade to Pro for unlimited submissions.')
+      return
+    }
     setSubmitting(true)
     try {
       const response = await fetch('/api/recommendations', {
@@ -135,6 +202,7 @@ const prefillTitle = searchParams.get('title') ?? ''
         body: JSON.stringify(data),
       })
       const result = await response.json()
+
       if (response.status === 409 && result.error === 'duplicate') {
         toast.error(result.message, {
           description: result.is_approved ? 'View the existing recommendation instead.' : 'This comic is already pending review.',
@@ -143,6 +211,23 @@ const prefillTitle = searchParams.get('title') ?? ''
         })
         return
       }
+
+      // API returned 403 = limit hit server-side (safety net)
+      if (response.status === 403) {
+        toast.error(
+          <div className="flex flex-col gap-1.5">
+            <p className="font-black text-sm">Monthly limit reached</p>
+            <p className="text-xs text-muted-foreground">{result.message}</p>
+            <Link href="/pricing" className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5">
+              <Crown size={11} />
+              Upgrade to Pro for unlimited
+            </Link>
+          </div>,
+          { duration: 6000 }
+        )
+        return
+      }
+
       if (!response.ok) { toast.error(result.error || 'Failed to submit'); return }
       toast.success(result.recommendation.is_approved ? 'Recommendation published!' : 'Recommendation submitted for review!')
       router.push('/dashboard/recommendations')
@@ -170,6 +255,56 @@ const prefillTitle = searchParams.get('title') ?? ''
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+
+      {/* Monthly usage bar — free users only, shown once loaded */}
+      {isPro === false && monthlyCount !== null && (
+        <div className={cn(
+          'rounded-2xl border p-4 space-y-3',
+          atRecLimit
+            ? 'border-red-500/30 bg-red-500/5'
+            : nearRecLimit
+            ? 'border-amber-500/20 bg-amber-500/5'
+            : 'border-border bg-card'
+        )}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <BookOpen size={13} className={atRecLimit ? 'text-red-500' : nearRecLimit ? 'text-amber-500' : 'text-muted-foreground'} />
+              <span className="text-xs font-semibold">
+                {monthlyCount} / {FREE_REC_LIMIT} recommendations this month
+              </span>
+            </div>
+            {(atRecLimit || nearRecLimit) && (
+              <Link
+                href="/pricing"
+                className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline shrink-0"
+              >
+                <Crown size={10} className="fill-amber-500" />
+                Go unlimited
+              </Link>
+            )}
+          </div>
+
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all duration-500',
+                usagePct >= 100 ? 'bg-red-500' : usagePct >= 85 ? 'bg-amber-500' : 'bg-primary'
+              )}
+              style={{ width: `${usagePct}%` }}
+            />
+          </div>
+
+          {atRecLimit && (
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={13} className="text-red-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-red-600 font-medium">
+                You've used all {FREE_REC_LIMIT} recommendations for this month.{' '}
+                <Link href="/pricing" className="underline font-bold">Upgrade to Pro</Link> for unlimited submissions.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Auto-fill banner */}
       <div className="flex items-start gap-3 p-4 rounded-2xl border border-primary/20 bg-primary/5">
@@ -422,12 +557,26 @@ const prefillTitle = searchParams.get('title') ?? ''
         </Button>
         <Button
           type="submit"
-          disabled={submitting || !!duplicateWarning || (watch('content_rating') === 'adult' && !watch('adult_content_confirmed'))}
-          className="gap-2 min-w-44 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+          disabled={
+            submitting ||
+            !!duplicateWarning ||
+            atRecLimit ||
+            (watch('content_rating') === 'adult' && !watch('adult_content_confirmed'))
+          }
+          className={cn(
+            'gap-2 min-w-44 border-0 shadow-lg',
+            atRecLimit
+              ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-amber-500/20 cursor-not-allowed'
+              : 'bg-gradient-to-r from-primary to-violet-500 shadow-primary/20 hover:opacity-90'
+          )}
         >
-          {submitting
-            ? <><Loader2 size={15} className="animate-spin" /> Submitting…</>
-            : <><BookOpen size={15} /> Submit Recommendation</>}
+          {atRecLimit ? (
+            <><Crown size={15} /> Limit Reached — Upgrade</>
+          ) : submitting ? (
+            <><Loader2 size={15} className="animate-spin" /> Submitting…</>
+          ) : (
+            <><BookOpen size={15} /> Submit Recommendation</>
+          )}
         </Button>
       </div>
     </form>

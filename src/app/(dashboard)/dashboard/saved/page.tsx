@@ -3,13 +3,15 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
   BookOpen, Bookmark, ArrowRight,
-  Sparkles, ThumbsUp, Star,
+  Sparkles, ThumbsUp, Star, Crown, Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils/format'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Saved Comics' }
+
+const FREE_SAVE_LIMIT = 50
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
@@ -31,6 +33,19 @@ export default async function SavedPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Fetch profile to check pro status
+  const { data: profile } = await (supabase as any)
+    .from('profiles')
+    .select('is_pro, pro_expires_at, role')
+    .eq('id', user.id)
+    .single()
+
+  const isPro = profile
+    ? profile.role === 'admin' ||
+      ['admin', 'moderator'].includes(profile.role) ||
+      (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+    : false
+
   const { data: savesData } = await supabase
     .from('saves')
     .select('*, recommendations(*)')
@@ -39,6 +54,11 @@ export default async function SavedPage() {
 
   const saves = (savesData ?? []) as any[]
   const savedComics = saves.map((s) => ({ savedAt: s.created_at, rec: s.recommendations }))
+
+  const saveCount   = savedComics.length
+  const atLimit     = !isPro && saveCount >= FREE_SAVE_LIMIT
+  const nearLimit   = !isPro && saveCount >= FREE_SAVE_LIMIT - 10
+  const usagePct    = Math.min(100, Math.round((saveCount / FREE_SAVE_LIMIT) * 100))
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
@@ -53,26 +73,77 @@ export default async function SavedPage() {
             <h1 className="text-2xl font-black tracking-tight">Saved Comics</h1>
           </div>
           <p className="text-muted-foreground text-sm pl-0.5">
-            {savedComics.length} comic{savedComics.length !== 1 ? 's' : ''} saved
+            {saveCount} comic{saveCount !== 1 ? 's' : ''} saved
+            {!isPro && (
+              <span className="text-muted-foreground/60 ml-1">
+                · {Math.max(0, FREE_SAVE_LIMIT - saveCount)} free slot{FREE_SAVE_LIMIT - saveCount !== 1 ? 's' : ''} remaining
+              </span>
+            )}
           </p>
         </div>
         <Link href="/browse">
           <Button variant="outline" size="sm" className="gap-2 shrink-0 hover:border-primary/40 hover:text-primary transition-colors">
-            <BookOpen size={14} />
+            <Search size={14} />
             Browse More
           </Button>
         </Link>
       </div>
 
-      {/* Empty state — visually rich */}
+      {/* Free user usage bar — shown when near or at limit */}
+      {!isPro && saveCount > 0 && (
+        <div className={`rounded-2xl border p-4 space-y-3 ${
+          atLimit
+            ? 'border-amber-500/30 bg-amber-500/5'
+            : nearLimit
+            ? 'border-amber-500/20 bg-amber-500/5'
+            : 'border-border bg-card'
+        }`}>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Bookmark size={13} className={atLimit || nearLimit ? 'text-amber-500' : 'text-muted-foreground'} />
+              <span className="text-xs font-semibold">
+                {saveCount} / {FREE_SAVE_LIMIT} saves used
+              </span>
+            </div>
+            {(atLimit || nearLimit) && (
+              <Link
+                href="/pricing"
+                className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline shrink-0"
+              >
+                <Crown size={10} className="fill-amber-500" />
+                Upgrade for unlimited
+              </Link>
+            )}
+          </div>
+
+          {/* Progress bar */}
+          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                usagePct >= 100
+                  ? 'bg-red-500'
+                  : usagePct >= 80
+                  ? 'bg-amber-500'
+                  : 'bg-primary'
+              }`}
+              style={{ width: `${usagePct}%` }}
+            />
+          </div>
+
+          {atLimit && (
+            <p className="text-xs text-amber-600 font-medium">
+              You've reached your save limit. Upgrade to Pro for unlimited saves.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Empty state */}
       {savedComics.length === 0 ? (
         <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
-
-          {/* Background decoration */}
           <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-rose-500/5 blur-2xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
 
-          {/* Stacked empty comic panels */}
           <div className="relative w-28 h-28 mx-auto mb-6">
             <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
             <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
@@ -122,7 +193,6 @@ export default async function SavedPage() {
                     <BookOpen size={16} className="text-muted-foreground opacity-40" />
                   </div>
                 )}
-                {/* Saved bookmark pip */}
                 <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500/90 flex items-center justify-center shadow-sm">
                   <Bookmark size={8} className="text-white fill-white" />
                 </div>
@@ -146,7 +216,6 @@ export default async function SavedPage() {
                   </span>
                 </div>
 
-                {/* Genres */}
                 <div className="flex flex-wrap gap-1">
                   {rec.genres?.slice(0, 2).map((g: string) => (
                     <span key={g} className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted border border-border text-muted-foreground">
@@ -155,7 +224,6 @@ export default async function SavedPage() {
                   ))}
                 </div>
 
-                {/* Stats row */}
                 <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <ThumbsUp size={9} className="text-emerald-500" />
@@ -172,6 +240,20 @@ export default async function SavedPage() {
           ))}
         </div>
       )}
+
+      {/* Bottom upgrade CTA */}
+      {!isPro && saveCount > 0 && saveCount < FREE_SAVE_LIMIT && (
+        <div className="flex items-center justify-center pt-2">
+          <Link
+            href="/pricing"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-500 transition-colors"
+          >
+            <Sparkles size={11} />
+            Upgrade to Pro for unlimited saves
+          </Link>
+        </div>
+      )}
+
     </div>
   )
 }

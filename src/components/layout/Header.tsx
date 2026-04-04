@@ -20,7 +20,7 @@ import {
   Sun, Moon, Monitor, BookOpen, Search, Newspaper,
   LayoutDashboard, Settings, LogOut, Plus,
   User as UserIcon, Bookmark, Bell,
-  ShoppingBag, BookMarked, Crown, CreditCard, Sparkles,
+  ShoppingBag, BookMarked, Crown, CreditCard, Sparkles, Rss,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -132,7 +132,7 @@ export function Header() {
   ]
 
   const authNavLinks = [
-    { href: '/feed',            label: 'Feed',  icon: BookOpen   },
+    { href: '/feed',            label: 'Feed',  icon: Rss   },
     { href: '/dashboard/lists', label: 'Lists', icon: BookMarked },
   ]
 
