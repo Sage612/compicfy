@@ -1,0 +1,172 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import {
+  BookOpen, Bookmark, ArrowRight, Sparkles,
+  ThumbsUp, Star, Crown,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { formatDate } from '@/lib/utils/format'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Saved Comics | Pro' }
+
+const FREE_SAVE_LIMIT = 50
+
+const TYPE_COLORS: Record<string, string> = {
+  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
+  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+}
+
+const STATUS_COLORS: Record<string, string> = {
+  ongoing:   'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+  completed: 'bg-blue-500/10   text-blue-600    border-blue-500/20',
+  hiatus:    'bg-amber-500/10  text-amber-600   border-amber-500/20',
+  cancelled: 'bg-red-500/10    text-red-600     border-red-500/20',
+}
+
+export default async function ProSavedPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: savesData } = await supabase
+    .from('saves')
+    .select('*, recommendations(*)')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  const saves = (savesData ?? []) as any[]
+  const savedComics = saves.map((s) => ({ savedAt: s.created_at, rec: s.recommendations }))
+  const saveCount = savedComics.length
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+
+      {/* Pro header */}
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg shadow-rose-500/20">
+              <Bookmark size={16} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight">Saved Comics</h1>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <Crown size={11} className="text-amber-500 fill-amber-500" />
+                <span className="text-xs text-amber-600 font-semibold">Unlimited saves · Pro</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-muted-foreground text-sm pl-0.5">
+            {saveCount} comic{saveCount !== 1 ? 's' : ''} saved
+          </p>
+        </div>
+        <Link href="/browse">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 shrink-0 border-border hover:border-amber-500/40 hover:text-amber-600 hover:bg-amber-500/5 transition-all duration-200"
+          >
+            <BookOpen size={14} />
+            Browse More
+          </Button>
+        </Link>
+      </div>
+
+      {/* Empty state */}
+      {savedComics.length === 0 ? (
+        <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-rose-500/5 blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-amber-500/5 blur-2xl pointer-events-none" />
+
+          <div className="relative w-28 h-28 mx-auto mb-6">
+            <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
+            <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
+            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-rose-500/30 bg-card flex items-center justify-center shadow-lg">
+              <Bookmark size={20} className="text-rose-500/50" />
+            </div>
+          </div>
+
+          <h3 className="font-black text-xl mb-2">Your saved list is empty</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto leading-relaxed">
+            As a Pro member you have unlimited saves. Start bookmarking comics you love.
+          </p>
+
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link href="/browse">
+              <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
+                <BookOpen size={14} />
+                Browse Comics
+              </Button>
+            </Link>
+            <Link href="/browse?sort=recent">
+              <Button variant="outline" className="gap-2 hover:border-amber-500/40 hover:text-amber-600 transition-colors">
+                <Sparkles size={14} />
+                Recent Recs
+              </Button>
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {savedComics.map(({ savedAt, rec }) => (
+            <Link
+              key={rec.id}
+              href={`/comic/${rec.id}`}
+              className="group flex gap-4 p-4 rounded-2xl border border-border bg-card hover:border-amber-500/30 hover:shadow-md transition-all duration-200"
+            >
+              <div className="relative w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
+                {rec.cover_url ? (
+                  <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <BookOpen size={16} className="text-muted-foreground opacity-40" />
+                  </div>
+                )}
+                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500/90 flex items-center justify-center shadow-sm">
+                  <Bookmark size={8} className="text-white fill-white" />
+                </div>
+              </div>
+
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="font-black text-sm truncate group-hover:text-amber-600 transition-colors leading-tight">
+                    {rec.title}
+                  </h3>
+                  <ArrowRight size={13} className="text-muted-foreground/30 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all shrink-0 mt-0.5" />
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                    {rec.type}
+                  </span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${STATUS_COLORS[rec.status] ?? 'bg-muted text-muted-foreground border-border'}`}>
+                    {rec.status}
+                  </span>
+                </div>
+
+                <div className="flex flex-wrap gap-1">
+                  {rec.genres?.slice(0, 2).map((g: string) => (
+                    <span key={g} className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted border border-border text-muted-foreground">
+                      {g}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1"><ThumbsUp size={9} className="text-emerald-500" />{rec.upvotes ?? 0}</span>
+                  <span className="flex items-center gap-1"><Star size={9} className="text-amber-500" />{rec.review_count ?? 0}</span>
+                  <span className="ml-auto">Saved {formatDate(savedAt)}</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

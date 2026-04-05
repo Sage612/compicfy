@@ -1,0 +1,28 @@
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Plus, BookOpen, Crown } from 'lucide-react'
+import type { Metadata } from 'next'
+// Reuse the same client component — it handles everything
+import ProRecommendationsClient from '@/components/pro/ProRecommendationsClient'
+
+export const metadata: Metadata = { title: 'My Comics | Pro' }
+
+export default async function ProRecommendationsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: recs } = await (supabase as any)
+    .from('recommendations')
+    .select('id, title, type, cover_url, is_approved, rejection_reason, appeal_status, upvotes, downvotes, review_count, save_count, created_at, updated_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <ProRecommendationsClient initialRecs={recs ?? []} />
+    </div>
+  )
+}

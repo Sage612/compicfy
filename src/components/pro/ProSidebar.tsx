@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BookOpen, Bookmark, BookMarked,
   Bell, Settings, CreditCard, Crown,
   BarChart2, Eye, Download, Trophy, Sparkles,
-  Shield, Palette
+  Shield, Palette, Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -14,28 +14,28 @@ interface ProSidebarProps {
   role: string
 }
 
-// 1. Pro tools — Specialized for the Pro Hub
+// Pro-exclusive tools
 const proItems = [
-  { href: '/pro/dashboard',    label: 'Pro Dashboard', icon: LayoutDashboard, exact: true },
-  { href: '/pro/analytics',    label: 'Analytics',     icon: BarChart2 },
-  { href: '/pro/profile-views',label: 'Profile Views', icon: Eye },
-  { href: '/pro/export',       label: 'Export Lists',  icon: Download },
-  { href: '/pro/themes',       label: 'Profile Themes',icon: Palette },
-  { href: '/pro/leaderboard',  label: 'Leaderboard',   icon: Trophy },
+  { href: '/pro/dashboard',     label: 'Pro Dashboard',  icon: LayoutDashboard, exact: true },
+  { href: '/pro/analytics',     label: 'Analytics',      icon: BarChart2 },
+  { href: '/pro/profile-views', label: 'Profile Views',  icon: Eye },
+  { href: '/pro/export',        label: 'Export Lists',   icon: Download },
+  { href: '/pro/themes',        label: 'Profile Themes', icon: Palette },
+  { href: '/pro/leaderboard',   label: 'Leaderboard',    icon: Trophy },
 ]
 
-// 2. Main Dashboard — Core platform features
-const dashboardItems = [
-  { href: '/dashboard',                label: 'Dashboard',    icon: LayoutDashboard, exact: true },
-  { href: '/dashboard/recommendations', label: 'My Comics',    icon: BookOpen },
-  { href: '/dashboard/saved',           label: 'Saved Comics', icon: Bookmark },
-  { href: '/dashboard/lists',           label: 'Reading Lists', icon: BookMarked },
-  { href: '/dashboard/notifications',    label: 'Notifications', icon: Bell },
-  { href: '/dashboard/settings',        label: 'Settings',     icon: Settings },
-  { href: '/dashboard/billing',         label: 'Billing',      icon: CreditCard },
+// Pro versions of platform pages — same data, pro feel
+const platformItems = [
+  { href: '/pro/recommendations', label: 'My Comics',      icon: BookOpen },
+  { href: '/pro/saved',           label: 'Saved Comics',   icon: Bookmark },
+  { href: '/pro/lists',           label: 'Reading Lists',  icon: BookMarked },
+  { href: '/pro/reviews',         label: 'My Reviews',     icon: Star },
+  { href: '/pro/notifications',   label: 'Notifications',  icon: Bell },
+  { href: '/pro/settings',        label: 'Settings',       icon: Settings },
+  { href: '/pro/billing',         label: 'Billing',        icon: CreditCard },
 ]
 
-// 3. Admin shortcut
+// Admin shortcut
 const adminItems = [
   { href: '/admin', label: 'Admin Panel', icon: Shield },
 ]
@@ -46,8 +46,8 @@ export function ProSidebar({ role }: ProSidebarProps) {
 
   return (
     <div className="flex flex-col gap-0.5 h-full">
-      
-      {/* Header Section */}
+
+      {/* Header */}
       <div className="flex items-center justify-between px-3 py-3 mb-1">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-sm shadow-amber-500/30">
@@ -63,8 +63,9 @@ export function ProSidebar({ role }: ProSidebarProps) {
         </span>
       </div>
 
-      <nav className="flex flex-col gap-0.5 flex-1">
-        {/* Render Pro Tools */}
+      <nav className="flex flex-col gap-0.5 flex-1 overflow-y-auto">
+
+        {/* Pro Tools */}
         {proItems.map(({ href, label, icon: Icon, exact }) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
           return (
@@ -94,12 +95,12 @@ export function ProSidebar({ role }: ProSidebarProps) {
 
         <div className="my-3 border-t border-border/50" />
 
-        {/* Render Main Dashboard Links */}
+        {/* Platform — Pro versions */}
         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 py-1 mb-1">
           Platform
         </p>
-        {dashboardItems.map(({ href, label, icon: Icon, exact }) => {
-          const isActive = exact ? pathname === href : pathname.startsWith(href)
+        {platformItems.map(({ href, label, icon: Icon }) => {
+          const isActive = pathname === href || pathname.startsWith(href + '/')
           return (
             <Link
               key={href}
@@ -125,7 +126,7 @@ export function ProSidebar({ role }: ProSidebarProps) {
           )
         })}
 
-        {/* Admin Section */}
+        {/* Admin */}
         {isAdmin && (
           <>
             <div className="my-3 border-t border-border/50" />
@@ -157,7 +158,7 @@ export function ProSidebar({ role }: ProSidebarProps) {
         )}
       </nav>
 
-      {/* Footer Info */}
+      {/* Footer */}
       <div className="mt-auto pt-3 border-t border-amber-500/10">
         <div className="flex items-center gap-2 px-3 py-2">
           <Sparkles size={12} className="text-amber-500/60 animate-pulse" />

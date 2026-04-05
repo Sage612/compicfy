@@ -236,3 +236,59 @@
   0%   { background-position: -200% 0; }
   100% { background-position: 200% 0;  }
 }
+
+/* ── Pro Profile Themes ────────────────────────────────────────────
+   Each [data-theme] block overrides only the primary/accent HSL
+   variables. Dark/light mode variables (background, card, etc.)
+   are untouched — themes work in both modes.
+─────────────────────────────────────────────────────────────────── */
+
+[data-theme="gold"] {
+  --primary: 38 95% 52%;          /* amber-500 */
+  --primary-foreground: 0 0% 0%;
+  --accent: 38 95% 52%;
+  --accent-foreground: 0 0% 0%;
+  --ring: 38 95% 52%;
+}
+
+[data-theme="rose"] {
+  --primary: 347 77% 50%;         /* rose-500 */
+  --primary-foreground: 0 0% 100%;
+  --accent: 347 77% 50%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 347 77% 50%;
+}
+
+[data-theme="teal"] {
+  --primary: 175 84% 32%;         /* teal-600 */
+  --primary-foreground: 0 0% 100%;
+  --accent: 175 84% 32%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 175 84% 32%;
+}
+
+[data-theme="violet"] {
+  --primary: 263 70% 50%;         /* violet-600 */
+  --primary-foreground: 0 0% 100%;
+  --accent: 263 70% 50%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 263 70% 50%;
+}
+
+[data-theme="amber"] {
+  --primary: 43 96% 56%;          /* amber-400 */
+  --primary-foreground: 0 0% 0%;
+  --accent: 43 96% 56%;
+  --accent-foreground: 0 0% 0%;
+  --ring: 43 96% 56%;
+}
+
+[data-theme="midnight"] {
+  --primary: 217 91% 60%;         /* blue-500 */
+  --primary-foreground: 0 0% 100%;
+  --accent: 217 91% 60%;
+  --accent-foreground: 0 0% 100%;
+  --ring: 217 91% 60%;
+}
+
+/* default theme = no data-theme attr needed, uses root vars */

@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Palette, Check, Loader2 } from 'lucide-react'
+import { Palette, Check, Loader2, Crown } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { applyProfileTheme } from '@/components/pro/ProfileThemeProvider'
 
 const THEMES = [
   {
@@ -73,7 +74,14 @@ interface Props {
 
 export function ThemesClient({ currentTheme, userId }: Props) {
   const [selected, setSelected] = useState(currentTheme)
+  const [applied, setApplied] = useState(currentTheme)
   const [saving, setSaving] = useState(false)
+
+  // Preview theme live as user clicks — no save yet
+  const handleSelect = (themeId: string) => {
+    setSelected(themeId)
+    applyProfileTheme(themeId)
+  }
 
   const handleSave = async () => {
     setSaving(true)
@@ -85,13 +93,27 @@ export function ThemesClient({ currentTheme, userId }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-      toast.success('Theme updated!')
+
+      // Persist the applied state
+      setApplied(selected)
+      applyProfileTheme(selected)
+      toast.success('Theme saved! Your profile will show this theme to visitors.')
     } catch {
+      // Revert preview to last saved theme on error
+      applyProfileTheme(applied)
+      setSelected(applied)
       toast.error('Failed to update theme')
     } finally {
       setSaving(false)
     }
   }
+
+  const handleCancel = () => {
+    setSelected(applied)
+    applyProfileTheme(applied)
+  }
+
+  const isDirty = selected !== applied
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -105,20 +127,30 @@ export function ThemesClient({ currentTheme, userId }: Props) {
           <h1 className="text-2xl font-black tracking-tight">Profile Themes</h1>
         </div>
         <p className="text-muted-foreground text-sm pl-0.5">
-          Customise how your profile looks to others
+          Customise how your profile looks to others. Click a theme to preview it live.
         </p>
       </div>
+
+      {/* Live preview notice */}
+      {isDirty && (
+        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-primary/5 border border-primary/20">
+          <div className="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0" />
+          <p className="text-xs text-primary font-semibold">
+            Previewing <strong>{THEMES.find(t => t.id === selected)?.name}</strong> theme — save to apply permanently
+          </p>
+        </div>
+      )}
 
       {/* Theme grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {THEMES.map((theme) => (
           <button
             key={theme.id}
-            onClick={() => setSelected(theme.id)}
+            onClick={() => handleSelect(theme.id)}
             className={cn(
               'relative p-4 rounded-2xl border-2 text-left transition-all duration-150 space-y-3',
               selected === theme.id
-                ? `${theme.border} bg-card shadow-md`
+                ? `${theme.border} bg-card shadow-md scale-[1.02]`
                 : 'border-border bg-card hover:border-primary/30'
             )}
           >
@@ -129,7 +161,8 @@ export function ThemesClient({ currentTheme, userId }: Props) {
               <div className="flex items-center gap-1.5">
                 <p className="text-sm font-black">{theme.name}</p>
                 {theme.exclusive && (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 font-bold">
+                  <span className="inline-flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 font-bold">
+                    <Crown size={8} className="fill-amber-500" />
                     Exclusive
                   </span>
                 )}
@@ -137,23 +170,44 @@ export function ThemesClient({ currentTheme, userId }: Props) {
               <p className="text-[10px] text-muted-foreground mt-0.5">{theme.description}</p>
             </div>
 
+            {/* Selected checkmark */}
             {selected === theme.id && (
-              <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+              <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center shadow-sm">
                 <Check size={11} className="text-white" strokeWidth={3} />
+              </div>
+            )}
+
+            {/* Saved indicator */}
+            {applied === theme.id && selected !== theme.id && (
+              <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-muted border border-border flex items-center justify-center">
+                <Check size={11} className="text-muted-foreground" strokeWidth={2} />
               </div>
             )}
           </button>
         ))}
       </div>
 
-      <Button
-        onClick={handleSave}
-        disabled={saving || selected === currentTheme}
-        className="w-full gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:opacity-90 border-0 text-white shadow-md shadow-amber-500/20"
-      >
-        {saving ? <Loader2 size={14} className="animate-spin" /> : <Palette size={14} />}
-        {saving ? 'Saving...' : 'Save Theme'}
-      </Button>
+      {/* Action buttons */}
+      <div className="flex gap-3">
+        <Button
+          onClick={handleSave}
+          disabled={saving || !isDirty}
+          className="flex-1 gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:opacity-90 border-0 text-white shadow-md shadow-amber-500/20"
+        >
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <Palette size={14} />}
+          {saving ? 'Saving...' : 'Save Theme'}
+        </Button>
+        {isDirty && (
+          <Button
+            variant="outline"
+            onClick={handleCancel}
+            disabled={saving}
+            className="gap-2"
+          >
+            Cancel
+          </Button>
+        )}
+      </div>
     </div>
   )
 }
