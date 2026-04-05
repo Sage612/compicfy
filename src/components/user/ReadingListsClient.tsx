@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import {
   BookMarked, Plus, Trash2, Globe, Lock,
-  Loader2, BookOpen, Pencil, ArrowRight, Crown, Sparkles,
+  Loader2, BookOpen, Pencil, ArrowRight, Crown,
+  Sparkles,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
@@ -35,12 +36,10 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
-  // null = still loading, true/false = resolved
   const [isProUser, setIsProUser] = useState<boolean | null>(null)
 
   const supabase = createClient()
 
-  // ── Fetch real pro status on mount ──
   useEffect(() => {
     const fetchProStatus = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -54,18 +53,16 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
 
       if (!profile) { setIsProUser(false); return }
 
-      const isPro =
+      setIsProUser(
         profile.role === 'admin' ||
         ['admin', 'moderator'].includes(profile.role) ||
         (profile.is_pro &&
           (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-
-      setIsProUser(isPro)
+      )
     }
     fetchProStatus()
   }, [supabase])
 
-  // Limit checks — only active once pro status is resolved
   const atLimit   = isProUser === false && lists.length >= FREE_LIST_LIMIT
   const nearLimit = isProUser === false && lists.length === FREE_LIST_LIMIT - 1
 
@@ -87,12 +84,8 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
             <div className="flex flex-col gap-1.5">
               <p className="font-black text-sm">List limit reached</p>
               <p className="text-xs text-muted-foreground">{data.message}</p>
-              <Link
-                href="/pricing"
-                className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5"
-              >
-                <Crown size={11} />
-                Upgrade to Pro for unlimited lists
+              <Link href="/pricing" className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5">
+                <Crown size={11} />Upgrade to Pro for unlimited lists
               </Link>
             </div>,
             { duration: 6000 }
@@ -166,15 +159,9 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
       toast.error(
         <div className="flex flex-col gap-1.5">
           <p className="font-black text-sm">List limit reached</p>
-          <p className="text-xs text-muted-foreground">
-            Free users can create up to {FREE_LIST_LIMIT} reading lists.
-          </p>
-          <Link
-            href="/pricing"
-            className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5"
-          >
-            <Crown size={11} />
-            Upgrade to Pro for unlimited lists
+          <p className="text-xs text-muted-foreground">Free users can create up to {FREE_LIST_LIMIT} reading lists.</p>
+          <Link href="/pricing" className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5">
+            <Crown size={11} />Upgrade to Pro for unlimited lists
           </Link>
         </div>,
         { duration: 6000 }
@@ -184,8 +171,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
     setShowCreate(true)
   }
 
-  const itemCount = (list: ReadingList) =>
-    list.reading_list_items?.[0]?.count ?? 0
+  const itemCount = (list: ReadingList) => list.reading_list_items?.[0]?.count ?? 0
 
   return (
     <div className="space-y-6">
@@ -225,25 +211,11 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
         )}
       </div>
 
-      {/* Near limit upgrade banner */}
       {nearLimit && (
-        <UpgradeBanner
-          current={lists.length}
-          limit={FREE_LIST_LIMIT}
-          feature="reading lists"
-          message="You're almost at your reading list limit"
-          dismissible
-        />
+        <UpgradeBanner current={lists.length} limit={FREE_LIST_LIMIT} feature="reading lists" message="You're almost at your reading list limit" dismissible />
       )}
-
-      {/* At limit upgrade banner */}
       {atLimit && !showCreate && (
-        <UpgradeBanner
-          current={lists.length}
-          limit={FREE_LIST_LIMIT}
-          feature="reading lists"
-          dismissible={false}
-        />
+        <UpgradeBanner current={lists.length} limit={FREE_LIST_LIMIT} feature="reading lists" dismissible={false} />
       )}
 
       {/* Create form */}
@@ -257,22 +229,18 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
           </div>
           <div className="p-5 space-y-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">
-                List Name <span className="text-red-500">*</span>
-              </label>
+              <label className="text-xs font-semibold text-muted-foreground">List Name <span className="text-red-500">*</span></label>
               <Input
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
-                placeholder='e.g. "Currently Reading", "Plan to Read"'
+                placeholder='"Currently Reading", "Plan to Read"'
                 autoFocus
                 className="h-9 text-sm"
                 onKeyDown={e => e.key === 'Enter' && handleCreate()}
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">
-                Description <span className="text-muted-foreground/60">(optional)</span>
-              </label>
+              <label className="text-xs font-semibold text-muted-foreground">Description <span className="text-muted-foreground/60">(optional)</span></label>
               <Input
                 value={newDesc}
                 onChange={e => setNewDesc(e.target.value)}
@@ -305,10 +273,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
                 {creating ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                 Create List
               </Button>
-              <Button
-                variant="ghost" size="sm"
-                onClick={() => { setShowCreate(false); setNewName(''); setNewDesc('') }}
-              >
+              <Button variant="ghost" size="sm" onClick={() => { setShowCreate(false); setNewName(''); setNewDesc('') }}>
                 Cancel
               </Button>
             </div>
@@ -318,22 +283,39 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
 
       {/* Empty state */}
       {lists.length === 0 && !showCreate ? (
-        <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
-            <BookMarked size={22} className="text-muted-foreground opacity-40" />
+        <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-teal-500/5 blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-cyan-500/5 blur-2xl pointer-events-none" />
+
+          <div className="relative w-28 h-28 mx-auto mb-6">
+            <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
+            <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
+            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-teal-500/30 bg-card flex items-center justify-center shadow-lg">
+              <BookMarked size={20} className="text-teal-500/50" />
+            </div>
           </div>
-          <div>
-            <h3 className="font-black text-sm">No lists yet</h3>
-            <p className="text-xs text-muted-foreground mt-1">Create lists to organise your reading journey</p>
+
+          <h3 className="font-black text-xl mb-2">No lists yet</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto leading-relaxed">
+            Create lists to organise your reading journey — currently reading, plan to read, all-time favourites.
+          </p>
+
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button
+              size="sm"
+              onClick={() => setShowCreate(true)}
+              className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+            >
+              <Plus size={14} />
+              Create Your First List
+            </Button>
+            <Link href="/browse">
+              <Button variant="outline" size="sm" className="gap-2 border-border hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all duration-200">
+                <Sparkles size={14} />
+                Browse Comics
+              </Button>
+            </Link>
           </div>
-          <Button
-            size="sm"
-            onClick={() => setShowCreate(true)}
-            className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
-          >
-            <Plus size={14} />
-            Create Your First List
-          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -361,12 +343,8 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
                             if (e.key === 'Escape') setEditingId(null)
                           }}
                         />
-                        <Button size="sm" className="h-8 text-xs px-3 shrink-0" onClick={() => handleRename(list.id)}>
-                          Save
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 text-xs px-2 shrink-0" onClick={() => setEditingId(null)}>
-                          ✕
-                        </Button>
+                        <Button size="sm" className="h-8 text-xs px-3 shrink-0" onClick={() => handleRename(list.id)}>Save</Button>
+                        <Button variant="ghost" size="sm" className="h-8 text-xs px-2 shrink-0" onClick={() => setEditingId(null)}>✕</Button>
                       </div>
                     ) : (
                       <Link
@@ -381,17 +359,18 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
                     )}
                   </div>
 
+                  {/* Edit/Delete — always visible on mobile, hover-only on md+ */}
                   {!isEditing && (
-                    <div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-0.5 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <Button
-                        variant="ghost" size="icon" className="h-7 w-7"
+                        variant="ghost" size="icon" className="h-7 w-7 hover:text-primary"
                         onClick={() => { setEditingId(list.id); setEditName(list.name) }}
                         title="Rename"
                       >
                         <Pencil size={12} />
                       </Button>
                       <Button
-                        variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive"
+                        variant="ghost" size="icon" className="h-7 w-7 hover:text-destructive"
                         onClick={() => handleDelete(list.id)}
                         disabled={deletingId === list.id}
                         title="Delete"
@@ -410,9 +389,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <BookOpen size={11} className="text-primary/60" />
-                      <span>
-                        <strong className="text-foreground font-black">{count}</strong> comic{count !== 1 ? 's' : ''}
-                      </span>
+                      <span><strong className="text-foreground font-black">{count}</strong> comic{count !== 1 ? 's' : ''}</span>
                     </div>
                     <button
                       onClick={() => handleTogglePublic(list.id, list.is_public)}
@@ -444,19 +421,14 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
         </div>
       )}
 
-      {/* Bottom upgrade CTA for free users with lists but not at limit */}
       {isProUser === false && lists.length > 0 && lists.length < FREE_LIST_LIMIT && (
         <div className="flex items-center justify-center pt-2">
-          <Link
-            href="/pricing"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-500 transition-colors"
-          >
+          <Link href="/pricing" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-500 transition-colors">
             <Sparkles size={11} />
             Upgrade to Pro for unlimited reading lists
           </Link>
         </div>
       )}
-
     </div>
   )
 }

@@ -1,7 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Star, BookOpen, ArrowRight } from 'lucide-react'
+import { Star, BookOpen, ArrowRight, Sparkles } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { StarRating } from '@/components/recommendations/StarRating'
 import { formatDate } from '@/lib/utils/format'
 import type { Metadata } from 'next'
@@ -36,29 +37,66 @@ export default async function MyReviewsPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
       {/* Header */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <Star size={16} className="text-white" />
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <Star size={16} className="text-white" />
+            </div>
+            <h1 className="text-2xl font-black tracking-tight">My Reviews</h1>
           </div>
-          <h1 className="text-2xl font-black tracking-tight">My Reviews</h1>
+          <p className="text-muted-foreground text-sm pl-0.5">
+            {reviews.length} review{reviews.length !== 1 ? 's' : ''} written
+          </p>
         </div>
-        <p className="text-muted-foreground text-sm pl-0.5">
-          {reviews.length} review{reviews.length !== 1 ? 's' : ''} written
-        </p>
+        <Link href="/browse">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 shrink-0 border-border hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all duration-200"
+          >
+            <BookOpen size={14} />
+            Browse Comics
+          </Button>
+        </Link>
       </div>
 
       {/* Empty state */}
       {!reviews.length ? (
-        <div className="text-center py-20 rounded-2xl border border-dashed border-border">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-            <Star size={24} className="text-muted-foreground opacity-40" />
+        <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
+
+          {/* Background blobs */}
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-amber-500/5 blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-orange-500/5 blur-2xl pointer-events-none" />
+
+          {/* Stacked star panels */}
+          <div className="relative w-28 h-28 mx-auto mb-6">
+            <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
+            <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
+            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-amber-500/30 bg-card flex items-center justify-center shadow-lg">
+              <Star size={20} className="text-amber-500/50" />
+            </div>
           </div>
-          <h3 className="font-black text-lg mb-1">No reviews yet</h3>
-          <p className="text-sm text-muted-foreground mb-5">Visit a comic and write your first review</p>
-          <Link href="/browse" className="text-primary hover:underline text-sm font-semibold">
-            Browse Comics →
-          </Link>
+
+          <h3 className="font-black text-xl mb-2">No reviews yet</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto leading-relaxed">
+            Browse comics and leave a review to help others find great reads.
+          </p>
+
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link href="/browse">
+              <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
+                <BookOpen size={14} />
+                Browse Comics
+              </Button>
+            </Link>
+            <Link href="/browse?sort=top">
+              <Button variant="outline" className="gap-2 hover:border-primary/40 hover:text-primary transition-colors">
+                <Sparkles size={14} />
+                Top Rated
+              </Button>
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -74,7 +112,11 @@ export default async function MyReviewsPage() {
                 {/* Cover */}
                 <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                   {rec?.cover_url ? (
-                    <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    <img
+                      src={rec.cover_url}
+                      alt={rec.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <BookOpen size={14} className="text-muted-foreground opacity-40" />
@@ -86,7 +128,9 @@ export default async function MyReviewsPage() {
                 <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <h3 className="font-black text-sm truncate group-hover:text-primary transition-colors">{rec?.title}</h3>
+                      <h3 className="font-black text-sm truncate group-hover:text-primary transition-colors">
+                        {rec?.title}
+                      </h3>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${typeStyle}`}>
                           {rec?.type}
@@ -99,11 +143,15 @@ export default async function MyReviewsPage() {
 
                   {review.rating && <StarRating value={review.rating} readonly size={13} />}
 
-                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{review.content}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                    {review.content}
+                  </p>
 
                   <div className="flex items-center gap-2 flex-wrap">
                     {review.contains_spoilers && (
-                      <span className="text-[10px] text-amber-600 bg-amber-500/8 border border-amber-500/15 px-2 py-0.5 rounded-full font-semibold">⚠️ Spoilers</span>
+                      <span className="text-[10px] text-amber-600 bg-amber-500/8 border border-amber-500/15 px-2 py-0.5 rounded-full font-semibold">
+                        ⚠️ Spoilers
+                      </span>
                     )}
                     {review.is_edited && (
                       <span className="text-[10px] text-muted-foreground italic">Edited</span>
