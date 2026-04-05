@@ -8,6 +8,8 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
+const FREE_LIST_LIMIT = 3
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   const supabase = await createClient()
@@ -26,6 +28,20 @@ export default async function ListDetailPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Fetch profile for pro check
+  const { data: profile } = await (supabase as any)
+    .from('profiles')
+    .select('is_pro, pro_expires_at, role')
+    .eq('id', user.id)
+    .single()
+
+  const isPro = profile
+    ? profile.role === 'admin' ||
+      ['admin', 'moderator'].includes(profile.role) ||
+      (profile.is_pro &&
+        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+    : false
+
   const { data: list, error } = await supabase
     .from('reading_lists')
     .select('id, name, description, is_public, created_at')
@@ -34,6 +50,21 @@ export default async function ListDetailPage({ params }: Props) {
     .single()
 
   if (error || !list) notFound()
+
+  // Compute isLocked: free users — check if this list is beyond the 3 oldest
+  let isLocked = false
+  if (!isPro) {
+    const { data: allLists } = await supabase
+      .from('reading_lists')
+      .select('id')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true })
+
+    if (allLists) {
+      const freeListIds = new Set(allLists.slice(0, FREE_LIST_LIMIT).map((l: any) => l.id))
+      isLocked = !freeListIds.has(id)
+    }
+  }
 
   const { data: items } = await supabase
     .from('reading_list_items')
@@ -51,6 +82,7 @@ export default async function ListDetailPage({ params }: Props) {
       <ReadingListDetail
         list={list as any}
         initialItems={(items ?? []) as any}
+        isLocked={isLocked}
       />
     </div>
   )

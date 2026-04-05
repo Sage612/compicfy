@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import {
   ArrowLeft, BookOpen, Trash2, Globe, Lock,
-  Loader2, BookMarked, ChevronRight,
+  Loader2, BookMarked, ChevronRight, Crown, Sparkles,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -38,12 +38,12 @@ interface ListItem {
 }
 
 const STATUS_META: Record<string, { label: string; emoji: string; className: string }> = {
-  reading:      { label: 'Reading',      emoji: '📖', className: 'bg-blue-500/10   text-blue-600   border-blue-500/20'   },
-  plan_to_read: { label: 'Plan to Read', emoji: '📌', className: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
-  marinating:   { label: 'Marinating',   emoji: '🫙', className: 'bg-amber-500/10  text-amber-600  border-amber-500/20'  },
-  completed:    { label: 'Completed',    emoji: '✅', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
-  on_hold:      { label: 'On Hold',      emoji: '⏸️', className: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
-  dropped:      { label: 'Dropped',      emoji: '🗑️', className: 'bg-red-500/10    text-red-600    border-red-500/20'    },
+  reading:      { label: 'Reading',      emoji: '📖', className: 'bg-blue-500/10    text-blue-600    border-blue-500/20'    },
+  plan_to_read: { label: 'Plan to Read', emoji: '📌', className: 'bg-violet-500/10  text-violet-600  border-violet-500/20'  },
+  marinating:   { label: 'Marinating',   emoji: '🫙', className: 'bg-amber-500/10   text-amber-600   border-amber-500/20'   },
+  completed:    { label: 'Completed',    emoji: '✅', className: 'bg-emerald-500/10  text-emerald-600 border-emerald-500/20' },
+  on_hold:      { label: 'On Hold',      emoji: '⏸️', className: 'bg-yellow-500/10  text-yellow-600  border-yellow-500/20'  },
+  dropped:      { label: 'Dropped',      emoji: '🗑️', className: 'bg-red-500/10     text-red-600     border-red-500/20'     },
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -59,9 +59,11 @@ const STATUSES = Object.entries(STATUS_META).map(([value, meta]) => ({ value, ..
 export function ReadingListDetail({
   list,
   initialItems,
+  isLocked = false,
 }: {
   list: ReadingList
   initialItems: ListItem[]
+  isLocked?: boolean
 }) {
   const router = useRouter()
   const [items, setItems] = useState(initialItems)
@@ -71,6 +73,7 @@ export function ReadingListDetail({
 
   const handleRemove = async (e: React.MouseEvent, item: ListItem) => {
     e.stopPropagation()
+    // Allow removes even on locked lists — user can clean up
     if (!confirm(`Remove "${item.recommendations.title}" from this list?`)) return
     setRemovingId(item.id)
     try {
@@ -86,6 +89,10 @@ export function ReadingListDetail({
 
   const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>, item: ListItem) => {
     e.stopPropagation()
+    if (isLocked) {
+      toast.error('Upgrade to Pro to edit this list')
+      return
+    }
     const newStatus = e.target.value
     setUpdatingId(item.id)
     try {
@@ -123,14 +130,61 @@ export function ReadingListDetail({
         Back to Lists
       </Link>
 
+      {/* Locked banner */}
+      {isLocked && (
+        <div className="flex items-start gap-3 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">
+            <Crown size={14} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0 space-y-1">
+            <p className="text-sm font-black text-amber-600">This list is locked</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              You can view your comics but can't add new ones or change statuses until you resubscribe to Pro.
+              You can still remove comics from this list.
+            </p>
+          </div>
+          <Link href="/pricing" className="shrink-0">
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white text-xs font-bold shadow-sm hover:opacity-90"
+            >
+              <Sparkles size={11} />
+              Upgrade
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {/* Header card */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <div className="h-16 bg-gradient-to-br from-teal-500/20 via-cyan-500/10 to-transparent" />
+      <div className={cn(
+        'rounded-2xl border bg-card overflow-hidden',
+        isLocked ? 'border-amber-500/20 opacity-90' : 'border-border'
+      )}>
+        <div className={cn(
+          'h-16 bg-gradient-to-br',
+          isLocked
+            ? 'from-amber-500/10 via-orange-500/5 to-transparent'
+            : 'from-teal-500/20 via-cyan-500/10 to-transparent'
+        )} />
         <div className="px-5 pb-5 -mt-6 space-y-3">
           <div className="flex items-end justify-between gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20 ring-2 ring-card">
-              <BookMarked size={20} className="text-white" />
+            <div className={cn(
+              'w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-card',
+              isLocked
+                ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/20'
+                : 'bg-gradient-to-br from-teal-500 to-cyan-600 shadow-teal-500/20'
+            )}>
+              {isLocked
+                ? <Lock size={20} className="text-white" />
+                : <BookMarked size={20} className="text-white" />
+              }
             </div>
+            {isLocked && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-black">
+                <Crown size={10} className="fill-amber-500" />
+                Locked
+              </span>
+            )}
           </div>
           <div className="space-y-1">
             <h1 className="text-2xl font-black tracking-tight">{list.name}</h1>
@@ -193,13 +247,27 @@ export function ReadingListDetail({
           </div>
           <div>
             <h3 className="font-black text-sm">No comics yet</h3>
-            <p className="text-xs text-muted-foreground mt-1">Add comics to this list from any comic page</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {isLocked
+                ? 'Upgrade to Pro to add comics to this list'
+                : 'Add comics to this list from any comic page'}
+            </p>
           </div>
-          <Link href="/browse">
-            <Button size="sm" className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
-              Browse Comics
-            </Button>
-          </Link>
+          {!isLocked && (
+            <Link href="/browse">
+              <Button size="sm" className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
+                Browse Comics
+              </Button>
+            </Link>
+          )}
+          {isLocked && (
+            <Link href="/pricing">
+              <Button size="sm" className="gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white hover:opacity-90">
+                <Crown size={13} />
+                Upgrade to Pro
+              </Button>
+            </Link>
+          )}
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 rounded-2xl border border-dashed border-border">
@@ -249,10 +317,12 @@ export function ReadingListDetail({
                         </span>
                       </div>
                     </div>
+                    {/* Remove always allowed */}
                     <button
                       onClick={e => handleRemove(e, item)}
                       disabled={removingId === item.id}
                       className="text-muted-foreground hover:text-destructive transition-colors shrink-0 p-1 rounded-lg hover:bg-destructive/10"
+                      title="Remove from list"
                     >
                       {removingId === item.id
                         ? <Loader2 size={13} className="animate-spin" />
@@ -269,7 +339,14 @@ export function ReadingListDetail({
                     )}>
                       {statusMeta.emoji} {statusMeta.label}
                     </span>
-                    {updatingId === item.id ? (
+
+                    {/* Status changer — disabled for locked lists */}
+                    {isLocked ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] text-amber-500/70">
+                        <Lock size={9} />
+                        Read-only
+                      </span>
+                    ) : updatingId === item.id ? (
                       <Loader2 size={11} className="animate-spin text-muted-foreground" />
                     ) : (
                       <select
@@ -283,6 +360,7 @@ export function ReadingListDetail({
                         ))}
                       </select>
                     )}
+
                     <span className="text-[10px] text-muted-foreground ml-auto">
                       Added {formatDate(item.added_at)}
                     </span>

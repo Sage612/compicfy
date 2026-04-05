@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
   Crown, Check, Sparkles, Zap, BookOpen,
   Bookmark, BookMarked, Filter, Star,
   BarChart2, Download, Bell, Eye,
-  Palette, ArrowRight, Shield,
+  Palette, ArrowRight, Shield, AlertTriangle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -25,37 +26,55 @@ interface Props {
 }
 
 const FREE_FEATURES = [
-  { icon: BookOpen,   text: '30 recommendations per month'    },
-  { icon: Bookmark,   text: '50 saved comics'                 },
-  { icon: BookMarked, text: '3 reading lists'                 },
-  { icon: Star,       text: 'Reviews & voting'                },
-  { icon: Bell,       text: 'Basic notifications'             },
+  { icon: BookOpen,   text: '30 recommendations per month' },
+  { icon: Bookmark,   text: '50 saved comics'              },
+  { icon: BookMarked, text: '3 reading lists'              },
+  { icon: Star,       text: 'Reviews & voting'             },
+  { icon: Bell,       text: 'Basic notifications'          },
 ]
 
 const PRO_FEATURES = [
-  { icon: BookOpen,   text: 'Unlimited recommendations',        highlight: false },
-  { icon: Bookmark,   text: 'Unlimited saves',                  highlight: false },
-  { icon: BookMarked, text: 'Unlimited reading lists',          highlight: false },
-  { icon: Filter,     text: 'Advanced filters',                 highlight: false },
-  { icon: Star,       text: 'Priority review approval',         highlight: false },
-  { icon: Zap,        text: 'Ad-free experience',               highlight: false },
-  { icon: Crown,      text: 'Exclusive 👑 Pro badge',           highlight: true  },
-  { icon: BarChart2,  text: 'Recommendation analytics',         highlight: true  },
-  { icon: Eye,        text: 'See who viewed your profile',      highlight: true  },
-  { icon: Download,   text: 'Export reading lists (CSV/PDF)',   highlight: true  },
-  { icon: Palette,    text: 'Custom profile themes',            highlight: true  },
-  { icon: Bell,       text: 'Full notification control',        highlight: false },
-  { icon: Shield,     text: 'Premium news access',              highlight: false },
+  { icon: BookOpen,   text: 'Unlimited recommendations',       highlight: false },
+  { icon: Bookmark,   text: 'Unlimited saves',                 highlight: false },
+  { icon: BookMarked, text: 'Unlimited reading lists',         highlight: false },
+  { icon: Filter,     text: 'Advanced filters',                highlight: false },
+  { icon: Star,       text: 'Priority review approval',        highlight: false },
+  { icon: Zap,        text: 'Ad-free experience',              highlight: false },
+  { icon: Crown,      text: 'Exclusive 👑 Pro badge',          highlight: true  },
+  { icon: BarChart2,  text: 'Recommendation analytics',        highlight: true  },
+  { icon: Eye,        text: 'See who viewed your profile',     highlight: true  },
+  { icon: Download,   text: 'Export reading lists (CSV/PDF)',  highlight: true  },
+  { icon: Palette,    text: 'Custom profile themes',           highlight: true  },
+  { icon: Bell,       text: 'Full notification control',       highlight: false },
+  { icon: Shield,     text: 'Premium news access',             highlight: false },
 ]
+
+const ERROR_MESSAGES: Record<string, string> = {
+  missing_reference:    'Payment reference was missing. Please try again.',
+  payment_failed:       'Your payment was not completed. Please try again.',
+  invalid_metadata:     'Something went wrong with your payment. Please contact support.',
+  verification_failed:  'We could not verify your payment. If you were charged, please contact support.',
+}
 
 export function PricingClient({ user, profile }: Props) {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('yearly')
   const [loading, setLoading] = useState(false)
+  const searchParams = useSearchParams()
 
   const isAdmin = profile?.role === 'admin'
-  const isMod = profile?.role === 'moderator'
-  const isPro = profile?.is_pro &&
-    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+  const isMod   = profile?.role === 'moderator'
+  const isPro   = isAdmin ||
+    (profile?.is_pro &&
+      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+
+  // Show error toast if redirected back with an error param
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (error) {
+      const message = ERROR_MESSAGES[error] ?? 'Something went wrong with your payment.'
+      toast.error(message, { duration: 8000 })
+    }
+  }, [searchParams])
 
   const handleUpgrade = async () => {
     if (!user) {
@@ -108,7 +127,7 @@ export function PricingClient({ user, profile }: Props) {
         </p>
       </div>
 
-      {/* Already Pro / Admin / Mod state */}
+      {/* Admin state */}
       {isAdmin && (
         <div className="max-w-md mx-auto p-6 rounded-2xl border border-primary/30 bg-primary/5 text-center space-y-3">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto">
@@ -126,6 +145,7 @@ export function PricingClient({ user, profile }: Props) {
         </div>
       )}
 
+      {/* Already Pro state */}
       {!isAdmin && isPro && (
         <div className="max-w-md mx-auto p-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 text-center space-y-3">
           <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mx-auto">
@@ -141,15 +161,16 @@ export function PricingClient({ user, profile }: Props) {
             <Link href="/dashboard/billing">
               <Button variant="outline" size="sm">Manage Billing</Button>
             </Link>
-            <Link href="/dashboard">
+            <Link href="/pro/dashboard">
               <Button size="sm" className="gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white">
-                Dashboard <ArrowRight size={13} />
+                Pro Dashboard <ArrowRight size={13} />
               </Button>
             </Link>
           </div>
         </div>
       )}
 
+      {/* Pricing cards — only for non-admin, non-pro users */}
       {!isAdmin && !isPro && (
         <>
           {/* Billing toggle */}
@@ -208,22 +229,17 @@ export function PricingClient({ user, profile }: Props) {
 
               {user ? (
                 <Link href="/browse">
-                  <Button variant="outline" className="w-full">
-                    Continue with Free
-                  </Button>
+                  <Button variant="outline" className="w-full">Continue with Free</Button>
                 </Link>
               ) : (
                 <Link href="/signup">
-                  <Button variant="outline" className="w-full">
-                    Sign up free
-                  </Button>
+                  <Button variant="outline" className="w-full">Sign up free</Button>
                 </Link>
               )}
             </div>
 
             {/* Pro card */}
             <div className="relative p-6 rounded-2xl border-2 border-amber-500/50 bg-gradient-to-b from-amber-500/5 to-transparent space-y-6 shadow-xl shadow-amber-500/10">
-              {/* Popular badge */}
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                 <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-black shadow-md">
                   ✨ Most Popular
@@ -276,7 +292,7 @@ export function PricingClient({ user, profile }: Props) {
                 ) : (
                   <>
                     <Sparkles size={15} />
-                    {user ? `Upgrade to Pro` : 'Get Pro'}
+                    {user ? 'Upgrade to Pro' : 'Get Pro'}
                     <ArrowRight size={14} />
                   </>
                 )}

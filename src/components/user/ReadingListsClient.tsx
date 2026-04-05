@@ -63,6 +63,14 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
     fetchProStatus()
   }, [supabase])
 
+  // Sort oldest first to determine free slots consistently
+  const sortedLists = [...lists].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  )
+  const freeListIds = new Set(sortedLists.slice(0, FREE_LIST_LIMIT).map(l => l.id))
+
+  const isListLocked = (listId: string) => isProUser === false && !freeListIds.has(listId)
+
   const atLimit   = isProUser === false && lists.length >= FREE_LIST_LIMIT
   const nearLimit = isProUser === false && lists.length === FREE_LIST_LIMIT - 1
 
@@ -141,6 +149,10 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
   }
 
   const handleTogglePublic = async (id: string, current: boolean) => {
+    if (isListLocked(id)) {
+      toast.error('Upgrade to Pro to edit this list')
+      return
+    }
     try {
       await fetch(`/api/lists/${id}`, {
         method: 'PATCH',
@@ -216,6 +228,27 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
       )}
       {atLimit && !showCreate && (
         <UpgradeBanner current={lists.length} limit={FREE_LIST_LIMIT} feature="reading lists" dismissible={false} />
+      )}
+
+      {/* Locked lists notice — shown when user has lists beyond free limit */}
+      {isProUser === false && lists.length > FREE_LIST_LIMIT && (
+        <div className="flex items-start gap-3 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5">
+          <Crown size={14} className="text-amber-500 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-amber-600">
+              {lists.length - FREE_LIST_LIMIT} list{lists.length - FREE_LIST_LIMIT !== 1 ? 's are' : ' is'} locked
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Your comics are safe. Resubscribe to Pro to unlock all {lists.length} lists.
+            </p>
+          </div>
+          <Link href="/pricing" className="shrink-0">
+            <Button size="sm" className="h-7 text-xs gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white hover:opacity-90">
+              <Sparkles size={11} />
+              Unlock
+            </Button>
+          </Link>
+        </div>
       )}
 
       {/* Create form */}
@@ -322,12 +355,26 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
           {lists.map((list) => {
             const count = itemCount(list)
             const isEditing = editingId === list.id
+            const locked = isListLocked(list.id)
 
             return (
               <div
                 key={list.id}
-                className="group relative p-5 rounded-2xl border border-border bg-card space-y-4 hover:border-primary/40 hover:shadow-md transition-all duration-200"
+                className={cn(
+                  'group relative p-5 rounded-2xl border bg-card space-y-4 transition-all duration-200',
+                  locked
+                    ? 'border-amber-500/20 hover:border-amber-500/40 opacity-80'
+                    : 'border-border hover:border-primary/40 hover:shadow-md'
+                )}
               >
+                {/* Locked overlay badge */}
+                {locked && (
+                  <div className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-[10px] font-black z-10">
+                    <Crown size={9} className="fill-amber-500" />
+                    Locked
+                  </div>
+                )}
+
                 {/* Name + actions */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0 space-y-0.5">
@@ -349,8 +396,12 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
                     ) : (
                       <Link
                         href={`/dashboard/lists/${list.id}`}
-                        className="font-black text-sm truncate hover:text-primary transition-colors block"
+                        className={cn(
+                          'font-black text-sm truncate transition-colors block',
+                          locked ? 'hover:text-amber-500' : 'hover:text-primary'
+                        )}
                       >
+                        {locked && <Lock size={10} className="inline mr-1.5 text-amber-500/70 mb-0.5" />}
                         {list.name}
                       </Link>
                     )}
@@ -360,7 +411,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
                   </div>
 
                   {/* Edit/Delete — always visible on mobile, hover-only on md+ */}
-                  {!isEditing && (
+                  {!isEditing && !locked && (
                     <div className="flex gap-0.5 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <Button
                         variant="ghost" size="icon" className="h-7 w-7 hover:text-primary"
@@ -382,20 +433,40 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
                       </Button>
                     </div>
                   )}
+
+                  {/* Locked: only show delete */}
+                  {!isEditing && locked && (
+                    <div className="flex gap-0.5 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7 hover:text-destructive"
+                        onClick={() => handleDelete(list.id)}
+                        disabled={deletingId === list.id}
+                        title="Delete list"
+                      >
+                        {deletingId === list.id
+                          ? <Loader2 size={12} className="animate-spin" />
+                          : <Trash2 size={12} />
+                        }
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Stats + visibility + date */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <BookOpen size={11} className="text-primary/60" />
+                      <BookOpen size={11} className={locked ? 'text-amber-500/50' : 'text-primary/60'} />
                       <span><strong className="text-foreground font-black">{count}</strong> comic{count !== 1 ? 's' : ''}</span>
                     </div>
+                    {/* Visibility toggle — disabled for locked lists */}
                     <button
-                      onClick={() => handleTogglePublic(list.id, list.is_public)}
+                      onClick={() => !locked && handleTogglePublic(list.id, list.is_public)}
                       className={cn(
                         'flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors',
-                        list.is_public
+                        locked
+                          ? 'border-amber-500/20 text-amber-500/50 cursor-not-allowed'
+                          : list.is_public
                           ? 'border-emerald-500/30 text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20'
                           : 'border-border text-muted-foreground hover:border-primary/50'
                       )}
@@ -413,7 +484,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
                   className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
                   tabIndex={-1}
                 >
-                  <ArrowRight size={14} className="text-muted-foreground" />
+                  <ArrowRight size={14} className={locked ? 'text-amber-500' : 'text-muted-foreground'} />
                 </Link>
               </div>
             )

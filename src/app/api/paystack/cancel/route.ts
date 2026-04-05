@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { paystackRequest } from '@/lib/paystack/client'
 
-// Define the interface for the subscription record
 interface SubscriptionRecord {
   id: string
   user_id: string
@@ -21,7 +20,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get active subscription - Cast the result to the interface
+    // Get active subscription
     const { data: subscription } = (await supabase
       .from('subscriptions')
       .select('*')
@@ -35,27 +34,47 @@ export async function POST(req: NextRequest) {
 
     // Cancel on Paystack if subscription code exists
     if (subscription.paystack_subscription_code) {
-      await paystackRequest(
-        `/subscription/disable`,
-        'POST',
-        {
-          code: subscription.paystack_subscription_code,
-          token: subscription.paystack_customer_code,
-        }
-      )
+      try {
+        await paystackRequest(
+          `/subscription/disable`,
+          'POST',
+          {
+            code: subscription.paystack_subscription_code,
+            token: subscription.paystack_customer_code,
+          }
+        )
+      } catch (paystackErr) {
+        // Log but don't block — we still cancel locally
+        console.error('Paystack disable failed:', paystackErr)
+      }
     }
 
-    // Update subscription in DB
+    const now = new Date().toISOString()
+
+    // Mark subscription as cancelled in DB
     await (supabase as any)
       .from('subscriptions')
       .update({
         status: 'cancelled',
-        cancelled_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        cancelled_at: now,
+        updated_at: now,
       })
       .eq('id', subscription.id)
 
-    // Pro stays active until expiry date
+    // Keep is_pro = true but ensure pro_expires_at is set to the subscription
+    // expiry so expire_pro_subscriptions cron can clean it up correctly.
+    // Do NOT set is_pro = false here — user keeps access until the period ends.
+    await (supabase as any)
+      .from('profiles')
+      .update({
+        // Only set expiry if it isn't already set (charge.success sets it)
+        pro_expires_at: subscription.expires_at,
+        updated_at: now,
+      })
+      .eq('id', user.id)
+      .is('pro_expires_at', null)
+
+    // Notify user
     await (supabase as any)
       .from('notifications')
       .insert({

@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { BookMarked, Plus, Check, Loader2, ChevronRight } from 'lucide-react'
+import { BookMarked, Plus, Check, Loader2, ChevronRight, Crown, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   recommendationId: string
@@ -15,26 +16,29 @@ interface Props {
 interface ReadingList {
   id: string
   name: string
+  isLocked: boolean
 }
 
 const STATUSES = [
-  { value: 'reading',      label: 'Reading',        emoji: '📖' },
-  { value: 'plan_to_read', label: 'Plan to Read',   emoji: '📌' },
-  { value: 'marinating',   label: 'Marinating',     emoji: '🫙' },
-  { value: 'completed',    label: 'Completed',      emoji: '✅' },
-  { value: 'on_hold',      label: 'On Hold',        emoji: '⏸️' },
-  { value: 'dropped',      label: 'Dropped',        emoji: '🗑️' },
+  { value: 'reading',      label: 'Reading',      emoji: '📖' },
+  { value: 'plan_to_read', label: 'Plan to Read', emoji: '📌' },
+  { value: 'marinating',   label: 'Marinating',   emoji: '🫙' },
+  { value: 'completed',    label: 'Completed',    emoji: '✅' },
+  { value: 'on_hold',      label: 'On Hold',      emoji: '⏸️' },
+  { value: 'dropped',      label: 'Dropped',      emoji: '🗑️' },
 ]
 
+const FREE_LIST_LIMIT = 3
+
 export function AddToListButton({ recommendationId, userId }: Props) {
-  const [open, setOpen] = useState(false)
-  const [lists, setLists] = useState<ReadingList[]>([])
-  const [loading, setLoading] = useState(false)
-  const [addingTo, setAddingTo] = useState<string | null>(null)
-  const [addedTo, setAddedTo] = useState<Set<string>>(new Set())
-  // Track which list is in "pick status" mode
+  const [open, setOpen]                       = useState(false)
+  const [lists, setLists]                     = useState<ReadingList[]>([])
+  const [loading, setLoading]                 = useState(false)
+  const [addingTo, setAddingTo]               = useState<string | null>(null)
+  const [addedTo, setAddedTo]                 = useState<Set<string>>(new Set())
   const [pickingStatusFor, setPickingStatusFor] = useState<string | null>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const dropdownRef                           = useRef<HTMLDivElement>(null)
+  const supabase                              = createClient()
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -50,12 +54,77 @@ export function AddToListButton({ recommendationId, userId }: Props) {
   useEffect(() => {
     if (!open) return
     setLoading(true)
-    fetch('/api/lists')
-      .then((r) => r.json())
-      .then((d) => setLists(d.lists ?? []))
-      .catch(() => toast.error('Failed to load lists'))
-      .finally(() => setLoading(false))
-  }, [open])
+
+    const fetchLists = async () => {
+      try {
+        // Fetch lists + pro status in parallel
+        const [listsRes, profileRes] = await Promise.all([
+          fetch('/api/lists').then(r => r.json()),
+          (supabase as any)
+            .from('profiles')
+            .select('is_pro, pro_expires_at, role')
+            .eq('id', userId)
+            .single(),
+        ])
+
+        const rawLists: { id: string; name: string; created_at: string }[] = listsRes.lists ?? []
+        const profile = profileRes.data
+
+        // Determine pro status
+        const isPro = profile
+          ? profile.role === 'admin' ||
+            ['admin', 'moderator'].includes(profile.role) ||
+            (profile.is_pro &&
+              (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+          : false
+
+        // Sort oldest first — first 3 are free, rest locked
+        const sorted = [...rawLists].sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        )
+
+        setLists(
+          sorted.map((l, index) => ({
+            id:       l.id,
+            name:     l.name,
+            isLocked: !isPro && index >= FREE_LIST_LIMIT,
+          }))
+        )
+      } catch {
+        toast.error('Failed to load lists')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchLists()
+  }, [open, userId, supabase])
+
+  const handleListClick = (list: ReadingList) => {
+    if (addedTo.has(list.id)) return
+
+    if (list.isLocked) {
+      toast.error(
+        <div className="flex flex-col gap-1.5">
+          <p className="font-black text-sm">List is locked</p>
+          <p className="text-xs text-muted-foreground">
+            This list is locked on the free plan. Upgrade to Pro to use all your lists.
+          </p>
+          <Link
+            href="/pricing"
+            className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5"
+          >
+            <Crown size={11} />
+            Upgrade to Pro
+          </Link>
+        </div>,
+        { duration: 6000 }
+      )
+      return
+    }
+
+    setPickingStatusFor(list.id)
+  }
 
   const handleAdd = async (listId: string, status: string) => {
     setAddingTo(listId)
@@ -66,10 +135,30 @@ export function AddToListButton({ recommendationId, userId }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recommendation_id: recommendationId, status }),
       })
-      if (!res.ok) throw new Error()
-      setAddedTo((prev) => new Set([...prev, listId]))
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        // Locked — show upgrade prompt
+        if (res.status === 403 && data.error === 'locked') {
+          toast.error(
+            <div className="flex flex-col gap-1.5">
+              <p className="font-black text-sm">List is locked</p>
+              <p className="text-xs text-muted-foreground">{data.message}</p>
+              <Link href="/pricing" className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5">
+                <Crown size={11} />Upgrade to Pro
+              </Link>
+            </div>,
+            { duration: 6000 }
+          )
+          return
+        }
+        throw new Error()
+      }
+
+      setAddedTo(prev => new Set([...prev, listId]))
       const statusLabel = STATUSES.find(s => s.value === status)
-      toast.success(`Added to list as ${statusLabel?.emoji} ${statusLabel?.label}!`)
+      toast.success(`Added as ${statusLabel?.emoji} ${statusLabel?.label}!`)
     } catch {
       toast.error('Failed to add to list')
     } finally {
@@ -116,7 +205,7 @@ export function AddToListButton({ recommendationId, userId }: Props) {
                   ← Back
                 </button>
               </div>
-              {STATUSES.map((s) => (
+              {STATUSES.map(s => (
                 <button
                   key={s.value}
                   onClick={() => handleAdd(pickingStatusFor, s.value)}
@@ -138,27 +227,47 @@ export function AddToListButton({ recommendationId, userId }: Props) {
           ) : (
             // List picker view
             <div className="py-1">
-              {lists.map((list) => (
+              {lists.map(list => (
                 <button
                   key={list.id}
-                  onClick={() => addedTo.has(list.id) ? null : setPickingStatusFor(list.id)}
+                  onClick={() => handleListClick(list)}
                   disabled={addingTo === list.id}
                   className={cn(
-                    'w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-accent transition-colors',
-                    addedTo.has(list.id) && 'text-primary',
-                    !addedTo.has(list.id) && 'cursor-pointer'
+                    'w-full flex items-center justify-between px-3 py-2.5 text-sm transition-colors',
+                    addedTo.has(list.id)
+                      ? 'text-primary'
+                      : list.isLocked
+                      ? 'text-muted-foreground/50 cursor-pointer hover:bg-amber-500/5'
+                      : 'cursor-pointer hover:bg-accent'
                   )}
                 >
-                  <span className="truncate text-left">{list.name}</span>
-                  {addingTo === list.id ? (
-                    <Loader2 size={13} className="animate-spin shrink-0" />
-                  ) : addedTo.has(list.id) ? (
-                    <Check size={13} className="text-primary shrink-0" />
-                  ) : (
-                    <ChevronRight size={13} className="text-muted-foreground shrink-0" />
-                  )}
+                  <div className="flex items-center gap-2 min-w-0">
+                    {list.isLocked && (
+                      <Lock size={10} className="text-amber-500/60 shrink-0" />
+                    )}
+                    <span className="truncate text-left">{list.name}</span>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {list.isLocked && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 text-[9px] font-black border border-amber-500/20">
+                        <Crown size={8} className="fill-amber-500" />
+                        Pro
+                      </span>
+                    )}
+                    {addingTo === list.id ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : addedTo.has(list.id) ? (
+                      <Check size={13} className="text-primary" />
+                    ) : list.isLocked ? (
+                      <Lock size={11} className="text-amber-500/50" />
+                    ) : (
+                      <ChevronRight size={13} className="text-muted-foreground" />
+                    )}
+                  </div>
                 </button>
               ))}
+
               <div className="border-t border-border">
                 <Link
                   href="/dashboard/lists"

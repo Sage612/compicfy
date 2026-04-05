@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Crown, CreditCard, Calendar, AlertTriangle, CheckCircle, Sparkles } from 'lucide-react'
+import { Crown, CreditCard, AlertTriangle, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils/format'
@@ -32,9 +32,13 @@ export function BillingClient({ profile, subscription, email }: Props) {
   const [cancelled, setCancelled] = useState(false)
 
   const isAdmin = profile?.role === 'admin'
-  const isMod = profile?.role === 'moderator'
-  const isPro = profile?.is_pro &&
-    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+  const isMod   = profile?.role === 'moderator'
+
+  // Admin always counts as Pro — no expiry check needed
+  const isPro = isAdmin ||
+    (profile?.is_pro &&
+      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+
   const isCancelled = subscription?.status === 'cancelled' || cancelled
 
   const handleCancel = async () => {
@@ -75,11 +79,11 @@ export function BillingClient({ profile, subscription, email }: Props) {
         </p>
       </div>
 
-      {/* Admin free access */}
+      {/* Admin — lifetime free access */}
       {isAdmin && (
         <div className="p-5 rounded-2xl border border-primary/30 bg-primary/5 space-y-2">
           <div className="flex items-center gap-2">
-            <Crown size={16} className="text-primary" />
+            <Crown size={16} className="text-primary fill-primary/20" />
             <p className="font-black text-sm">Admin — Free Pro Access</p>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -88,20 +92,20 @@ export function BillingClient({ profile, subscription, email }: Props) {
         </div>
       )}
 
-      {/* Current plan */}
+      {/* Non-admin billing section */}
       {!isAdmin && (
         <div className={cn(
           'p-5 rounded-2xl border space-y-4',
-          isPro
-            ? 'border-amber-500/30 bg-amber-500/5'
-            : 'border-border bg-card'
+          isPro ? 'border-amber-500/30 bg-amber-500/5' : 'border-border bg-card'
         )}>
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 {isPro && <Crown size={15} className="text-amber-500 fill-amber-500" />}
                 <p className="font-black">
-                  {isPro ? `Pro ${subscription?.plan === 'yearly' ? '(Yearly)' : '(Monthly)'}` : 'Free Plan'}
+                  {isPro
+                    ? `Pro ${subscription?.plan === 'yearly' ? '(Yearly)' : '(Monthly)'}`
+                    : 'Free Plan'}
                 </p>
                 {isCancelled && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 font-semibold">
@@ -117,10 +121,10 @@ export function BillingClient({ profile, subscription, email }: Props) {
               <p className="text-sm text-muted-foreground">{email}</p>
             </div>
 
-            {isPro && (
+            {isPro && !isAdmin && (
               <div className="text-right shrink-0">
                 <p className="font-black text-lg">
-                  ${subscription?.plan === 'yearly' ? '39.99' : '4.99'}
+                  {subscription?.plan === 'yearly' ? '$39.99' : '$4.99'}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   per {subscription?.plan === 'yearly' ? 'year' : 'month'}
@@ -149,7 +153,7 @@ export function BillingClient({ profile, subscription, email }: Props) {
             </div>
           )}
 
-          {/* Actions */}
+          {/* Cancel button */}
           {isPro && !isCancelled && (
             <div className="flex gap-2 pt-1">
               <Button
@@ -165,6 +169,7 @@ export function BillingClient({ profile, subscription, email }: Props) {
             </div>
           )}
 
+          {/* Cancelled notice */}
           {isCancelled && (
             <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
               <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
@@ -176,6 +181,7 @@ export function BillingClient({ profile, subscription, email }: Props) {
             </div>
           )}
 
+          {/* Upgrade button — only for genuinely free users */}
           {!isPro && !isAdmin && (
             <Link href="/pricing">
               <Button className="gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:opacity-90 border-0 text-white w-full">
