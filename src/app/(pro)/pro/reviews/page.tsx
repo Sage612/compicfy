@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Star, BookOpen, ArrowRight, Sparkles, Crown } from 'lucide-react'
+import { Star, BookOpen, ArrowRight, Sparkles, Crown, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StarRating } from '@/components/recommendations/StarRating'
 import { formatDate } from '@/lib/utils/format'
@@ -56,7 +56,7 @@ export default async function ProReviewsPage() {
         </div>
         <Link href="/browse">
           <Button variant="outline" size="sm" className="gap-2 shrink-0 border-border hover:border-amber-500/40 hover:text-amber-600 hover:bg-amber-500/5 transition-all duration-200">
-            <BookOpen size={14} />Browse Comics
+            <Search size={14} />Browse Comics
           </Button>
         </Link>
       </div>
@@ -84,7 +84,7 @@ export default async function ProReviewsPage() {
                 <BookOpen size={14} />Browse Comics
               </Button>
             </Link>
-            <Link href="/browse?sort=top">
+            <Link href="/browse?sort=score">
               <Button variant="outline" className="gap-2 hover:border-amber-500/40 hover:text-amber-600 transition-colors">
                 <Sparkles size={14} />Top Rated
               </Button>

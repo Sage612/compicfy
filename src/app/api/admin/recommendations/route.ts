@@ -9,13 +9,14 @@ export async function GET(request: Request) {
     const { supabase } = auth
     const { searchParams } = new URL(request.url)
     const filter = searchParams.get('filter') ?? 'pending'
+    const search = searchParams.get('search')?.trim() ?? ''
     const page = parseInt(searchParams.get('page') ?? '1')
     const limit = 20
     const offset = (page - 1) * limit
 
     let query = supabase!
       .from('recommendations')
-      .select('*', { count: 'exact' })
+      .select('*, profiles(username, display_name)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
@@ -24,6 +25,11 @@ export async function GET(request: Request) {
     else if (filter === 'rejected') query = query.not('rejection_reason', 'is', null)
     else if (filter === 'featured') query = query.eq('is_featured', true)
     else if (filter === 'appeals') query = query.eq('appeal_status', 'pending')
+    // 'all' = no filter applied
+
+    if (search) {
+      query = query.or(`title.ilike.%${search}%,author.ilike.%${search}%,artist.ilike.%${search}%,profiles.username.ilike.%${search}%,profiles.display_name.ilike.%${search}%`)
+    }
 
     const { data, error: fetchError, count } = await query
 
@@ -35,7 +41,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       recommendations: data,
       total: count,
-      hasMore: (count ?? 0) > offset + limit
+      hasMore: (count ?? 0) > offset + limit,
+      page
     })
   } catch (err) {
     console.error('Unexpected error:', err)

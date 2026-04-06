@@ -16,6 +16,7 @@ import { PlatformSelector } from '@/components/recommendations/PlatformSelector'
 import { GenreSelector } from '@/components/recommendations/GenreSelector'
 
 const FILTERS = [
+  { value: 'all',      label: 'All',         color: 'text-slate-500'   },
   { value: 'pending',  label: 'Pending',     color: 'text-amber-500'   },
   { value: 'approved', label: 'Approved',    color: 'text-emerald-500' },
   { value: 'rejected', label: 'Rejected',    color: 'text-red-500'     },
@@ -55,6 +56,8 @@ function sanitisePayload(data: Record<string, any>): Record<string, any> {
 export function AdminRecommendations() {
   const [recs, setRecs] = useState<any[]>([])
   const [filter, setFilter] = useState('pending')
+  const [search, setSearch] = useState('')
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
@@ -65,7 +68,10 @@ export function AdminRecommendations() {
   const fetchRecs = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/recommendations?filter=${filter}`)
+      const params = new URLSearchParams({ filter, page: page.toString() })
+      if (search) params.set('search', search)
+      
+      const res = await fetch(`/api/admin/recommendations?${params}`)
       const data = await res.json()
       setRecs(data.recommendations ?? [])
     } catch {
@@ -73,9 +79,13 @@ export function AdminRecommendations() {
     } finally {
       setLoading(false)
     }
-  }, [filter])
+  }, [filter, search, page])
 
   useEffect(() => { fetchRecs() }, [fetchRecs])
+
+  useEffect(() => {
+    setPage(1)
+  }, [filter, search])
 
   const handleAction = async (id: string, action: string, extra: Record<string, any> = {}) => {
     setActionLoading(`${id}-${action}`)
@@ -162,22 +172,52 @@ export function AdminRecommendations() {
 
   return (
     <div className="space-y-4">
-      {/* Filter tabs */}
-      <div className="flex gap-1.5 flex-wrap">
-        {FILTERS.map(({ value, label, color }) => (
-          <button
-            key={value}
-            onClick={() => setFilter(value)}
-            className={cn(
-              'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
-              filter === value
-                ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                : `border-border ${color} hover:border-primary`
-            )}
+      {/* Filter tabs + Search */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="flex gap-1.5 flex-wrap">
+          {FILTERS.map(({ value, label, color }) => (
+            <button
+              key={value}
+              onClick={() => setFilter(value)}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+                filter === value
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                  : `border-border ${color} hover:border-primary`
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        
+        <div className="relative w-full sm:w-64">
+          <Input
+            type="text"
+            placeholder="Search title, author, user..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 text-sm pl-9"
+          />
+          <svg 
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
           >
-            {label}
-          </button>
-        ))}
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {loading ? (
@@ -189,7 +229,7 @@ export function AdminRecommendations() {
           <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
             <BookOpen size={20} className="text-muted-foreground opacity-40" />
           </div>
-          <p className="text-sm text-muted-foreground">No {filter} recommendations</p>
+          <p className="text-sm text-muted-foreground">No {filter === 'all' ? '' : filter} recommendations</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -219,6 +259,8 @@ export function AdminRecommendations() {
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border border-border bg-muted text-muted-foreground capitalize">{rec.status}</span>
                           {rec.is_featured && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">⭐ Featured</span>}
                           {rec.appeal_status === 'pending' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-orange-500/10 text-orange-600 border-orange-500/20">🚩 Appeal</span>}
+                          {!rec.is_approved && !rec.rejection_reason && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">⏳ Pending</span>}
+                          {rec.rejection_reason && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-red-500/10 text-red-600 border-red-500/20">❌ Rejected</span>}
                         </div>
                         <p className="text-xs text-muted-foreground">
                           by @{profile?.display_name || profile?.username} · {formatDate(rec.created_at)}
@@ -418,6 +460,34 @@ export function AdminRecommendations() {
               </div>
             )
           })}
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground">
+              Showing {recs.length} results {search && `for "${search}"`}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1 || loading}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-muted-foreground px-2 py-1">
+                Page {page}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => p + 1)}
+                disabled={recs.length < 20 || loading}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
