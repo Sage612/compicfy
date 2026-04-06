@@ -14,24 +14,36 @@ export async function GET(request: Request) {
     const limit = 20
     const offset = (page - 1) * limit
 
+    console.log('Admin recs fetch:', { filter, search, page, offset })
+
     let query = supabase!
       .from('recommendations')
       .select('*, profiles(username, display_name)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    if (filter === 'pending') query = query.eq('is_approved', false).is('rejection_reason', null)
-    else if (filter === 'approved') query = query.eq('is_approved', true)
-    else if (filter === 'rejected') query = query.not('rejection_reason', 'is', null)
-    else if (filter === 'featured') query = query.eq('is_featured', true)
-    else if (filter === 'appeals') query = query.eq('appeal_status', 'pending')
-    // 'all' = no filter applied
+    // Apply status filters
+    if (filter === 'pending') {
+      query = query.eq('is_approved', false).is('rejection_reason', null)
+    } else if (filter === 'approved') {
+      query = query.eq('is_approved', true)
+    } else if (filter === 'rejected') {
+      query = query.not('rejection_reason', 'is', null)
+    } else if (filter === 'featured') {
+      query = query.eq('is_featured', true)
+    } else if (filter === 'appeals') {
+      query = query.eq('appeal_status', 'pending')
+    }
+    // 'all' = no filter applied, show everything
 
+    // Apply search filter
     if (search) {
       query = query.or(`title.ilike.%${search}%,author.ilike.%${search}%,artist.ilike.%${search}%,profiles.username.ilike.%${search}%,profiles.display_name.ilike.%${search}%`)
     }
 
     const { data, error: fetchError, count } = await query
+
+    console.log('Query result:', { dataLength: data?.length, count, error: fetchError?.message })
 
     if (fetchError) {
       console.error('Fetch error:', fetchError)
@@ -39,8 +51,8 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      recommendations: data,
-      total: count,
+      recommendations: data ?? [],
+      total: count ?? 0,
       hasMore: (count ?? 0) > offset + limit,
       page
     })
