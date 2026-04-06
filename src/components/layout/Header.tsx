@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { User } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
@@ -44,23 +44,35 @@ export function Header() {
   const pathname = usePathname()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [mounted, setMounted]         = useState(false)
+  const [user, setUser]               = useState<User | null>(null)
+  const [avatarUrl, setAvatarUrl]     = useState<string | null>(null)
   const [displayName, setDisplayName] = useState<string | null>(null)
-  const [username, setUsername] = useState<string | null>(null)
-  const [scrolled, setScrolled] = useState(false)
-  const [isPro, setIsPro] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [role, setRole] = useState<string>('user')
-  // authReady prevents the flash of sign-up button for already-logged-in users
-  const [authReady, setAuthReady] = useState(false)
-  const supabase = createClient()
+  const [username, setUsername]       = useState<string | null>(null)
+  const [scrolled, setScrolled]       = useState(false)
+  const [visible, setVisible]         = useState(true)
+  const [isPro, setIsPro]             = useState(false)
+  const [isAdmin, setIsAdmin]         = useState(false)
+  const [role, setRole]               = useState<string>('user')
+  const [authReady, setAuthReady]     = useState(false)
+  const lastScrollY                   = useRef(0)
+  const supabase                      = createClient()
 
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 8)
+    const handleScroll = () => {
+      const currentY = window.scrollY
+      setScrolled(currentY > 8)
+      if (currentY < 60) {
+        setVisible(true)
+      } else if (currentY > lastScrollY.current + 4) {
+        setVisible(false)
+      } else if (currentY < lastScrollY.current - 4) {
+        setVisible(true)
+      }
+      lastScrollY.current = currentY
+    }
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
@@ -92,7 +104,6 @@ export function Header() {
         }
       }
 
-      // Auth state is known — safe to render auth-dependent UI
       setAuthReady(true)
     }
     getUser()
@@ -122,8 +133,8 @@ export function Header() {
 
   const showProLink = mounted && authReady && !isPro
 
-  const dashboardHref = isPro ? '/pro/dashboard' : '/dashboard'
-  const dashboardLabel = isPro ? 'Pro Dashboard' : 'Dashboard'
+  const dashboardHref  = isPro ? '/pro/dashboard' : '/dashboard'
+  const dashboardLabel = isPro ? 'Pro Dashboard'  : 'Dashboard'
 
   const publicNavLinks = [
     { href: '/browse',    label: 'Browse', icon: Search      },
@@ -132,7 +143,7 @@ export function Header() {
   ]
 
   const authNavLinks = [
-    { href: '/feed',            label: 'Feed',  icon: Rss   },
+    { href: '/feed',            label: 'Feed',  icon: Rss        },
     { href: '/dashboard/lists', label: 'Lists', icon: BookMarked },
   ]
 
@@ -151,8 +162,9 @@ export function Header() {
       className={cn(
         'fixed top-0 left-0 right-0 z-50 h-14',
         'bg-background/90 backdrop-blur-lg border-b border-border',
-        'transition-all duration-200',
-        scrolled && 'shadow-sm shadow-black/5 border-border/80'
+        'transition-all duration-300',
+        scrolled && 'shadow-sm shadow-black/5 border-border/80',
+        !visible && '-translate-y-full'
       )}
     >
       <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between gap-4">
@@ -194,9 +206,9 @@ export function Header() {
             )
           })}
 
-          {user && <div className="w-px h-4 bg-border mx-1" />}
+          {authReady && user && <div className="w-px h-4 bg-border mx-1" />}
 
-          {user && authNavLinks.map(({ href, label, icon: Icon }) => {
+          {authReady && user && authNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
             return (
               <Link
@@ -262,7 +274,7 @@ export function Header() {
             </DropdownMenu>
           )}
 
-          {/* ── Logged out — only render once auth state is known ── */}
+          {/* ── Logged out ── */}
           {authReady && !user && (
             <div className="flex items-center gap-1.5 ml-1">
               <Link href="/login">
@@ -279,10 +291,9 @@ export function Header() {
           )}
 
           {/* ── Logged in ── */}
-          {user && (
+          {authReady && user && (
             <div className="flex items-center gap-1 ml-0.5">
 
-              {/* Add button — desktop only, mobile nav handles this */}
               <Link href="/dashboard/recommendations/new" className="hidden md:flex">
                 <Button
                   size="sm"
@@ -295,7 +306,6 @@ export function Header() {
 
               <NotificationBell userId={user.id} />
 
-              {/* ── User dropdown ── */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/40 focus-visible:ring-primary/40 transition-all outline-none">
@@ -310,7 +320,6 @@ export function Header() {
 
                 <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
 
-                  {/* User info header */}
                   <DropdownMenuLabel className="font-normal px-2 py-2 mb-0.5">
                     <div className="flex items-center gap-2.5">
                       <Avatar className="h-9 w-9 shrink-0">
@@ -351,7 +360,6 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
 
-                  {/* Admin also gets regular Dashboard link */}
                   {role === 'admin' && (
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
                       <Link href="/dashboard">
@@ -372,18 +380,6 @@ export function Header() {
                     <Link href="/dashboard/saved">
                       <Bookmark size={13} className="text-muted-foreground" />
                       Saved Comics
-                    </Link>
-                  </DropdownMenuItem>
-
-                  {/*
-                    Feed in dropdown: desktop only.
-                    On mobile it lives in the bottom nav, so we hide it here on mobile.
-                  */}
-                  <DropdownMenuSeparator className="my-1 hidden md:block" />
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg hidden md:flex">
-                    <Link href="/feed">
-                      <BookOpen size={13} className="text-muted-foreground" />
-                      Following Feed
                     </Link>
                   </DropdownMenuItem>
 

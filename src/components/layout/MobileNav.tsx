@@ -7,14 +7,17 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 export function MobileNav() {
   const pathname = usePathname()
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [isPro, setIsPro] = useState(false)
-  const [role, setRole] = useState<string>('user')
-  const supabase = createClient()
+  const [isLoggedIn, setIsLoggedIn]   = useState(false)
+  const [isPro, setIsPro]             = useState(false)
+  const [role, setRole]               = useState<string>('user')
+  const [authReady, setAuthReady]     = useState(false)
+  const [visible, setVisible]         = useState(true)
+  const lastScrollY                   = useRef(0)
+  const supabase                      = createClient()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -37,6 +40,7 @@ export function MobileNav() {
           )
         }
       }
+      setAuthReady(true)
     }
     checkAuth()
 
@@ -48,23 +52,35 @@ export function MobileNav() {
       } else {
         setIsLoggedIn(true)
       }
+      setAuthReady(true)
     })
 
     return () => subscription.unsubscribe()
   }, [supabase])
 
-  /*
-    Slot 1 logic:
-    - Logged out  → Home (/)
-    - Logged in   → Feed (/feed)
+  // Hide on scroll down, show on scroll up
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentY = window.scrollY
+      if (currentY < 60) {
+        setVisible(true)
+      } else if (currentY > lastScrollY.current + 4) {
+        setVisible(false)
+      } else if (currentY < lastScrollY.current - 4) {
+        setVisible(true)
+      }
+      lastScrollY.current = currentY
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
-    Slot 5 logic:
-    - Logged out  → Pricing/Pro link
-    - Logged in   → Lists (/dashboard/lists) for everyone including admin
-  */
+  // Don't render anything until auth state is known — prevents flash
+  if (!authReady) return null
+
   const firstSlot = !isLoggedIn
-    ? { href: '/',      label: 'Home',  icon: House,     exact: true  }
-    : { href: '/feed',  label: 'Feed',  icon: Rss,       exact: false }
+    ? { href: '/',     label: 'Home', icon: House, exact: true  }
+    : { href: '/feed', label: 'Feed', icon: Rss,   exact: false }
 
   const lastSlot = !isLoggedIn
     ? { href: '/pricing',         label: 'Pro',   icon: Crown,      isProItem: true }
@@ -79,7 +95,11 @@ export function MobileNav() {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
+    <nav className={cn(
+      'fixed bottom-0 left-0 right-0 z-50 md:hidden',
+      'transition-transform duration-300',
+      !visible && 'translate-y-full'
+    )}>
       <div className="absolute inset-0 bg-background/95 backdrop-blur-lg border-t border-border" />
 
       <div className="relative flex items-center justify-around px-2 h-16">
@@ -88,7 +108,6 @@ export function MobileNav() {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
           const target = isAdd && !isLoggedIn ? '/login' : href
 
-          // ── Add button (center) — same level as other items ──
           if (isAdd) {
             return (
               <Link
@@ -110,7 +129,6 @@ export function MobileNav() {
             )
           }
 
-          // ── Pricing/Pro link (logged out only) ──
           if (isProItem) {
             return (
               <Link
@@ -137,7 +155,6 @@ export function MobileNav() {
             )
           }
 
-          // ── Regular nav items ──
           return (
             <Link
               key={href}
