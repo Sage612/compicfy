@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/utils/requireRole'
 
 export async function GET(request: Request) {
   try {
-    const auth = await requireRole(false) // admin + mod
+    const auth = await requireRole(false)
     if (auth.error) return auth.error
 
     const { supabase } = auth
@@ -16,19 +16,16 @@ export async function GET(request: Request) {
 
     let query = (supabase as any)
       .from('recommendations')
-      .select('*, profiles(username, display_name, avatar_url)', { count: 'exact' })
+      .select('*, profiles!recommendations_user_id_fkey(username, display_name, avatar_url)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    // Filter
     if      (filter === 'pending')  query = query.eq('is_approved', false).is('rejection_reason', null)
     else if (filter === 'approved') query = query.eq('is_approved', true)
     else if (filter === 'rejected') query = query.not('rejection_reason', 'is', null)
     else if (filter === 'featured') query = query.eq('is_featured', true)
     else if (filter === 'appeals')  query = query.eq('appeal_status', 'pending')
-    // 'all' — no filter applied, returns everything
 
-    // Search — title, author, artist
     if (q) {
       query = query.or(
         `title.ilike.%${q}%,author.ilike.%${q}%,artist.ilike.%${q}%`
