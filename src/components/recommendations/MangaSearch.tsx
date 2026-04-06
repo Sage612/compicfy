@@ -217,21 +217,21 @@ export function MangaSearch({ onSelect }: Props) {
             </div>
 
             {/* Footer */}
-            <div className="px-3 py-2 bg-muted/50 border-t border-border flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
-                {results.length} result{results.length !== 1 ? 's' : ''} found
-              </p>
-              <div className="flex gap-1">
-                {(['jikan', 'mangadex', 'anilist', 'mangaupdates'] as const).map(src => (
-                  <span
-                    key={src}
-                    className={cn('text-[9px] px-1.5 py-0.5 rounded-full border font-semibold', sourceColors[src])}
-                  >
-                    {sourceLabels[src]}
-                  </span>
-                ))}
-              </div>
-            </div>
+<div className="px-3 py-2 bg-muted/50 border-t border-border flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+  <p className="text-xs text-muted-foreground">
+    {results.length} result{results.length !== 1 ? 's' : ''} found
+  </p>
+  <div className="flex flex-wrap gap-1">
+    {(['jikan', 'mangadex', 'anilist', 'mangaupdates'] as const).map(src => (
+      <span
+        key={src}
+        className={cn('text-[9px] px-1.5 py-0.5 rounded-full border font-semibold', sourceColors[src])}
+      >
+        {sourceLabels[src]}
+      </span>
+    ))}
+  </div>
+</div>
           </div>
         )}
 

@@ -194,13 +194,21 @@ async function searchMangaUpdates(query: string): Promise<MangaResult[]> {
     return items.map((item: any) => {
       const record = item.record ?? {}
 
-      // Authors and artists
-      const authors = (record.authors ?? [])
-        .filter((a: any) => a.type === 'Author')
-        .map((a: any) => a.name)
-      const artists = (record.authors ?? [])
-        .filter((a: any) => a.type === 'Artist')
-        .map((a: any) => a.name)
+      // Authors and artists — handle missing/inconsistent type casing
+      const allCredits = record.authors ?? record.author_info ?? []
+
+      const authors = allCredits
+        .filter((a: any) => a.type?.toLowerCase() === 'author')
+        .map((a: any) => a.name ?? a.author_name ?? '')
+        .filter(Boolean)
+
+      const artists = allCredits
+        .filter((a: any) => a.type?.toLowerCase() === 'artist')
+        .map((a: any) => a.name ?? a.author_name ?? '')
+        .filter(Boolean)
+
+      // Fallback: if no typed split, treat first entry as author
+      const firstCredit = allCredits[0]?.name ?? allCredits[0]?.author_name ?? ''
 
       // Genres
       const genres = (record.genres ?? []).map((g: any) => g.genre ?? g)
@@ -237,7 +245,6 @@ async function searchMangaUpdates(query: string): Promise<MangaResult[]> {
 
       // Alternative titles
       const altTitles: string[] = []
-      if (record.title && record.title !== record.title) altTitles.push(record.title)
       ;(record.associated ?? []).forEach((a: any) => {
         if (a.title) altTitles.push(a.title)
       })
@@ -246,8 +253,8 @@ async function searchMangaUpdates(query: string): Promise<MangaResult[]> {
         id: `mangaupdates-${record.series_id}`,
         title: record.title ?? '',
         alternativeTitles: altTitles.slice(0, 5),
-        author: authors[0] ?? '',
-        artist: artists[0] ?? authors[0] ?? '',
+        author: authors[0] ?? firstCredit,
+        artist: artists[0] ?? authors[0] ?? firstCredit,
         description,
         genres: [...new Set([...genres, ...categories])].slice(0, 8),
         type,
