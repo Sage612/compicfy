@@ -30,23 +30,17 @@ const FREE_FEATURES = [
   { icon: Bookmark,   text: '50 saved comics'              },
   { icon: BookMarked, text: '3 reading lists'              },
   { icon: Star,       text: 'Reviews & voting'             },
-  { icon: Bell,       text: 'Basic notifications'          },
 ]
 
 const PRO_FEATURES = [
   { icon: BookOpen,   text: 'Unlimited recommendations',       highlight: false },
   { icon: Bookmark,   text: 'Unlimited saves',                 highlight: false },
   { icon: BookMarked, text: 'Unlimited reading lists',         highlight: false },
-  { icon: Filter,     text: 'Advanced filters',                highlight: false },
-  { icon: Star,       text: 'Priority review approval',        highlight: false },
   { icon: Zap,        text: 'Ad-free experience',              highlight: false },
   { icon: Crown,      text: 'Exclusive 👑 Pro badge',          highlight: true  },
   { icon: BarChart2,  text: 'Recommendation analytics',        highlight: true  },
   { icon: Eye,        text: 'See who viewed your profile',     highlight: true  },
   { icon: Download,   text: 'Export reading lists (CSV/PDF)',  highlight: true  },
-  { icon: Palette,    text: 'Custom profile themes',           highlight: true  },
-  { icon: Bell,       text: 'Full notification control',       highlight: false },
-  { icon: Shield,     text: 'Premium news access',             highlight: false },
 ]
 
 const ERROR_MESSAGES: Record<string, string> = {

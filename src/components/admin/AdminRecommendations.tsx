@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
   CheckCircle, XCircle, Star, StarOff, Loader2, BookOpen,
-  ChevronDown, ChevronUp, Pencil, Eye, Trash2,
+  ChevronDown, ChevronUp, Pencil, Eye, Trash2, Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/format'
@@ -16,6 +16,7 @@ import { PlatformSelector } from '@/components/recommendations/PlatformSelector'
 import { GenreSelector } from '@/components/recommendations/GenreSelector'
 
 const FILTERS = [
+  { value: 'all',      label: 'All',         color: 'text-foreground'  },
   { value: 'pending',  label: 'Pending',     color: 'text-amber-500'   },
   { value: 'approved', label: 'Approved',    color: 'text-emerald-500' },
   { value: 'rejected', label: 'Rejected',    color: 'text-red-500'     },
@@ -53,29 +54,49 @@ function sanitisePayload(data: Record<string, any>): Record<string, any> {
 }
 
 export function AdminRecommendations() {
-  const [recs, setRecs] = useState<any[]>([])
-  const [filter, setFilter] = useState('pending')
-  const [loading, setLoading] = useState(true)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [recs, setRecs]               = useState<any[]>([])
+  const [filter, setFilter]           = useState('pending')
+  const [search, setSearch]           = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [loading, setLoading]         = useState(true)
+  const [expandedId, setExpandedId]   = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editData, setEditData] = useState<Record<string, any>>({})
+  const [editingId, setEditingId]     = useState<string | null>(null)
+  const [editData, setEditData]       = useState<Record<string, any>>({})
+  const [total, setTotal]             = useState<number>(0)
+  const debounceRef                   = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchRecs = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/recommendations?filter=${filter}`)
+      const params = new URLSearchParams({ filter })
+      if (search) params.set('q', search)
+      const res  = await fetch(`/api/admin/recommendations?${params}`)
       const data = await res.json()
       setRecs(data.recommendations ?? [])
+      setTotal(data.total ?? 0)
     } catch {
       toast.error('Failed to fetch')
     } finally {
       setLoading(false)
     }
-  }, [filter])
+  }, [filter, search])
 
   useEffect(() => { fetchRecs() }, [fetchRecs])
+
+  // Debounce search input → search state
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setSearch(value), 400)
+  }
+
+  const handleFilterChange = (value: string) => {
+    setFilter(value)
+    setExpandedId(null)
+    setEditingId(null)
+  }
 
   const handleAction = async (id: string, action: string, extra: Record<string, any> = {}) => {
     setActionLoading(`${id}-${action}`)
@@ -162,12 +183,32 @@ export function AdminRecommendations() {
 
   return (
     <div className="space-y-4">
+
+      {/* Search bar */}
+      <div className="relative">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        <Input
+          value={searchInput}
+          onChange={e => handleSearchChange(e.target.value)}
+          placeholder="Search by title, author, or artist…"
+          className="pl-9 h-10 bg-card"
+        />
+        {searchInput && (
+          <button
+            onClick={() => { setSearchInput(''); setSearch('') }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
       {/* Filter tabs */}
-      <div className="flex gap-1.5 flex-wrap">
+      <div className="flex gap-1.5 flex-wrap items-center">
         {FILTERS.map(({ value, label, color }) => (
           <button
             key={value}
-            onClick={() => setFilter(value)}
+            onClick={() => handleFilterChange(value)}
             className={cn(
               'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
               filter === value
@@ -178,6 +219,13 @@ export function AdminRecommendations() {
             {label}
           </button>
         ))}
+        {/* Result count */}
+        {!loading && (
+          <span className="ml-auto text-xs text-muted-foreground">
+            {total} result{total !== 1 ? 's' : ''}
+            {search && <span className="text-primary ml-1">for "{search}"</span>}
+          </span>
+        )}
       </div>
 
       {loading ? (
@@ -187,9 +235,23 @@ export function AdminRecommendations() {
       ) : recs.length === 0 ? (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border">
           <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
-            <BookOpen size={20} className="text-muted-foreground opacity-40" />
+            {search
+              ? <Search size={20} className="text-muted-foreground opacity-40" />
+              : <BookOpen size={20} className="text-muted-foreground opacity-40" />
+            }
           </div>
-          <p className="text-sm text-muted-foreground">No {filter} recommendations</p>
+          <p className="text-sm text-muted-foreground">
+            {search ? `No results for "${search}"` : `No ${filter} recommendations`}
+          </p>
+          {search && (
+            <Button
+              variant="ghost" size="sm"
+              onClick={() => { setSearchInput(''); setSearch('') }}
+              className="mt-3 text-xs"
+            >
+              Clear search
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -217,6 +279,13 @@ export function AdminRecommendations() {
                         <div className="flex flex-wrap gap-1.5">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${typeStyle}`}>{rec.type}</span>
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border border-border bg-muted text-muted-foreground capitalize">{rec.status}</span>
+                          {/* Approval status badge */}
+                          {rec.is_approved
+                            ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-600 border-emerald-500/20">✓ Approved</span>
+                            : rec.rejection_reason
+                            ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-red-500/10 text-red-500 border-red-500/20">✕ Rejected</span>
+                            : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">⏳ Pending</span>
+                          }
                           {rec.is_featured && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">⭐ Featured</span>}
                           {rec.appeal_status === 'pending' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-orange-500/10 text-orange-600 border-orange-500/20">🚩 Appeal</span>}
                         </div>
@@ -247,7 +316,8 @@ export function AdminRecommendations() {
                             variant="ghost" size="icon"
                             className="h-8 w-8 text-emerald-500 hover:text-emerald-500"
                             onClick={() => handleAction(rec.id, 'approve')}
-                            disabled={!!actionLoading} title="Approve"
+                            disabled={!!actionLoading}
+                            title="Approve"
                           >
                             {actionLoading === `${rec.id}-approve`
                               ? <Loader2 size={13} className="animate-spin" />
@@ -309,7 +379,6 @@ export function AdminRecommendations() {
                       <Input type="number" value={editData.year_released ?? ''} onChange={e => setEditData(d => ({ ...d, year_released: e.target.value }))} placeholder="Year" className="text-sm h-9" />
                     </div>
 
-                    {/* Type / Status / Rating toggles */}
                     {[
                       { label: 'Type',   field: 'type',           items: TYPES    },
                       { label: 'Status', field: 'status',         items: STATUSES },
@@ -336,22 +405,14 @@ export function AdminRecommendations() {
                       </div>
                     ))}
 
-                    {/* Genres — full selector with custom input */}
                     <div className="space-y-1.5">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Genres</p>
-                      <GenreSelector
-                        value={editData.genres ?? []}
-                        onChange={(genres) => setEditData(d => ({ ...d, genres }))}
-                      />
+                      <GenreSelector value={editData.genres ?? []} onChange={(genres) => setEditData(d => ({ ...d, genres }))} />
                     </div>
 
-                    {/* Platforms — full selector with custom input */}
                     <div className="space-y-1.5">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Platforms</p>
-                      <PlatformSelector
-                        value={editData.official_platforms ?? []}
-                        onChange={(platforms) => setEditData(d => ({ ...d, official_platforms: platforms }))}
-                      />
+                      <PlatformSelector value={editData.official_platforms ?? []} onChange={(platforms) => setEditData(d => ({ ...d, official_platforms: platforms }))} />
                     </div>
 
                     <div className="flex gap-2 justify-end pt-1">

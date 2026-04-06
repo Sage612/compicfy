@@ -20,7 +20,6 @@ const proItems = [
   { href: '/pro/analytics',     label: 'Analytics',      icon: BarChart2 },
   { href: '/pro/profile-views', label: 'Profile Views',  icon: Eye },
   { href: '/pro/export',        label: 'Export Lists',   icon: Download },
-  { href: '/pro/themes',        label: 'Profile Themes', icon: Palette },
   { href: '/pro/leaderboard',   label: 'Leaderboard',    icon: Trophy },
 ]
 

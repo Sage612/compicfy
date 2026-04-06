@@ -26,7 +26,6 @@ const proItems: NavItem[] = [
   { href: '/pro/analytics', label: 'Analytics', icon: BarChart2, isProItem: true },
    { href: '/pro/profile-views', label: 'Profile Views',  icon: Eye },
     { href: '/pro/export',        label: 'Export Lists',   icon: Download },
-    { href: '/pro/themes',        label: 'Profile Themes', icon: Palette },
   { href: '/pro/leaderboard', label: 'Ranks',     icon: Trophy,    isProItem: true },
 ]
 
