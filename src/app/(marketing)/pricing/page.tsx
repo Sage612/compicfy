@@ -3,7 +3,7 @@ import { PricingClient } from '@/components/pro/PricingClient'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Pricing | Compicfy',
+  title: 'Pricing',
   description: 'Upgrade to Compicfy Pro for unlimited recommendations, advanced filters, analytics and more.',
 }
 

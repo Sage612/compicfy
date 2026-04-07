@@ -7,7 +7,7 @@ import { ParticleCanvas } from '@/components/layout/ParticleCanvas'
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter'
 import { LiveTicker } from '@/components/layout/LiveTicker'
 import {
-  ArrowRight, BookOpen, Users, TrendingUp,
+  ArrowRight, Search, BookOpen, Users, TrendingUp,
   Star, Sparkles, ChevronRight, Heart, Zap,
   ThumbsUp, MessageSquare, Bookmark,
 } from 'lucide-react'
@@ -198,7 +198,7 @@ export default async function HomePage() {
               <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                 <Link href="/browse">
                   <Button size="lg" className="gap-2 h-12 px-6 font-bold shadow-xl shadow-primary/20 border-0 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 text-white">
-                    <BookOpen size={17} />
+                    <Search size={17} />
                     Browse Comics
                     <ArrowRight size={15} />
                   </Button>
