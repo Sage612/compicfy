@@ -5,7 +5,7 @@ import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletio
 import { Button } from '@/components/ui/button'
 import {
   BookOpen, Bookmark, Plus, Settings, Flame, Trophy, ArrowRight,
-  BookMarked, ChevronRight, Rss, Users,
+  BookMarked, ChevronRight, LayoutList, Users,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, timeAgo } from '@/lib/utils/format'
@@ -81,7 +81,7 @@ export default async function DashboardPage() {
 
   const quickActions = [
     { href: '/dashboard/recommendations/new', icon: Plus,       label: 'Submit a Recommendation', desc: 'Share a comic with the community', gradient: 'from-violet-500 to-purple-600' },
-    { href: '/feed',                           icon: Rss,        label: 'Following Feed',           desc: 'Latest from people you follow',   gradient: 'from-primary to-violet-500'   },
+    { href: '/feed',                           icon: LayoutList,        label: 'Following Feed',           desc: 'Latest from people you follow',   gradient: 'from-primary to-violet-500'   },
     { href: '/dashboard/lists',                icon: BookMarked, label: 'Reading Lists',            desc: 'Manage your reading collection',  gradient: 'from-teal-500 to-cyan-600'    },
     { href: '/browse',                         icon: Flame,      label: 'Browse Comics',            desc: 'Discover new recommendations',    gradient: 'from-rose-500 to-pink-600'    },
   ]

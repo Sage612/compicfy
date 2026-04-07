@@ -10,7 +10,7 @@ import {
   Crown, BarChart2, Eye, Download, Trophy,
   BookOpen, Bookmark, ThumbsUp, ArrowRight,
   Sparkles, Zap, ChevronRight, Plus, Settings,
-  Rss, BookMarked, Flame, Users, Star,
+  LayoutList, BookMarked, Flame, Users, Star,
 } from 'lucide-react'
 import { formatDate, formatNumber, timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -93,7 +93,7 @@ export default async function ProDashboardPage() {
   // Quick actions — same as regular dashboard
   const quickActions = [
     { href: '/dashboard/recommendations/new', icon: Plus,     label: 'Submit a Recommendation', desc: 'Share a comic with the community',    gradient: 'from-violet-500 to-purple-600' },
-    { href: '/feed',                           icon: Rss,      label: 'Following Feed',           desc: 'Latest from people you follow',       gradient: 'from-primary to-violet-500'    },
+    { href: '/feed',                           icon: LayoutList,      label: 'Following Feed',           desc: 'Latest from people you follow',       gradient: 'from-primary to-violet-500'    },
     { href: '/dashboard/lists',                icon: BookMarked, label: 'Reading Lists',          desc: 'Manage your reading collection',      gradient: 'from-teal-500 to-cyan-600'     },
     { href: '/browse',                         icon: Flame,    label: 'Browse Comics',            desc: 'Discover new recommendations',        gradient: 'from-rose-500 to-pink-600'     },
   ]
@@ -156,10 +156,10 @@ export default async function ProDashboardPage() {
                 Settings
               </Button>
             </Link>
-            <Link href="/pro/themes">
+             <Link href="/dashboard/recommendations/new">
               <Button size="sm" className="gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white shadow-md shadow-amber-500/20">
-                <Sparkles size={13} />
-                Themes
+                <Plus size={13} />
+                Add A Rec
               </Button>
             </Link>
           </div>
