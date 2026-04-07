@@ -58,7 +58,6 @@ export function MobileNav() {
     return () => subscription.unsubscribe()
   }, [supabase])
 
-  // Hide on scroll down, show on scroll up
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY
@@ -87,9 +86,9 @@ export function MobileNav() {
 
   const navItems = [
     firstSlot,
-    { href: '/browse',                        label: 'Browse', icon: Search    },
-    { href: '/dashboard/recommendations/new', label: 'Add',    icon: Plus, isAdd: true },
-    { href: '/news',                          label: 'News',   icon: Newspaper },
+    { href: '/browse',                        label: 'Browse', icon: Search                },
+    { href: '/dashboard/recommendations/new', label: 'Add',    icon: Plus, isAdd: true     },
+    { href: '/news',                          label: 'News',   icon: Newspaper             },
     lastSlot,
   ]
 
@@ -99,10 +98,9 @@ export function MobileNav() {
       'transition-transform duration-300 ease-in-out',
       !visible && 'translate-y-full'
     )}>
-      {/* Background */}
       <div className="absolute inset-0 bg-background/95 backdrop-blur-lg border-t border-border" />
 
-      <div className="relative flex items-end justify-around px-1 h-16">
+      <div className="relative flex items-center justify-around px-1 h-16">
         {navItems.map((item: any) => {
           const { href, label, icon: Icon, exact, isAdd, isProItem } = item
           const isActive = exact ? pathname === href : pathname.startsWith(href)
@@ -114,21 +112,20 @@ export function MobileNav() {
               <Link
                 key={href}
                 href={target}
-                className="relative flex flex-col items-center justify-end gap-1 px-2 pb-2.5 min-w-[56px] -mt-4"
+                className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
               >
-                {/* Elevated pill */}
                 <div className={cn(
-                  'w-12 h-12 rounded-2xl flex items-center justify-center',
+                  'w-10 h-10 rounded-xl flex items-center justify-center',
                   'bg-gradient-to-br from-primary to-violet-500',
-                  'shadow-lg shadow-primary/40',
-                  'ring-4 ring-background',
-                  'active:scale-90 active:shadow-primary/20',
-                  'hover:shadow-xl hover:shadow-primary/50 hover:scale-105',
+                  'active:opacity-80',
+                  'hover:opacity-90',
                   'transition-all duration-200 ease-out'
                 )}>
-                  <Icon size={20} className="text-white" strokeWidth={2.5} />
+                  <Icon size={19} className="text-white" strokeWidth={2.5} />
                 </div>
-                <span className="text-[10px] font-semibold text-muted-foreground leading-none">{label}</span>
+                <span className="text-[10px] font-semibold text-muted-foreground leading-none">
+                  {label}
+                </span>
               </Link>
             )
           }
@@ -139,7 +136,7 @@ export function MobileNav() {
               <Link
                 key={href}
                 href={href}
-                className="relative flex flex-col items-center justify-end gap-1 px-2 pb-2.5 min-w-[44px] active:scale-95 transition-transform duration-100"
+                className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
               >
                 <div className={cn(
                   'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
@@ -155,7 +152,6 @@ export function MobileNav() {
                 )}>
                   {label}
                 </span>
-                {/* Active indicator — pill style */}
                 {isActive && (
                   <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-amber-500" />
                 )}
@@ -168,7 +164,7 @@ export function MobileNav() {
             <Link
               key={href}
               href={href}
-              className="relative flex flex-col items-center justify-end gap-1 px-2 pb-2.5 min-w-[44px] active:scale-95 transition-transform duration-100"
+              className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
             >
               <div className={cn(
                 'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
@@ -184,7 +180,6 @@ export function MobileNav() {
               )}>
                 {label}
               </span>
-              {/* Active indicator — pill style, more visible than dot */}
               {isActive && (
                 <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary" />
               )}
@@ -193,7 +188,6 @@ export function MobileNav() {
         })}
       </div>
 
-      {/* Proper iOS safe area using CSS env() */}
       <div className="bg-background/95" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
     </nav>
   )
