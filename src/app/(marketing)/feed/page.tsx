@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { BookOpen, Rss, UserPlus } from 'lucide-react'
+import { BookOpen, Rss, UserPlus, LayoutList   } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FeedCard } from '@/components/feed/FeedCard'
 import { FeedTabs } from '@/components/feed/FeedTabs'
@@ -86,7 +86,7 @@ export default async function FeedPage({ searchParams }: Props) {
           {/* Header */}
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20">
-              <Rss size={16} className="text-white" />
+              <LayoutList size={16} className="text-white" />
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight">Feed</h1>

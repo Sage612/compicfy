@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  House, Plus, Newspaper, BookMarked, Search, Crown, Rss,
+  House, Plus, Newspaper, BookMarked, Search, Crown, LayoutList,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -80,7 +80,7 @@ export function MobileNav() {
 
   const firstSlot = !isLoggedIn
     ? { href: '/',     label: 'Home', icon: House, exact: true  }
-    : { href: '/feed', label: 'Feed', icon: Rss,   exact: false }
+    : { href: '/feed', label: 'Feed', icon: LayoutList,   exact: false }
 
   const lastSlot = !isLoggedIn
     ? { href: '/pricing',         label: 'Pro',   icon: Crown,      isProItem: true }
