@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { NewsCarousel } from '@/components/news/NewsCarousel'
 import { NewsCard } from '@/components/news/NewsCard'
 import { NewsFilters } from '@/components/news/NewsFilters'
-import { Newspaper } from 'lucide-react'
+import { ScrollText } from 'lucide-react'
 import type { News } from '@/types/database.types'
 
 interface Props {
@@ -41,7 +41,7 @@ async function NewsGrid({ searchParams }: Props) {
     return (
       <div className="text-center py-20">
         <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-          <Newspaper size={28} className="text-muted-foreground opacity-40" />
+          <ScrollText size={28} className="text-muted-foreground opacity-40" />
         </div>
         <p className="font-black text-lg">No news found</p>
         <p className="text-sm text-muted-foreground mt-1">Check back soon for updates!</p>
@@ -105,7 +105,7 @@ export default async function NewsPage({ searchParams }: Props) {
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-orange-500 flex items-center justify-center shadow-lg shadow-rose-500/20">
-              <Newspaper size={17} className="text-white" />
+              <ScrollText size={17} className="text-white" />
             </div>
             <h1 className="text-3xl font-black tracking-tight">News</h1>
           </div>
@@ -126,7 +126,7 @@ export default async function NewsPage({ searchParams }: Props) {
       <div className="relative flex items-center gap-4 py-1">
         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
         <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card shrink-0">
-          <Newspaper size={12} className="text-muted-foreground" />
+          <ScrollText size={12} className="text-muted-foreground" />
           <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">All Articles</span>
         </div>
         <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />

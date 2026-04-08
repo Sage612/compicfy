@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
-  Users, BookOpen, Clock, Newspaper,
+  Users, BookOpen, Clock, ScrollText,
   Star, Flag, ArrowRight, Shield, ShoppingBag,
   BarChart3,
 } from 'lucide-react'
@@ -93,7 +93,7 @@ export default async function AdminPage() {
     { 
       label: 'News Articles', 
       value: totalNews ?? 0, 
-      icon: Newspaper, 
+      icon: ScrollText, 
       href: '/admin/news', 
       bg: 'bg-teal-500/10', 
       text: 'text-teal-500', 
