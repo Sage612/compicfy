@@ -8,13 +8,13 @@ import { cn } from '@/lib/utils'
 interface Props {
   title: string
   url: string
-  compact?: boolean // compact = card mode, full = detail page mode
+  compact?: boolean
 }
 
 export function ShareButton({ title, url, compact = false }: Props) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen]     = useState(false)
   const [copied, setCopied] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const ref                 = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -104,10 +104,16 @@ export function ShareButton({ title, url, compact = false }: Props) {
     },
   ]
 
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setOpen(prev => !prev)
+  }
+
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={handleToggle}
         className={cn(
           'flex items-center gap-1.5 transition-all',
           compact
@@ -122,8 +128,9 @@ export function ShareButton({ title, url, compact = false }: Props) {
 
       {open && (
         <div className={cn(
-          'absolute z-50 mt-1 w-44 rounded-2xl border border-border bg-card shadow-xl overflow-hidden',
-          compact ? 'right-0 bottom-full mb-1' : 'right-0'
+          'absolute z-[100] w-44 rounded-2xl border border-border bg-card shadow-xl overflow-hidden',
+          // compact = on a card, open downward from top-right to avoid clipping
+          compact ? 'top-full mt-1 right-0' : 'right-0 mt-1'
         )}>
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 pt-3 pb-1">
             Share this comic
@@ -131,7 +138,7 @@ export function ShareButton({ title, url, compact = false }: Props) {
           {shareOptions.map(({ label, icon: Icon, color, bg, onClick }) => (
             <button
               key={label}
-              onClick={onClick}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick() }}
               className={cn(
                 'w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors text-left',
                 bg, color

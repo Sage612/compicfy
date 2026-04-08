@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import {
   CalendarDays, BookOpen, Star, ThumbsUp,
-  Shield, Globe, BookMarked, Users, Pin,
+  Shield, Globe, BookMarked, Users, Pin, ArrowRight,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
@@ -34,7 +34,6 @@ interface ProfileData {
   total_votes_received: number | null
   favorite_genres: string[] | null
   favorite_platforms: string[] | null
-  // Pro fields
   is_pro: boolean | null
   pro_expires_at: string | null
   profile_theme: string | null
@@ -95,7 +94,6 @@ export default async function ProfilePage({ params }: Props) {
 
   if (!profileData) notFound()
 
-  // Cast safely with fallbacks for new columns
   const profile: ProfileData = {
     ...(profileData as any),
     is_pro: (profileData as any).is_pro ?? false,
@@ -106,31 +104,26 @@ export default async function ProfilePage({ params }: Props) {
     favorite_genres: (profileData as any).favorite_genres ?? [],
   }
 
-  const isOwner = viewer?.id === profile.id
+  const isOwner      = viewer?.id === profile.id
   const isPrivileged = isOwner || viewerRole === 'admin' || viewerRole === 'moderator'
 
-  const isPro = !!(profile.is_pro &&
-    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  const isAdmin = profile.role === 'admin'
-  const showGold = isPro && !isAdmin
-  const profileTheme = profile.profile_theme ?? 'default'
+  const isPro       = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin     = profile.role === 'admin'
+  const showGold    = isPro && !isAdmin
+  const profileTheme   = profile.profile_theme ?? 'default'
   const bannerGradient = showGold
     ? (THEME_GRADIENTS[profileTheme] ?? THEME_GRADIENTS.default)
     : THEME_GRADIENTS.default
 
-  // Track profile view — awaited properly to avoid floating promise crash
   if (viewer?.id && viewer.id !== profile.id) {
     try {
       await (supabase as any).rpc('track_profile_view', {
         p_profile_id: profile.id,
         p_viewer_id: viewer.id,
       })
-    } catch {
-      // Non-critical — don't crash render
-    }
+    } catch { /* Non-critical */ }
   }
 
-  // Fetch pinned recommendation if exists
   let pinnedRec: Recommendation | null = null
   if (profile.pinned_recommendation_id) {
     const { data: pinned } = await (supabase as any)
@@ -142,30 +135,38 @@ export default async function ProfilePage({ params }: Props) {
     pinnedRec = (pinned as Recommendation) ?? null
   }
 
+  // Fetch up to 6 for the preview grid — always exclude adult/mature for public view
   let recQuery = supabase
     .from('recommendations')
     .select('*')
     .eq('user_id', profile.id)
     .eq('is_approved', true)
+    .not('content_rating', 'in', '("adult","mature")')
     .order('created_at', { ascending: false })
     .limit(6)
-
-  if (!isPrivileged) {
-    recQuery = recQuery.not('content_rating', 'in', '("adult","mature")')
-  }
 
   if (profile.pinned_recommendation_id) {
     recQuery = recQuery.neq('id', profile.pinned_recommendation_id)
   }
 
+  // Count ALL approved recs (excluding adult/mature) for "See all" badge
+  let totalRecsQuery = (supabase as any)
+    .from('recommendations')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', profile.id)
+    .eq('is_approved', true)
+    .not('content_rating', 'in', '("adult","mature")')
+
   const [
     { data: recData },
+    { count: totalRecsCount },
     { data: listsData },
     { count: followersCount },
     { count: followingCount },
     { data: isFollowingData },
   ] = await Promise.all([
     recQuery,
+    totalRecsQuery,
     supabase
       .from('reading_lists')
       .select('id, name, description, is_public')
@@ -192,10 +193,9 @@ export default async function ProfilePage({ params }: Props) {
   ])
 
   const recommendations = (recData ?? []) as Recommendation[]
-  const isFollowing = !!isFollowingData
-  const hasAdultRecs = recommendations.some(
-    r => r.content_rating === 'adult' || r.content_rating === 'mature'
-  )
+  const isFollowing     = !!isFollowingData
+  const totalRecs       = totalRecsCount ?? 0
+  const hasMore         = totalRecs > recommendations.length
 
   const lists: ReadingList[] = await Promise.all(
     (listsData ?? []).map(async (list: any) => {
@@ -207,8 +207,8 @@ export default async function ProfilePage({ params }: Props) {
     })
   )
 
-  const initials = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
-  const roleStyle = ROLE_STYLES[profile.role] ?? ROLE_STYLES.user
+  const initials      = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
+  const roleStyle     = ROLE_STYLES[profile.role] ?? ROLE_STYLES.user
   const favoriteGenres = Array.isArray(profile.favorite_genres) ? profile.favorite_genres : []
 
   return (
@@ -250,7 +250,6 @@ export default async function ProfilePage({ params }: Props) {
                 )}
 
                 <ProBadge role={profile.role} isPro={isPro} />
-
                 {profile.verified_recommender && <VerifiedBadge />}
               </div>
               <p className="text-sm text-muted-foreground">@{profile.username}</p>
@@ -330,10 +329,15 @@ export default async function ProfilePage({ params }: Props) {
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-black">Recent Recommendations</h2>
             <div className={`h-0.5 flex-1 bg-gradient-to-r ${showGold ? 'from-amber-500/40' : 'from-primary/40'} to-transparent`} />
-            {isPrivileged && hasAdultRecs && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20 shrink-0">
-                Includes 18+
-              </span>
+            {/* See all link — only shown if there are more than the 6 previewed */}
+            {hasMore && (
+              <Link
+                href={`/profile/${profile.username}/recommendations`}
+                className="flex items-center gap-1 text-xs font-bold text-primary hover:underline shrink-0"
+              >
+                See all {totalRecs}
+                <ArrowRight size={12} />
+              </Link>
             )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -341,6 +345,16 @@ export default async function ProfilePage({ params }: Props) {
               <ComicCard key={rec.id} recommendation={rec} />
             ))}
           </div>
+          {/* Bottom see all — more prominent if there are more */}
+          {hasMore && (
+            <Link
+              href={`/profile/${profile.username}/recommendations`}
+              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-border hover:border-primary/40 hover:bg-primary/5 text-sm font-semibold text-muted-foreground hover:text-primary transition-all duration-200"
+            >
+              See all {totalRecs} recommendations
+              <ArrowRight size={14} />
+            </Link>
+          )}
         </section>
       ) : (
         <div className="text-center py-14 rounded-2xl border border-dashed border-border space-y-3">

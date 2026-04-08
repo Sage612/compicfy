@@ -76,19 +76,23 @@ export function MobileNav() {
 
   if (!authReady) return null
 
+  // Lists — pro users get pro lists, others get regular
+  const listsHref  = isPro ? '/pro/lists'  : '/dashboard/lists'
+  const listsLabel = isPro ? 'Pro Lists'   : 'Lists'
+
   const firstSlot = !isLoggedIn
     ? { href: '/',     label: 'Home', icon: House,      exact: true  }
     : { href: '/feed', label: 'Feed', icon: LayoutList, exact: false }
 
   const lastSlot = !isLoggedIn
-    ? { href: '/pricing',         label: 'Pro',   icon: Crown,      isProItem: true }
-    : { href: '/dashboard/lists', label: 'Lists', icon: BookMarked                  }
+    ? { href: '/pricing', label: 'Pro',     icon: Crown,      isProItem: true  }
+    : { href: listsHref,  label: listsLabel, icon: BookMarked                  }
 
   const navItems = [
     firstSlot,
-    { href: '/browse',                        label: 'Browse', icon: Search                },
-    { href: '/dashboard/recommendations/new', label: 'Add',    icon: Plus, isAdd: true     },
-    { href: '/news',                          label: 'News',   icon: ScrollText             },
+    { href: '/browse',                        label: 'Browse', icon: Search               },
+    { href: '/dashboard/recommendations/new', label: 'Add',    icon: Plus, isAdd: true    },
+    { href: '/news',                          label: 'News',   icon: ScrollText            },
     lastSlot,
   ]
 
@@ -117,8 +121,7 @@ export function MobileNav() {
                 <div className={cn(
                   'w-10 h-10 rounded-xl flex items-center justify-center',
                   'bg-gradient-to-br from-primary to-violet-500',
-                  'active:opacity-80',
-                  'hover:opacity-90',
+                  'active:opacity-80 hover:opacity-90',
                   'transition-all duration-200 ease-out'
                 )}>
                   <Icon size={19} className="text-white" strokeWidth={2.5} />

@@ -131,20 +131,25 @@ export function Header() {
     router.refresh()
   }
 
-  const showProLink = mounted && authReady && !isPro
+  // All three gated behind mounted + authReady to prevent flash
+  const showProLink   = mounted && authReady && !isPro && !!user
+  const listsHref     = mounted && authReady && isPro ? '/pro/lists'     : '/dashboard/lists'
+  const listsLabel    = mounted && authReady && isPro ? 'Pro Lists'      : 'Lists'
+  const billingHref   = mounted && authReady && isPro ? '/pro/billing'   : '/dashboard/billing'
+  const billingLabel  = mounted && authReady && isPro ? 'Pro Billing'    : 'Billing'
 
   const dashboardHref  = isPro ? '/pro/dashboard' : '/dashboard'
   const dashboardLabel = isPro ? 'Pro Dashboard'  : 'Dashboard'
 
   const publicNavLinks = [
     { href: '/browse',    label: 'Browse', icon: Search      },
-    { href: '/news',      label: 'News',   icon: ScrollText   },
+    { href: '/news',      label: 'News',   icon: ScrollText  },
     { href: '/affiliate', label: 'Shop',   icon: ShoppingBag },
   ]
 
   const authNavLinks = [
-    { href: '/feed',            label: 'Feed',  icon: LayoutList   },     
-    { href: '/dashboard/lists', label: 'Lists', icon: BookMarked },
+    { href: '/feed',   label: 'Feed',  icon: LayoutList },
+    { href: listsHref, label: listsLabel, icon: BookMarked },
   ]
 
   const themeOptions = [
@@ -227,6 +232,7 @@ export function Header() {
             )
           })}
 
+          {/* Pro link — hidden for pro/admin, no flash because gated behind mounted + authReady */}
           {showProLink && (
             <Link
               href="/pricing"
@@ -383,6 +389,21 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
 
+                  {/* Lists — pro or normal */}
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                    <Link
+                      href={listsHref}
+                      className={cn(isPro && 'text-amber-600 font-semibold')}
+                    >
+                      {isPro ? (
+                        <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
+                      ) : (
+                        <BookMarked size={13} className="text-muted-foreground shrink-0" />
+                      )}
+                      {listsLabel}
+                    </Link>
+                  </DropdownMenuItem>
+
                   <DropdownMenuSeparator className="my-1" />
 
                   <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
@@ -399,13 +420,22 @@ export function Header() {
                     </Link>
                   </DropdownMenuItem>
 
+                  {/* Billing — pro or normal */}
                   <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                    <Link href="/dashboard/billing">
-                      <CreditCard size={13} className="text-muted-foreground" />
-                      Billing
+                    <Link
+                      href={billingHref}
+                      className={cn(isPro && 'text-amber-600 font-semibold')}
+                    >
+                      {isPro ? (
+                        <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
+                      ) : (
+                        <CreditCard size={13} className="text-muted-foreground shrink-0" />
+                      )}
+                      {billingLabel}
                     </Link>
                   </DropdownMenuItem>
 
+                  {/* Upgrade to Pro — hidden for pro/admin */}
                   {showProLink && (
                     <>
                       <DropdownMenuSeparator className="my-1" />
