@@ -27,13 +27,17 @@ export default async function ProLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 pt-14">
-        <aside className="hidden md:flex flex-col w-60 shrink-0 border-r border-border p-3 gap-3">
+        {/* Desktop sidebar — hidden on landscape touch phones */}
+        <aside className="hidden md:flex touch-land:hidden flex-col w-60 shrink-0 border-r border-border p-3 gap-3">
           <ProSidebar role={profile?.role ?? 'user'} />
         </aside>
-        <main className="flex-1 min-w-0 overflow-auto pb-20 md:pb-0">
+
+        {/* Main content — restore bottom padding on landscape phones */}
+        <main className="flex-1 min-w-0 overflow-auto pb-20 md:pb-0 touch-land:pb-20">
           {children}
         </main>
       </div>
+
       <ProMobileNav role={profile?.role ?? 'user'} />
       {isAdmin && <AdminFloatingButton />}
     </div>

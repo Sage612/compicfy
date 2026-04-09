@@ -6,6 +6,7 @@ import { DashboardNav } from '@/components/layout/DashboardNav'
 import { DashboardMobileNav } from '@/components/layout/DashboardMobileNav'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
+import { Crown } from 'lucide-react'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -28,11 +29,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 pt-14">
-        {/* Desktop sidebar */}
-        <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border p-3 gap-3">
+        {/*
+          Desktop sidebar:
+          - hidden on mobile (default)
+          - flex on md+ (desktop)
+          - touch-land:hidden = hide again on touch landscape phones
+            even if they're >= 768px wide
+        */}
+        <aside className="hidden md:flex touch-land:hidden flex-col w-56 shrink-0 border-r border-border p-3 gap-3">
           <DashboardNav />
 
-          {/* Upgrade prompt in sidebar for free users */}
           {!isPrivileged && (
             <div className="mt-auto pt-3 border-t border-border">
               <Link
@@ -40,7 +46,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20 hover:bg-amber-500/15 transition-colors group"
               >
                 <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                  <span className="text-white text-xs">👑</span>
+                  <Crown size={12} className="text-white" />
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-black text-amber-600 leading-tight">Upgrade to Pro</p>
@@ -51,9 +57,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
           )}
         </aside>
 
-        {/* Main content */}
-        <main className="flex-1 min-w-0 overflow-auto pb-20 md:pb-0">
-          {/* Upgrade banner for free users — dismissible, not oppressive */}
+        {/*
+          Main content:
+          - pb-20 on mobile (space for bottom nav)
+          - pb-0 on md+ desktop
+          - touch-land:pb-20 = restore bottom padding on landscape phones
+        */}
+        <main className="flex-1 min-w-0 overflow-auto pb-20 md:pb-0 touch-land:pb-20">
           {!isPrivileged && recCount >= 20 && (
             <div className="px-4 pt-4">
               <UpgradeBanner
@@ -69,6 +79,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </main>
       </div>
 
+      {/*
+        Mobile nav:
+        - visible by default (no md:hidden on the wrapper — the component handles it)
+        The DashboardMobileNav already has md:hidden inside it.
+        We override that with touch-land:block so it reappears on landscape phones.
+      */}
       <DashboardMobileNav />
       {isAdmin && <AdminFloatingButton />}
     </div>
