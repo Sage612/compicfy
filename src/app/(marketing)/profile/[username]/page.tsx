@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import {
   CalendarDays, BookOpen, Star, ThumbsUp,
-  Shield, Globe, BookMarked, Users, Pin, ArrowRight,
+  Globe, BookMarked, Users, Pin, ArrowRight,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
@@ -55,7 +55,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const ROLE_STYLES: Record<string, { badge: string; icon: boolean }> = {
-  admin:     { badge: 'bg-primary/10 text-primary border-primary/20',    icon: true  },
+  admin:     { badge: 'bg-primary/10 text-primary border-primary/20',     icon: true  },
   moderator: { badge: 'bg-blue-500/10 text-blue-600 border-blue-500/20', icon: false },
   user:      { badge: 'bg-muted text-muted-foreground border-border',     icon: false },
 }
@@ -109,7 +109,7 @@ export default async function ProfilePage({ params }: Props) {
 
   const isPro       = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
   const isAdmin     = profile.role === 'admin'
-  const showGold    = isPro && !isAdmin
+  const showGold     = isPro && !isAdmin
   const profileTheme   = profile.profile_theme ?? 'default'
   const bannerGradient = showGold
     ? (THEME_GRADIENTS[profileTheme] ?? THEME_GRADIENTS.default)
@@ -208,7 +208,6 @@ export default async function ProfilePage({ params }: Props) {
   )
 
   const initials      = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
-  const roleStyle     = ROLE_STYLES[profile.role] ?? ROLE_STYLES.user
   const favoriteGenres = Array.isArray(profile.favorite_genres) ? profile.favorite_genres : []
 
   return (
@@ -225,34 +224,27 @@ export default async function ProfilePage({ params }: Props) {
         </div>
 
         <div className="px-6 pb-6 -mt-12 space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+              <ProAvatar
+                src={profile.avatar_url}
+                fallback={initials}
+                size="xl"
+                isPro={isPro}
+                isAdmin={isAdmin}
+                className="border-4 border-card shadow-lg shrink-0"
+              />
 
-            <ProAvatar
-              src={profile.avatar_url}
-              fallback={initials}
-              size="xl"
-              isPro={isPro}
-              isAdmin={isAdmin}
-              className="border-4 border-card shadow-lg shrink-0"
-            />
-
-            <div className="flex-1 min-w-0 space-y-1.5 sm:pb-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-2xl font-black truncate">
-                  {profile.display_name || profile.username}
-                </h1>
-
-                {profile.role !== 'user' && (
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border capitalize ${roleStyle.badge}`}>
-                    {roleStyle.icon && <Shield size={10} />}
-                    {profile.role}
-                  </span>
-                )}
-
-                <ProBadge role={profile.role} isPro={isPro} />
-                {profile.verified_recommender && <VerifiedBadge />}
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-black truncate">
+                    {profile.display_name || profile.username}
+                  </h1>
+                  <ProBadge role={profile.role} isPro={isPro} />
+                  {profile.verified_recommender && <VerifiedBadge />}
+                </div>
+                <p className="text-sm text-muted-foreground">@{profile.username}</p>
               </div>
-              <p className="text-sm text-muted-foreground">@{profile.username}</p>
             </div>
 
             {!isOwner && (
@@ -329,7 +321,6 @@ export default async function ProfilePage({ params }: Props) {
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-black">Recent Recommendations</h2>
             <div className={`h-0.5 flex-1 bg-gradient-to-r ${showGold ? 'from-amber-500/40' : 'from-primary/40'} to-transparent`} />
-            {/* See all link — only shown if there are more than the 6 previewed */}
             {hasMore && (
               <Link
                 href={`/profile/${profile.username}/recommendations`}
@@ -345,7 +336,6 @@ export default async function ProfilePage({ params }: Props) {
               <ComicCard key={rec.id} recommendation={rec} />
             ))}
           </div>
-          {/* Bottom see all — more prominent if there are more */}
           {hasMore && (
             <Link
               href={`/profile/${profile.username}/recommendations`}

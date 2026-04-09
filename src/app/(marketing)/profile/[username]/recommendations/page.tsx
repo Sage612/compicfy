@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, BookOpen } from 'lucide-react'
+import { ArrowLeft, BookOpen, Layers } from 'lucide-react'
 import type { Recommendation } from '@/types/database.types'
 import type { Metadata } from 'next'
 import { ProAvatar } from '@/components/pro/ProAvatar'
@@ -39,7 +39,7 @@ export default async function ProfileRecsPage({ params, searchParams }: Props) {
   // ── Fetch profile ──
   const { data: profileData } = await supabase
     .from('profiles')
-    .select('id, username, display_name, avatar_url, is_pro, pro_expires_at, role, verified_recommender')
+    .select('id, username, display_name, avatar_url, bio, is_pro, pro_expires_at, role, verified_recommender')
     .eq('username', username.toLowerCase())
     .single()
 
@@ -90,52 +90,79 @@ export default async function ProfileRecsPage({ params, searchParams }: Props) {
   if (sp.genre)  clientParams.genre  = sp.genre
   if (sp.status) clientParams.status = sp.status
 
+  const showGold = isPro && !isAdmin
+
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
 
       {/* ── Back link ── */}
       <Link
         href={`/profile/${profile.username}`}
-        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group w-fit"
+        className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group w-fit"
       >
         <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
         Back to @{profile.username}
       </Link>
 
-      {/* ── Profile identity card ── */}
-      <div className="flex items-center gap-4 p-5 rounded-2xl border border-border bg-card">
-        <ProAvatar
-          src={profile.avatar_url}
-          fallback={initials}
-          size="md"
-          isPro={isPro}
-          isAdmin={isAdmin}
-          className="shrink-0"
-        />
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-lg font-black truncate">{displayName}</h1>
-            <ProBadge role={profile.role} isPro={isPro} />
-            {profile.verified_recommender && <VerifiedBadge />}
+      {/* ── Profile hero card ── */}
+      <div className={`relative rounded-2xl border overflow-hidden ${showGold ? 'border-amber-500/30' : 'border-border'} bg-card`}>
+        {/* Subtle banner gradient */}
+        <div className={`h-16 bg-gradient-to-br ${showGold ? 'from-amber-400/20 via-orange-500/10 to-transparent' : 'from-primary/20 via-violet-500/10 to-transparent'}`} />
+
+        <div className="px-5 pb-5 -mt-8 flex items-end gap-4">
+          <ProAvatar
+            src={profile.avatar_url}
+            fallback={initials}
+            size="lg"
+            isPro={isPro}
+            isAdmin={isAdmin}
+            className="border-4 border-card shadow-lg shrink-0"
+          />
+
+          <div className="flex-1 min-w-0 pb-1 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-black truncate">{displayName}</h1>
+              <ProBadge role={profile.role} isPro={isPro} />
+              {profile.verified_recommender && <VerifiedBadge />}
+            </div>
+            <p className="text-sm text-muted-foreground">@{profile.username}</p>
+            {profile.bio && (
+              <p className="text-xs text-muted-foreground line-clamp-1 max-w-md hidden sm:block">
+                {profile.bio}
+              </p>
+            )}
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            @{profile.username}
-          </p>
-        </div>
-        <div className="shrink-0">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/5 border border-primary/15">
-            <BookOpen size={13} className="text-primary" />
-            <span className="text-xs font-bold text-primary">
-              {totalCount ?? 0} comic{(totalCount ?? 0) !== 1 ? 's' : ''}
-            </span>
+
+          {/* Comic count pill */}
+          <div className="shrink-0 pb-1">
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${showGold ? 'bg-amber-500/5 border-amber-500/20' : 'bg-primary/5 border-primary/15'}`}>
+              <Layers size={14} className={showGold ? 'text-amber-500' : 'text-primary'} />
+              <div className="text-right">
+                <p className={`text-base font-black leading-none ${showGold ? 'text-amber-500' : 'text-primary'}`}>
+                  {totalCount ?? 0}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">comics</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Filter bar — exact same component browse uses ── */}
+      {/* ── Section header ── */}
+      <div className="flex items-center gap-3">
+        <div>
+          <h2 className="text-lg font-black">All Recommendations</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Everything @{profile.username} has shared
+          </p>
+        </div>
+        <div className={`h-px flex-1 bg-gradient-to-r ${showGold ? 'from-amber-500/30' : 'from-primary/30'} to-transparent`} />
+      </div>
+
+      {/* ── Filter bar ── */}
       <FilterBar adult={false} />
 
-      {/* ── Grid — exact same component browse uses ── */}
+      {/* ── Grid ── */}
       <ComicGridClient
         initialItems={items}
         initialTotal={filteredCount ?? 0}
