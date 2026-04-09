@@ -1,26 +1,30 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ComicCard } from '@/components/recommendations/ComicCard'
-import { Button } from '@/components/ui/button'
-import {
-  BookOpen, ArrowLeft, Search, X, SlidersHorizontal,
-} from 'lucide-react'
+import { ArrowLeft, BookOpen } from 'lucide-react'
 import type { Recommendation } from '@/types/database.types'
 import type { Metadata } from 'next'
 import { ProAvatar } from '@/components/pro/ProAvatar'
 import { ProBadge } from '@/components/pro/ProBadge'
-import { ProfileRecsClient } from '@/components/profile/ProfileRecsClient'
+import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
+import { FilterBar } from '@/components/recommendations/FilterBar'
+import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
 
 interface Props {
   params:       Promise<{ username: string }>
-  searchParams: Promise<{ type?: string; genre?: string; status?: string; sort?: string; q?: string }>
+  searchParams: Promise<{
+    q?:      string
+    type?:   string
+    genre?:  string
+    status?: string
+    sort?:   string
+  }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params
   return {
-    title:       `@${username}'s Recommendations`,
+    title:       `@${username}'s Recommendations · Compicfy`,
     description: `All comic recommendations shared by @${username} on Compicfy`,
   }
 }
@@ -28,9 +32,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const PAGE_SIZE = 24
 
 export default async function ProfileRecsPage({ params, searchParams }: Props) {
-  const { username }  = await params
-  const sp            = await searchParams
-  const supabase      = await createClient()
+  const { username } = await params
+  const sp           = await searchParams
+  const supabase     = await createClient()
 
   // ── Fetch profile ──
   const { data: profileData } = await supabase
@@ -41,12 +45,21 @@ export default async function ProfileRecsPage({ params, searchParams }: Props) {
 
   if (!profileData) notFound()
 
-  const profile = profileData as any
+  const profile     = profileData as any
+  const isPro       = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin     = profile.role === 'admin'
+  const displayName = profile.display_name || profile.username
+  const initials    = displayName.slice(0, 2).toUpperCase()
 
-  const isPro   = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  const isAdmin = profile.role === 'admin'
+  // ── Total unfiltered count ──
+  const { count: totalCount } = await supabase
+    .from('recommendations')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', profile.id)
+    .eq('is_approved', true)
+    .not('content_rating', 'in', '("adult","mature")')
 
-  // ── Build filtered query — always exclude adult/mature for public page ──
+  // ── Initial filtered data ──
   let query = (supabase as any)
     .from('recommendations')
     .select('*', { count: 'exact' })
@@ -54,94 +67,82 @@ export default async function ProfileRecsPage({ params, searchParams }: Props) {
     .eq('is_approved', true)
     .not('content_rating', 'in', '("adult","mature")')
 
+  if (sp.q)      query = query.or(`title.ilike.%${sp.q}%,author.ilike.%${sp.q}%,artist.ilike.%${sp.q}%`)
   if (sp.type)   query = query.eq('type', sp.type)
   if (sp.genre)  query = query.contains('genres', [sp.genre])
   if (sp.status) query = query.eq('status', sp.status)
-  if (sp.q)      query = query.ilike('title', `%${sp.q}%`)
 
-  // Sort
   const sort = sp.sort ?? 'recent'
-  if      (sort === 'recent')  query = query.order('created_at', { ascending: false })
-  else if (sort === 'top')     query = query.order('score',      { ascending: false })
-  else if (sort === 'votes')   query = query.order('upvotes',    { ascending: false })
-  else                         query = query.order('created_at', { ascending: false })
+  if      (sort === 'top')      query = query.order('score',       { ascending: false })
+  else if (sort === 'votes')    query = query.order('upvotes',     { ascending: false })
+  else if (sort === 'trending') query = query.order('daily_votes', { ascending: false })
+  else                          query = query.order('created_at',  { ascending: false })
 
-  query = query.limit(PAGE_SIZE)
+  query = query.range(0, PAGE_SIZE - 1)
 
-  const { data: recData, count: totalCount } = await query
+  const { data: recData, count: filteredCount } = await query
+  const items = (recData ?? []) as Recommendation[]
 
-  const recommendations = (recData ?? []) as Recommendation[]
-  const total           = totalCount ?? 0
-  const hasFilters      = !!(sp.type || sp.genre || sp.status || sp.q)
-
-  // ── Total unfiltered count for the header badge ──
-  const { count: allCount } = await (supabase as any)
-    .from('recommendations')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', profile.id)
-    .eq('is_approved', true)
-    .not('content_rating', 'in', '("adult","mature")')
-
-  const displayName = profile.display_name || profile.username
-  const initials    = displayName.slice(0, 2).toUpperCase()
+  // ── Params for ComicGridClient load-more calls ──
+  const clientParams: Record<string, string> = { sort }
+  if (sp.q)      clientParams.q      = sp.q
+  if (sp.type)   clientParams.type   = sp.type
+  if (sp.genre)  clientParams.genre  = sp.genre
+  if (sp.status) clientParams.status = sp.status
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
 
-      {/* ── Back + profile header ── */}
-      <div className="space-y-5">
-        <Link
-          href={`/profile/${profile.username}`}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group"
-        >
-          <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
-          Back to @{profile.username}
-        </Link>
+      {/* ── Back link ── */}
+      <Link
+        href={`/profile/${profile.username}`}
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors group w-fit"
+      >
+        <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
+        Back to @{profile.username}
+      </Link>
 
-        {/* Profile identity strip */}
-        <div className="flex items-center gap-4 p-5 rounded-2xl border border-border bg-card">
-          <ProAvatar
-            src={profile.avatar_url}
-            fallback={initials}
-            size="md"
-            isPro={isPro}
-            isAdmin={isAdmin}
-            className="shrink-0"
-          />
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-black truncate">{displayName}</h1>
-              <ProBadge role={profile.role} isPro={isPro} />
-            </div>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              @{profile.username} ·{' '}
-              <span className="font-semibold text-foreground">{allCount ?? 0}</span>{' '}
-              recommendation{(allCount ?? 0) !== 1 ? 's' : ''}
-            </p>
+      {/* ── Profile identity card ── */}
+      <div className="flex items-center gap-4 p-5 rounded-2xl border border-border bg-card">
+        <ProAvatar
+          src={profile.avatar_url}
+          fallback={initials}
+          size="md"
+          isPro={isPro}
+          isAdmin={isAdmin}
+          className="shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-lg font-black truncate">{displayName}</h1>
+            <ProBadge role={profile.role} isPro={isPro} />
+            {profile.verified_recommender && <VerifiedBadge />}
           </div>
-          <div className="shrink-0 hidden sm:block">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/5 border border-primary/15">
-              <BookOpen size={13} className="text-primary" />
-              <span className="text-xs font-bold text-primary">{allCount ?? 0} comics</span>
-            </div>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            @{profile.username}
+          </p>
+        </div>
+        <div className="shrink-0">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-primary/5 border border-primary/15">
+            <BookOpen size={13} className="text-primary" />
+            <span className="text-xs font-bold text-primary">
+              {totalCount ?? 0} comic{(totalCount ?? 0) !== 1 ? 's' : ''}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* ── Filter + sort bar ── */}
-      <ProfileRecsClient
-        username={profile.username}
-        userId={profile.id}
-        initialItems={recommendations}
-        initialTotal={total}
-        currentFilters={{
-          type:   sp.type   ?? '',
-          genre:  sp.genre  ?? '',
-          status: sp.status ?? '',
-          sort:   sp.sort   ?? 'recent',
-          q:      sp.q      ?? '',
-        }}
+      {/* ── Filter bar — exact same component browse uses ── */}
+      <FilterBar adult={false} />
+
+      {/* ── Grid — exact same component browse uses ── */}
+      <ComicGridClient
+        initialItems={items}
+        initialTotal={filteredCount ?? 0}
+        searchParams={clientParams}
+        apiPath={`/api/profile/${profile.username}/recommendations`}
       />
+
     </div>
   )
 }
