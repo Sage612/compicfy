@@ -41,11 +41,23 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/*
+          width=device-width          — use actual device width, not layout width
+          initial-scale=1             — don't zoom on load
+          viewport-fit=cover          — respect notches/safe areas on modern phones
+          interactive-widget=resizes-visual — keyboard doesn't push layout up
+        */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual"
+        />
+      </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            {children}
-            <Toaster richColors position="top-right" />
-             <CookieBanner />
+          {children}
+          <Toaster richColors position="top-right" />
+          <CookieBanner />
         </ThemeProvider>
       </body>
     </html>

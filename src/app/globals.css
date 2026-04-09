@@ -236,3 +236,6 @@
   0%   { background-position: -200% 0; }
   100% { background-position: 200% 0;  }
 }
+
+/* Custom variant for touch landscape phones */
+@custom-variant touch-land (@media (pointer: coarse) and (orientation: landscape) and (max-width: 1024px));
