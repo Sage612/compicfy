@@ -54,18 +54,18 @@ function sanitisePayload(data: Record<string, any>): Record<string, any> {
 }
 
 export function AdminRecommendations() {
-  const [recs, setRecs]               = useState<any[]>([])
-  const [filter, setFilter]           = useState('pending')
-  const [search, setSearch]           = useState('')
-  const [searchInput, setSearchInput] = useState('')
-  const [loading, setLoading]         = useState(true)
-  const [expandedId, setExpandedId]   = useState<string | null>(null)
-  const [rejectReason, setRejectReason] = useState('')
+  const [recs, setRecs]                   = useState<any[]>([])
+  const [filter, setFilter]               = useState('pending')
+  const [search, setSearch]               = useState('')
+  const [searchInput, setSearchInput]     = useState('')
+  const [loading, setLoading]             = useState(true)
+  const [expandedId, setExpandedId]       = useState<string | null>(null)
+  const [rejectReason, setRejectReason]   = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [editingId, setEditingId]     = useState<string | null>(null)
-  const [editData, setEditData]       = useState<Record<string, any>>({})
-  const [total, setTotal]             = useState<number>(0)
-  const debounceRef                   = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [editingId, setEditingId]         = useState<string | null>(null)
+  const [editData, setEditData]           = useState<Record<string, any>>({})
+  const [total, setTotal]                 = useState<number>(0)
+  const debounceRef                       = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchRecs = useCallback(async () => {
     setLoading(true)
@@ -85,7 +85,6 @@ export function AdminRecommendations() {
 
   useEffect(() => { fetchRecs() }, [fetchRecs])
 
-  // Debounce search input → search state
   const handleSearchChange = (value: string) => {
     setSearchInput(value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -219,7 +218,6 @@ export function AdminRecommendations() {
             {label}
           </button>
         ))}
-        {/* Result count */}
         {!loading && (
           <span className="ml-auto text-xs text-muted-foreground">
             {total} result{total !== 1 ? 's' : ''}
@@ -264,92 +262,142 @@ export function AdminRecommendations() {
             return (
               <div key={rec.id} className="rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors">
 
-                {/* Main row */}
-                <div className="flex gap-4 p-4">
+                {/* ── Main row ── */}
+                <div className="flex gap-3 p-4">
+
+                  {/* Cover */}
                   <div className="w-12 h-16 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                     {rec.cover_url
                       ? <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-muted-foreground opacity-40" /></div>
                     }
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 space-y-1.5">
-                        <h3 className="font-black text-sm truncate">{rec.title}</h3>
-                        <div className="flex flex-wrap gap-1.5">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${typeStyle}`}>{rec.type}</span>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border border-border bg-muted text-muted-foreground capitalize">{rec.status}</span>
-                          {/* Approval status badge */}
-                          {rec.is_approved
-                            ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-600 border-emerald-500/20">✓ Approved</span>
-                            : rec.rejection_reason
-                            ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-red-500/10 text-red-500 border-red-500/20">✕ Rejected</span>
-                            : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">⏳ Pending</span>
-                          }
-                          {rec.is_featured && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">⭐ Featured</span>}
-                          {rec.appeal_status === 'pending' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-orange-500/10 text-orange-600 border-orange-500/20">🚩 Appeal</span>}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          by @{profile?.display_name || profile?.username} · {formatDate(rec.created_at)}
-                        </p>
-                        {rec.rejection_reason && (
-                          <p className="text-xs text-red-500 bg-red-500/5 border border-red-500/10 rounded-lg px-2.5 py-1">
-                            Rejected: {rec.rejection_reason}
-                          </p>
-                        )}
-                      </div>
 
-                      {/* Action buttons */}
-                      <div className="flex items-center gap-0.5 shrink-0">
-                        <Link href={`/comic/${rec.id}`} target="_blank">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="View"><Eye size={13} /></Button>
-                        </Link>
-                        <Button
-                          variant="ghost" size="icon" className="h-8 w-8"
-                          onClick={() => isEditing ? setEditingId(null) : startEdit(rec)}
-                          title="Edit"
-                        >
-                          <Pencil size={13} />
+                  {/* Content — takes all remaining width */}
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <h3 className="font-black text-sm truncate pr-1">{rec.title}</h3>
+
+                    {/* Badges — wrap freely */}
+                    <div className="flex flex-wrap gap-1">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${typeStyle}`}>
+                        {rec.type}
+                      </span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border border-border bg-muted text-muted-foreground capitalize">
+                        {rec.status}
+                      </span>
+                      {rec.is_approved
+                        ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-600 border-emerald-500/20">✓ Approved</span>
+                        : rec.rejection_reason
+                        ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-red-500/10 text-red-500 border-red-500/20">✕ Rejected</span>
+                        : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">⏳ Pending</span>
+                      }
+                      {rec.is_featured && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">⭐ Featured</span>
+                      )}
+                      {rec.appeal_status === 'pending' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-orange-500/10 text-orange-600 border-orange-500/20">🚩 Appeal</span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">
+                      by @{profile?.display_name || profile?.username} · {formatDate(rec.created_at)}
+                    </p>
+
+                    {rec.rejection_reason && (
+                      <p className="text-xs text-red-500 bg-red-500/5 border border-red-500/10 rounded-lg px-2.5 py-1">
+                        Rejected: {rec.rejection_reason}
+                      </p>
+                    )}
+
+                    {/* ── Action buttons ──
+                        On mobile: full-width row that wraps if needed
+                        On desktop (sm+): compact icon-only row aligned right  */}
+                    <div className="flex flex-wrap items-center gap-1 pt-1 sm:justify-end">
+
+                      {/* View */}
+                      <Link href={`/comic/${rec.id}`} target="_blank">
+                        <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0">
+                          <Eye size={12} />
+                          <span className="sm:hidden">View</span>
                         </Button>
-                        {!rec.is_approved && !rec.rejection_reason && (
-                          <Button
-                            variant="ghost" size="icon"
-                            className="h-8 w-8 text-emerald-500 hover:text-emerald-500"
-                            onClick={() => handleAction(rec.id, 'approve')}
-                            disabled={!!actionLoading}
-                            title="Approve"
-                          >
-                            {actionLoading === `${rec.id}-approve`
-                              ? <Loader2 size={13} className="animate-spin" />
-                              : <CheckCircle size={13} />
-                            }
-                          </Button>
-                        )}
-                        {rec.is_featured
-                          ? <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-500 hover:text-amber-500" onClick={() => handleAction(rec.id, 'unfeature')} title="Unfeature"><StarOff size={13} /></Button>
-                          : rec.is_approved && <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-500 hover:text-amber-500" onClick={() => handleAction(rec.id, 'feature')} title="Feature"><Star size={13} /></Button>
-                        }
+                      </Link>
+
+                      {/* Edit */}
+                      <Button
+                        variant="outline" size="sm"
+                        className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0"
+                        onClick={() => isEditing ? setEditingId(null) : startEdit(rec)}
+                      >
+                        <Pencil size={12} />
+                        <span className="sm:hidden">Edit</span>
+                      </Button>
+
+                      {/* Approve — only for pending */}
+                      {!rec.is_approved && !rec.rejection_reason && (
                         <Button
-                          variant="ghost" size="icon"
-                          className="h-8 w-8 text-red-500 hover:text-red-500"
+                          variant="outline" size="sm"
+                          className="h-7 gap-1.5 text-xs px-2.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 sm:h-8 sm:w-8 sm:p-0"
+                          onClick={() => handleAction(rec.id, 'approve')}
                           disabled={!!actionLoading}
-                          onClick={() => { if (window.confirm(`Permanently delete "${rec.title}"?`)) handleDelete(rec.id) }}
-                          title="Delete"
                         >
-                          {actionLoading === `${rec.id}-delete`
-                            ? <Loader2 size={13} className="animate-spin" />
-                            : <Trash2 size={13} />
+                          {actionLoading === `${rec.id}-approve`
+                            ? <Loader2 size={12} className="animate-spin" />
+                            : <CheckCircle size={12} />
                           }
+                          <span className="sm:hidden">Approve</span>
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setExpandedId(isExpanded ? null : rec.id)}>
-                          {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                      )}
+
+                      {/* Feature / Unfeature */}
+                      {rec.is_featured ? (
+                        <Button
+                          variant="outline" size="sm"
+                          className="h-7 gap-1.5 text-xs px-2.5 text-amber-500 border-amber-500/30 hover:bg-amber-500/10 sm:h-8 sm:w-8 sm:p-0"
+                          onClick={() => handleAction(rec.id, 'unfeature')}
+                        >
+                          <StarOff size={12} />
+                          <span className="sm:hidden">Unfeature</span>
                         </Button>
-                      </div>
+                      ) : rec.is_approved && (
+                        <Button
+                          variant="outline" size="sm"
+                          className="h-7 gap-1.5 text-xs px-2.5 text-amber-500 border-amber-500/30 hover:bg-amber-500/10 sm:h-8 sm:w-8 sm:p-0"
+                          onClick={() => handleAction(rec.id, 'feature')}
+                        >
+                          <Star size={12} />
+                          <span className="sm:hidden">Feature</span>
+                        </Button>
+                      )}
+
+                      {/* Delete */}
+                      <Button
+                        variant="outline" size="sm"
+                        className="h-7 gap-1.5 text-xs px-2.5 text-red-500 border-red-500/30 hover:bg-red-500/10 sm:h-8 sm:w-8 sm:p-0"
+                        disabled={!!actionLoading}
+                        onClick={() => { if (window.confirm(`Permanently delete "${rec.title}"?`)) handleDelete(rec.id) }}
+                      >
+                        {actionLoading === `${rec.id}-delete`
+                          ? <Loader2 size={12} className="animate-spin" />
+                          : <Trash2 size={12} />
+                        }
+                        <span className="sm:hidden">Delete</span>
+                      </Button>
+
+                      {/* Expand */}
+                      <Button
+                        variant="outline" size="sm"
+                        className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0"
+                        onClick={() => setExpandedId(isExpanded ? null : rec.id)}
+                      >
+                        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        <span className="sm:hidden">{isExpanded ? 'Less' : 'More'}</span>
+                      </Button>
+
                     </div>
                   </div>
                 </div>
 
-                {/* Edit form */}
+                {/* ── Edit form ── */}
                 {isEditing && (
                   <div className="px-4 pb-5 space-y-4 border-t border-border pt-4 bg-muted/20">
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Edit Recommendation</p>
@@ -362,7 +410,8 @@ export function AdminRecommendations() {
                     <Textarea value={editData.description ?? ''} onChange={e => setEditData(d => ({ ...d, description: e.target.value }))} placeholder="Description" rows={3} className="resize-none text-sm" />
                     <Textarea value={editData.why_recommend ?? ''} onChange={e => setEditData(d => ({ ...d, why_recommend: e.target.value }))} placeholder="Why recommend..." rows={2} className="resize-none text-sm" />
 
-                    <div className="grid grid-cols-3 gap-2">
+                    {/* Author / Artist / Publisher — stack to 1 col on mobile */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {['author', 'artist', 'publisher'].map(f => (
                         <Input
                           key={f}
@@ -430,7 +479,7 @@ export function AdminRecommendations() {
                   </div>
                 )}
 
-                {/* Expanded: reject / appeal */}
+                {/* ── Expanded: reject / appeal ── */}
                 {isExpanded && (
                   <div className="px-4 pb-4 space-y-3 border-t border-border pt-4 bg-muted/10">
                     <p className="text-xs text-muted-foreground line-clamp-3">{rec.description}</p>
@@ -464,7 +513,7 @@ export function AdminRecommendations() {
                       <div className="space-y-2 p-3 rounded-xl bg-orange-500/5 border border-orange-500/20">
                         <p className="text-xs font-bold text-orange-600">Appeal Message</p>
                         <p className="text-sm">{rec.appeal_text}</p>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <Button size="sm" className="gap-1.5 bg-emerald-500 hover:bg-emerald-600" onClick={() => handleAction(rec.id, 'resolve_appeal', { appeal_status: 'approved' })} disabled={!!actionLoading}>
                             <CheckCircle size={13} /> Approve Appeal
                           </Button>
@@ -476,6 +525,7 @@ export function AdminRecommendations() {
                     )}
                   </div>
                 )}
+
               </div>
             )
           })}
