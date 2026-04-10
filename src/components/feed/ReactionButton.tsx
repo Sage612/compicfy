@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Heart } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -11,8 +11,7 @@ interface Props {
   initialCount:     number
   initialReacted:   boolean
   isLoggedIn:       boolean
-  // Called after a successful toggle so FeedList can keep its state in sync
-  onToggle?: (id: string, reacted: boolean) => void
+  onToggle?:        (id: string, reacted: boolean) => void
 }
 
 export function ReactionButton({
@@ -26,6 +25,20 @@ export function ReactionButton({
   const [count,   setCount]   = useState(initialCount)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
+
+  // ── KEY FIX ──────────────────────────────────────────────────────
+  // useState(initialReacted) only runs ONCE on first render.
+  // When FeedList fetches reactions and passes updated props down,
+  // the component ignores them — so the heart never fills in.
+  // This effect syncs local state whenever the parent updates the prop.
+  useEffect(() => {
+    setReacted(initialReacted)
+  }, [initialReacted])
+
+  useEffect(() => {
+    setCount(initialCount)
+  }, [initialCount])
+  // ─────────────────────────────────────────────────────────────────
 
   const handleReact = async () => {
     if (!isLoggedIn) {
@@ -45,7 +58,6 @@ export function ReactionButton({
       if (!user) throw new Error('Not logged in')
 
       if (nextReacted) {
-        // upsert — safe even if row already exists, never throws 409
         const { error } = await (supabase as any)
           .from('reactions')
           .upsert(
@@ -64,7 +76,7 @@ export function ReactionButton({
 
       onToggle?.(recommendationId, nextReacted)
     } catch {
-      // Roll back optimistic update on failure
+      // Roll back on failure
       setReacted(!nextReacted)
       setCount(c => nextReacted ? Math.max(0, c - 1) : c + 1)
       toast.error('Failed to react')
@@ -88,8 +100,8 @@ export function ReactionButton({
         size={12}
         className={cn(
           'transition-all',
-          reacted  ? 'fill-rose-500 text-rose-500' : '',
-          loading  ? 'opacity-50' : ''
+          reacted ? 'fill-rose-500 text-rose-500' : '',
+          loading ? 'opacity-50' : ''
         )}
       />
       {count > 0 && <span>{count}</span>}
