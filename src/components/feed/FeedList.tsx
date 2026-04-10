@@ -33,13 +33,11 @@ export function FeedList({
   const [loading, setLoading] = useState(false)
   const [offset,  setOffset]  = useState(initialItems.length)
 
-  // Reaction state — keyed by recommendation id
-  const [reactionCounts,  setReactionCounts]  = useState<Record<string, number>>({})
-  const [userReactions,   setUserReactions]   = useState<Record<string, boolean>>({})
+  const [reactionCounts, setReactionCounts] = useState<Record<string, number>>({})
+  const [userReactions,  setUserReactions]  = useState<Record<string, boolean>>({})
 
   const supabase    = createClient()
   const mountedRef  = useRef(true)
-  // Sentinel div at the bottom — IntersectionObserver watches this
   const sentinelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -47,48 +45,59 @@ export function FeedList({
     return () => { mountedRef.current = false }
   }, [])
 
-  // Reset when tab changes (server re-renders with new initialItems)
+  // Reset items when tab changes
   useEffect(() => {
     setItems(initialItems)
     setTotal(initialTotal)
     setHasMore(initialHasMore)
     setOffset(initialItems.length)
-  }, [tab]) // intentionally only tab — initialItems reference changes on every render
+    // Clear reaction state so stale data from previous tab doesn't bleed in
+    setReactionCounts({})
+    setUserReactions({})
+  }, [tab])
 
-  // Fetch reactions for all visible items
+  // ── Fetch reactions ──────────────────────────────────────────────
+  // Extracted as a standalone async so it can be called both from
+  // the useEffect below AND after loadMore appends new items.
+  const fetchReactions = useCallback(async (currentItems: any[]) => {
+    if (currentItems.length === 0) return
+    const ids = currentItems.map((i: any) => i.id)
+
+    const { data } = await supabase
+      .from('reactions')
+      .select('recommendation_id, user_id')
+      .in('recommendation_id', ids)
+
+    if (!mountedRef.current) return
+
+    const counts: Record<string, number>  = {}
+    const mine:   Record<string, boolean> = {}
+
+    ;(data ?? []).forEach((r: any) => {
+      counts[r.recommendation_id] = (counts[r.recommendation_id] ?? 0) + 1
+      if (r.user_id === userId) mine[r.recommendation_id] = true
+    })
+
+    // Merge — preserves counts for already-loaded items when a new
+    // page is fetched, without overwriting optimistic toggles
+    setReactionCounts(prev => ({ ...prev, ...counts }))
+    setUserReactions(prev  => ({ ...prev, ...mine  }))
+  }, [userId]) // supabase client is stable, userId is the only real dep
+
+  // Run on mount + every time items array reference changes
+  // (tab reset → new array ref, loadMore append → new array ref)
   useEffect(() => {
-    if (items.length === 0) return
-    const ids = items.map(i => i.id)
+    fetchReactions(items)
+  }, [items]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const fetchReactions = async () => {
-      const { data } = await supabase
-        .from('reactions')
-        .select('recommendation_id, user_id')
-        .in('recommendation_id', ids)
-
-      if (!mountedRef.current) return
-
-      const counts: Record<string, number>  = {}
-      const mine:   Record<string, boolean> = {}
-
-      ;(data ?? []).forEach((r: any) => {
-        counts[r.recommendation_id] = (counts[r.recommendation_id] ?? 0) + 1
-        if (r.user_id === userId) mine[r.recommendation_id] = true
-      })
-
-      setReactionCounts(counts)
-      setUserReactions(mine)
-    }
-
-    fetchReactions()
-  }, [items.length]) // re-fetch whenever item count grows (new page loaded)
-
-  // Keep reaction state in sync after a toggle from ReactionButton
+  // Sync state after a toggle without re-fetching from DB
   const handleReactionToggle = useCallback((id: string, reacted: boolean) => {
     setUserReactions(prev  => ({ ...prev, [id]: reacted }))
     setReactionCounts(prev => ({
       ...prev,
-      [id]: reacted ? (prev[id] ?? 0) + 1 : Math.max(0, (prev[id] ?? 1) - 1),
+      [id]: reacted
+        ? (prev[id] ?? 0) + 1
+        : Math.max(0, (prev[id] ?? 1) - 1),
     }))
   }, [])
 
@@ -108,8 +117,10 @@ export function FeedList({
       if (!res.ok) throw new Error(data.error ?? 'Failed to load')
       if (!mountedRef.current) return
 
-      setItems(prev => [...prev, ...(data.items ?? [])])
-      setOffset(prev => prev + (data.items ?? []).length)
+      const newItems = data.items ?? []
+      // setItems triggers the fetchReactions useEffect automatically
+      setItems(prev => [...prev, ...newItems])
+      setOffset(prev => prev + newItems.length)
       setHasMore(data.hasMore ?? false)
       setTotal(data.total ?? total)
     } catch {
@@ -119,21 +130,19 @@ export function FeedList({
     }
   }, [loading, hasMore, offset, tab, total])
 
-  // IntersectionObserver — fires loadMore when sentinel scrolls into view
+  // IntersectionObserver infinite scroll
   useEffect(() => {
     const sentinel = sentinelRef.current
     if (!sentinel) return
 
     const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) loadMore()
-      },
-      { rootMargin: '200px' } // start loading 200px before the bottom
+      (entries) => { if (entries[0].isIntersecting) loadMore() },
+      { rootMargin: '200px' }
     )
 
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [loadMore]) // loadMore ref changes when offset/hasMore changes
+  }, [loadMore])
 
   // ── Empty states ──
   if (tab === 'following' && isFollowingNobody) {
@@ -209,37 +218,31 @@ export function FeedList({
 
   return (
     <div className="space-y-4">
-
-      {/* Item count */}
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         {items.length} of {total} recommendation{total !== 1 ? 's' : ''}
       </p>
 
-      {/* Feed items */}
       <div className="space-y-3">
         {items.map((rec: any) => (
           <FeedCard
             key={rec.id}
             rec={rec}
             isLoggedIn={true}
-            reactionCount={reactionCounts[rec.id] ?? rec.upvotes ?? 0}
+            reactionCount={reactionCounts[rec.id] ?? 0}
             userReacted={userReactions[rec.id]    ?? false}
             onReactionToggle={handleReactionToggle}
           />
         ))}
       </div>
 
-      {/* Infinite scroll sentinel */}
       <div ref={sentinelRef} className="h-4" />
 
-      {/* Loading spinner — shown while fetching next page */}
       {loading && (
         <div className="flex justify-center py-4">
           <Loader2 size={20} className="animate-spin text-muted-foreground" />
         </div>
       )}
 
-      {/* End of feed */}
       {!hasMore && items.length >= PAGE_SIZE && (
         <p className="text-center text-xs text-muted-foreground py-4">
           You've seen everything 🎉
