@@ -132,6 +132,7 @@ export function Header() {
     router.refresh()
   }
 
+  // All three gated behind mounted + authReady to prevent flash
   const showProLink   = mounted && authReady && !isPro && !!user
   const listsHref     = mounted && authReady && isPro ? '/pro/lists'     : '/dashboard/lists'
   const listsLabel    = mounted && authReady && isPro ? 'Pro Lists'      : 'Lists'
@@ -148,7 +149,7 @@ export function Header() {
   ]
 
   const authNavLinks = [
-    { href: '/feed',   label: 'Feed',   icon: LayoutList },
+    { href: '/feed',   label: 'Feed',  icon: LayoutList },
     { href: listsHref, label: listsLabel, icon: BookMarked },
   ]
 
@@ -232,6 +233,7 @@ export function Header() {
             )
           })}
 
+          {/* Pro link — hidden for pro/admin, no flash because gated behind mounted + authReady */}
           {showProLink && (
             <Link
               href="/pricing"
@@ -250,10 +252,10 @@ export function Header() {
 
         {/* ── Right actions ── */}
         <div className="flex items-center gap-2 flex-1 justify-end">
-          
           <GlobalSearch />
-
           <div className="flex items-center gap-1">
+
+            {/* Theme toggle */}
             {mounted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -281,6 +283,7 @@ export function Header() {
               </DropdownMenu>
             )}
 
+            {/* ── Logged out ── */}
             {authReady && !user && (
               <div className="flex items-center gap-1.5 ml-1">
                 <Link href="/login">
@@ -296,8 +299,10 @@ export function Header() {
               </div>
             )}
 
+            {/* ── Logged in ── */}
             {authReady && user && (
               <div className="flex items-center gap-1 ml-0.5">
+
                 <Link href="/dashboard/recommendations/new" className="hidden md:flex">
                   <Button
                     size="sm"
@@ -323,6 +328,7 @@ export function Header() {
                   </DropdownMenuTrigger>
 
                   <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
+
                     <DropdownMenuLabel className="font-normal px-2 py-2 mb-0.5">
                       <div className="flex items-center gap-2.5">
                         <Avatar className="h-9 w-9 shrink-0">
@@ -386,6 +392,7 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
 
+                    {/* Lists — pro or normal */}
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
                       <Link
                         href={listsHref}
@@ -416,6 +423,7 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
 
+                    {/* Billing — pro or normal */}
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
                       <Link
                         href={billingHref}
@@ -430,6 +438,7 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
 
+                    {/* Upgrade to Pro — hidden for pro/admin */}
                     {showProLink && (
                       <>
                         <DropdownMenuSeparator className="my-1" />
@@ -462,6 +471,7 @@ export function Header() {
                       <LogOut size={13} />
                       Sign out
                     </DropdownMenuItem>
+
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
