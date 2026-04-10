@@ -2,18 +2,18 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { FeedCard } from './FeedCard'
+import { Loader2, BookOpen, LayoutList, UserPlus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Loader2, Plus, BookOpen, LayoutList, UserPlus, Search } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 
 interface Props {
-  initialItems:    any[]
-  initialTotal:    number
-  initialHasMore:  boolean
-  tab:             'following' | 'discover'
-  userId:          string
+  initialItems:      any[]
+  initialTotal:      number
+  initialHasMore:    boolean
+  tab:               'following' | 'discover'
+  userId:            string
   isFollowingNobody: boolean
 }
 
@@ -27,33 +27,35 @@ export function FeedList({
   userId,
   isFollowingNobody,
 }: Props) {
-  const [items, setItems]       = useState<any[]>(initialItems)
-  const [total, setTotal]       = useState(initialTotal)
-  const [hasMore, setHasMore]   = useState(initialHasMore)
-  const [loading, setLoading]   = useState(false)
-  const [offset, setOffset]     = useState(initialItems.length)
+  const [items,   setItems]   = useState<any[]>(initialItems)
+  const [total,   setTotal]   = useState(initialTotal)
+  const [hasMore, setHasMore] = useState(initialHasMore)
+  const [loading, setLoading] = useState(false)
+  const [offset,  setOffset]  = useState(initialItems.length)
 
   // Reaction state — keyed by recommendation id
-  const [reactionCounts, setReactionCounts] = useState<Record<string, number>>({})
-  const [userReactions, setUserReactions]   = useState<Record<string, boolean>>({})
+  const [reactionCounts,  setReactionCounts]  = useState<Record<string, number>>({})
+  const [userReactions,   setUserReactions]   = useState<Record<string, boolean>>({})
 
-  const supabase   = createClient()
-  const mountedRef = useRef(true)
+  const supabase    = createClient()
+  const mountedRef  = useRef(true)
+  // Sentinel div at the bottom — IntersectionObserver watches this
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     mountedRef.current = true
     return () => { mountedRef.current = false }
   }, [])
 
-  // Reset when tab changes
+  // Reset when tab changes (server re-renders with new initialItems)
   useEffect(() => {
     setItems(initialItems)
     setTotal(initialTotal)
     setHasMore(initialHasMore)
     setOffset(initialItems.length)
-  }, [tab, initialItems, initialTotal, initialHasMore])
+  }, [tab]) // intentionally only tab — initialItems reference changes on every render
 
-  // Fetch reactions for visible items
+  // Fetch reactions for all visible items
   useEffect(() => {
     if (items.length === 0) return
     const ids = items.map(i => i.id)
@@ -66,7 +68,7 @@ export function FeedList({
 
       if (!mountedRef.current) return
 
-      const counts: Record<string, number> = {}
+      const counts: Record<string, number>  = {}
       const mine:   Record<string, boolean> = {}
 
       ;(data ?? []).forEach((r: any) => {
@@ -79,8 +81,18 @@ export function FeedList({
     }
 
     fetchReactions()
-  }, [items, userId])
+  }, [items.length]) // re-fetch whenever item count grows (new page loaded)
 
+  // Keep reaction state in sync after a toggle from ReactionButton
+  const handleReactionToggle = useCallback((id: string, reacted: boolean) => {
+    setUserReactions(prev  => ({ ...prev, [id]: reacted }))
+    setReactionCounts(prev => ({
+      ...prev,
+      [id]: reacted ? (prev[id] ?? 0) + 1 : Math.max(0, (prev[id] ?? 1) - 1),
+    }))
+  }, [])
+
+  // Load next page
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return
     setLoading(true)
@@ -106,6 +118,22 @@ export function FeedList({
       if (mountedRef.current) setLoading(false)
     }
   }, [loading, hasMore, offset, tab, total])
+
+  // IntersectionObserver — fires loadMore when sentinel scrolls into view
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore()
+      },
+      { rootMargin: '200px' } // start loading 200px before the bottom
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [loadMore]) // loadMore ref changes when offset/hasMore changes
 
   // ── Empty states ──
   if (tab === 'following' && isFollowingNobody) {
@@ -194,31 +222,25 @@ export function FeedList({
             key={rec.id}
             rec={rec}
             isLoggedIn={true}
-            reactionCount={reactionCounts[rec.id] ?? 0}
-            userReacted={userReactions[rec.id]   ?? false}
+            reactionCount={reactionCounts[rec.id] ?? rec.upvotes ?? 0}
+            userReacted={userReactions[rec.id]    ?? false}
+            onReactionToggle={handleReactionToggle}
           />
         ))}
       </div>
 
-      {/* Load more */}
-      {hasMore && (
-        <div className="flex justify-center pt-2">
-          <Button
-            variant="outline"
-            onClick={loadMore}
-            disabled={loading}
-            className="gap-2 min-w-[160px] rounded-xl border-border hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all"
-          >
-            {loading
-              ? <><Loader2 size={14} className="animate-spin" /> Loading…</>
-              : <><Plus size={14} /> Load more · {total - items.length} left</>
-            }
-          </Button>
+      {/* Infinite scroll sentinel */}
+      <div ref={sentinelRef} className="h-4" />
+
+      {/* Loading spinner — shown while fetching next page */}
+      {loading && (
+        <div className="flex justify-center py-4">
+          <Loader2 size={20} className="animate-spin text-muted-foreground" />
         </div>
       )}
 
       {/* End of feed */}
-      {!hasMore && items.length > PAGE_SIZE && (
+      {!hasMore && items.length >= PAGE_SIZE && (
         <p className="text-center text-xs text-muted-foreground py-4">
           You've seen everything 🎉
         </p>

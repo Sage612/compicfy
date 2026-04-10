@@ -8,14 +8,22 @@ import { cn } from '@/lib/utils'
 
 interface Props {
   recommendationId: string
-  initialCount: number
-  initialReacted: boolean
-  isLoggedIn: boolean
+  initialCount:     number
+  initialReacted:   boolean
+  isLoggedIn:       boolean
+  // Called after a successful toggle so FeedList can keep its state in sync
+  onToggle?: (id: string, reacted: boolean) => void
 }
 
-export function ReactionButton({ recommendationId, initialCount, initialReacted, isLoggedIn }: Props) {
+export function ReactionButton({
+  recommendationId,
+  initialCount,
+  initialReacted,
+  isLoggedIn,
+  onToggle,
+}: Props) {
   const [reacted, setReacted] = useState(initialReacted)
-  const [count, setCount] = useState(initialCount)
+  const [count,   setCount]   = useState(initialCount)
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
@@ -24,29 +32,41 @@ export function ReactionButton({ recommendationId, initialCount, initialReacted,
       toast.error('Sign in to react')
       return
     }
+    if (loading) return
 
+    // Optimistic update
+    const nextReacted = !reacted
+    setReacted(nextReacted)
+    setCount(c => nextReacted ? c + 1 : Math.max(0, c - 1))
     setLoading(true)
+
     try {
-      if (reacted) {
-        // Remove reaction
-        const { data: { user } } = await supabase.auth.getUser()
-        await supabase
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not logged in')
+
+      if (nextReacted) {
+        // upsert — safe even if row already exists, never throws 409
+        const { error } = await (supabase as any)
+          .from('reactions')
+          .upsert(
+            { user_id: user.id, recommendation_id: recommendationId },
+            { onConflict: 'user_id,recommendation_id', ignoreDuplicates: true }
+          )
+        if (error) throw error
+      } else {
+        const { error } = await supabase
           .from('reactions')
           .delete()
-          .eq('user_id', user!.id)
+          .eq('user_id', user.id)
           .eq('recommendation_id', recommendationId)
-        setReacted(false)
-        setCount(c => Math.max(0, c - 1))
-      } else {
-        // Add reaction
-        const { data: { user } } = await supabase.auth.getUser()
-        await (supabase as any)
-          .from('reactions')
-          .insert({ user_id: user!.id, recommendation_id: recommendationId })
-        setReacted(true)
-        setCount(c => c + 1)
+        if (error) throw error
       }
+
+      onToggle?.(recommendationId, nextReacted)
     } catch {
+      // Roll back optimistic update on failure
+      setReacted(!nextReacted)
+      setCount(c => nextReacted ? Math.max(0, c - 1) : c + 1)
       toast.error('Failed to react')
     } finally {
       setLoading(false)
@@ -68,8 +88,8 @@ export function ReactionButton({ recommendationId, initialCount, initialReacted,
         size={12}
         className={cn(
           'transition-all',
-          reacted ? 'fill-rose-500 text-rose-500' : '',
-          loading ? 'opacity-50' : ''
+          reacted  ? 'fill-rose-500 text-rose-500' : '',
+          loading  ? 'opacity-50' : ''
         )}
       />
       {count > 0 && <span>{count}</span>}

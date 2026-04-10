@@ -15,18 +15,17 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 interface Props {
-  rec: any
-  isLoggedIn: boolean
-  reactionCount: number
-  userReacted: boolean
+  rec:              any
+  isLoggedIn:       boolean
+  reactionCount:    number
+  userReacted:      boolean
+  onReactionToggle: (id: string, reacted: boolean) => void
 }
 
-export function FeedCard({ rec, isLoggedIn, reactionCount, userReacted }: Props) {
+export function FeedCard({ rec, isLoggedIn, reactionCount, userReacted, onReactionToggle }: Props) {
   const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
-  const initials = (rec.display_name || rec.username || '?').slice(0, 2).toUpperCase()
+  const initials  = (rec.display_name || rec.username || '?').slice(0, 2).toUpperCase()
 
-  // Resolve effective pro status from feed item data
-  // RPC may or may not return these fields — graceful fallback to false
   const recommenderIsPro = rec.role === 'admin' ||
     (rec.is_pro === true &&
       (!rec.pro_expires_at || new Date(rec.pro_expires_at) > new Date()))
@@ -52,7 +51,6 @@ export function FeedCard({ rec, isLoggedIn, reactionCount, userReacted }: Props)
           >
             @{rec.username}
           </Link>
-          {/* Badge — Pro (gold), Verified (purple), both → red */}
           <UserBadges
             role={rec.role}
             isPro={recommenderIsPro}
@@ -111,6 +109,7 @@ export function FeedCard({ rec, isLoggedIn, reactionCount, userReacted }: Props)
             initialCount={reactionCount}
             initialReacted={userReacted}
             isLoggedIn={isLoggedIn}
+            onToggle={onReactionToggle}
           />
           <button
             disabled
