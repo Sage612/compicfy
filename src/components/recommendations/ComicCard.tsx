@@ -29,13 +29,14 @@ const typeColors: Record<string, string> = {
 }
 
 export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
-  const status = statusConfig[rec.status as keyof typeof statusConfig]
+  const status       = statusConfig[rec.status as keyof typeof statusConfig]
   const typeGradient = typeColors[rec.type] || typeColors.other
- const comicUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'}/comic/${rec.id}`
+  const comicUrl     = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'}/comic/${rec.id}`
 
   return (
     <div className={cn('group relative flex flex-col', className)}>
-      {/* Card */}
+
+      {/* ── Card — overflow-hidden stays but ShareButton is OUTSIDE it ── */}
       <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-900 shadow-md group-hover:shadow-2xl group-hover:shadow-black/40 transition-all duration-300 group-hover:-translate-y-1">
 
         {/* Cover */}
@@ -58,7 +59,7 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
           )}
         </Link>
 
-        {/* Gradient overlays */}
+        {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/20 pointer-events-none" />
 
         {/* Type pill — top left */}
@@ -71,12 +72,7 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
           </span>
         </div>
 
-        {/* Share button — top right, visible on hover */}
-        <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-          <ShareButton title={rec.title} url={comicUrl} compact />
-        </div>
-
-        {/* Age rating — only show if no share button space conflict */}
+        {/* Age rating — hides on hover to make room for share button */}
         {(rec.content_rating === 'adult' || rec.content_rating === 'mature') && (
           <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none">
             <span className={cn(
@@ -85,6 +81,13 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
             )}>
               {rec.content_rating === 'adult' ? '18+' : '17+'}
             </span>
+          </div>
+        )}
+
+        {/* Featured star — hides on hover */}
+        {rec.is_featured && (
+          <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none">
+            <Star size={14} className="text-amber-400 fill-amber-400 drop-shadow-lg" />
           </div>
         )}
 
@@ -113,16 +116,14 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
 
         {/* Hover shine */}
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none" />
-
-        {/* Featured star */}
-        {rec.is_featured && (
-          <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none">
-            <Star size={14} className="text-amber-400 fill-amber-400 drop-shadow-lg" />
-          </div>
-        )}
       </div>
 
-      {/* Genre pills below card */}
+      {/* ── Share button — lives OUTSIDE overflow-hidden so dropdown escapes ── */}
+      <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+        <ShareButton title={rec.title} url={comicUrl} compact />
+      </div>
+
+      {/* Genre pills */}
       {rec.genres?.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2 px-0.5">
           {rec.genres.slice(0, 2).map((genre) => (

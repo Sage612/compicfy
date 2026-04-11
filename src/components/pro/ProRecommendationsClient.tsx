@@ -103,7 +103,7 @@ export default function ProRecommendationsClient({ initialRecs }: Props) {
             <BookOpen size={16} className="text-white" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-2xl font-black tracking-tight leading-tight">My Comics</h1>
+            <h1 className="text-2xl font-black tracking-tight leading-tight">My Recommendations</h1>
             <div className="flex items-center gap-1.5 mt-0.5">
               <Crown size={11} className="text-amber-500 fill-amber-500" />
               <span className="text-xs text-amber-600 font-semibold">Unlimited submissions · Pro</span>
