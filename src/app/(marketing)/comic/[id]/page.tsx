@@ -21,6 +21,8 @@ import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
 import { UserBadges } from '@/components/pro/UserBadges'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
+
 interface Props {
   params: Promise<{ id: string }>
 }
@@ -34,7 +36,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq('id', id)
     .single()
 
-  const rec = data as Pick <
+  const rec = data as Pick<
     Recommendation,
     'title' | 'description' | 'type' | 'genres' | 'author' | 'cover_url' | 'status'
   > | null
@@ -73,6 +75,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     'webtoon recommendation',
   ].filter(Boolean)
 
+  // Build OG image URL with comic-specific params
+  const ogParams = new URLSearchParams({
+    title: rec.title ?? '',
+    description: description ?? '',
+    ...(rec.cover_url ? { cover: rec.cover_url } : {}),
+    ...(rec.type ? { type: rec.type } : {}),
+  })
+  const ogImageUrl = `${SITE_URL}/api/og?${ogParams.toString()}`
+
   return {
     title,
     description,
@@ -81,19 +92,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       type: 'article',
-      url: `https://compicfy.cloud/comic/${id}`,
-      images: rec.cover_url
-        ? [{ url: rec.cover_url, width: 400, height: 600, alt: `${rec.title} cover` }]
-        : [],
+      url: `${SITE_URL}/comic/${id}`,
+      images: [{ url: ogImageUrl, width: 1200, height: 630, alt: `${rec.title} cover` }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      images: rec.cover_url ? [rec.cover_url] : [],
+      images: [ogImageUrl],
     },
     alternates: {
-      canonical: `https://compicfy.cloud/comic/${id}`,
+      canonical: `${SITE_URL}/comic/${id}`,
     },
   }
 }
@@ -438,11 +447,11 @@ export default async function ComicDetailPage({ params }: Props) {
             {/* Similar */}
             <div className="space-y-3 pt-2">
               <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">You Might Also Like</h2>
-             <SimilarComics
-  comicId={id}
-  contentRating={rec.content_rating}
-  showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
-/>
+              <SimilarComics
+                comicId={id}
+                contentRating={rec.content_rating}
+                showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
+              />
             </div>
 
           </div>

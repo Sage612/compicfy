@@ -15,13 +15,28 @@ import type { Recommendation } from '@/types/database.types'
 import type { News } from '@/types/database.types'
 import type { Metadata } from 'next'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
+
 export const metadata: Metadata = {
   title: 'Compicfy — Find your next obsession.',
   description:
     'A warm community for manga, manhwa, manhua, and webtoon fans. Discover, recommend, and vote for the best comics.',
   openGraph: {
-    title: 'Compicfy — Find your next obsession.',
+    title:       'Compicfy — Find your next obsession.',
     description: 'Community-powered comic discovery. Browse, recommend, and vote.',
+    images: [{
+      // Points to our dynamic OG image route
+      url:    `${SITE_URL}/api/og`,
+      width:  1200,
+      height: 630,
+      alt:    'Compicfy — Find your next obsession.',
+    }],
+  },
+  twitter: {
+    card:        'summary_large_image',
+    title:       'Compicfy — Find your next obsession.',
+    description: 'Community-powered comic discovery. Browse, recommend, and vote.',
+    images:      [`${SITE_URL}/api/og`],
   },
 }
 
@@ -68,6 +83,7 @@ export default async function HomePage() {
     { count: comicCount },
     { count: reviewCount },
     { data: featuredData },
+    { data: fallbackData },
     { data: recentActivity },
   ] = await Promise.all([
     supabase
@@ -93,7 +109,7 @@ export default async function HomePage() {
     supabase
       .from('reviews')
       .select('id', { count: 'exact', head: true }),
-    // Top voted comic for spotlight
+    // Try featured first
     supabase
       .from('recommendations')
       .select('*')
@@ -102,7 +118,14 @@ export default async function HomePage() {
       .not('content_rating', 'in', '("adult","mature")')
       .order('score', { ascending: false })
       .limit(1),
-    // Recent activity for social proof
+    // Fallback — top scored comic regardless of featured flag
+    supabase
+      .from('recommendations')
+      .select('*')
+      .eq('is_approved', true)
+      .not('content_rating', 'in', '("adult","mature")')
+      .order('score', { ascending: false })
+      .limit(1),
     supabase
       .from('recommendations')
       .select('title, type, user_id, profiles!recommendations_user_id_fkey(username)')
@@ -110,19 +133,25 @@ export default async function HomePage() {
       .not('content_rating', 'in', '("adult","mature")')
       .order('created_at', { ascending: false })
       .limit(6),
-  ]); // <-- Added the closing parenthesis and semicolon for Promise.all
+  ])
 
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const topComics    = (trending   as Recommendation[]) ?? []
-  const latestNews   = (recentNews as News[])           ?? []
+  const topComics    = (trending        as Recommendation[]) ?? []
+  const latestNews   = (recentNews      as News[])           ?? []
   const totalMembers = memberCount ?? 0
   const totalComics  = comicCount  ?? 0
   const totalReviews = reviewCount ?? 0
-  const spotlight    = featuredData?.[0] as Recommendation | undefined
-  const activity     = (recentActivity ?? []) as any[]
+  const activity     = (recentActivity  ?? []) as any[]
 
-  const spotlightTypeStyle = spotlight
+  // Use featured comic if available, otherwise fall back to top-scored
+  const spotlight = (
+    (featuredData?.[0] ?? fallbackData?.[0])
+  ) as Recommendation | undefined
+
+  // Show "Featured" badge only if it's actually featured
+  const spotlightIsFeatured = !!(featuredData?.[0])
+  const spotlightTypeStyle  = spotlight
     ? TYPE_COLORS[spotlight.type] ?? TYPE_COLORS.other
     : ''
 
@@ -223,9 +252,9 @@ export default async function HomePage() {
               {/* Stats */}
               <div className="flex flex-wrap gap-5 pt-2 justify-center md:justify-start">
                 {[
-                  { label: 'Members',       value: totalMembers, icon: Users,          color: 'text-violet-500', bg: 'bg-violet-500/10' },
-                  { label: 'Comics Shared', value: totalComics,  icon: BookOpen,       color: 'text-rose-500',   bg: 'bg-rose-500/10'   },
-                  { label: 'Reviews',       value: totalReviews, icon: MessageSquare,  color: 'text-amber-500',  bg: 'bg-amber-500/10'  },
+                  { label: 'Members',       value: totalMembers, icon: Users,         color: 'text-violet-500', bg: 'bg-violet-500/10' },
+                  { label: 'Comics Shared', value: totalComics,  icon: BookOpen,      color: 'text-rose-500',   bg: 'bg-rose-500/10'   },
+                  { label: 'Reviews',       value: totalReviews, icon: MessageSquare, color: 'text-amber-500',  bg: 'bg-amber-500/10'  },
                 ].map(({ label, value, icon: Icon, color, bg }) => (
                   <div key={label} className="flex items-center gap-2 text-sm">
                     <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center ${color}`}>
@@ -242,13 +271,14 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Right — Featured comic spotlight */}
+            {/* Right — Spotlight comic
+                Always shows if ANY approved safe comic exists.
+                Badge says "Featured" only if it's actually featured,
+                otherwise "Top Rated".                                 */}
             {spotlight && (
               <div className="hidden md:flex justify-center items-center">
                 <Link href={`/comic/${spotlight.id}`} className="group relative">
-                  {/* Glow behind card */}
                   <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-primary/20 to-violet-500/20 blur-2xl opacity-60 group-hover:opacity-80 transition-opacity" />
-
                   <div className="relative w-64 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
                     {spotlight.cover_url ? (
                       <img
@@ -261,18 +291,18 @@ export default async function HomePage() {
                         <BookOpen size={40} className="text-muted-foreground opacity-30" />
                       </div>
                     )}
-
-                    {/* Overlay info */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 p-5 space-y-2">
                       <div className="flex items-center gap-2">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${spotlightTypeStyle}`}>
                           {spotlight.type}
                         </span>
-                        <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 font-bold">
-                          <Star size={9} className="fill-amber-400" />
-                          Featured
-                        </span>
+                        {spotlightIsFeatured && (
+                          <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 font-bold">
+                            <Star size={9} className="fill-amber-400" />
+                            Featured
+                          </span>
+                        )}
                       </div>
                       <p className="text-white font-black text-lg leading-tight line-clamp-2">
                         {spotlight.title}
@@ -288,10 +318,9 @@ export default async function HomePage() {
                         </span>
                       </div>
                     </div>
-
-                    {/* Featured badge top */}
+                    {/* Badge changes based on whether it's featured or fallback */}
                     <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-[10px] font-black text-white border border-white/10">
-                      ✨ Top Pick
+                      {spotlightIsFeatured ? '✨ Top Pick' : '🏆 Top Rated'}
                     </div>
                   </div>
                 </Link>
@@ -308,15 +337,15 @@ export default async function HomePage() {
       </section>
 
       {/* ── SOCIAL PROOF TICKER ──────────────────────────────────── */}
-{activity.length > 0 && (
-  <LiveTicker
-    items={activity.map((rec: any) => ({
-      title: rec.title,
-      type: rec.type,
-      username: rec.profiles?.username ?? 'someone',
-    }))}
-  />
-)}
+      {activity.length > 0 && (
+        <LiveTicker
+          items={activity.map((rec: any) => ({
+            title:    rec.title,
+            type:     rec.type,
+            username: rec.profiles?.username ?? 'someone',
+          }))}
+        />
+      )}
 
       {/* ── PLATFORM TRUST BAR ───────────────────────────────────── */}
       <section className="border-b border-border bg-muted/10">
@@ -330,10 +359,7 @@ export default async function HomePage() {
                 key={p.name}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card text-xs font-bold text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
               >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: p.color }}
-                />
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
                 {p.name}
               </div>
             ))}
@@ -391,7 +417,6 @@ export default async function HomePage() {
           <div className="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-violet-500/5 blur-3xl" />
           <div className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full bg-rose-500/5 blur-3xl" />
         </div>
-
         <div className="relative max-w-7xl mx-auto px-4 py-16 space-y-12">
           <div className="text-center space-y-3">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest">
@@ -403,38 +428,14 @@ export default async function HomePage() {
               No algorithms. Just real readers sharing what they love.
             </p>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              {
-                step: '01',
-                icon: BookOpen,
-                title: 'Submit a Recommendation',
-                desc: 'Share a manga, manhwa, or webtoon you love. Add genres, a cover, and tell us why others need to read it.',
-                gradient: 'from-violet-500 to-purple-600',
-                glow: 'group-hover:shadow-violet-500/20',
-              },
-              {
-                step: '02',
-                icon: TrendingUp,
-                title: 'Community Votes',
-                desc: 'The community upvotes great picks. The best ones rise to the top and land on the featured carousel.',
-                gradient: 'from-primary to-blue-600',
-                glow: 'group-hover:shadow-primary/20',
-              },
-              {
-                step: '03',
-                icon: Heart,
-                title: 'Discover & Save',
-                desc: 'Find your next obsession through community picks. Leave reviews, save favourites, track your reading list.',
-                gradient: 'from-rose-500 to-pink-600',
-                glow: 'group-hover:shadow-rose-500/20',
-              },
+              { step: '01', icon: BookOpen,   title: 'Submit a Recommendation', desc: 'Share a manga, manhwa, or webtoon you love. Add genres, a cover, and tell us why others need to read it.',                gradient: 'from-violet-500 to-purple-600', glow: 'group-hover:shadow-violet-500/20' },
+              { step: '02', icon: TrendingUp, title: 'Community Votes',         desc: 'The community upvotes great picks. The best ones rise to the top and land on the featured carousel.',                          gradient: 'from-primary to-blue-600',     glow: 'group-hover:shadow-primary/20'   },
+              { step: '03', icon: Heart,      title: 'Discover & Save',         desc: 'Find your next obsession through community picks. Leave reviews, save favourites, track your reading list.', gradient: 'from-rose-500 to-pink-600',    glow: 'group-hover:shadow-rose-500/20'  },
             ].map(({ step, icon: Icon, title, desc, gradient, glow }) => (
               <div key={step} className={`group relative p-7 rounded-3xl bg-card border border-border space-y-4 hover:border-transparent hover:shadow-2xl ${glow} transition-all duration-300`}>
-                <span className="absolute top-5 right-6 text-5xl font-black text-muted-foreground/8 group-hover:text-muted-foreground/12 transition-colors select-none">
-                  {step}
-                </span>
+                <span className="absolute top-5 right-6 text-5xl font-black text-muted-foreground/8 group-hover:text-muted-foreground/12 transition-colors select-none">{step}</span>
                 <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
                   <Icon size={21} className="text-white" />
                 </div>
@@ -477,22 +478,18 @@ export default async function HomePage() {
           <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-violet-500/20 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-20 -left-10 w-80 h-80 rounded-full bg-rose-500/15 blur-3xl pointer-events-none" />
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
-
           <div className="relative max-w-2xl space-y-6">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 text-white text-sm font-semibold border border-white/10">
               <Star size={13} className="fill-amber-400 text-amber-400" />
               Got a hidden gem?
             </div>
-
             <h2 className="text-3xl md:text-4xl font-black text-white leading-tight tracking-tight">
               Help others find their<br className="hidden md:block" />
               <span className="bg-gradient-to-r from-violet-400 to-rose-400 bg-clip-text text-transparent"> next favourite read.</span>
             </h2>
-
             <p className="text-white/60 leading-relaxed text-base max-w-lg">
               Share your favourite manga, manhwa, or webtoon with thousands of readers. Every good rec helps someone fall in love with a new story.
             </p>
-
             <div className="flex flex-wrap gap-3 pt-1">
               <Link href={user ? '/dashboard/recommendations/new' : '/signup'}>
                 <Button size="lg" className="gap-2 h-12 bg-gradient-to-r from-violet-500 to-rose-500 hover:from-violet-400 hover:to-rose-400 text-white font-bold shadow-xl border-0">
