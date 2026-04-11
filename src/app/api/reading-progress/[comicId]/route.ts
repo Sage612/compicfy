@@ -6,29 +6,28 @@ interface Params {
 }
 
 // GET /api/reading-progress/[comicId]
-// Returns the user's reading progress for a specific comic across all their lists
 export async function GET(_req: Request, { params }: Params) {
   try {
     const { comicId } = await params
-    const supabase = await createClient()
+    const supabase    = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ progress: null })
 
-    // Find this comic across all the user's reading lists
+    // ── FIX: filter by user's list IDs directly instead of
+    //         relying on joined-table filter which PostgREST ignores ──
+    const { data: userLists } = await supabase
+      .from('reading_lists')
+      .select('id')
+      .eq('user_id', user.id)
+
+    const listIds = (userLists ?? []).map((l: any) => l.id)
+    if (listIds.length === 0) return NextResponse.json({ progress: null })
+
     const { data } = await supabase
       .from('reading_list_items')
-      .select(`
-        id,
-        list_id,
-        status,
-        progress_chapter,
-        notes,
-        last_read_at,
-        updated_at,
-        reading_lists!inner ( id, name, user_id )
-      `)
+      .select('id, list_id, status, progress_chapter, notes, last_read_at, updated_at')
       .eq('recommendation_id', comicId)
-      .eq('reading_lists.user_id', user.id)
+      .in('list_id', listIds)
       .order('updated_at', { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -40,12 +39,10 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 // PATCH /api/reading-progress/[comicId]
-// Update status and/or chapter for a comic in a specific list
-// Body: { list_id, status?, progress_chapter? }
 export async function PATCH(req: Request, { params }: Params) {
   try {
     const { comicId } = await params
-    const supabase = await createClient()
+    const supabase    = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -64,28 +61,54 @@ export async function PATCH(req: Request, { params }: Params) {
 
     if (!list) return NextResponse.json({ error: 'List not found' }, { status: 404 })
 
-    // Build update payload
+    // Build update payload — only include fields that were actually sent
     const updates: Record<string, any> = {}
-    if (status !== undefined)           updates.status           = status
+    if (status           !== undefined) updates.status           = status
     if (progress_chapter !== undefined) updates.progress_chapter = progress_chapter
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
     }
 
-    // Upsert — create if doesn't exist, update if it does
-    const { data: item, error } = await (supabase as any)
+    // ── FIX: Check if row exists first ──────────────────────────────
+    // The upsert was treating partial updates (chapter only, no status)
+    // as inserts and failing because status has no default.
+    // Use UPDATE if row exists, INSERT if it doesn't.
+    const { data: existing } = await (supabase as any)
       .from('reading_list_items')
-      .upsert(
-        {
+      .select('id')
+      .eq('list_id', list_id)
+      .eq('recommendation_id', comicId)
+      .maybeSingle()
+
+    let item: any
+    let error: any
+
+    if (existing) {
+      // Row exists — UPDATE only the fields sent
+      const { data, error: err } = await (supabase as any)
+        .from('reading_list_items')
+        .update(updates)
+        .eq('id', existing.id)
+        .select()
+        .single()
+      item  = data
+      error = err
+    } else {
+      // Row doesn't exist — INSERT with safe defaults
+      const { data, error: err } = await (supabase as any)
+        .from('reading_list_items')
+        .insert({
           list_id,
           recommendation_id: comicId,
-          ...updates,
-        },
-        { onConflict: 'list_id,recommendation_id' }
-      )
-      .select()
-      .single()
+          status:           status           ?? 'plan_to_read',
+          progress_chapter: progress_chapter ?? null,
+        })
+        .select()
+        .single()
+      item  = data
+      error = err
+    }
 
     if (error) throw error
 
@@ -96,11 +119,10 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 // POST /api/reading-progress/[comicId]
-// Add comic to a list with initial status
 export async function POST(req: Request, { params }: Params) {
   try {
     const { comicId } = await params
-    const supabase = await createClient()
+    const supabase    = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -118,14 +140,36 @@ export async function POST(req: Request, { params }: Params) {
 
     if (!list) return NextResponse.json({ error: 'List not found' }, { status: 404 })
 
-    const { data: item, error } = await (supabase as any)
+    // ── FIX: same pattern — check exists then insert or update ──────
+    const { data: existing } = await (supabase as any)
       .from('reading_list_items')
-      .upsert(
-        { list_id, recommendation_id: comicId, status, progress_chapter },
-        { onConflict: 'list_id,recommendation_id' }
-      )
-      .select()
-      .single()
+      .select('id')
+      .eq('list_id', list_id)
+      .eq('recommendation_id', comicId)
+      .maybeSingle()
+
+    let item: any
+    let error: any
+
+    if (existing) {
+      // Already in list — update status/chapter
+      const { data, error: err } = await (supabase as any)
+        .from('reading_list_items')
+        .update({ status, progress_chapter })
+        .eq('id', existing.id)
+        .select()
+        .single()
+      item  = data
+      error = err
+    } else {
+      const { data, error: err } = await (supabase as any)
+        .from('reading_list_items')
+        .insert({ list_id, recommendation_id: comicId, status, progress_chapter })
+        .select()
+        .single()
+      item  = data
+      error = err
+    }
 
     if (error) throw error
 
