@@ -42,36 +42,35 @@ export default async function ListDetailPage({ params }: Props) {
         (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
     : false
 
-  const { data: list, error } = await supabase
+  // Fetch all lists for "Move to List" functionality and locking check
+  const { data: allListsData } = await (supabase as any)
     .from('reading_lists')
-    .select('id, name, description, is_public, created_at')
-    .eq('id', id)
+    .select('id, name, created_at')
     .eq('user_id', user.id)
-    .single()
+    .order('created_at', { ascending: true })
 
-  if (error || !list) notFound()
+  const list = (allListsData ?? []).find((l: any) => l.id === id)
+  if (!list) notFound()
 
   // Compute isLocked: free users — check if this list is beyond the 3 oldest
   let isLocked = false
-  if (!isPro) {
-    const { data: allLists } = await supabase
-      .from('reading_lists')
-      .select('id')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: true })
-
-    if (allLists) {
-      const freeListIds = new Set(allLists.slice(0, FREE_LIST_LIMIT).map((l: any) => l.id))
-      isLocked = !freeListIds.has(id)
-    }
+  if (!isPro && allListsData) {
+    const freeListIds = new Set(allListsData.slice(0, FREE_LIST_LIMIT).map((l: any) => l.id))
+    isLocked = !freeListIds.has(id)
   }
 
+  // Fetch items with list_id and chapter_count
   const { data: items } = await supabase
     .from('reading_list_items')
     .select(`
-      id, status, progress_chapter, notes, added_at,
+      id, 
+      list_id, 
+      status, 
+      progress_chapter, 
+      notes, 
+      added_at,
       recommendations (
-        id, title, cover_url, type, status, genres, upvotes
+        id, title, cover_url, type, status, genres, upvotes, chapter_count
       )
     `)
     .eq('list_id', id)
@@ -83,6 +82,7 @@ export default async function ListDetailPage({ params }: Props) {
         list={list as any}
         initialItems={(items ?? []) as any}
         isLocked={isLocked}
+        allLists={(allListsData ?? []) as any}
       />
     </div>
   )
