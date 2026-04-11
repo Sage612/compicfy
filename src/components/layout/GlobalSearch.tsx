@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, BookOpen, X, ArrowRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -25,49 +25,43 @@ interface SearchResult {
 }
 
 export function GlobalSearch() {
-  const [open,    setOpen]    = useState(false)
-  const [query,   setQuery]   = useState('')
-  const [results, setResults] = useState<SearchResult[]>([])
-  const [loading, setLoading] = useState(false)
+  const [open,     setOpen]     = useState(false)
+  const [query,    setQuery]    = useState('')
+  const [results,  setResults]  = useState<SearchResult[]>([])
+  const [loading,  setLoading]  = useState(false)
   const [selected, setSelected] = useState(0)
 
-  const router     = useRouter()
-  const inputRef   = useRef<HTMLInputElement>(null)
+  const router      = useRouter()
+  const inputRef    = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Open on Cmd+K / Ctrl+K
+  const close = useCallback(() => {
+    setOpen(false)
+    setQuery('')
+    setResults([])
+    setSelected(0)
+  }, [])
+
+  // Cmd+K / Ctrl+K + Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
         setOpen(true)
       }
-      if (e.key === 'Escape') {
-        setOpen(false)
-        setQuery('')
-        setResults([])
-      }
+      if (e.key === 'Escape') close()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [])
+  }, [close])
 
   // Focus input when opened
   useEffect(() => {
-    if (open) {
-      setTimeout(() => inputRef.current?.focus(), 50)
-    } else {
-      setQuery('')
-      setResults([])
-      setSelected(0)
-    }
+    if (open) setTimeout(() => inputRef.current?.focus(), 50)
   }, [open])
 
   const search = useCallback(async (q: string) => {
-    if (q.trim().length < 2) {
-      setResults([])
-      return
-    }
+    if (q.trim().length < 2) { setResults([]); return }
     setLoading(true)
     try {
       const res  = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=8`)
@@ -89,16 +83,15 @@ export function GlobalSearch() {
 
   const goTo = (id: string) => {
     router.push(`/comic/${id}`)
-    setOpen(false)
+    close()
   }
 
   const handleBrowseSearch = () => {
     if (!query.trim()) return
     router.push(`/browse?q=${encodeURIComponent(query.trim())}`)
-    setOpen(false)
+    close()
   }
 
-  // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -108,13 +101,9 @@ export function GlobalSearch() {
       setSelected(s => Math.max(s - 1, 0))
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (selected === results.length) {
-        handleBrowseSearch()
-      } else if (results[selected]) {
-        goTo(results[selected].id)
-      } else if (query.trim()) {
-        handleBrowseSearch()
-      }
+      if (selected === results.length) handleBrowseSearch()
+      else if (results[selected]) goTo(results[selected].id)
+      else if (query.trim()) handleBrowseSearch()
     }
   }
 
@@ -136,17 +125,26 @@ export function GlobalSearch() {
 
   return (
     <>
-      {/* Backdrop */}
+      {/* ── Backdrop ──────────────────────────────────────────────
+          onClick handles desktop clicks.
+          onTouchEnd + preventDefault handles mobile — without
+          preventDefault the browser intercepts the first touch to
+          dismiss the keyboard and never fires onClick at all.        */}
       <div
         className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
-        onClick={() => setOpen(false)}
+        onClick={close}
+        onTouchEnd={(e) => { e.preventDefault(); close() }}
       />
 
-      {/* Modal */}
+      {/* ── Modal ─────────────────────────────────────────────── */}
       <div className="fixed inset-x-4 top-16 z-[70] max-w-xl mx-auto sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-full">
-        <div className="rounded-2xl border border-border bg-card shadow-2xl shadow-black/30 overflow-hidden">
+        <div
+          className="rounded-2xl border border-border bg-card shadow-2xl shadow-black/30 overflow-hidden"
+          // Stop touches on the modal itself from bubbling to the backdrop
+          onTouchEnd={e => e.stopPropagation()}
+        >
 
-          {/* Input */}
+          {/* Input row */}
           <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border">
             <Search size={16} className="text-muted-foreground shrink-0" />
             <input
@@ -157,14 +155,25 @@ export function GlobalSearch() {
               placeholder="Search comics, manhwa, webtoons…"
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground text-foreground"
             />
-            {loading
-              ? <Loader2 size={14} className="animate-spin text-muted-foreground shrink-0" />
-              : query && (
-                  <button onClick={() => { setQuery(''); setResults([]) }} className="text-muted-foreground hover:text-foreground">
-                    <X size={14} />
-                  </button>
-                )
-            }
+            {loading ? (
+              <Loader2 size={14} className="animate-spin text-muted-foreground shrink-0" />
+            ) : query ? (
+              <button
+                onClick={() => { setQuery(''); setResults([]) }}
+                className="text-muted-foreground hover:text-foreground p-1"
+              >
+                <X size={14} />
+              </button>
+            ) : null}
+
+            {/* ── Explicit close button — always visible on mobile ── */}
+            <button
+              onClick={close}
+              className="ml-1 flex items-center justify-center h-7 w-7 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              aria-label="Close search"
+            >
+              <X size={14} />
+            </button>
           </div>
 
           {/* Results */}
@@ -182,7 +191,6 @@ export function GlobalSearch() {
                         selected === i ? 'bg-primary/8' : 'hover:bg-muted/40'
                       )}
                     >
-                      {/* Cover thumbnail */}
                       <div className="w-8 h-11 rounded-lg overflow-hidden bg-muted shrink-0">
                         {r.cover_url ? (
                           <img src={r.cover_url} alt={r.title} className="w-full h-full object-cover" />
@@ -192,8 +200,6 @@ export function GlobalSearch() {
                           </div>
                         )}
                       </div>
-
-                      {/* Info */}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate">{r.title}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
@@ -205,14 +211,12 @@ export function GlobalSearch() {
                           )}
                         </div>
                       </div>
-
                       <ArrowRight size={12} className={cn('shrink-0 transition-opacity', selected === i ? 'opacity-100 text-primary' : 'opacity-0')} />
                     </button>
                   </li>
                 )
               })}
 
-              {/* Browse all results */}
               {query.trim().length >= 2 && (
                 <li>
                   <button
@@ -247,7 +251,7 @@ export function GlobalSearch() {
             </div>
           )}
 
-          {/* Hint when empty */}
+          {/* Quick links when nothing typed */}
           {query.trim().length < 2 && (
             <div className="px-4 py-5 space-y-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick links</p>
@@ -255,7 +259,7 @@ export function GlobalSearch() {
                 {['Action', 'Romance', 'Fantasy', 'Horror', 'Sci-Fi'].map(genre => (
                   <button
                     key={genre}
-                    onClick={() => { router.push(`/browse?genre=${genre}`); setOpen(false) }}
+                    onClick={() => { router.push(`/browse?genre=${genre}`); close() }}
                     className="px-3 py-1.5 rounded-full border border-border bg-muted/40 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
                   >
                     {genre}
@@ -265,8 +269,8 @@ export function GlobalSearch() {
             </div>
           )}
 
-          {/* Footer hint */}
-          <div className="px-4 py-2 border-t border-border flex items-center gap-3 text-[10px] text-muted-foreground/60">
+          {/* Footer — hidden on mobile to save space */}
+          <div className="hidden sm:flex px-4 py-2 border-t border-border items-center gap-3 text-[10px] text-muted-foreground/60">
             <span><kbd className="font-mono">↑↓</kbd> navigate</span>
             <span><kbd className="font-mono">↵</kbd> select</span>
             <span><kbd className="font-mono">esc</kbd> close</span>
