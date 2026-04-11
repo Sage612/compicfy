@@ -232,6 +232,59 @@ export type Database = {
         }
         Update: Record<string, never>
       }
+      reading_lists: {
+        Row: {
+          id:          string
+          user_id:     string
+          name:        string
+          description: string | null
+          is_public:   boolean
+          created_at:  string
+          updated_at:  string
+        }
+        Insert: {
+          id?:         string
+          user_id:     string
+          name:        string
+          description?: string | null
+          is_public?:  boolean
+        }
+        Update: {
+          name?:        string
+          description?: string | null
+          is_public?:   boolean
+          updated_at?:  string
+        }
+      }
+ 
+      reading_list_items: {
+        Row: {
+          id:                 string
+          list_id:            string
+          recommendation_id:  string
+          status:             'reading' | 'plan_to_read' | 'completed' | 'on_hold' | 'dropped' | 'marinating'
+          progress_chapter:   number | null
+          notes:              string | null
+          last_read_at:       string | null
+          added_at:           string
+          updated_at:         string
+        }
+        Insert: {
+          id?:                string
+          list_id:            string
+          recommendation_id:  string
+          status?:            'reading' | 'plan_to_read' | 'completed' | 'on_hold' | 'dropped' | 'marinating'
+          progress_chapter?:  number | null
+          notes?:             string | null
+        }
+        Update: {
+          status?:            'reading' | 'plan_to_read' | 'completed' | 'on_hold' | 'dropped' | 'marinating'
+          progress_chapter?:  number | null
+          notes?:             string | null
+          last_read_at?:      string | null
+          updated_at?:        string
+        }
+      }
       reviews: {
         Row: {
           id: string
@@ -469,3 +522,8 @@ export type Notification = Database['public']['Tables']['notifications']['Row']
 export type Report = Database['public']['Tables']['reports']['Row']
 export type ActivityLog = Database['public']['Tables']['activity_logs']['Row']
 export type DailyFeatured = Database['public']['Tables']['daily_featured']['Row']
+
+export type ReadingList     = Database['public']['Tables']['reading_lists']['Row']
+export type ReadingListItem = Database['public']['Tables']['reading_list_items']['Row']
+export type ReadingListItemInsert = Database['public']['Tables']['reading_list_items']['Insert']
+export type ReadingListItemUpdate = Database['public']['Tables']['reading_list_items']['Update']

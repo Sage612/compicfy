@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
 import { UserBadges } from '@/components/pro/UserBadges'
+import { ReadingProgressButton } from '@/components/recommendations/ReadingProgressButton'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
 
@@ -297,6 +298,11 @@ export default async function ComicDetailPage({ params }: Props) {
               isLoggedIn={!!user}
             />
             <SaveButton recommendationId={id} initialSaved={isSaved} isLoggedIn={!!user} />
+            <ReadingProgressButton
+              comicId={id}
+              chapterCount={rec.chapter_count}
+              isLoggedIn={!!user}
+            />
             {user && <AddToListButton recommendationId={id} userId={user.id} />}
 
             <Link href="/dashboard/recommendations/new">
