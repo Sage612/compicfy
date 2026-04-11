@@ -8,6 +8,7 @@ import { ShieldAlert, BookOpen, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import type { Recommendation } from '@/types/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: '18+ Comics' }
@@ -24,48 +25,53 @@ interface Props {
   searchParams: Promise<SearchParams>
 }
 
-const PAGE_SIZE = 24
+const PAGE_SIZE    = 24
+const ADULT_RATINGS = ['adult', 'mature'] as const
 
-async function getFeatured() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ['adult', 'mature']).order('daily_votes', { ascending: false }).limit(8)
-  return (data as Recommendation[]) ?? []
-}
-async function getTrending() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ['adult', 'mature']).order('daily_votes', { ascending: false }).limit(12)
-  return (data as Recommendation[]) ?? []
-}
-async function getRecent() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ['adult', 'mature']).order('created_at', { ascending: false }).limit(12)
-  return (data as Recommendation[]) ?? []
-}
-async function getAdminPicks() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).in('content_rating', ['adult', 'mature']).order('featured_at', { ascending: false }).limit(12)
-  return (data as Recommendation[]) ?? []
-}
-async function getCommunityFavourites() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ['adult', 'mature']).order('score', { ascending: false }).limit(12)
-  return (data as Recommendation[]) ?? []
-}
-async function getHiddenGems() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ['adult', 'mature']).order('save_count', { ascending: false }).limit(12)
-  return (data as Recommendation[]) ?? []
-}
-async function getYouMightLike(userId: string) {
-  const s = await createClient()
-  const { data } = await (s as any).rpc('get_personalized_recommendations', { p_user_id: userId, p_exclude_id: null, p_limit: 12, p_content_ratings: ['mature', 'adult'] })
+// ── All section fetchers share one client ────────────────────────
+
+async function getFeatured(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ADULT_RATINGS).order('daily_votes', { ascending: false }).limit(8)
   return (data as Recommendation[]) ?? []
 }
 
-async function getInitialGrid(params: SearchParams) {
-  const supabase = await createClient()
+async function getTrending(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ADULT_RATINGS).order('daily_votes', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
 
-  const { data } = await (supabase as any).rpc('search_recommendations', {
+async function getRecent(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ADULT_RATINGS).order('created_at', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+
+async function getAdminPicks(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).in('content_rating', ADULT_RATINGS).order('featured_at', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+
+async function getCommunityFavourites(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ADULT_RATINGS).order('score', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+
+async function getHiddenGems(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ADULT_RATINGS).order('save_count', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+
+async function getYouMightLike(s: SupabaseClient, userId: string) {
+  const { data } = await (s as any).rpc('get_personalized_recommendations', {
+    p_user_id:        userId,
+    p_exclude_id:     null,
+    p_limit:          12,
+    p_content_ratings: ['mature', 'adult'],
+  })
+  return (data as Recommendation[]) ?? []
+}
+
+async function getInitialGrid(s: SupabaseClient, params: SearchParams) {
+  const { data } = await (s as any).rpc('search_recommendations', {
     p_query:  params.q      || null,
     p_type:   params.type   || null,
     p_genre:  params.genre  || null,
@@ -76,11 +82,11 @@ async function getInitialGrid(params: SearchParams) {
     p_offset: 0,
   })
 
-  const { count } = await supabase
+  const { count } = await s
     .from('recommendations')
     .select('*', { count: 'exact', head: true })
     .eq('is_approved', true)
-    .in('content_rating', ['adult', 'mature'])
+    .in('content_rating', ADULT_RATINGS)
 
   return {
     items: (data as Recommendation[]) ?? [],
@@ -93,9 +99,9 @@ function hasActiveFilters(p: SearchParams) {
 }
 
 function AccessGate({ title, description, actions }: {
-  title: string
+  title:       string
   description: string
-  actions: React.ReactNode
+  actions:     React.ReactNode
 }) {
   return (
     <div className="max-w-md mx-auto px-4 py-24 text-center space-y-5">
@@ -110,10 +116,12 @@ function AccessGate({ title, description, actions }: {
 }
 
 export default async function AdultBrowsePage({ searchParams }: Props) {
-  const params = await searchParams
+  const params      = await searchParams
   const isFiltering = hasActiveFilters(params)
 
+  // ── Single shared client ─────────────────────────────────────────
   const supabase = await createClient()
+
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -131,7 +139,11 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
     )
   }
 
-  const { data: profile } = await supabase.from('profiles').select('adult_content_enabled').eq('id', user.id).single()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('adult_content_enabled')
+    .eq('id', user.id)
+    .single()
 
   if (!(profile as any)?.adult_content_enabled) {
     return (
@@ -148,17 +160,26 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
     )
   }
 
-  const [featured, trending, recent, adminPicks, communityFavs, hiddenGems, youMightLike, { items, total }] =
-    await Promise.all([
-      isFiltering ? Promise.resolve([]) : getFeatured(),
-      isFiltering ? Promise.resolve([]) : getTrending(),
-      isFiltering ? Promise.resolve([]) : getRecent(),
-      isFiltering ? Promise.resolve([]) : getAdminPicks(),
-      isFiltering ? Promise.resolve([]) : getCommunityFavourites(),
-      isFiltering ? Promise.resolve([]) : getHiddenGems(),
-      isFiltering ? Promise.resolve([]) : getYouMightLike(user.id),
-      getInitialGrid(params),
-    ])
+  // All parallel, all sharing the same client
+  const [
+    featured,
+    trending,
+    recent,
+    adminPicks,
+    communityFavs,
+    hiddenGems,
+    youMightLike,
+    { items, total },
+  ] = await Promise.all([
+    isFiltering ? Promise.resolve([]) : getFeatured(supabase),
+    isFiltering ? Promise.resolve([]) : getTrending(supabase),
+    isFiltering ? Promise.resolve([]) : getRecent(supabase),
+    isFiltering ? Promise.resolve([]) : getAdminPicks(supabase),
+    isFiltering ? Promise.resolve([]) : getCommunityFavourites(supabase),
+    isFiltering ? Promise.resolve([]) : getHiddenGems(supabase),
+    isFiltering ? Promise.resolve([]) : getYouMightLike(supabase, user.id),
+    getInitialGrid(supabase, params),
+  ])
 
   const clientParams: Record<string, string> = { adult: 'true' }
   if (params.q)      clientParams.q      = params.q

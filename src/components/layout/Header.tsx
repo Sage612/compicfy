@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Sun, Moon, Monitor, BookOpen, Search, ScrollText,
+  Sun, Moon, Monitor, BookOpen, Radar, ScrollText,
   LayoutDashboard, Settings, LogOut, Plus,
   User as UserIcon, Bookmark, Bell,
   ShoppingBag, BookMarked, Crown, CreditCard, Sparkles, LayoutList,
@@ -143,7 +143,7 @@ export function Header() {
   const dashboardLabel = isPro ? 'Pro Dashboard'  : 'Dashboard'
 
   const publicNavLinks = [
-    { href: '/browse',    label: 'Browse', icon: Search      },
+    { href: '/browse',    label: 'Browse', icon: Radar      },
     { href: '/news',      label: 'News',   icon: ScrollText  },
     { href: '/affiliate', label: 'Shop',   icon: ShoppingBag },
   ]

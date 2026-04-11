@@ -12,15 +12,14 @@ import {
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 
-// Must match newsSchema in validators.ts exactly
 interface NewsItem {
   id: string
   title: string
-  excerpt: string        // newsSchema: excerpt (NOT summary)
-  content: string        // newsSchema: content
-  source_url: string     // newsSchema: source_url (required, must be valid URL)
-  source_name: string    // newsSchema: source_name (required)
-  category: string       // newsSchema: category enum
+  excerpt: string
+  content: string
+  source_url: string
+  source_name: string
+  category: string
   cover_url: string
   is_published: boolean
   is_ai_generated: boolean
@@ -45,12 +44,12 @@ const CATEGORIES = [
 ] as const
 
 export function NewsManager({ initialNews }: Props) {
-  const [news, setNews] = useState<NewsItem[]>(initialNews)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [editingId, setEditingId] = useState<string | 'new' | null>(null)
-  const [editData, setEditData] = useState<Omit<NewsItem, 'id' | 'created_at'>>(BLANK)
+  const [news, setNews]               = useState<NewsItem[]>(initialNews)
+  const [expandedId, setExpandedId]   = useState<string | null>(null)
+  const [editingId, setEditingId]     = useState<string | 'new' | null>(null)
+  const [editData, setEditData]       = useState<Omit<NewsItem, 'id' | 'created_at'>>(BLANK)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [aiLoading, setAiLoading] = useState(false)
+  const [aiLoading, setAiLoading]     = useState(false)
 
   const set = (field: keyof typeof editData, value: string | boolean | string[]) =>
     setEditData(prev => ({ ...prev, [field]: value }))
@@ -64,18 +63,18 @@ export function NewsManager({ initialNews }: Props) {
   const startEdit = (item: NewsItem) => {
     setEditingId(item.id)
     setEditData({
-      title:          item.title,
-      excerpt:        item.excerpt,
-      content:        item.content        ?? '',
-      source_url:     item.source_url,
-      source_name:    item.source_name    ?? '',
-      category:       item.category       ?? 'announcement',
-      cover_url:      item.cover_url      ?? '',
-      is_published:   item.is_published,
+      title:           item.title,
+      excerpt:         item.excerpt,
+      content:         item.content        ?? '',
+      source_url:      item.source_url,
+      source_name:     item.source_name    ?? '',
+      category:        item.category       ?? 'announcement',
+      cover_url:       item.cover_url      ?? '',
+      is_published:    item.is_published,
       is_ai_generated: item.is_ai_generated ?? false,
-      is_affiliate:   item.is_affiliate   ?? false,
-      affiliate_url:  item.affiliate_url  ?? '',
-      tags:           item.tags           ?? [],
+      is_affiliate:    item.is_affiliate   ?? false,
+      affiliate_url:   item.affiliate_url  ?? '',
+      tags:            item.tags           ?? [],
     })
     setExpandedId(null)
   }
@@ -90,18 +89,16 @@ export function NewsManager({ initialNews }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-
-      // Route returns { summary: { title, excerpt, content, category, tags }, image_url }
       const s = data.summary ?? {}
       setEditData(prev => ({
         ...prev,
-        title:          s.title    || prev.title,
-        excerpt:        s.excerpt  || prev.excerpt,
-        content:        s.content  || prev.content,
-        category:       CATEGORIES.includes(s.category) ? s.category : prev.category,
-        tags:           Array.isArray(s.tags) ? s.tags : prev.tags,
-        cover_url:      data.image_url || prev.cover_url,
-        source_name:    prev.source_name || (new URL(editData.source_url).hostname.replace('www.', '')),
+        title:           s.title    || prev.title,
+        excerpt:         s.excerpt  || prev.excerpt,
+        content:         s.content  || prev.content,
+        category:        CATEGORIES.includes(s.category) ? s.category : prev.category,
+        tags:            Array.isArray(s.tags) ? s.tags : prev.tags,
+        cover_url:       data.image_url || prev.cover_url,
+        source_name:     prev.source_name || (new URL(editData.source_url).hostname.replace('www.', '')),
         is_ai_generated: true,
       }))
       toast.success('AI summary generated!')
@@ -113,17 +110,15 @@ export function NewsManager({ initialNews }: Props) {
   }
 
   const handleSave = async () => {
-    // Match newsSchema required fields
     if (!editData.title.trim())       { toast.error('Title is required'); return }
-    if (!editData.excerpt.trim())     { toast.error('Excerpt is required (min 10 chars)'); return }
+    if (!editData.excerpt.trim())     { toast.error('Excerpt is required'); return }
     if (editData.excerpt.length < 10) { toast.error('Excerpt must be at least 10 characters'); return }
     if (!editData.source_url.trim())  { toast.error('Source URL is required'); return }
     if (!editData.source_name.trim()) { toast.error('Source name is required'); return }
     if (!editData.category)           { toast.error('Category is required'); return }
     if (editData.is_affiliate && !editData.affiliate_url?.trim()) {
-      toast.error('Affiliate URL is required when affiliate is enabled'); return
+      toast.error('Affiliate URL required'); return
     }
-
     setActionLoading('save')
     try {
       const isNew = editingId === 'new'
@@ -134,7 +129,6 @@ export function NewsManager({ initialNews }: Props) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? JSON.stringify(data.details ?? 'Failed to save'))
-
       if (isNew) {
         setNews(prev => [data.news, ...prev])
         toast.success('Article created!')
@@ -159,7 +153,7 @@ export function NewsManager({ initialNews }: Props) {
       })
       if (!res.ok) throw new Error()
       setNews(prev => prev.map(n => n.id === id ? { ...n, is_published: !current } : n))
-      toast.success(current ? 'Article unpublished' : 'Article published!')
+      toast.success(current ? 'Unpublished' : 'Published!')
     } catch { toast.error('Failed to update') }
     finally { setActionLoading(null) }
   }
@@ -180,7 +174,7 @@ export function NewsManager({ initialNews }: Props) {
     <label className="flex items-center gap-2 cursor-pointer">
       <div
         className={cn(
-          'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
+          'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors shrink-0',
           editData[field] ? 'bg-primary border-primary' : 'border-border hover:border-primary/60'
         )}
         onClick={() => set(field, !editData[field])}
@@ -208,7 +202,8 @@ export function NewsManager({ initialNews }: Props) {
           <label className="text-xs font-semibold text-muted-foreground">
             Source URL <span className="text-red-500">*</span>
           </label>
-          <div className="flex gap-2">
+          {/* Stack on mobile, side by side on sm+ */}
+          <div className="flex flex-col sm:flex-row gap-2">
             <Input
               value={editData.source_url}
               onChange={e => set('source_url', e.target.value)}
@@ -218,7 +213,7 @@ export function NewsManager({ initialNews }: Props) {
             <Button
               variant="outline" size="sm" onClick={handleAISummarise}
               disabled={aiLoading || !editData.source_url.trim()}
-              className="gap-1.5 h-9 shrink-0 whitespace-nowrap"
+              className="gap-1.5 h-9 shrink-0 w-full sm:w-auto"
             >
               {aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
               AI Summary
@@ -230,12 +225,12 @@ export function NewsManager({ initialNews }: Props) {
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-muted-foreground">
             Source Name <span className="text-red-500">*</span>
-            <span className="text-muted-foreground/60 font-normal ml-1">(e.g. Crunchyroll, ANN, Viz)</span>
+            <span className="text-muted-foreground/60 font-normal ml-1">(e.g. Crunchyroll, ANN)</span>
           </label>
           <Input
             value={editData.source_name}
             onChange={e => set('source_name', e.target.value)}
-            placeholder="Publication or website name"
+            placeholder="Publication name"
             className="h-9 text-sm"
           />
         </div>
@@ -257,7 +252,7 @@ export function NewsManager({ initialNews }: Props) {
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-muted-foreground">
             Excerpt <span className="text-red-500">*</span>
-            <span className="text-muted-foreground/60 font-normal ml-1">(min 10 chars, shown on cards)</span>
+            <span className="text-muted-foreground/60 font-normal ml-1">(min 10 chars)</span>
           </label>
           <Textarea
             value={editData.excerpt}
@@ -271,7 +266,7 @@ export function NewsManager({ initialNews }: Props) {
         {/* Full content */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-muted-foreground">
-            Full Content <span className="text-muted-foreground/60 font-normal">(optional — for article detail page)</span>
+            Full Content <span className="text-muted-foreground/60 font-normal">(optional)</span>
           </label>
           <Textarea
             value={editData.content}
@@ -318,26 +313,26 @@ export function NewsManager({ initialNews }: Props) {
           </div>
         </div>
 
-        {/* Affiliate section */}
+        {/* Affiliate */}
         <div className={cn(
-          'rounded-xl border transition-colors space-y-0 overflow-hidden',
+          'rounded-xl border transition-colors overflow-hidden',
           editData.is_affiliate ? 'border-amber-500/30 bg-amber-500/5' : 'border-border'
         )}>
           <div className="px-4 pt-3 pb-3">
             <label className="flex items-center gap-2 cursor-pointer">
               <div
                 className={cn(
-                  'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors',
+                  'w-4 h-4 rounded border-2 flex items-center justify-center transition-colors shrink-0',
                   editData.is_affiliate ? 'bg-amber-500 border-amber-500' : 'border-border hover:border-amber-500/60'
                 )}
                 onClick={() => set('is_affiliate', !editData.is_affiliate)}
               >
                 {editData.is_affiliate && <span className="text-white text-[10px] font-black leading-none">✓</span>}
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <DollarSign size={13} className={editData.is_affiliate ? 'text-amber-500' : 'text-muted-foreground'} />
                 <span className="text-sm font-medium">Affiliate article</span>
-                <span className="text-[10px] text-muted-foreground">(shows 💰 badge on card)</span>
+                <span className="text-[10px] text-muted-foreground">(shows 💰 badge)</span>
               </div>
             </label>
           </div>
@@ -349,18 +344,18 @@ export function NewsManager({ initialNews }: Props) {
               <Input
                 value={editData.affiliate_url}
                 onChange={e => set('affiliate_url', e.target.value)}
-                placeholder="https://... (your tracked affiliate link)"
+                placeholder="https://..."
                 className="h-9 text-sm font-mono border-amber-500/30 focus:border-amber-500"
               />
               <p className="text-[10px] text-muted-foreground">
-                This link replaces the source URL when the card is clicked.
+                Replaces source URL on card click.
               </p>
             </div>
           )}
         </div>
 
         {/* Toggles */}
-        <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex flex-wrap gap-4">
           <Checkbox field="is_published"    label="Publish immediately" />
           <Checkbox field="is_ai_generated" label="AI-generated label"  />
         </div>
@@ -370,7 +365,7 @@ export function NewsManager({ initialNews }: Props) {
           <Button
             onClick={handleSave}
             disabled={!!actionLoading}
-            className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+            className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20 w-full sm:w-auto"
           >
             {actionLoading === 'save' && <Loader2 size={13} className="animate-spin" />}
             {editingId === 'new' ? 'Create Article' : 'Save Changes'}
@@ -396,73 +391,126 @@ export function NewsManager({ initialNews }: Props) {
       <div className="space-y-2">
         {news.map(item => (
           <div key={item.id} className="rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors">
-            <div className="flex items-center gap-3 p-4">
+
+            {/* ── Main row ── */}
+            <div className="flex gap-3 p-4">
+
+              {/* Cover thumbnail */}
               {item.cover_url && (
                 <div className="w-14 h-10 rounded-lg overflow-hidden bg-muted shrink-0">
                   <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
                 </div>
               )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className="text-sm font-black truncate">{item.title}</p>
+
+              {/* Content — full width, actions below */}
+              <div className="flex-1 min-w-0 space-y-1.5">
+                {/* Title + status badges — wrap freely */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="text-sm font-black truncate max-w-[200px] sm:max-w-none">{item.title}</p>
                   {item.is_published
-                    ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-600 border-emerald-500/20">✓ Published</span>
-                    : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-muted text-muted-foreground border-border">Draft</span>
+                    ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shrink-0">✓ Published</span>
+                    : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-muted text-muted-foreground border-border shrink-0">Draft</span>
                   }
                   {item.is_ai_generated && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-violet-500/10 text-violet-600 border-violet-500/20">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-violet-500/10 text-violet-600 border-violet-500/20 shrink-0">
                       <Sparkles size={9} /> AI
                     </span>
                   )}
                   {item.is_affiliate && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20 shrink-0">
                       💰 Affiliate
                     </span>
                   )}
                   {item.category && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-muted text-muted-foreground border-border capitalize">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-muted text-muted-foreground border-border capitalize shrink-0">
                       {item.category}
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
+
+                {/* Meta */}
+                <p className="text-xs text-muted-foreground">
                   {item.source_name && <span className="font-medium">{item.source_name} · </span>}
                   {formatDate(item.created_at)}
                 </p>
-              </div>
-              <div className="flex items-center gap-0.5 shrink-0">
-                {item.source_url && (
-                  <a href={item.source_url} target="_blank" rel="noopener noreferrer">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title="View source"><ExternalLink size={13} /></Button>
-                  </a>
-                )}
-                <Button variant="ghost" size="icon" className="h-8 w-8"
-                  onClick={() => editingId === item.id ? setEditingId(null) : startEdit(item)} title="Edit">
-                  <Pencil size={13} />
-                </Button>
-                <Button
-                  variant="ghost" size="icon"
-                  className={cn('h-8 w-8', item.is_published ? 'text-amber-500 hover:text-amber-500' : 'text-emerald-500 hover:text-emerald-500')}
-                  onClick={() => handleTogglePublish(item.id, item.is_published)}
-                  disabled={!!actionLoading} title={item.is_published ? 'Unpublish' : 'Publish'}
-                >
-                  {actionLoading === `${item.id}-publish` ? <Loader2 size={13} className="animate-spin" /> : item.is_published ? <EyeOff size={13} /> : <Eye size={13} />}
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-500"
-                  onClick={() => handleDelete(item.id)} disabled={!!actionLoading} title="Delete">
-                  {actionLoading === `${item.id}-delete` ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8"
-                  onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}>
-                  {expandedId === item.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                </Button>
+
+                {/* ── Action buttons ──
+                    Mobile: labeled pill buttons that wrap
+                    Desktop (sm+): compact icon-only buttons        */}
+                <div className="flex flex-wrap items-center gap-1 pt-1 sm:justify-end">
+
+                  {/* Source link */}
+                  {item.source_url && (
+                    <a href={item.source_url} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0">
+                        <ExternalLink size={12} />
+                        <span className="sm:hidden">Source</span>
+                      </Button>
+                    </a>
+                  )}
+
+                  {/* Edit */}
+                  <Button
+                    variant="outline" size="sm"
+                    className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0"
+                    onClick={() => editingId === item.id ? setEditingId(null) : startEdit(item)}
+                  >
+                    <Pencil size={12} />
+                    <span className="sm:hidden">Edit</span>
+                  </Button>
+
+                  {/* Publish / Unpublish */}
+                  <Button
+                    variant="outline" size="sm"
+                    className={cn(
+                      'h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0',
+                      item.is_published
+                        ? 'text-amber-500 border-amber-500/30 hover:bg-amber-500/10'
+                        : 'text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10'
+                    )}
+                    onClick={() => handleTogglePublish(item.id, item.is_published)}
+                    disabled={!!actionLoading}
+                  >
+                    {actionLoading === `${item.id}-publish`
+                      ? <Loader2 size={12} className="animate-spin" />
+                      : item.is_published ? <EyeOff size={12} /> : <Eye size={12} />
+                    }
+                    <span className="sm:hidden">{item.is_published ? 'Unpublish' : 'Publish'}</span>
+                  </Button>
+
+                  {/* Delete */}
+                  <Button
+                    variant="outline" size="sm"
+                    className="h-7 gap-1.5 text-xs px-2.5 text-red-500 border-red-500/30 hover:bg-red-500/10 sm:h-8 sm:w-8 sm:p-0"
+                    onClick={() => handleDelete(item.id)}
+                    disabled={!!actionLoading}
+                  >
+                    {actionLoading === `${item.id}-delete`
+                      ? <Loader2 size={12} className="animate-spin" />
+                      : <Trash2 size={12} />
+                    }
+                    <span className="sm:hidden">Delete</span>
+                  </Button>
+
+                  {/* Expand */}
+                  <Button
+                    variant="outline" size="sm"
+                    className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0"
+                    onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                  >
+                    {expandedId === item.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    <span className="sm:hidden">{expandedId === item.id ? 'Less' : 'More'}</span>
+                  </Button>
+                </div>
               </div>
             </div>
 
+            {/* Edit form inline */}
             {editingId === item.id && (
               <div className="border-t border-border"><FormPanel /></div>
             )}
 
+            {/* Expanded preview */}
             {expandedId === item.id && editingId !== item.id && (
               <div className="px-4 pb-4 border-t border-border pt-3 space-y-2">
                 <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{item.excerpt}</p>

@@ -6,31 +6,39 @@ import { Loader2 } from 'lucide-react'
 import type { Recommendation } from '@/types/database.types'
 
 interface Props {
-  comicId: string
+  comicId:       string
   contentRating: string
+  // true  → this comic is adult/mature, show only adult/mature similar
+  // false → safe browse context, never show adult/mature
+  showAdult?:    boolean
 }
 
-export function SimilarComics({ comicId, contentRating }: Props) {
-  const [comics, setComics] = useState<Recommendation[]>([])
+export function SimilarComics({ comicId, contentRating, showAdult = false }: Props) {
+  const [comics,  setComics]  = useState<Recommendation[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchSimilar = async () => {
       try {
-        // Always exclude adult/mature from similar comics — adult content
-        // belongs exclusively on /browse/adult regardless of user toggle.
-        // We pass exclude_adult=true so the API never returns 18+ here.
-        const res = await fetch(
-          `/api/recommendations/personalized?mode=similar&comic_id=${comicId}&limit=8&exclude_adult=true`
-        )
+        const params = new URLSearchParams({
+          mode:          'similar',
+          comic_id:      comicId,
+          limit:         '8',
+          exclude_adult: showAdult ? 'false' : 'true',
+        })
+        const res  = await fetch(`/api/recommendations/personalized?${params}`)
         const data = await res.json()
 
-        // Double-filter client-side as a safety net in case the API
-        // doesn't yet support exclude_adult param
-        const safe = (data.recommendations ?? []).filter(
-          (r: Recommendation) => r.content_rating !== 'adult' && r.content_rating !== 'mature'
-        )
-        setComics(safe)
+        const recs = (data.recommendations ?? []) as Recommendation[]
+
+        // Client-side safety net — always match the context
+        const filtered = showAdult
+          // Adult context: only show adult/mature
+          ? recs.filter(r => r.content_rating === 'adult' || r.content_rating === 'mature')
+          // Safe context: never show adult/mature
+          : recs.filter(r => r.content_rating !== 'adult' && r.content_rating !== 'mature')
+
+        setComics(filtered)
       } catch {
         console.error('Failed to fetch similar comics')
       } finally {
@@ -38,7 +46,7 @@ export function SimilarComics({ comicId, contentRating }: Props) {
       }
     }
     fetchSimilar()
-  }, [comicId])
+  }, [comicId, showAdult])
 
   if (loading) {
     return (

@@ -438,7 +438,11 @@ export default async function ComicDetailPage({ params }: Props) {
             {/* Similar */}
             <div className="space-y-3 pt-2">
               <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">You Might Also Like</h2>
-              <SimilarComics comicId={id} contentRating={rec.content_rating} />
+             <SimilarComics
+  comicId={id}
+  contentRating={rec.content_rating}
+  showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
+/>
             </div>
 
           </div>

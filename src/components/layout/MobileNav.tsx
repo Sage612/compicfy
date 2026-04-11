@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  House, Plus, ScrollText, BookMarked, Search, Crown, LayoutList,
+  House, Plus, ScrollText, BookMarked, Radar, Crown, LayoutList     
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -90,7 +90,7 @@ export function MobileNav() {
 
   const navItems = [
     firstSlot,
-    { href: '/browse',                        label: 'Browse', icon: Search               },
+    { href: '/browse',                        label: 'Browse', icon: Radar               },
     { href: '/dashboard/recommendations/new', label: 'Add',    icon: Plus, isAdd: true    },
     { href: '/news',                          label: 'News',   icon: ScrollText            },
     lastSlot,

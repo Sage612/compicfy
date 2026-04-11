@@ -4,10 +4,11 @@ import { FilterBar } from '@/components/recommendations/FilterBar'
 import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
 import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
-import { BookOpen, Compass, Plus, Search } from 'lucide-react'
+import { BookOpen, Radar, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import type { Recommendation } from '@/types/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 interface SearchParams {
   q?: string
@@ -21,48 +22,53 @@ interface Props {
   searchParams: Promise<SearchParams>
 }
 
-const PAGE_SIZE = 24
+const PAGE_SIZE    = 24
+const SAFE_RATINGS = '("adult","mature")'
 
-async function getFeatured() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('daily_votes', { ascending: false }).limit(8)
-  return (data as Recommendation[]) ?? []
-}
-async function getTrending() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('daily_votes', { ascending: false }).limit(12)
-  return (data as Recommendation[]) ?? []
-}
-async function getRecent() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('created_at', { ascending: false }).limit(12)
-  return (data as Recommendation[]) ?? []
-}
-async function getAdminPicks() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).not('content_rating', 'in', '("adult","mature")').order('featured_at', { ascending: false }).limit(12)
-  return (data as Recommendation[]) ?? []
-}
-async function getCommunityFavourites() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(12)
-  return (data as Recommendation[]) ?? []
-}
-async function getHiddenGems() {
-  const s = await createClient()
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('save_count', { ascending: false }).limit(12)
-  return (data as Recommendation[]) ?? []
-}
-async function getYouMightLike(userId: string | null) {
-  const s = await createClient()
-  const { data } = await (s as any).rpc('get_personalized_recommendations', { p_user_id: userId, p_exclude_id: null, p_limit: 12, p_content_ratings: ['all_ages', 'teen'] })
+// ── All section fetchers share one client ────────────────────────
+
+async function getFeatured(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('daily_votes', { ascending: false }).limit(8)
   return (data as Recommendation[]) ?? []
 }
 
-async function getInitialGrid(params: SearchParams) {
-  const supabase = await createClient()
+async function getTrending(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('daily_votes', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
 
-  const { data } = await (supabase as any).rpc('search_recommendations', {
+async function getRecent(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('created_at', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+
+async function getAdminPicks(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).not('content_rating', 'in', SAFE_RATINGS).order('featured_at', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+
+async function getCommunityFavourites(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('score', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+
+async function getHiddenGems(s: SupabaseClient) {
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('save_count', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+
+async function getYouMightLike(s: SupabaseClient, userId: string | null) {
+  const { data } = await (s as any).rpc('get_personalized_recommendations', {
+    p_user_id:        userId,
+    p_exclude_id:     null,
+    p_limit:          12,
+    p_content_ratings: ['all_ages', 'teen'],
+  })
+  return (data as Recommendation[]) ?? []
+}
+
+async function getInitialGrid(s: SupabaseClient, params: SearchParams) {
+  const { data } = await (s as any).rpc('search_recommendations', {
     p_query:  params.q      || null,
     p_type:   params.type   || null,
     p_genre:  params.genre  || null,
@@ -73,11 +79,11 @@ async function getInitialGrid(params: SearchParams) {
     p_offset: 0,
   })
 
-  const { count } = await supabase
+  const { count } = await s
     .from('recommendations')
     .select('*', { count: 'exact', head: true })
     .eq('is_approved', true)
-    .not('content_rating', 'in', '("adult","mature")')
+    .not('content_rating', 'in', SAFE_RATINGS)
 
   return {
     items: (data as Recommendation[]) ?? [],
@@ -90,29 +96,44 @@ function hasActiveFilters(p: SearchParams) {
 }
 
 export default async function BrowsePage({ searchParams }: Props) {
-  const params = await searchParams
+  const params      = await searchParams
   const isFiltering = hasActiveFilters(params)
 
+  // ── Single shared client ─────────────────────────────────────────
   const supabase = await createClient()
+
   const { data: { user } } = await supabase.auth.getUser()
 
   let adultEnabled = false
   if (user) {
-    const { data: profile } = await supabase.from('profiles').select('adult_content_enabled').eq('id', user.id).single()
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('adult_content_enabled')
+      .eq('id', user.id)
+      .single()
     adultEnabled = (profile as any)?.adult_content_enabled === true
   }
 
-  const [featured, trending, recent, adminPicks, communityFavs, hiddenGems, youMightLike, { items, total }] =
-    await Promise.all([
-      isFiltering ? Promise.resolve([]) : getFeatured(),
-      isFiltering ? Promise.resolve([]) : getTrending(),
-      isFiltering ? Promise.resolve([]) : getRecent(),
-      isFiltering ? Promise.resolve([]) : getAdminPicks(),
-      isFiltering ? Promise.resolve([]) : getCommunityFavourites(),
-      isFiltering ? Promise.resolve([]) : getHiddenGems(),
-      isFiltering ? Promise.resolve([]) : getYouMightLike(user?.id ?? null),
-      getInitialGrid(params),
-    ])
+  // All parallel, all sharing the same client
+  const [
+    featured,
+    trending,
+    recent,
+    adminPicks,
+    communityFavs,
+    hiddenGems,
+    youMightLike,
+    { items, total },
+  ] = await Promise.all([
+    isFiltering ? Promise.resolve([]) : getFeatured(supabase),
+    isFiltering ? Promise.resolve([]) : getTrending(supabase),
+    isFiltering ? Promise.resolve([]) : getRecent(supabase),
+    isFiltering ? Promise.resolve([]) : getAdminPicks(supabase),
+    isFiltering ? Promise.resolve([]) : getCommunityFavourites(supabase),
+    isFiltering ? Promise.resolve([]) : getHiddenGems(supabase),
+    isFiltering ? Promise.resolve([]) : getYouMightLike(supabase, user?.id ?? null),
+    getInitialGrid(supabase, params),
+  ])
 
   const clientParams: Record<string, string> = { adult: 'false' }
   if (params.q)      clientParams.q      = params.q
@@ -128,7 +149,7 @@ export default async function BrowsePage({ searchParams }: Props) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
-            <Search size={17} className="text-white" />
+            <Radar size={17} className="text-white" />
           </div>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-3xl font-black tracking-tight leading-tight">Browse Comics</h1>
@@ -168,10 +189,10 @@ export default async function BrowsePage({ searchParams }: Props) {
         <div className="space-y-10">
           <HorizontalSection title="Trending Today"       emoji="🔥" recommendations={trending}      viewAllHref="/browse?sort=trending" />
           <HorizontalSection title="Recently Added"       emoji="✨" recommendations={recent}        viewAllHref="/browse?sort=recent"   />
-          {adminPicks.length > 0 && <HorizontalSection title="Admin Picks" emoji="👑" recommendations={adminPicks} />}
+          {adminPicks.length > 0    && <HorizontalSection title="Admin Picks"          emoji="👑" recommendations={adminPicks}                                            />}
           <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse?sort=score"    />
-          {hiddenGems.length > 0 && <HorizontalSection title="Hidden Gems" emoji="💎" recommendations={hiddenGems} />}
-          {youMightLike.length > 0 && (
+          {hiddenGems.length > 0    && <HorizontalSection title="Hidden Gems"          emoji="💎" recommendations={hiddenGems}                                            />}
+          {youMightLike.length > 0  && (
             <HorizontalSection title={user ? 'You Might Like' : 'Popular Picks'} emoji="🎯" recommendations={youMightLike} />
           )}
         </div>

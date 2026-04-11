@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
-  BookOpen, Compass, Search, Rss, ShoppingBag,
+  BookOpen, Compass, Radar, LayoutList, ShoppingBag,
   BookMarked, ChevronDown, Check, ArrowRight,
-  Sparkles, Globe, Bell, Loader2,
+  Sparkles, Globe, Bell, Loader2, 
 } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
 
@@ -24,7 +24,7 @@ type Step = typeof STEPS[number]
 
 const TOUR_ITEMS = [
   {
-    icon: Search,
+    icon: Radar,
     color: 'from-rose-500 to-pink-600',
     bg: 'bg-rose-500/10',
     text: 'text-rose-500',
@@ -33,7 +33,7 @@ const TOUR_ITEMS = [
     href: '/browse',
   },
   {
-    icon: Rss,
+    icon: LayoutList,
     color: 'from-primary to-violet-500',
     bg: 'bg-primary/10',
     text: 'text-primary',
@@ -157,7 +157,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             <div className="grid grid-cols-2 gap-3 text-left">
               {[
                 { icon: BookOpen,  text: 'Discover comics',        color: 'text-rose-500'    },
-                { icon: Rss,       text: 'Follow readers',          color: 'text-primary'     },
+                { icon: LayoutList, text: 'Follow readers',          color: 'text-primary'     },
                 { icon: BookMarked,text: 'Track your reading',      color: 'text-teal-500'    },
                 { icon: Globe,     text: 'Share recommendations',   color: 'text-emerald-500' },
               ].map(({ icon: Icon, text, color }) => (
