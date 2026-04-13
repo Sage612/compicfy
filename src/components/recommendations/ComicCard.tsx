@@ -28,15 +28,30 @@ const typeColors: Record<string, string> = {
   other:   'from-slate-500 to-zinc-600',
 }
 
+// Score tiers — gives users an instant quality signal
+function getScoreTier(score: number): {
+  label: string
+  color: string
+  bg:    string
+} {
+  if (score >= 100) return { label: `${formatNumber(score)}`,  color: 'text-amber-300',   bg: 'bg-amber-500/25'   }
+  if (score >= 50)  return { label: `${formatNumber(score)}`,  color: 'text-emerald-300', bg: 'bg-emerald-500/25' }
+  if (score >= 10)  return { label: `${formatNumber(score)}`,  color: 'text-sky-300',     bg: 'bg-sky-500/25'     }
+  if (score > 0)    return { label: `${formatNumber(score)}`,  color: 'text-white/70',    bg: 'bg-white/10'       }
+  return { label: '0', color: 'text-white/40', bg: 'bg-white/5' }
+}
+
 export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
   const status       = statusConfig[rec.status as keyof typeof statusConfig]
   const typeGradient = typeColors[rec.type] || typeColors.other
   const comicUrl     = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'}/comic/${rec.id}`
+  const score        = rec.score ?? (rec.upvotes - rec.downvotes)
+  const scoreTier    = getScoreTier(score)
 
   return (
     <div className={cn('group relative flex flex-col', className)}>
 
-      {/* ── Card — overflow-hidden stays but ShareButton is OUTSIDE it ── */}
+      {/* ── Card ── */}
       <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-900 shadow-md group-hover:shadow-2xl group-hover:shadow-black/40 transition-all duration-300 group-hover:-translate-y-1">
 
         {/* Cover */}
@@ -72,8 +87,21 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
           </span>
         </div>
 
-        {/* Age rating — hides on hover to make room for share button */}
-        {(rec.content_rating === 'adult' || rec.content_rating === 'mature') && (
+        {/* ── Score badge — top right, hides on hover for share button ── */}
+        {score > 0 && (
+          <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none z-10">
+            <span className={cn(
+              'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black backdrop-blur-sm',
+              scoreTier.bg, scoreTier.color
+            )}>
+              <ThumbsUp size={8} />
+              {scoreTier.label}
+            </span>
+          </div>
+        )}
+
+        {/* Age rating — only shown when no score or score is 0 */}
+        {(rec.content_rating === 'adult' || rec.content_rating === 'mature') && score <= 0 && (
           <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none">
             <span className={cn(
               'inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black text-white',
@@ -84,8 +112,8 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
           </div>
         )}
 
-        {/* Featured star — hides on hover */}
-        {rec.is_featured && (
+        {/* Featured star — only shown when no score */}
+        {rec.is_featured && score <= 0 && (
           <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none">
             <Star size={14} className="text-amber-400 fill-amber-400 drop-shadow-lg" />
           </div>
@@ -118,7 +146,7 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
         <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none" />
       </div>
 
-      {/* ── Share button — lives OUTSIDE overflow-hidden so dropdown escapes ── */}
+      {/* Share button — outside overflow-hidden */}
       <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
         <ShareButton title={rec.title} url={comicUrl} compact />
       </div>
