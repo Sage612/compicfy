@@ -117,7 +117,7 @@ export function PricingClient({ user, profile }: Props) {
           experience
         </h1>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">
-          Unlimited recommendations, analytics, custom themes and more. Cancel anytime.
+          Unlimited recommendations, unlimited list, analytics and more. Cancel anytime.
         </p>
       </div>
 
@@ -131,7 +131,7 @@ export function PricingClient({ user, profile }: Props) {
           <p className="text-sm text-muted-foreground">
             You have free access to all Pro features and more. No payment needed.
           </p>
-          <Link href="/dashboard">
+          <Link href="/pro/dashboard">
             <Button variant="outline" className="gap-2 mt-2">
               Go to Dashboard <ArrowRight size={14} />
             </Button>
@@ -152,7 +152,7 @@ export function PricingClient({ user, profile }: Props) {
               : 'Your Pro access is active.'}
           </p>
           <div className="flex gap-2 justify-center pt-1">
-            <Link href="/dashboard/billing">
+            <Link href="/pro/billing">
               <Button variant="outline" size="sm">Manage Billing</Button>
             </Link>
             <Link href="/pro/dashboard">

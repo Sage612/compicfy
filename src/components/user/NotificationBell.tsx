@@ -13,12 +13,12 @@ import { timeAgo } from '@/lib/utils/format'
 import { createClient } from '@/lib/supabase/client'
 
 interface Notification {
-  id: string
-  type: string
-  title: string
-  is_read: boolean
+  id:         string
+  type:       string
+  title:      string
+  is_read:    boolean
   created_at: string
-  data?: Record<string, any>
+  data?:      Record<string, any>
 }
 
 export function NotificationBell({ userId }: { userId: string }) {
@@ -27,7 +27,7 @@ export function NotificationBell({ userId }: { userId: string }) {
   const supabase = createClient()
 
   const fetchNotifications = useCallback(async () => {
-    const res = await fetch('/api/notifications')
+    const res  = await fetch('/api/notifications')
     const data = await res.json()
     setNotifications(data.notifications ?? [])
   }, [])
@@ -35,15 +35,14 @@ export function NotificationBell({ userId }: { userId: string }) {
   useEffect(() => {
     fetchNotifications()
 
-    // Realtime subscription for new notifications
     const channel = supabase
       .channel('notifications')
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event:  'INSERT',
           schema: 'public',
-          table: 'notifications',
+          table:  'notifications',
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
@@ -56,7 +55,7 @@ export function NotificationBell({ userId }: { userId: string }) {
   }, [userId, fetchNotifications])
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
-  const preview = notifications.slice(0, 5)
+  const preview     = notifications.slice(0, 5)
 
   const markAllRead = async () => {
     await fetch('/api/notifications', { method: 'PATCH' })
@@ -93,11 +92,26 @@ export function NotificationBell({ userId }: { userId: string }) {
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-80 p-0" sideOffset={8}>
+      {/* ── KEY FIX ─────────────────────────────────────────────────
+          align="end"  keeps it right-aligned on desktop.
+          collisionPadding={12} tells Radix to keep 12px away from
+          every viewport edge — on mobile it auto-shifts left so the
+          320px panel never bleeds off screen.
+          w-[calc(100vw-24px)] caps width on very small screens while
+          sm:w-80 restores the fixed width on larger ones.           */}
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        collisionPadding={12}
+        className="w-[calc(100vw-24px)] sm:w-80 p-0"
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <span className="text-sm font-semibold">Notifications</span>
           {unreadCount > 0 && (
-            <button onClick={markAllRead} className="text-xs text-primary hover:underline">
+            <button
+              onClick={markAllRead}
+              className="text-xs text-primary hover:underline"
+            >
               Mark all read
             </button>
           )}
