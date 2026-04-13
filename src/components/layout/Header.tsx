@@ -17,10 +17,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Sun, Moon, Monitor, BookOpen, Radar, ScrollText,
+  Sun, Moon, Monitor, Radar, ScrollText,
   LayoutDashboard, Settings, LogOut, Plus,
-  User as UserIcon, Bookmark, Bell,
-  ShoppingBag, BookMarked, Crown, CreditCard, Sparkles, LayoutList,
+  User as UserIcon, Bell,
+  ShoppingBag, Crown, CreditCard, Sparkles, LayoutList,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -53,7 +53,6 @@ export function Header() {
   const [scrolled, setScrolled]       = useState(false)
   const [visible, setVisible]         = useState(true)
   const [isPro, setIsPro]             = useState(false)
-  const [isAdmin, setIsAdmin]         = useState(false)
   const [role, setRole]               = useState<string>('user')
   const [authReady, setAuthReady]     = useState(false)
   const lastScrollY                   = useRef(0)
@@ -96,7 +95,6 @@ export function Header() {
           setDisplayName(profile.display_name || profile.username)
           setUsername(profile.username)
           setRole(profile.role)
-          setIsAdmin(['admin', 'moderator'].includes(profile.role))
           setIsPro(
             profile.role === 'admin' ||
             (profile.is_pro &&
@@ -116,7 +114,6 @@ export function Header() {
         setDisplayName(null)
         setUsername(null)
         setIsPro(false)
-        setIsAdmin(false)
         setRole('user')
       }
       setAuthReady(true)
@@ -132,10 +129,7 @@ export function Header() {
     router.refresh()
   }
 
-  // All three gated behind mounted + authReady to prevent flash
   const showProLink   = mounted && authReady && !isPro && !!user
-  const listsHref     = mounted && authReady && isPro ? '/pro/lists'     : '/dashboard/lists'
-  const listsLabel    = mounted && authReady && isPro ? 'Pro Lists'      : 'Lists'
   const billingHref   = mounted && authReady && isPro ? '/pro/billing'   : '/dashboard/billing'
   const billingLabel  = mounted && authReady && isPro ? 'Pro Billing'    : 'Billing'
 
@@ -149,8 +143,7 @@ export function Header() {
   ]
 
   const authNavLinks = [
-    { href: '/feed',   label: 'Feed',  icon: LayoutList },
-    { href: listsHref, label: listsLabel, icon: BookMarked },
+    { href: '/feed',   label: 'Feed',   icon: LayoutList },
   ]
 
   const themeOptions = [
@@ -175,7 +168,6 @@ export function Header() {
     >
       <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between gap-4">
 
-        {/* ── Logo ── */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
           <div className={cn(
             'w-8 h-8 rounded-xl flex items-center justify-center',
@@ -191,7 +183,6 @@ export function Header() {
           </span>
         </Link>
 
-        {/* ── Center nav (desktop only) ── */}
         <nav className="hidden md:flex items-center gap-0.5">
           {publicNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
@@ -233,7 +224,6 @@ export function Header() {
             )
           })}
 
-          {/* Pro link — hidden for pro/admin, no flash because gated behind mounted + authReady */}
           {showProLink && (
             <Link
               href="/pricing"
@@ -250,12 +240,9 @@ export function Header() {
           )}
         </nav>
 
-        {/* ── Right actions ── */}
         <div className="flex items-center gap-2 flex-1 justify-end">
           <GlobalSearch />
           <div className="flex items-center gap-1">
-
-            {/* Theme toggle */}
             {mounted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -283,7 +270,6 @@ export function Header() {
               </DropdownMenu>
             )}
 
-            {/* ── Logged out ── */}
             {authReady && !user && (
               <div className="flex items-center gap-1.5 ml-1">
                 <Link href="/login">
@@ -299,10 +285,8 @@ export function Header() {
               </div>
             )}
 
-            {/* ── Logged in ── */}
             {authReady && user && (
               <div className="flex items-center gap-1 ml-0.5">
-
                 <Link href="/dashboard/recommendations/new" className="hidden md:flex">
                   <Button
                     size="sm"
@@ -328,7 +312,6 @@ export function Header() {
                   </DropdownMenuTrigger>
 
                   <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
-
                     <DropdownMenuLabel className="font-normal px-2 py-2 mb-0.5">
                       <div className="flex items-center gap-2.5">
                         <Avatar className="h-9 w-9 shrink-0">
@@ -369,44 +352,6 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
 
-                    {role === 'admin' && (
-                      <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                        <Link href="/dashboard">
-                          <LayoutDashboard size={13} className="text-muted-foreground shrink-0" />
-                          Dashboard
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-
-                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                      <Link href="/dashboard/recommendations">
-                        <BookOpen size={13} className="text-muted-foreground" />
-                        My Recommendations
-                      </Link>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                      <Link href="/dashboard/saved">
-                        <Bookmark size={13} className="text-muted-foreground" />
-                        Saved Comics
-                      </Link>
-                    </DropdownMenuItem>
-
-                    {/* Lists — pro or normal */}
-                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                      <Link
-                        href={listsHref}
-                        className={cn(isPro && 'text-amber-600 font-semibold')}
-                      >
-                        {isPro ? (
-                          <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
-                        ) : (
-                          <BookMarked size={13} className="text-muted-foreground shrink-0" />
-                        )}
-                        {listsLabel}
-                      </Link>
-                    </DropdownMenuItem>
-
                     <DropdownMenuSeparator className="my-1" />
 
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
@@ -423,7 +368,6 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
 
-                    {/* Billing — pro or normal */}
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
                       <Link
                         href={billingHref}
@@ -438,7 +382,6 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
 
-                    {/* Upgrade to Pro — hidden for pro/admin */}
                     {showProLink && (
                       <>
                         <DropdownMenuSeparator className="my-1" />
