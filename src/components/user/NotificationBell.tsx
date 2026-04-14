@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Bell } from 'lucide-react'
+import { Bell, BellOff } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import {
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { timeAgo } from '@/lib/utils/format'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 
 interface Notification {
   id:         string
@@ -21,15 +22,99 @@ interface Notification {
   data?:      Record<string, any>
 }
 
+// Convert VAPID public key from base64 to Uint8Array
+// AFTER
+function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
+  const padding  = '='.repeat((4 - base64String.length % 4) % 4)
+  const base64   = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData  = window.atob(base64)
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0))).buffer as ArrayBuffer
+}
+
+async function subscribeToPush(): Promise<boolean> {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false
+
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') return false
+
+    const reg = await navigator.serviceWorker.register('/sw.js')
+    await navigator.serviceWorker.ready
+
+    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    if (!vapidKey) { console.warn('No VAPID public key set'); return false }
+
+    const subscription = await reg.pushManager.subscribe({
+      userVisibleOnly:      true,
+      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    })
+
+    const sub = subscription.toJSON()
+    const res = await fetch('/api/push/subscribe', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        endpoint: sub.endpoint,
+        keys:     sub.keys,
+      }),
+    })
+
+    return res.ok
+  } catch (err) {
+    console.error('Push subscription error:', err)
+    return false
+  }
+}
+
+async function unsubscribeFromPush(): Promise<boolean> {
+  try {
+    if (!('serviceWorker' in navigator)) return false
+
+    const reg          = await navigator.serviceWorker.getRegistration('/sw.js')
+    if (!reg) return false
+
+    const subscription = await reg.pushManager.getSubscription()
+    if (!subscription) return false
+
+    await fetch('/api/push/subscribe', {
+      method:  'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ endpoint: subscription.endpoint }),
+    })
+
+    await subscription.unsubscribe()
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function NotificationBell({ userId }: { userId: string }) {
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [open, setOpen] = useState(false)
+  const [notifications,   setNotifications]   = useState<Notification[]>([])
+  const [open,            setOpen]            = useState(false)
+  const [pushEnabled,     setPushEnabled]     = useState<boolean | null>(null)
+  const [pushLoading,     setPushLoading]     = useState(false)
   const supabase = createClient()
 
   const fetchNotifications = useCallback(async () => {
     const res  = await fetch('/api/notifications')
     const data = await res.json()
     setNotifications(data.notifications ?? [])
+  }, [])
+
+  // Check current push permission state
+  useEffect(() => {
+    const checkPush = async () => {
+      if (!('Notification' in window) || !('serviceWorker' in navigator)) return
+      if (Notification.permission === 'denied') { setPushEnabled(false); return }
+
+      const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+      if (!reg) { setPushEnabled(false); return }
+
+      const sub = await reg.pushManager.getSubscription()
+      setPushEnabled(!!sub)
+    }
+    checkPush()
   }, [])
 
   useEffect(() => {
@@ -76,6 +161,33 @@ export function NotificationBell({ userId }: { userId: string }) {
     }
   }
 
+  const handleTogglePush = async () => {
+    setPushLoading(true)
+    try {
+      if (pushEnabled) {
+        const ok = await unsubscribeFromPush()
+        if (ok) {
+          setPushEnabled(false)
+          toast.success('Push notifications disabled')
+        }
+      } else {
+        if (Notification.permission === 'denied') {
+          toast.error('Notifications blocked — enable them in your browser settings')
+          return
+        }
+        const ok = await subscribeToPush()
+        if (ok) {
+          setPushEnabled(true)
+          toast.success('Push notifications enabled! 🔔')
+        } else {
+          toast.error('Could not enable push notifications')
+        }
+      }
+    } finally {
+      setPushLoading(false)
+    }
+  }
+
   return (
     <DropdownMenu open={open} onOpenChange={handleOpen}>
       <DropdownMenuTrigger asChild>
@@ -92,41 +204,76 @@ export function NotificationBell({ userId }: { userId: string }) {
         </button>
       </DropdownMenuTrigger>
 
-      {/* ── KEY FIX ─────────────────────────────────────────────────
-          align="end"  keeps it right-aligned on desktop.
-          collisionPadding={12} tells Radix to keep 12px away from
-          every viewport edge — on mobile it auto-shifts left so the
-          320px panel never bleeds off screen.
-          w-[calc(100vw-24px)] caps width on very small screens while
-          sm:w-80 restores the fixed width on larger ones.           */}
       <DropdownMenuContent
         align="end"
         sideOffset={8}
         collisionPadding={12}
         className="w-[calc(100vw-24px)] sm:w-80 p-0"
       >
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <span className="text-sm font-semibold">Notifications</span>
-          {unreadCount > 0 && (
-            <button
-              onClick={markAllRead}
-              className="text-xs text-primary hover:underline"
-            >
-              Mark all read
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Push toggle */}
+            {pushEnabled !== null && 'Notification' in window && (
+              <button
+                onClick={handleTogglePush}
+                disabled={pushLoading}
+                className={cn(
+                  'flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border transition-all',
+                  pushEnabled
+                    ? 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
+                    : 'border-border text-muted-foreground hover:border-primary/40 hover:text-primary'
+                )}
+                title={pushEnabled ? 'Disable push notifications' : 'Enable push notifications'}
+              >
+                {pushEnabled
+                  ? <><Bell size={9} /> On</>
+                  : <><BellOff size={9} /> Off</>
+                }
+              </button>
+            )}
+            {unreadCount > 0 && (
+              <button
+                onClick={markAllRead}
+                className="text-xs text-primary hover:underline"
+              >
+                Mark all read
+              </button>
+            )}
+          </div>
         </div>
 
+        {/* Push prompt — shown once if permission not yet asked */}
+        {'Notification' in window && Notification.permission === 'default' && pushEnabled === false && (
+          <div className="px-4 py-3 border-b border-border bg-primary/5">
+            <p className="text-xs font-semibold text-foreground">Stay in the loop</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5 mb-2">
+              Get notified when someone votes or reviews your comics
+            </p>
+            <button
+              onClick={handleTogglePush}
+              disabled={pushLoading}
+              className="w-full h-7 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
+            >
+              Enable notifications 🔔
+            </button>
+          </div>
+        )}
+
+        {/* Notification list */}
         <div className="max-h-80 overflow-y-auto">
           {preview.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground text-sm">
               <Bell size={24} className="mx-auto mb-2 opacity-30" />
-              No notifications
+              No notifications yet
             </div>
           ) : (
             preview.map((notif) => {
               const href = notif.data?.recommendation_id
                 ? `/comic/${notif.data.recommendation_id}`
+                : notif.data?.follower_id
+                ? `/profile/${notif.data.follower_id}`
                 : '/dashboard/notifications'
 
               return (

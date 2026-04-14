@@ -599,6 +599,34 @@ export type Database = {
         Update: Record<string, never>
       }
 
+      push_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          // The browser push endpoint URL (unique per browser/device)
+          endpoint: string
+          // ECDH public key from the browser subscription
+          p256dh: string
+          // Authentication secret from the browser subscription
+          auth: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          endpoint: string
+          p256dh: string
+          auth: string
+        }
+        Update: {
+          endpoint?: string
+          p256dh?: string
+          auth?: string
+          updated_at?: string
+        }
+      }
+
       daily_featured: {
         Row: {
           id: string
@@ -694,6 +722,10 @@ export type Notification = Database['public']['Tables']['notifications']['Row']
 export type Report       = Database['public']['Tables']['reports']['Row']
 export type ActivityLog  = Database['public']['Tables']['activity_logs']['Row']
 export type DailyFeatured = Database['public']['Tables']['daily_featured']['Row']
+
+export type PushSubscription       = Database['public']['Tables']['push_subscriptions']['Row']
+export type PushSubscriptionInsert = Database['public']['Tables']['push_subscriptions']['Insert']
+export type PushSubscriptionUpdate = Database['public']['Tables']['push_subscriptions']['Update']
 
 export type ReadingList           = Database['public']['Tables']['reading_lists']['Row']
 export type ReadingListItem       = Database['public']['Tables']['reading_list_items']['Row']
