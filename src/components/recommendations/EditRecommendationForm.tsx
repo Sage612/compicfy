@@ -16,6 +16,7 @@ import { PlatformSelector } from './PlatformSelector'
 import { toast } from 'sonner'
 import { Loader2, BookOpen, AlertTriangle, Tag, FileText, Globe, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 
 const formSchema = z.object({
   title:              z.string().min(1, 'Title is required').max(200),
@@ -91,6 +92,8 @@ interface Props {
 export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
+  const [isPro, setIsPro] = useState<boolean | null>(null)
+  const supabase = createClient()
 
   const { register, handleSubmit, control, watch, setValue, formState: { errors, isDirty } } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
@@ -115,6 +118,30 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
   const descValue = watch('description') || ''
   const whyValue  = watch('why_recommend') || ''
 
+  // ── Fetch pro status ──
+  useEffect(() => {
+    const fetchProStatus = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile } = await (supabase as any)
+        .from('profiles')
+        .select('is_pro, pro_expires_at, role')
+        .eq('id', user.id)
+        .single()
+
+      if (!profile) return
+
+      const proStatus =
+        profile.role === 'admin' ||
+        ['admin', 'moderator'].includes(profile.role) ||
+        (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+
+      setIsPro(proStatus)
+    }
+    fetchProStatus()
+  }, [])
+
   const onSubmit = async (data: FormValues) => {
     setSubmitting(true)
     try {
@@ -131,7 +158,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       }
 
       toast.success('Recommendation updated! It will be reviewed before going live.')
-      router.push('/dashboard/recommendations')
+      router.push(isPro ? '/pro/recommendations' : '/dashboard/recommendations')
       router.refresh()
     } catch {
       toast.error('Something went wrong')
@@ -346,7 +373,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
         <Button
           type="button"
           variant="ghost"
-          onClick={() => router.push('/dashboard/recommendations')}
+          onClick={() => router.push(isPro ? '/pro/recommendations' : '/dashboard/recommendations')}
           disabled={submitting}
         >
           Cancel

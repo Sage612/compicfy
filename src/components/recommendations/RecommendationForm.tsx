@@ -230,7 +230,7 @@ export function RecommendationForm({ userId }: Props) {
 
       if (!response.ok) { toast.error(result.error || 'Failed to submit'); return }
       toast.success(result.recommendation.is_approved ? 'Recommendation published!' : 'Recommendation submitted for review!')
-      router.push('/dashboard/recommendations')
+      router.push(isPro ? '/pro/recommendations' : '/dashboard/recommendations')
       router.refresh()
     } catch (error) {
       console.error(error)
