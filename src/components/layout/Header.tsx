@@ -20,7 +20,7 @@ import {
   Sun, Moon, Monitor, Radar, ScrollText,
   LayoutDashboard, Settings, LogOut, Plus,
   User as UserIcon, Bell,
-  ShoppingBag, Crown, CreditCard, Sparkles, LayoutList,
+  ShoppingBag, Crown, CreditCard, Sparkles, LayoutList, BookMarked
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -128,13 +128,20 @@ export function Header() {
     router.push('/')
     router.refresh()
   }
+  // Custom Visibility Logic: Admin and Pro users don't see the crown link.
+  // Moderators (mod) and regular users (user) do see it if they aren't Pro.
+  const showProLink = mounted && authReady && !!user && !isPro && (role === 'user' || role === 'mod')
 
-  const showProLink   = mounted && authReady && !isPro && !!user
-  const billingHref   = mounted && authReady && isPro ? '/pro/billing'   : '/dashboard/billing'
-  const billingLabel  = mounted && authReady && isPro ? 'Pro Billing'    : 'Billing'
+  // Navigation Logic
+const dashboardHref  = isPro ? '/pro/dashboard'     : '/dashboard'
+const listsHref      = isPro ? '/pro/lists'         : '/dashboard/lists'
+const billingHref    = isPro ? '/pro/billing'       : '/dashboard/billing'
+const settingsHref   = isPro ? '/pro/settings'      : '/dashboard/settings'
+const notificationsHref     = isPro ? '/pro/notifications' : '/dashboard/notifications'
 
-  const dashboardHref  = isPro ? '/pro/dashboard' : '/dashboard'
-  const dashboardLabel = isPro ? 'Pro Dashboard'  : 'Dashboard'
+const dashboardLabel = isPro ? 'Pro Dashboard' : 'Dashboard'
+const billingLabel   = isPro ? 'Pro Billing'   : 'Billing'
+const listsLabel     = isPro ? 'Pro Lists'     : 'Lists'
 
   const publicNavLinks = [
     { href: '/browse',    label: 'Browse', icon: Radar      },
@@ -144,6 +151,7 @@ export function Header() {
 
   const authNavLinks = [
     { href: '/feed',   label: 'Feed',   icon: LayoutList },
+    { href: listsHref, label: listsLabel, icon: BookMarked }, // Restored Lists to Header
   ]
 
   const themeOptions = [
@@ -355,18 +363,17 @@ export function Header() {
                     <DropdownMenuSeparator className="my-1" />
 
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                      <Link href="/dashboard/notifications">
-                        <Bell size={13} className="text-muted-foreground" />
-                        Notifications
-                      </Link>
-                    </DropdownMenuItem>
-
+  <Link href={notificationsHref}>
+    <Bell size={13} className="text-muted-foreground" />
+    Notifications
+  </Link>
+</DropdownMenuItem>
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                      <Link href="/dashboard/settings">
-                        <Settings size={13} className="text-muted-foreground" />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
+  <Link href={settingsHref}>
+    <Settings size={13} className={cn(isPro ? "text-amber-500" : "text-muted-foreground")} />
+    Settings
+  </Link>
+</DropdownMenuItem>
 
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
                       <Link

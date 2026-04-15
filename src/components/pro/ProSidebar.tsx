@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BookOpen, Bookmark, BookMarked,
   Bell, Settings, CreditCard, Crown,
   BarChart2, Eye, Download, Trophy, Sparkles,
-  Shield, Palette, Star,
+  Shield, Star,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -14,27 +14,24 @@ interface ProSidebarProps {
   role: string
 }
 
-// Pro-exclusive tools
 const proItems = [
-  { href: '/pro/dashboard',     label: 'Pro Dashboard',  icon: LayoutDashboard, exact: true },
-  { href: '/pro/analytics',     label: 'Analytics',      icon: BarChart2 },
-  { href: '/pro/profile-views', label: 'Profile Views',  icon: Eye },
-  { href: '/pro/export',        label: 'Export Lists',   icon: Download },
-  { href: '/pro/leaderboard',   label: 'Leaderboard',    icon: Trophy },
+  { href: '/pro/dashboard', label: 'Pro Dashboard', icon: LayoutDashboard, exact: true },
+  { href: '/pro/analytics', label: 'Analytics', icon: BarChart2 },
+  { href: '/pro/profile-views', label: 'Profile Views', icon: Eye },
+  { href: '/pro/export', label: 'Export Lists', icon: Download },
+  { href: '/pro/leaderboard', label: 'Leaderboard', icon: Trophy },
 ]
 
-// Pro versions of platform pages — same data, pro feel
 const platformItems = [
-  { href: '/pro/recommendations', label: 'My Comics',      icon: BookOpen },
-  { href: '/pro/saved',           label: 'Saved Comics',   icon: Bookmark },
-  { href: '/pro/lists',           label: 'Reading Lists',  icon: BookMarked },
-  { href: '/pro/reviews',         label: 'My Reviews',     icon: Star },
-  { href: '/pro/notifications',   label: 'Notifications',  icon: Bell },
-  { href: '/pro/settings',        label: 'Settings',       icon: Settings },
-  { href: '/pro/billing',         label: 'Billing',        icon: CreditCard },
+  { href: '/pro/recommendations', label: 'My Comics', icon: BookOpen },
+  { href: '/pro/saved', label: 'Saved Comics', icon: Bookmark },
+  { href: '/pro/lists', label: 'Reading Lists', icon: BookMarked },
+  { href: '/pro/reviews', label: 'My Reviews', icon: Star },
+  { href: '/pro/notifications', label: 'Notifications', icon: Bell },
+  { href: '/pro/settings', label: 'Settings', icon: Settings },
+  { href: '/pro/billing', label: 'Billing', icon: CreditCard },
 ]
 
-// Admin shortcut
 const adminItems = [
   { href: '/admin', label: 'Admin Panel', icon: Shield },
 ]
@@ -45,7 +42,6 @@ export function ProSidebar({ role }: ProSidebarProps) {
 
   return (
     <div className="flex flex-col gap-0.5 h-full">
-
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-3 mb-1">
         <div className="flex items-center gap-2.5">
@@ -63,7 +59,6 @@ export function ProSidebar({ role }: ProSidebarProps) {
       </div>
 
       <nav className="flex flex-col gap-0.5 flex-1 overflow-y-auto">
-
         {/* Pro Tools */}
         {proItems.map(({ href, label, icon: Icon, exact }) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
@@ -82,7 +77,7 @@ export function ProSidebar({ role }: ProSidebarProps) {
                 'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all',
                 isActive
                   ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30'
-                  : 'bg-muted group-hover:bg-accent'
+                  : 'bg-amber-500/5 group-hover:bg-amber-500/10'
               )}>
                 <Icon size={14} />
               </div>
@@ -94,8 +89,7 @@ export function ProSidebar({ role }: ProSidebarProps) {
 
         <div className="my-3 border-t border-border/50" />
 
-        {/* Platform — Pro versions */}
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 py-1 mb-1">
+        <p className="text-[10px] font-black uppercase tracking-widest text-amber-600/60 px-3 py-1 mb-1">
           Platform
         </p>
         {platformItems.map(({ href, label, icon: Icon }) => {
@@ -107,25 +101,24 @@ export function ProSidebar({ role }: ProSidebarProps) {
               className={cn(
                 'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
                 isActive
-                  ? 'bg-primary/10 text-primary'
+                  ? 'bg-amber-500/10 text-amber-600 border border-amber-500/10'
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
               )}
             >
               <div className={cn(
                 'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all',
                 isActive
-                  ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
-                  : 'bg-muted group-hover:bg-accent'
+                  ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30'
+                  : 'bg-amber-500/5 group-hover:bg-amber-500/10'
               )}>
                 <Icon size={14} />
               </div>
               <span className="truncate flex-1">{label}</span>
-              {isActive && <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
+              {isActive && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />}
             </Link>
           )
         })}
 
-        {/* Admin */}
         {isAdmin && (
           <>
             <div className="my-3 border-t border-border/50" />
@@ -157,7 +150,6 @@ export function ProSidebar({ role }: ProSidebarProps) {
         )}
       </nav>
 
-      {/* Footer */}
       <div className="mt-auto pt-3 border-t border-amber-500/10">
         <div className="flex items-center gap-2 px-3 py-2">
           <Sparkles size={12} className="text-amber-500/60 animate-pulse" />
