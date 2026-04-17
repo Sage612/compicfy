@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils'
 import {
   BookOpen, Compass, Radar, LayoutList, ShoppingBag,
   BookMarked, ChevronDown, Check, ArrowRight,
-  Sparkles, Globe, Bell, Loader2, 
+  Sparkles, Globe, Bell, Loader2, ThumbsUp, Bookmark,
 } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
+import Image from 'next/image'
 
 interface Props {
   userId: string
@@ -19,71 +20,57 @@ interface Props {
   initialGenres: string[]
 }
 
-const STEPS = ['welcome', 'genres', 'tour', 'done'] as const
+// welcome → genres → discover → tour → done
+const STEPS = ['welcome', 'genres', 'discover', 'tour', 'done'] as const
 type Step = typeof STEPS[number]
 
 const TOUR_ITEMS = [
   {
     icon: Radar,
     color: 'from-rose-500 to-pink-600',
-    bg: 'bg-rose-500/10',
-    text: 'text-rose-500',
     title: 'Browse',
     desc: 'Discover manga, manhwa, manhua and webtoons recommended by the community.',
-    href: '/browse',
   },
   {
     icon: LayoutList,
     color: 'from-primary to-violet-500',
-    bg: 'bg-primary/10',
-    text: 'text-primary',
     title: 'Following Feed',
     desc: 'See the latest recommendations from people you follow — like a Twitter for comics.',
-    href: '/feed',
   },
   {
     icon: BookMarked,
     color: 'from-teal-500 to-cyan-600',
-    bg: 'bg-teal-500/10',
-    text: 'text-teal-500',
     title: 'Reading Lists',
     desc: 'Organise your reading — Currently Reading, Plan to Read, Completed and more.',
-    href: '/dashboard/lists',
-  },
-  {
-    icon: ShoppingBag,
-    color: 'from-amber-500 to-orange-500',
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-500',
-    title: 'Shop',
-    desc: 'Find manga volumes, figures, and kawaii merchandise from our affiliate partners.',
-    href: '/affiliate',
-  },
-  {
-    icon: ChevronDown,
-    color: 'from-violet-500 to-purple-600',
-    bg: 'bg-violet-500/10',
-    text: 'text-violet-500',
-    title: 'Your Menu',
-    desc: 'Click your avatar in the top right — your profile, dashboard, notifications and settings are all there.',
-    href: null,
   },
   {
     icon: Bell,
     color: 'from-emerald-500 to-teal-500',
-    bg: 'bg-emerald-500/10',
-    text: 'text-emerald-500',
     title: 'Notifications',
-    desc: 'Get notified when someone votes on your recommendation, follows you, or leaves a review.',
-    href: '/dashboard/notifications',
+    desc: 'Get notified when someone votes on your recommendation or follows you.',
   },
 ]
 
+interface ComicPreview {
+  id: string
+  title: string
+  cover_url: string | null
+  type: string
+  genres: string[]
+  upvotes: number
+}
+
 export function OnboardingFlow({ userId, username, displayName, initialGenres }: Props) {
   const router = useRouter()
-  const [step, setStep] = useState<Step>('welcome')
+  const [step, setStep]                   = useState<Step>('welcome')
   const [selectedGenres, setSelectedGenres] = useState<string[]>(initialGenres)
-  const [saving, setSaving] = useState(false)
+  const [saving, setSaving]               = useState(false)
+
+  // discover step state
+  const [comics, setComics]               = useState<ComicPreview[]>([])
+  const [loadingComics, setLoadingComics] = useState(false)
+  const [votedIds, setVotedIds]           = useState<Set<string>>(new Set())
+  const [savedIds, setSavedIds]           = useState<Set<string>>(new Set())
 
   const currentStepIndex = STEPS.indexOf(step)
   const progress = (currentStepIndex / (STEPS.length - 1)) * 100
@@ -92,19 +79,70 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
     setSelectedGenres(prev =>
       prev.includes(genre)
         ? prev.filter(g => g !== genre)
-        : prev.length < 10
-          ? [...prev, genre]
-          : prev
+        : prev.length < 10 ? [...prev, genre] : prev
     )
   }
 
+  // ── Load comics matching selected genres ──────────────────────────────────
+  const loadDiscoverComics = async () => {
+    setLoadingComics(true)
+    try {
+      const genreParam = selectedGenres.length > 0
+        ? `&genre=${encodeURIComponent(selectedGenres[0])}`
+        : ''
+      const res  = await fetch(`/api/recommendations?limit=6&sort=score${genreParam}&adult=false`)
+      const data = await res.json()
+      setComics(data.recommendations ?? [])
+    } catch {
+      setComics([])
+    } finally {
+      setLoadingComics(false)
+    }
+  }
+
+  const goToDiscover = async () => {
+    setStep('discover')
+    await loadDiscoverComics()
+  }
+
+  // ── Upvote a comic from onboarding ───────────────────────────────────────
+  const handleVote = async (comicId: string) => {
+    if (votedIds.has(comicId)) return
+    setVotedIds(prev => new Set([...prev, comicId]))
+    try {
+      await fetch(`/api/recommendations/${comicId}/vote`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ vote_type: 'up' }),
+      })
+    } catch {
+      // silent — don't break onboarding over a failed vote
+    }
+  }
+
+  // ── Save a comic from onboarding ─────────────────────────────────────────
+  const handleSave = async (comicId: string) => {
+    if (savedIds.has(comicId)) return
+    setSavedIds(prev => new Set([...prev, comicId]))
+    try {
+      await fetch('/api/saves', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ recommendation_id: comicId }),
+      })
+    } catch {
+      // silent
+    }
+  }
+
+  // ── Complete onboarding ──────────────────────────────────────────────────
   const handleComplete = async () => {
     setSaving(true)
     try {
       const res = await fetch('/api/onboarding/complete', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ favorite_genres: selectedGenres }),
+        body:    JSON.stringify({ favorite_genres: selectedGenres }),
       })
       if (!res.ok) throw new Error()
       router.push('/browse')
@@ -153,13 +191,12 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
               </p>
             </div>
 
-            {/* What you can do */}
             <div className="grid grid-cols-2 gap-3 text-left">
               {[
-                { icon: BookOpen,  text: 'Discover comics',        color: 'text-rose-500'    },
-                { icon: LayoutList, text: 'Follow readers',          color: 'text-primary'     },
-                { icon: BookMarked,text: 'Track your reading',      color: 'text-teal-500'    },
-                { icon: Globe,     text: 'Share recommendations',   color: 'text-emerald-500' },
+                { icon: BookOpen,   text: 'Discover comics',      color: 'text-rose-500'    },
+                { icon: LayoutList, text: 'Follow readers',        color: 'text-primary'     },
+                { icon: BookMarked, text: 'Track your reading',    color: 'text-teal-500'    },
+                { icon: Globe,      text: 'Share recommendations', color: 'text-emerald-500' },
               ].map(({ icon: Icon, text, color }) => (
                 <div key={text} className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/50 border border-border">
                   <Icon size={15} className={color} />
@@ -183,7 +220,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             <div className="space-y-2">
               <h2 className="text-2xl font-black tracking-tight">What do you like?</h2>
               <p className="text-sm text-muted-foreground">
-                Pick your favourite genres — we'll use this to personalise your recommendations.
+                Pick your favourite genres — we'll show you matching comics next.
                 <span className="text-muted-foreground/60 ml-1">({selectedGenres.length}/10)</span>
               </p>
             </div>
@@ -214,36 +251,141 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button
-                variant="ghost"
-                onClick={() => setStep('welcome')}
-                className="flex-1"
-              >
+              <Button variant="ghost" onClick={() => setStep('welcome')} className="flex-1">
                 Back
               </Button>
               <Button
-                onClick={() => setStep('tour')}
-                className="flex-2 gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20 font-bold flex-1"
+                onClick={goToDiscover}
+                className="flex-1 gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20 font-bold"
               >
-                {selectedGenres.length === 0 ? 'Skip for now' : 'Next'}
+                {selectedGenres.length === 0 ? 'Skip for now' : 'Show me comics'}
                 <ArrowRight size={15} />
               </Button>
             </div>
           </div>
         )}
 
-        {/* ── STEP 3: Tour ── */}
+        {/* ── STEP 3: Discover — rate some comics ── */}
+        {step === 'discover' && (
+          <div className="rounded-3xl border border-border bg-card p-8 space-y-6">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black tracking-tight">
+                {selectedGenres.length > 0
+                  ? `Top picks for you 🎯`
+                  : `Popular right now 🔥`}
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Upvote anything that catches your eye — it helps us personalise your feed.
+              </p>
+            </div>
+
+            {/* Comic cards */}
+            {loadingComics ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="rounded-2xl bg-muted animate-pulse aspect-[3/4]" />
+                ))}
+              </div>
+            ) : comics.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                <BookOpen size={32} className="mx-auto mb-3 opacity-30" />
+                No comics found yet — the community is just getting started!
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {comics.map((comic) => {
+                  const voted = votedIds.has(comic.id)
+                  const saved = savedIds.has(comic.id)
+                  return (
+                    <div
+                      key={comic.id}
+                      className="group relative rounded-2xl border border-border overflow-hidden bg-muted/30 flex flex-col"
+                    >
+                      {/* Cover */}
+                      <div className="relative aspect-[3/4] bg-muted overflow-hidden">
+                        {comic.cover_url ? (
+                          <Image
+                            src={comic.cover_url}
+                            alt={comic.title}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                            sizes="(max-width: 640px) 50vw, 33vw"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-violet-500/20">
+                            <BookOpen size={24} className="text-primary/40" />
+                          </div>
+                        )}
+                        {/* Type badge */}
+                        <span className="absolute top-2 left-2 text-[10px] font-black uppercase px-1.5 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-sm">
+                          {comic.type}
+                        </span>
+                      </div>
+
+                      {/* Info + actions */}
+                      <div className="p-2.5 space-y-2 flex-1 flex flex-col justify-between">
+                        <p className="text-xs font-bold leading-tight line-clamp-2">{comic.title}</p>
+                        <div className="flex items-center gap-1.5">
+                          {/* Upvote */}
+                          <button
+                            onClick={() => handleVote(comic.id)}
+                            className={cn(
+                              'flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[10px] font-bold border transition-all',
+                              voted
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                            )}
+                          >
+                            <ThumbsUp size={10} />
+                            {voted ? 'Voted' : 'Vote'}
+                          </button>
+                          {/* Save */}
+                          <button
+                            onClick={() => handleSave(comic.id)}
+                            className={cn(
+                              'h-7 w-7 flex items-center justify-center rounded-lg border transition-all',
+                              saved
+                                ? 'bg-teal-500 text-white border-teal-500'
+                                : 'border-border text-muted-foreground hover:border-teal-500 hover:text-teal-500'
+                            )}
+                          >
+                            <Bookmark size={10} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="ghost" onClick={() => setStep('genres')} className="flex-1">
+                Back
+              </Button>
+              <Button
+                onClick={() => setStep('tour')}
+                className="flex-1 gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20 font-bold"
+              >
+                {votedIds.size > 0 || savedIds.size > 0 ? 'Nice picks! Continue' : 'Skip for now'}
+                <ArrowRight size={15} />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP 4: Tour ── */}
         {step === 'tour' && (
           <div className="rounded-3xl border border-border bg-card p-8 space-y-6">
             <div className="space-y-2">
               <h2 className="text-2xl font-black tracking-tight">Quick tour 👀</h2>
               <p className="text-sm text-muted-foreground">
-                Here's everything Compicfy has — some important stuff is hidden in menus.
+                Here's what Compicfy can do — explore at your own pace.
               </p>
             </div>
 
             <div className="space-y-3">
-              {TOUR_ITEMS.map(({ icon: Icon, color, bg, text, title, desc }) => (
+              {TOUR_ITEMS.map(({ icon: Icon, color, title, desc }) => (
                 <div
                   key={title}
                   className="flex items-start gap-3 p-3.5 rounded-2xl border border-border bg-muted/30 hover:border-primary/30 transition-colors"
@@ -260,11 +402,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button
-                variant="ghost"
-                onClick={() => setStep('genres')}
-                className="flex-1"
-              >
+              <Button variant="ghost" onClick={() => setStep('discover')} className="flex-1">
                 Back
               </Button>
               <Button
@@ -277,7 +415,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
           </div>
         )}
 
-        {/* ── STEP 4: Done ── */}
+        {/* ── STEP 5: Done ── */}
         {step === 'done' && (
           <div className="rounded-3xl border border-border bg-card p-8 space-y-6 text-center">
             <div className="space-y-3">
@@ -288,8 +426,24 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
               <p className="text-muted-foreground leading-relaxed">
                 {selectedGenres.length > 0
                   ? `We've saved your taste for ${selectedGenres.slice(0, 2).join(', ')}${selectedGenres.length > 2 ? ` and ${selectedGenres.length - 2} more` : ''}. Your browse page is now personalised.`
-                  : "Head to Browse to start discovering comics the community loves."}
+                  : 'Head to Browse to start discovering comics the community loves.'}
               </p>
+            </div>
+
+            {/* Summary of what they did */}
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="p-3 rounded-2xl bg-muted/50 border border-border space-y-1">
+                <p className="text-2xl font-black text-primary">{selectedGenres.length}</p>
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Genres</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-muted/50 border border-border space-y-1">
+                <p className="text-2xl font-black text-primary">{votedIds.size}</p>
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Voted</p>
+              </div>
+              <div className="p-3 rounded-2xl bg-muted/50 border border-border space-y-1">
+                <p className="text-2xl font-black text-primary">{savedIds.size}</p>
+                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Saved</p>
+              </div>
             </div>
 
             {selectedGenres.length > 0 && (
@@ -318,6 +472,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             </Button>
           </div>
         )}
+
       </div>
     </div>
   )

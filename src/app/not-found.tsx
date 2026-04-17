@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { BookOpen, Home, Search, ArrowRight } from 'lucide-react'
+import { BookOpen, Home, Radar, ArrowRight } from 'lucide-react'
 
 export default function NotFound() {
   return (
@@ -38,7 +38,7 @@ export default function NotFound() {
       <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
         <Link href="/browse">
           <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
-            <Search size={14} />
+            <Radar size={14} />
             Browse Comics
           </Button>
         </Link>
@@ -58,7 +58,7 @@ export default function NotFound() {
         <div className="flex flex-wrap justify-center gap-2">
           {[
             { href: '/news',    label: 'News'    },
-            { href: '/browse',  label: 'Browse'  },
+            { href: '/feed',  label: 'Feed'  },
             { href: '/pricing', label: 'Pricing' },
           ].map(({ href, label }) => (
             <Link
