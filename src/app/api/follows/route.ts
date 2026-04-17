@@ -14,9 +14,6 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { following_id } = body
 
-    console.log('FOLLOW_DEBUG: Payload received:', body)
-    console.log('FOLLOW_DEBUG: Authenticated User ID:', user.id)
-
     if (!following_id) {
       return NextResponse.json({ error: 'following_id required' }, { status: 400 })
     }
@@ -25,8 +22,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 })
     }
 
-    // Using upsert to handle potential race conditions or existing follows
-    // and specifying the table 'follows' based on your Supabase confirmation
+    // 1. Insert/Upsert the follow relationship
     const { error: followError } = await (supabase as any)
       .from('follows')
       .upsert(
@@ -38,44 +34,46 @@ export async function POST(request: Request) {
       )
 
     if (followError) {
-      console.error('FOLLOW_DEBUG: Database Insert Error:', followError)
+      console.error('FOLLOW_DEBUG: Follow Insert Error:', followError)
       return NextResponse.json({ 
         error: 'Database rejection', 
         message: followError.message,
-        code: followError.code,
-        detail: followError.detail 
+        code: followError.code 
       }, { status: 400 })
     }
 
-    // Get follower profile for the notification
-    const { data: followerProfile, error: profileError } = await supabase
+    // 2. Get follower profile details for the notification content
+    const { data: followerProfile } = await supabase
       .from('profiles')
       .select('username, display_name')
       .eq('id', user.id)
       .single()
 
-    if (profileError) {
-      console.warn('FOLLOW_DEBUG: Could not fetch follower profile for notification:', profileError)
-    }
-
     const followerUsername = (followerProfile as any)?.username ?? 'someone'
     const followerDisplayName = (followerProfile as any)?.display_name ?? followerUsername
     const name = followerDisplayName || followerUsername
 
-    // In-app notification
+    // 3. In-app notification 
+    // FIX: Changed type to 'follow' to match database check constraint
     const { error: notifError } = await (supabase as any).from('notifications').insert({
       user_id: following_id,
-      type: 'system',
+      type: 'follow', 
       title: `${name} followed you`,
       content: `@${followerUsername} is now following you.`,
       data: { follower_id: user.id, username: followerUsername },
     })
 
     if (notifError) {
-      console.error('FOLLOW_DEBUG: Notification Insert Error:', notifError)
+      // We log this but don't necessarily want to crash the whole follow if only the notification fails
+      console.error('FOLLOW_DEBUG: Notification Constraint Error:', notifError)
+      return NextResponse.json({ 
+        error: 'Notification failed', 
+        message: notifError.message,
+        code: notifError.code 
+      }, { status: 400 })
     }
 
-    // Email notification — fire and forget
+    // 4. Email notification — fire and forget
     sendFollowNotificationEmail(
       following_id,
       followerUsername,
