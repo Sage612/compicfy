@@ -57,7 +57,7 @@ export default async function FeedPage({ searchParams }: Props) {
     initialTotal = count ?? 0
 
     // First page
-    const { data: recs } = await (supabase as any)
+    const { data: recs } = await supabase 
       .from('recommendations')
       .select(`
         id, title, cover_url, type, status, genres, description,
@@ -102,7 +102,7 @@ export default async function FeedPage({ searchParams }: Props) {
       ...(followData ?? []).map((f: any) => f.following_id),
     ]
 
-    let countQ = (supabase as any)
+    let countQ = supabase
       .from('recommendations')
       .select('*', { count: 'exact', head: true })
       .eq('is_approved', true)
@@ -112,7 +112,7 @@ export default async function FeedPage({ searchParams }: Props) {
     const { count } = await countQ
     initialTotal = count ?? 0
 
-    let query = (supabase as any)
+    let query = supabase
       .from('recommendations')
       .select(`
         id, title, cover_url, type, status, genres, description,

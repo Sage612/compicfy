@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { FeedCard } from './FeedCard'
-import { Loader2, BookOpen, LayoutList, UserPlus, Search } from 'lucide-react'
+import { Loader2, BookOpen, LayoutList, UserPlus, Search, Radar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -160,7 +160,7 @@ export function FeedList({
         <div className="flex gap-3 justify-center">
           <Link href="/browse">
             <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">
-              <Search size={14} />
+              <Radar size={14} />
               Discover Comics
             </Button>
           </Link>

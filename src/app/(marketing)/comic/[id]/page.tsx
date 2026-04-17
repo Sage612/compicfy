@@ -186,7 +186,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
   // Fetch recommender profile — now includes role, is_pro, verified_recommender
   // so we can show the correct badge on the "recommended by" line
-  const { data: profileData } = await (supabase as any)
+  const { data: profileData } = await supabase
     .from('profiles')
     .select('username, display_name, avatar_url, role, is_pro, pro_expires_at, verified_recommender')
     .eq('id', rec.user_id)
