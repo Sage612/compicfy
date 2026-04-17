@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     // FIX: Changed type to 'follow' to match database check constraint
     const { error: notifError } = await (supabase as any).from('notifications').insert({
       user_id: following_id,
-      type: 'follow', 
+      type: 'system', 
       title: `${name} followed you`,
       content: `@${followerUsername} is now following you.`,
       data: { follower_id: user.id, username: followerUsername },
