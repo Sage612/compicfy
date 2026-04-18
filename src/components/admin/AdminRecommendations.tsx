@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import {
   CheckCircle, XCircle, Star, StarOff, Loader2, BookOpen,
   ChevronDown, ChevronUp, Pencil, Eye, Trash2, Search,
+  CheckSquare, Square, ListChecks, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/format'
@@ -54,18 +55,24 @@ function sanitisePayload(data: Record<string, any>): Record<string, any> {
 }
 
 export function AdminRecommendations() {
-  const [recs, setRecs]                   = useState<any[]>([])
-  const [filter, setFilter]               = useState('pending')
-  const [search, setSearch]               = useState('')
-  const [searchInput, setSearchInput]     = useState('')
-  const [loading, setLoading]             = useState(true)
-  const [expandedId, setExpandedId]       = useState<string | null>(null)
-  const [rejectReason, setRejectReason]   = useState('')
-  const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [editingId, setEditingId]         = useState<string | null>(null)
-  const [editData, setEditData]           = useState<Record<string, any>>({})
-  const [total, setTotal]                 = useState<number>(0)
-  const debounceRef                       = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [recs, setRecs]                     = useState<any[]>([])
+  const [filter, setFilter]                 = useState('pending')
+  const [search, setSearch]                 = useState('')
+  const [searchInput, setSearchInput]       = useState('')
+  const [loading, setLoading]               = useState(true)
+  const [expandedId, setExpandedId]         = useState<string | null>(null)
+  const [rejectReason, setRejectReason]     = useState('')
+  const [actionLoading, setActionLoading]   = useState<string | null>(null)
+  const [editingId, setEditingId]           = useState<string | null>(null)
+  const [editData, setEditData]             = useState<Record<string, any>>({})
+  const [total, setTotal]                   = useState<number>(0)
+
+  // ── Bulk selection state ──────────────────────────────────────────
+  const [bulkMode, setBulkMode]             = useState(false)
+  const [selected, setSelected]             = useState<Set<string>>(new Set())
+  const [bulkLoading, setBulkLoading]       = useState(false)
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchRecs = useCallback(async () => {
     setLoading(true)
@@ -85,6 +92,12 @@ export function AdminRecommendations() {
 
   useEffect(() => { fetchRecs() }, [fetchRecs])
 
+  // Clear selection when filter/search changes
+  useEffect(() => {
+    setSelected(new Set())
+    setBulkMode(false)
+  }, [filter, search])
+
   const handleSearchChange = (value: string) => {
     setSearchInput(value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
@@ -95,8 +108,11 @@ export function AdminRecommendations() {
     setFilter(value)
     setExpandedId(null)
     setEditingId(null)
+    setSelected(new Set())
+    setBulkMode(false)
   }
 
+  // ── Single-item actions (unchanged) ──────────────────────────────
   const handleAction = async (id: string, action: string, extra: Record<string, any> = {}) => {
     setActionLoading(`${id}-${action}`)
     try {
@@ -180,6 +196,231 @@ export function AdminRecommendations() {
     })
   }
 
+  // ── Bulk helpers ──────────────────────────────────────────────────
+  const pendingRecs  = recs.filter(r => !r.is_approved && !r.rejection_reason)
+  const allPendingIds = pendingRecs.map(r => r.id)
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selected.size === allPendingIds.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(allPendingIds))
+    }
+  }
+
+  const handleBulkApprove = async () => {
+    if (selected.size === 0) return
+    const ids = Array.from(selected)
+
+    setBulkLoading(true)
+    let successCount = 0
+    let failCount    = 0
+
+    // Process in batches of 5 to avoid overwhelming the server
+    const BATCH = 5
+    for (let i = 0; i < ids.length; i += BATCH) {
+      const batch = ids.slice(i, i + BATCH)
+      await Promise.all(
+        batch.map(async (id) => {
+          try {
+            const res = await fetch(`/api/admin/recommendations/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'approve' }),
+            })
+            if (res.ok) {
+              successCount++
+            } else {
+              failCount++
+            }
+          } catch {
+            failCount++
+          }
+        })
+      )
+    }
+
+    if (successCount > 0) {
+      toast.success(`✅ ${successCount} recommendation${successCount > 1 ? 's' : ''} approved`)
+      // Remove approved ones from the list
+      setRecs(prev => prev.filter(r => !selected.has(r.id)))
+      setSelected(new Set())
+    }
+    if (failCount > 0) {
+      toast.error(`${failCount} failed to approve`)
+    }
+
+    setBulkLoading(false)
+  }
+
+  const handleBulkReject = async (reason: string) => {
+    if (selected.size === 0 || !reason.trim()) return
+    const ids = Array.from(selected)
+
+    setBulkLoading(true)
+    let successCount = 0
+    let failCount    = 0
+
+    const BATCH = 5
+    for (let i = 0; i < ids.length; i += BATCH) {
+      const batch = ids.slice(i, i + BATCH)
+      await Promise.all(
+        batch.map(async (id) => {
+          try {
+            const res = await fetch(`/api/admin/recommendations/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'reject', reason }),
+            })
+            if (res.ok) successCount++
+            else failCount++
+          } catch {
+            failCount++
+          }
+        })
+      )
+    }
+
+    if (successCount > 0) {
+      toast.success(`❌ ${successCount} recommendation${successCount > 1 ? 's' : ''} rejected`)
+      setRecs(prev => prev.filter(r => !selected.has(r.id)))
+      setSelected(new Set())
+    }
+    if (failCount > 0) {
+      toast.error(`${failCount} failed to reject`)
+    }
+
+    setBulkLoading(false)
+  }
+
+  // ── Bulk toolbar ──────────────────────────────────────────────────
+  const BulkToolbar = () => {
+    const [bulkRejectReason, setBulkRejectReason] = useState('')
+    const [showRejectInput, setShowRejectInput]   = useState(false)
+
+    if (!bulkMode) return null
+
+    const hasPending    = allPendingIds.length > 0
+    const allSelected   = selected.size === allPendingIds.length && allPendingIds.length > 0
+    const someSelected  = selected.size > 0
+
+    return (
+      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+        {/* Top row */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            {/* Select all toggle */}
+            <button
+              onClick={toggleSelectAll}
+              disabled={!hasPending}
+              className={cn(
+                'flex items-center gap-2 text-sm font-bold transition-colors',
+                hasPending ? 'hover:text-primary' : 'opacity-40 cursor-not-allowed'
+              )}
+            >
+              {allSelected
+                ? <CheckSquare size={16} className="text-primary" />
+                : <Square size={16} className="text-muted-foreground" />
+              }
+              {allSelected ? 'Deselect all' : `Select all pending (${allPendingIds.length})`}
+            </button>
+
+            {someSelected && (
+              <span className="text-xs font-black px-2.5 py-1 rounded-full bg-primary text-primary-foreground">
+                {selected.size} selected
+              </span>
+            )}
+          </div>
+
+          {/* Exit bulk mode */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1.5 text-xs text-muted-foreground"
+            onClick={() => { setBulkMode(false); setSelected(new Set()) }}
+          >
+            <X size={12} />
+            Exit bulk
+          </Button>
+        </div>
+
+        {/* Action buttons — only show when something selected */}
+        {someSelected && (
+          <div className="flex flex-col sm:flex-row gap-2">
+            {/* Approve all selected */}
+            <Button
+              size="sm"
+              className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white border-0"
+              onClick={handleBulkApprove}
+              disabled={bulkLoading}
+            >
+              {bulkLoading
+                ? <Loader2 size={13} className="animate-spin" />
+                : <CheckCircle size={13} />
+              }
+              Approve {selected.size} selected
+            </Button>
+
+            {/* Reject toggle */}
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-2 text-red-500 border-red-500/30 hover:bg-red-500/10"
+              onClick={() => setShowRejectInput(v => !v)}
+              disabled={bulkLoading}
+            >
+              <XCircle size={13} />
+              Reject selected
+            </Button>
+          </div>
+        )}
+
+        {/* Bulk reject input */}
+        {someSelected && showRejectInput && (
+          <div className="space-y-2 pt-1">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Rejection reason (applies to all {selected.size} selected)
+            </p>
+            <Textarea
+              value={bulkRejectReason}
+              onChange={e => setBulkRejectReason(e.target.value)}
+              placeholder="Explain why these are being rejected..."
+              rows={2}
+              className="resize-none text-sm"
+            />
+            <Button
+              size="sm"
+              variant="destructive"
+              className="gap-2"
+              onClick={() => handleBulkReject(bulkRejectReason)}
+              disabled={!bulkRejectReason.trim() || bulkLoading}
+            >
+              {bulkLoading
+                ? <Loader2 size={13} className="animate-spin" />
+                : <XCircle size={13} />
+              }
+              Confirm reject {selected.size}
+            </Button>
+          </div>
+        )}
+
+        {!hasPending && (
+          <p className="text-xs text-muted-foreground">
+            No pending recommendations to select. Switch to the <strong>Pending</strong> filter to use bulk actions.
+          </p>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
 
@@ -202,7 +443,7 @@ export function AdminRecommendations() {
         )}
       </div>
 
-      {/* Filter tabs */}
+      {/* Filter tabs + bulk toggle */}
       <div className="flex gap-1.5 flex-wrap items-center">
         {FILTERS.map(({ value, label, color }) => (
           <button
@@ -218,28 +459,63 @@ export function AdminRecommendations() {
             {label}
           </button>
         ))}
+
+        {/* Bulk mode toggle — always visible */}
+        <button
+          onClick={() => { setBulkMode(v => !v); setSelected(new Set()) }}
+          className={cn(
+            'ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+            bulkMode
+              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+              : 'border-border text-muted-foreground hover:border-primary'
+          )}
+        >
+          <ListChecks size={12} />
+          Bulk
+        </button>
+
         {!loading && (
-          <span className="ml-auto text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {total} result{total !== 1 ? 's' : ''}
             {search && <span className="text-primary ml-1">for "{search}"</span>}
           </span>
         )}
       </div>
 
+      {/* Bulk toolbar */}
+      <BulkToolbar />
+
       {loading ? (
         <div className="flex justify-center py-16">
           <Loader2 size={24} className="animate-spin text-muted-foreground" />
         </div>
       ) : recs.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl border border-dashed border-border">
-          <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
-            {search
-              ? <Search size={20} className="text-muted-foreground opacity-40" />
-              : <BookOpen size={20} className="text-muted-foreground opacity-40" />
-            }
+        /* ── Empty state using the comic-panel design ── */
+        <div className="relative flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border overflow-hidden">
+          {/* blobs */}
+          <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+
+          {/* stacked panels */}
+          <div className="relative mb-6 w-32 h-32 mx-auto">
+            <div className="absolute top-0 left-0 w-18 h-24 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" style={{ width: '4.5rem', height: '6rem' }} />
+            <div className="absolute top-2 left-5 w-18 h-24 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" style={{ width: '4.5rem', height: '6rem' }} />
+            <div className="absolute top-4 left-9 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1" style={{ width: '4.5rem', height: '6rem' }}>
+              {search
+                ? <Search size={16} className="text-primary opacity-60" />
+                : <BookOpen size={16} className="text-primary opacity-60" />
+              }
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">
+                {search ? 'No results' : 'All clear'}
+              </span>
+            </div>
           </div>
-          <p className="text-sm text-muted-foreground">
+
+          <p className="text-sm font-black">
             {search ? `No results for "${search}"` : `No ${filter} recommendations`}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {search ? 'Try a different search term' : 'Nothing to review right now'}
           </p>
           {search && (
             <Button
@@ -254,16 +530,39 @@ export function AdminRecommendations() {
       ) : (
         <div className="space-y-3">
           {recs.map((rec) => {
-            const isExpanded = expandedId === rec.id
-            const isEditing  = editingId  === rec.id
-            const profile    = rec.profiles
-            const typeStyle  = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
+            const isExpanded  = expandedId === rec.id
+            const isEditing   = editingId  === rec.id
+            const profile     = rec.profiles
+            const typeStyle   = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
+            const isPending   = !rec.is_approved && !rec.rejection_reason
+            const isSelected  = selected.has(rec.id)
 
             return (
-              <div key={rec.id} className="rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors">
+              <div
+                key={rec.id}
+                className={cn(
+                  'rounded-2xl border bg-card overflow-hidden transition-colors',
+                  isSelected
+                    ? 'border-primary/50 bg-primary/5'
+                    : 'border-border hover:border-primary/30'
+                )}
+              >
 
                 {/* ── Main row ── */}
                 <div className="flex gap-3 p-4">
+
+                  {/* Bulk checkbox — only for pending recs when bulk mode active */}
+                  {bulkMode && isPending && (
+                    <button
+                      onClick={() => toggleSelect(rec.id)}
+                      className="shrink-0 self-start mt-1 text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {isSelected
+                        ? <CheckSquare size={16} className="text-primary" />
+                        : <Square size={16} />
+                      }
+                    </button>
+                  )}
 
                   {/* Cover */}
                   <div className="w-12 h-16 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
@@ -273,11 +572,10 @@ export function AdminRecommendations() {
                     }
                   </div>
 
-                  {/* Content — takes all remaining width */}
+                  {/* Content */}
                   <div className="flex-1 min-w-0 space-y-1.5">
                     <h3 className="font-black text-sm truncate pr-1">{rec.title}</h3>
 
-                    {/* Badges — wrap freely */}
                     <div className="flex flex-wrap gap-1">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${typeStyle}`}>
                         {rec.type}
@@ -309,12 +607,9 @@ export function AdminRecommendations() {
                       </p>
                     )}
 
-                    {/* ── Action buttons ──
-                        On mobile: full-width row that wraps if needed
-                        On desktop (sm+): compact icon-only row aligned right  */}
+                    {/* Action buttons */}
                     <div className="flex flex-wrap items-center gap-1 pt-1 sm:justify-end">
 
-                      {/* View */}
                       <Link href={`/comic/${rec.id}`} target="_blank">
                         <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0">
                           <Eye size={12} />
@@ -322,7 +617,6 @@ export function AdminRecommendations() {
                         </Button>
                       </Link>
 
-                      {/* Edit */}
                       <Button
                         variant="outline" size="sm"
                         className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0"
@@ -332,7 +626,6 @@ export function AdminRecommendations() {
                         <span className="sm:hidden">Edit</span>
                       </Button>
 
-                      {/* Approve — only for pending */}
                       {!rec.is_approved && !rec.rejection_reason && (
                         <Button
                           variant="outline" size="sm"
@@ -348,7 +641,6 @@ export function AdminRecommendations() {
                         </Button>
                       )}
 
-                      {/* Feature / Unfeature */}
                       {rec.is_featured ? (
                         <Button
                           variant="outline" size="sm"
@@ -369,7 +661,6 @@ export function AdminRecommendations() {
                         </Button>
                       )}
 
-                      {/* Delete */}
                       <Button
                         variant="outline" size="sm"
                         className="h-7 gap-1.5 text-xs px-2.5 text-red-500 border-red-500/30 hover:bg-red-500/10 sm:h-8 sm:w-8 sm:p-0"
@@ -383,7 +674,6 @@ export function AdminRecommendations() {
                         <span className="sm:hidden">Delete</span>
                       </Button>
 
-                      {/* Expand */}
                       <Button
                         variant="outline" size="sm"
                         className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0"
@@ -410,7 +700,6 @@ export function AdminRecommendations() {
                     <Textarea value={editData.description ?? ''} onChange={e => setEditData(d => ({ ...d, description: e.target.value }))} placeholder="Description" rows={3} className="resize-none text-sm" />
                     <Textarea value={editData.why_recommend ?? ''} onChange={e => setEditData(d => ({ ...d, why_recommend: e.target.value }))} placeholder="Why recommend..." rows={2} className="resize-none text-sm" />
 
-                    {/* Author / Artist / Publisher — stack to 1 col on mobile */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {['author', 'artist', 'publisher'].map(f => (
                         <Input

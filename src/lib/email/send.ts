@@ -50,6 +50,22 @@ export const sendUnbannedEmail = (to: string, username: string) =>
 export const sendAppealResolvedEmail = (to: string, username: string, type: string, outcome: string, title?: string) =>
   sendEmail(to, `Your ${type} appeal has been ${outcome}`, templates.appealResolved(username, type, outcome, title))
 
+// ── Moderation emails ────────────────────────────────────────────────────────
+
+export const sendSuspendedEmail = (to: string, username: string, reason: string, duration_hours: number) =>
+  sendEmail(
+    to, 
+    `Your ${SITE_NAME} account has been temporarily suspended`, 
+    templates.accountSuspended(username, reason, duration_hours)
+  )
+
+export const sendUnsuspendedEmail = (to: string, username: string) =>
+  sendEmail(
+    to, 
+    `Your ${SITE_NAME} account access has been restored`, 
+    templates.accountUnsuspended(username)
+  )
+
 // ── New notification emails ──────────────────────────────────────────────────
 
 // Send when someone follows a user

@@ -10,19 +10,16 @@ const base = (content: string) => `
 </head>
 <body style="margin:0;padding:0;background:#0f1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
-    <!-- Logo -->
     <div style="text-align:center;margin-bottom:32px;">
       <h1 style="color:#6366f1;font-size:24px;font-weight:800;margin:0;letter-spacing:-0.5px;">
         📚 ${SITE_NAME}
       </h1>
     </div>
 
-    <!-- Card -->
     <div style="background:#1a1d27;border:1px solid #2a2d3a;border-radius:16px;padding:32px;">
       ${content}
     </div>
 
-    <!-- Footer -->
     <div style="text-align:center;margin-top:24px;">
       <p style="color:#6b7280;font-size:12px;margin:0;">
         © ${new Date().getFullYear()} ${SITE_NAME} · 
@@ -104,6 +101,30 @@ export const templates = {
     </div>
     ${h1(`Welcome back, @${username}!`)}
     ${p(`Your ${SITE_NAME} account suspension has been lifted. You can now log in and continue using the platform.`)}
+    ${divider()}
+    ${btn('Go to Dashboard', `${SITE_URL}/dashboard`)}
+  `),
+
+  accountSuspended: (username: string, reason: string, duration_hours: number) => base(`
+    <div style="display:inline-block;background:#f59e0b1a;border:1px solid #f59e0b33;border-radius:8px;padding:6px 12px;margin-bottom:20px;">
+      <span style="color:#f59e0b;font-size:13px;font-weight:600;">⚠️ Temporary Suspension</span>
+    </div>
+    ${h1(`Hi @${username},`)}
+    ${p(`Your account has been temporarily suspended for <strong>${duration_hours} hours</strong>.`)}
+    <div style="background:#2a2d3a;border-left:3px solid #f59e0b;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:20px;">
+      <p style="color:#9ca3af;font-size:13px;margin:0;"><strong style="color:#f9fafb;">Reason:</strong> ${reason}</p>
+    </div>
+    ${p(`If you believe this was an error, please reach out to our support team.`)}
+    ${divider()}
+    ${btn('View Dashboard', `${SITE_URL}/dashboard`)}
+  `),
+
+  accountUnsuspended: (username: string) => base(`
+    <div style="display:inline-block;background:#16a34a1a;border:1px solid #16a34a33;border-radius:8px;padding:6px 12px;margin-bottom:20px;">
+      <span style="color:#16a34a;font-size:13px;font-weight:600;">✅ Access Restored</span>
+    </div>
+    ${h1(`Good news, @${username}!`)}
+    ${p(`Your account suspension has been lifted. You now have full access to ${SITE_NAME} again. Welcome back!`)}
     ${divider()}
     ${btn('Go to Dashboard', `${SITE_URL}/dashboard`)}
   `),
