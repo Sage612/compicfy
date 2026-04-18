@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     if (!following_id) return NextResponse.json({ error: 'following_id required' }, { status: 400 })
     if (following_id === user.id) return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 })
 
-    // ── Step 1: Insert follow ────────────────────────────────────
+    // ── Step 1: Insert follow ─────────────────────────────────────
     const { error: followError } = await (supabase as any)
       .from('follows')
       .insert({ follower_id: user.id, following_id })
@@ -28,39 +28,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: followError.message }, { status: 500 })
     }
 
-    // ── Step 2: Get follower profile ─────────────────────────────
-    const { data: followerProfile, error: profileError } = await supabase
+    // ── Step 2: Get follower profile ──────────────────────────────
+    const { data: followerProfile } = await supabase
       .from('profiles')
       .select('username, display_name')
       .eq('id', user.id)
       .single()
 
-    if (profileError) {
-      console.error('[follows/POST] profile fetch error:', profileError)
-      // Follow succeeded — just skip notification
-      return NextResponse.json({ following: true })
-    }
-
     const followerUsername    = (followerProfile as any)?.username    ?? 'someone'
     const followerDisplayName = (followerProfile as any)?.display_name ?? followerUsername
-    const name                = followerDisplayName || followerUsername
-
-    // ── Step 3: In-app notification (non-fatal) ──────────────────
-    const { error: notifError } = await (supabase as any)
-      .from('notifications')
-      .insert({
-        user_id: following_id,
-        type:    'system',
-        title:   `${name} followed you`,
-        content: `@${followerUsername} is now following you.`,
-        data:    { follower_id: user.id, username: followerUsername },
-      })
-
-    if (notifError) {
-      console.error('[follows/POST] notification insert error:', notifError)
+    const name = followerDisplayName || followerUsername
+    
+    try {
+      await (supabase as any)
+        .from('notifications')
+        .insert({
+          user_id: following_id,
+          type:    'follow',   // ← will work once you update the constraint (see below)
+          title:   `${name} started following you`,
+          content: `@${followerUsername} is now following you.`,
+          data:    { follower_id: user.id, username: followerUsername },
+        })
+    } catch (notifErr) {
+      // Non-fatal — follow already succeeded
+      console.error('[follows/POST] notification error (non-fatal):', notifErr)
     }
 
-    // ── Step 4: Email (fire and forget) ─────────────────────────
+    // ── Step 4: Email (fire and forget) ──────────────────────────
     sendFollowNotificationEmail(
       following_id,
       followerUsername,
