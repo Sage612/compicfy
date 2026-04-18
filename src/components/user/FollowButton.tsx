@@ -14,7 +14,7 @@ interface Props {
 
 export function FollowButton({ profileId, initialFollowing, isLoggedIn }: Props) {
   const [following, setFollowing] = useState(initialFollowing)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading]     = useState(false)
   const router = useRouter()
 
   const handleFollow = async () => {
@@ -25,19 +25,32 @@ export function FollowButton({ profileId, initialFollowing, isLoggedIn }: Props)
 
     setLoading(true)
     try {
-      const res = await fetch('/api/follows', {
-        method: following ? 'DELETE' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ following_id: profileId }),
-      })
+      let res: Response
 
-      if (!res.ok) throw new Error()
+      if (following) {
+        // DELETE — pass following_id as query param (body on DELETE is unreliable)
+        res = await fetch(`/api/follows?following_id=${encodeURIComponent(profileId)}`, {
+          method: 'DELETE',
+        })
+      } else {
+        // POST — body is fine
+        res = await fetch('/api/follows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ following_id: profileId }),
+        })
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error ?? 'Failed to update follow')
+      }
 
       setFollowing(!following)
       toast.success(following ? 'Unfollowed' : 'Following!')
       router.refresh()
-    } catch {
-      toast.error('Failed to update follow')
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Failed to update follow')
     } finally {
       setLoading(false)
     }

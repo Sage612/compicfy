@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
   BookOpen, Bookmark, ArrowRight,
-  Sparkles, ThumbsUp, Star, Crown, Search,
+  Sparkles, ThumbsUp, Star, Crown, Radar,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils/format'
@@ -83,7 +83,7 @@ export default async function SavedPage() {
         </div>
         <Link href="/browse">
           <Button variant="outline" size="sm" className="gap-2 shrink-0 hover:border-primary/40 hover:text-primary transition-colors">
-            <Search size={14} />
+            <Radar size={14} />
             Browse More
           </Button>
         </Link>

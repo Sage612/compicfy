@@ -2,9 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-  BookOpen, Bookmark, ArrowRight, Sparkles,
+   Bookmark, ArrowRight, Sparkles,
   ThumbsUp, Star, Crown,
-  Search,
+  Radar, BookOpen
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils/format'
@@ -72,7 +72,7 @@ export default async function ProSavedPage() {
             size="sm"
             className="gap-2 shrink-0 border-border hover:border-amber-500/40 hover:text-amber-600 hover:bg-amber-500/5 transition-all duration-200"
           >
-            <Search size={14} />
+            <Radar size={14} />
             Browse More
           </Button>
         </Link>
@@ -100,7 +100,7 @@ export default async function ProSavedPage() {
           <div className="flex flex-wrap justify-center gap-3">
             <Link href="/browse">
               <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
-                <BookOpen size={14} />
+                <Radar size={14} />
                 Browse Comics
               </Button>
             </Link>

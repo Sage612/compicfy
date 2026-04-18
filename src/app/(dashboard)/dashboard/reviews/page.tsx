@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Star, BookOpen, ArrowRight, Sparkles, Search, } from 'lucide-react'
+import { Star, BookOpen, ArrowRight, Sparkles, Radar, } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { StarRating } from '@/components/recommendations/StarRating'
 import { formatDate } from '@/lib/utils/format'
@@ -55,7 +55,7 @@ export default async function MyReviewsPage() {
             size="sm"
             className="gap-2 shrink-0 border-border hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all duration-200"
           >
-            <Search size={14} />
+            <Radar size={14} />
             Browse Comics
           </Button>
         </Link>
