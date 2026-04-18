@@ -76,7 +76,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     'webtoon recommendation',
   ].filter(Boolean)
 
-  // Build OG image URL with comic-specific params
   const ogParams = new URLSearchParams({
     title: rec.title ?? '',
     description: description ?? '',
@@ -106,6 +105,83 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       canonical: `${SITE_URL}/comic/${id}`,
     },
   }
+}
+
+// ── JSON-LD structured data ───────────────────────────────────────────────────
+// This is what Google uses for rich results — shows star ratings, author,
+// genre in search snippets. Completely invisible to users but huge for SEO.
+function ComicJsonLd({
+  rec,
+  id,
+  recommenderName,
+}: {
+  rec: Recommendation
+  id: string
+  recommenderName: string
+}) {
+  const typeLabel = rec.type
+    ? rec.type.charAt(0).toUpperCase() + rec.type.slice(1)
+    : 'Comic'
+
+  // Build schema.org Book object — closest match for manga/comics
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Book',
+    name: rec.title,
+    description: rec.description,
+    url: `${SITE_URL}/comic/${id}`,
+    ...(rec.cover_url ? { image: rec.cover_url } : {}),
+    ...(rec.author ? { author: { '@type': 'Person', name: rec.author } } : {}),
+    ...(rec.year_released ? { datePublished: String(rec.year_released) } : {}),
+    bookFormat: 'GraphicNovel',
+    inLanguage: rec.original_language ?? 'ja',
+    genre: rec.genres ?? [],
+    // If we have review count, add aggregate rating
+    ...(rec.review_count > 0
+      ? {
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingCount: rec.review_count,
+            reviewCount: rec.review_count,
+            // We don't store average rating yet — use upvote ratio as proxy
+            ratingValue: rec.upvotes > 0
+              ? Math.min(5, Math.max(1, Math.round((rec.upvotes / Math.max(1, rec.upvotes + rec.downvotes)) * 5)))
+              : 4,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
+    // BreadcrumbList for better nav in search results
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+        { '@type': 'ListItem', position: 2, name: 'Browse', item: `${SITE_URL}/browse` },
+        { '@type': 'ListItem', position: 3, name: rec.title, item: `${SITE_URL}/comic/${id}` },
+      ],
+    },
+    // WebPage wrapper so Google understands the recommendation context
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${SITE_URL}/comic/${id}`,
+      name: `${rec.title} — ${typeLabel} Recommendation`,
+      description: `Community recommendation for ${rec.title}. Recommended by ${recommenderName} on Compicfy.`,
+      publisher: {
+        '@type': 'Organization',
+        name: 'Compicfy',
+        url: SITE_URL,
+        logo: `${SITE_URL}/icons/icon-192.png`,
+      },
+    },
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  )
 }
 
 const TYPE_STYLES: Record<string, { gradient: string; badge: string; glow: string; border: string }> = {
@@ -184,8 +260,6 @@ export default async function ComicDetailPage({ params }: Props) {
     }
   }
 
-  // Fetch recommender profile — now includes role, is_pro, verified_recommender
-  // so we can show the correct badge on the "recommended by" line
   const { data: profileData } = await supabase
     .from('profiles')
     .select('username, display_name, avatar_url, role, is_pro, pro_expires_at, verified_recommender')
@@ -202,7 +276,6 @@ export default async function ComicDetailPage({ params }: Props) {
     verified_recommender: boolean
   } | null
 
-  // Resolve recommender's effective pro status
   const recommenderIsPro = profile
     ? profile.role === 'admin' ||
       (profile.is_pro &&
@@ -210,6 +283,7 @@ export default async function ComicDetailPage({ params }: Props) {
     : false
 
   const recommenderIsVerified = profile?.verified_recommender ?? false
+  const recommenderName = profile?.display_name || profile?.username || 'unknown'
 
   let userVote: 'up' | 'down' | null = null
   let isSaved = false
@@ -230,239 +304,226 @@ export default async function ComicDetailPage({ params }: Props) {
   }
 
   return (
-    <div className="min-h-screen">
+    <>
+      {/* JSON-LD structured data — injected into <head> by Next.js */}
+      <ComicJsonLd rec={rec} id={id} recommenderName={recommenderName} />
 
-      {/* ── CINEMATIC HERO ── */}
-      <div className="relative h-56 md:h-72 overflow-hidden">
-        {rec.cover_url && (
-          <img
-            src={rec.cover_url}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-25 dark:opacity-20"
-            aria-hidden
-          />
-        )}
-        <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-15 dark:opacity-25`} />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
-        <div className="absolute top-4 left-4 z-10">
-          <Link
-            href="/browse"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft size={13} />
-            Browse
-          </Link>
+      <div className="min-h-screen">
+
+        {/* ── CINEMATIC HERO ── */}
+        <div className="relative h-56 md:h-72 overflow-hidden">
+          {rec.cover_url && (
+            <img
+              src={rec.cover_url}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-25 dark:opacity-20"
+              aria-hidden
+            />
+          )}
+          <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-15 dark:opacity-25`} />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
+          <div className="absolute top-4 left-4 z-10">
+            <Link
+              href="/browse"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft size={13} />
+              Browse
+            </Link>
+          </div>
         </div>
-      </div>
 
-      {/* ── CONTENT ── */}
-      <div className="max-w-5xl mx-auto px-4 -mt-28 md:-mt-40 relative z-10 pb-20">
-        <div className="flex flex-col md:flex-row gap-8">
+        {/* ── CONTENT ── */}
+        <div className="max-w-5xl mx-auto px-4 -mt-28 md:-mt-40 relative z-10 pb-20">
+          <div className="flex flex-col md:flex-row gap-8">
 
-          {/* ── LEFT: Cover + actions ── */}
-          <div className="flex flex-col gap-3 md:w-52 shrink-0">
+            {/* ── LEFT: Cover + actions ── */}
+            <div className="flex flex-col gap-3 md:w-52 shrink-0">
 
-            {/* Cover with glow */}
-            <div className="relative">
-              <div className={`absolute -inset-3 rounded-3xl ${typeStyle.glow} blur-2xl opacity-60`} />
-              <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted border border-border shadow-2xl">
-                {rec.cover_url ? (
-                  <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <BookOpen size={40} className="text-muted-foreground opacity-40" />
+              <div className="relative">
+                <div className={`absolute -inset-3 rounded-3xl ${typeStyle.glow} blur-2xl opacity-60`} />
+                <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted border border-border shadow-2xl">
+                  {rec.cover_url ? (
+                    <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <BookOpen size={40} className="text-muted-foreground opacity-40" />
+                    </div>
+                  )}
+                  <div className="absolute top-2 left-2">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize backdrop-blur-sm ${typeStyle.badge}`}>
+                      {rec.type}
+                    </span>
                   </div>
-                )}
-                <div className="absolute top-2 left-2">
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize backdrop-blur-sm ${typeStyle.badge}`}>
-                    {rec.type}
+                  {rec.is_featured && (
+                    <div className="absolute top-2 right-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/30 backdrop-blur-sm">
+                        <Star size={8} className="fill-amber-500" />
+                        Featured
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <VoteButtons
+                recommendationId={id}
+                initialUpvotes={rec.upvotes}
+                initialDownvotes={rec.downvotes}
+                initialVote={userVote}
+                isLoggedIn={!!user}
+              />
+              <SaveButton recommendationId={id} initialSaved={isSaved} isLoggedIn={!!user} />
+              <ReadingProgressButton
+                comicId={id}
+                chapterCount={rec.chapter_count}
+                isLoggedIn={!!user}
+              />
+              {user && <AddToListButton recommendationId={id} userId={user.id} />}
+
+              <Link href="/dashboard/recommendations/new">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 w-full hover:border-primary/40 hover:text-primary transition-colors"
+                >
+                  <PenLine size={14} />
+                  Have A Recommendation?
+                </Button>
+              </Link>
+
+              <ShareButton
+                title={rec.title}
+                url={`https://compicfy.cloud/comic/${id}`}
+              />
+
+              {rec.official_platforms && rec.official_platforms.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Read On</p>
+                  {rec.official_platforms.map((platform: string, i: number) => (
+                    <div key={platform} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card text-xs hover:border-primary/40 transition-colors">
+                      <Globe size={11} className="text-muted-foreground shrink-0" />
+                      <span className="truncate flex-1">{platform}</span>
+                      {rec.official_links?.[i] && (
+                        <a href={rec.official_links[i]} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                          <ExternalLink size={11} className="text-muted-foreground hover:text-primary transition-colors" />
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── RIGHT: Details ── */}
+            <div className="flex-1 min-w-0 space-y-6 pt-2 md:pt-20">
+
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
+                    {rec.status}
+                  </span>
+                  <span className="text-xs text-muted-foreground border border-border rounded-full px-2.5 py-1 capitalize">
+                    {rec.content_rating?.replace('_', ' ')}
                   </span>
                 </div>
-                {rec.is_featured && (
-                  <div className="absolute top-2 right-2">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/30 backdrop-blur-sm">
-                      <Star size={8} className="fill-amber-500" />
-                      Featured
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
 
-            {/* Action buttons */}
-            <VoteButtons
-              recommendationId={id}
-              initialUpvotes={rec.upvotes}
-              initialDownvotes={rec.downvotes}
-              initialVote={userVote}
-              isLoggedIn={!!user}
-            />
-            <SaveButton recommendationId={id} initialSaved={isSaved} isLoggedIn={!!user} />
-            <ReadingProgressButton
-              comicId={id}
-              chapterCount={rec.chapter_count}
-              isLoggedIn={!!user}
-            />
-            {user && <AddToListButton recommendationId={id} userId={user.id} />}
+                <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-tight">{rec.title}</h1>
 
-            <Link href="/dashboard/recommendations/new">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 w-full hover:border-primary/40 hover:text-primary transition-colors"
-              >
-                <PenLine size={14} />
-                Have A Recommendation?
-              </Button>
-            </Link>
-
-            <ShareButton
-              title={rec.title}
-              url={`https://compicfy.cloud/comic/${id}`}
-            />
-
-            {/* Platforms */}
-            {rec.official_platforms && rec.official_platforms.length > 0 && (
-              <div className="space-y-1.5 pt-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Read On</p>
-                {rec.official_platforms.map((platform: string, i: number) => (
-                  <div key={platform} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card text-xs hover:border-primary/40 transition-colors">
-                    <Globe size={11} className="text-muted-foreground shrink-0" />
-                    <span className="truncate flex-1">{platform}</span>
-                    {rec.official_links?.[i] && (
-                      <a href={rec.official_links[i]} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                        <ExternalLink size={11} className="text-muted-foreground hover:text-primary transition-colors" />
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* ── RIGHT: Details ── */}
-          <div className="flex-1 min-w-0 space-y-6 pt-2 md:pt-20">
-
-            {/* Header */}
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
-                  {rec.status}
-                </span>
-                <span className="text-xs text-muted-foreground border border-border rounded-full px-2.5 py-1 capitalize">
-                  {rec.content_rating?.replace('_', ' ')}
-                </span>
-              </div>
-
-              <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-tight">{rec.title}</h1>
-
-              <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
-                {rec.author && <span className="flex items-center gap-1.5"><User size={13} />{rec.author}</span>}
-                {rec.artist && rec.artist !== rec.author && <span className="flex items-center gap-1.5"><Palette size={13} />{rec.artist}</span>}
-                {rec.year_released && <span className="flex items-center gap-1.5"><Calendar size={13} />{rec.year_released}</span>}
-                {rec.chapter_count && <span className="flex items-center gap-1.5"><Hash size={13} />{rec.chapter_count} ch.</span>}
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                {rec.genres?.map((genre: string) => (
-                  <Link key={genre} href={`/browse?genre=${genre}`}>
-                    <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-muted border border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-colors cursor-pointer">
-                      {genre}
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-4 gap-2">
-              {[
-                { icon: ThumbsUp,      label: 'Upvotes', value: rec.upvotes,      color: 'text-emerald-500', bg: 'bg-emerald-500/8' },
-                { icon: Star,          label: 'Reviews', value: rec.review_count, color: 'text-amber-500',   bg: 'bg-amber-500/8'  },
-                { icon: Bookmark,      label: 'Saves',   value: rec.save_count,   color: 'text-blue-500',    bg: 'bg-blue-500/8'   },
-                { icon: MessageSquare, label: 'Score',   value: rec.score,        color: 'text-violet-500',  bg: 'bg-violet-500/8' },
-              ].map(({ icon: Icon, label, value, color, bg }) => (
-                <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-2xl ${bg} border border-border`}>
-                  <Icon size={14} className={color} />
-                  <p className="text-lg font-black tabular-nums leading-none">{value ?? 0}</p>
-                  <p className="text-[10px] text-muted-foreground font-medium">{label}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
+                  {rec.author && <span className="flex items-center gap-1.5"><User size={13} />{rec.author}</span>}
+                  {rec.artist && rec.artist !== rec.author && <span className="flex items-center gap-1.5"><Palette size={13} />{rec.artist}</span>}
+                  {rec.year_released && <span className="flex items-center gap-1.5"><Calendar size={13} />{rec.year_released}</span>}
+                  {rec.chapter_count && <span className="flex items-center gap-1.5"><Hash size={13} />{rec.chapter_count} ch.</span>}
                 </div>
-              ))}
-            </div>
 
-            {/* About */}
-            <div className="space-y-2">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">About</h2>
-              <p className="text-sm leading-relaxed text-foreground/80">{rec.description}</p>
-            </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {rec.genres?.map((genre: string) => (
+                    <Link key={genre} href={`/browse?genre=${genre}`}>
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-muted border border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-colors cursor-pointer">
+                        {genre}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
 
-            {/* Why recommend */}
-            {rec.why_recommend && (
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { icon: ThumbsUp,      label: 'Upvotes', value: rec.upvotes,      color: 'text-emerald-500', bg: 'bg-emerald-500/8' },
+                  { icon: Star,          label: 'Reviews', value: rec.review_count, color: 'text-amber-500',   bg: 'bg-amber-500/8'  },
+                  { icon: Bookmark,      label: 'Saves',   value: rec.save_count,   color: 'text-blue-500',    bg: 'bg-blue-500/8'   },
+                  { icon: MessageSquare, label: 'Score',   value: rec.score,        color: 'text-violet-500',  bg: 'bg-violet-500/8' },
+                ].map(({ icon: Icon, label, value, color, bg }) => (
+                  <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-2xl ${bg} border border-border`}>
+                    <Icon size={14} className={color} />
+                    <p className="text-lg font-black tabular-nums leading-none">{value ?? 0}</p>
+                    <p className="text-[10px] text-muted-foreground font-medium">{label}</p>
+                  </div>
+                ))}
+              </div>
+
               <div className="space-y-2">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Why Read This?</h2>
-                <div className={`relative pl-5 pr-4 py-4 rounded-2xl border ${typeStyle.border} bg-card`}>
-                  <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-full bg-gradient-to-b ${typeStyle.gradient}`} />
-                  <p className="text-sm leading-relaxed italic text-muted-foreground">"{rec.why_recommend}"</p>
-                </div>
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">About</h2>
+                <p className="text-sm leading-relaxed text-foreground/80">{rec.description}</p>
               </div>
-            )}
 
-            {/*
-              ── RECOMMENDED BY ──
-              Shows recommender username + their badge (Pro/Verified/Combined)
-            */}
-            <div className="flex items-center justify-between py-3 border-t border-border text-xs text-muted-foreground">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span>Recommended by</span>
-                <Link
-                  href={`/profile/${profile?.username}`}
-                  className="text-foreground hover:text-primary font-semibold transition-colors"
-                >
-                  @{profile?.display_name || profile?.username || 'unknown'}
-                </Link>
-                {/* Badge — Pro (gold), Verified (purple), both → red combined */}
-                <UserBadges
-                  role={profile?.role}
-                  isPro={recommenderIsPro}
-                  isVerified={recommenderIsVerified}
-                  size="sm"
+              {rec.why_recommend && (
+                <div className="space-y-2">
+                  <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Why Read This?</h2>
+                  <div className={`relative pl-5 pr-4 py-4 rounded-2xl border ${typeStyle.border} bg-card`}>
+                    <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-full bg-gradient-to-b ${typeStyle.gradient}`} />
+                    <p className="text-sm leading-relaxed italic text-muted-foreground">"{rec.why_recommend}"</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between py-3 border-t border-border text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span>Recommended by</span>
+                  <Link
+                    href={`/profile/${profile?.username}`}
+                    className="text-foreground hover:text-primary font-semibold transition-colors"
+                  >
+                    @{recommenderName}
+                  </Link>
+                  <UserBadges
+                    role={profile?.role}
+                    isPro={recommenderIsPro}
+                    isVerified={recommenderIsVerified}
+                    size="sm"
+                  />
+                </div>
+                <span className="shrink-0">{formatDate(rec.created_at)}</span>
+              </div>
+
+              <div className="space-y-3">
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reviews</h2>
+                <ReviewSection recommendationId={id} currentUserId={user?.id ?? null} isLoggedIn={!!user} />
+              </div>
+
+              <Suspense fallback={<div className="h-40 bg-muted/30 animate-pulse rounded-2xl border border-border mt-6" />}>
+                <ContextualOffers
+                  comicId={id}
+                  comicTitle={rec.title}
+                  genre={rec.genres?.[0] || 'Action'}
+                  maxOffers={3}
+                />
+              </Suspense>
+
+              <div className="space-y-3 pt-2">
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">You Might Also Like</h2>
+                <SimilarComics
+                  comicId={id}
+                  contentRating={rec.content_rating}
+                  showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
                 />
               </div>
-              <span className="shrink-0">{formatDate(rec.created_at)}</span>
+
             </div>
-
-            {/* Reviews */}
-            <div className="space-y-3">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reviews</h2>
-              <ReviewSection recommendationId={id} currentUserId={user?.id ?? null} isLoggedIn={!!user} />
-            </div>
-
-            {/*
-              ── CONTEXTUAL OFFERS ──
-              Capped at 3 max per spec (P3 fix applied here directly)
-            */}
-            <Suspense fallback={<div className="h-40 bg-muted/30 animate-pulse rounded-2xl border border-border mt-6" />}>
-              <ContextualOffers
-                comicId={id}
-                comicTitle={rec.title}
-                genre={rec.genres?.[0] || 'Action'}
-                maxOffers={3}
-              />
-            </Suspense>
-
-            {/* Similar */}
-            <div className="space-y-3 pt-2">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">You Might Also Like</h2>
-              <SimilarComics
-                comicId={id}
-                contentRating={rec.content_rating}
-                showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
-              />
-            </div>
-
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
