@@ -6,7 +6,6 @@ export const runtime = 'edge'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
 
-  // Optional params so comic pages can pass their own title/cover
   const title       = searchParams.get('title')       ?? 'Find your next obsession.'
   const description = searchParams.get('description') ?? 'Community-powered comic discovery. Browse, recommend, and vote.'
   const cover       = searchParams.get('cover')       ?? null
@@ -20,6 +19,7 @@ export async function GET(request: NextRequest) {
     comic:   '#3b82f6',
   }
   const accentColor = type ? (typeColors[type] ?? '#7c3aed') : '#7c3aed'
+  const shortDesc   = description.slice(0, 120) + (description.length > 120 ? '…' : '')
 
   return new ImageResponse(
     (
@@ -35,27 +35,31 @@ export async function GET(request: NextRequest) {
           fontFamily:      'system-ui, -apple-system, sans-serif',
         }}
       >
-        {/* Background glow blobs */}
+        {/* Background glow top */}
         <div style={{
-          position:        'absolute',
-          top:             '-100px',
-          left:            '50%',
-          transform:       'translateX(-50%)',
-          width:           '800px',
-          height:          '400px',
-          borderRadius:    '50%',
-          background:      `radial-gradient(ellipse, ${accentColor}22 0%, transparent 70%)`,
-          filter:          'blur(60px)',
+          position:     'absolute',
+          top:          '-100px',
+          left:         '50%',
+          transform:    'translateX(-50%)',
+          width:        '800px',
+          height:       '400px',
+          borderRadius: '50%',
+          background:   `radial-gradient(ellipse, ${accentColor}22 0%, transparent 70%)`,
+          filter:       'blur(60px)',
+          display:      'flex',
         }} />
+
+        {/* Background glow bottom-right */}
         <div style={{
-          position:        'absolute',
-          bottom:          '-80px',
-          right:           '-80px',
-          width:           '500px',
-          height:          '400px',
-          borderRadius:    '50%',
-          background:      'radial-gradient(ellipse, #f43f5e18 0%, transparent 70%)',
-          filter:          'blur(60px)',
+          position:     'absolute',
+          bottom:       '-80px',
+          right:        '-80px',
+          width:        '500px',
+          height:       '400px',
+          borderRadius: '50%',
+          background:   'radial-gradient(ellipse, #f43f5e18 0%, transparent 70%)',
+          filter:       'blur(60px)',
+          display:      'flex',
         }} />
 
         {/* Top border accent */}
@@ -66,18 +70,19 @@ export async function GET(request: NextRequest) {
           right:      0,
           height:     '3px',
           background: `linear-gradient(90deg, transparent, ${accentColor}, #f43f5e, transparent)`,
+          display:    'flex',
         }} />
 
-        {/* Main content */}
+        {/* Main content row */}
         <div style={{
-          display:        'flex',
-          flex:           1,
-          padding:        '60px',
-          gap:            '60px',
-          alignItems:     'center',
+          display:     'flex',
+          flex:        1,
+          padding:     '60px',
+          gap:         '60px',
+          alignItems:  'center',
         }}>
 
-          {/* Left — text */}
+          {/* Left — text column */}
           <div style={{
             display:       'flex',
             flexDirection: 'column',
@@ -85,62 +90,72 @@ export async function GET(request: NextRequest) {
             gap:           '24px',
           }}>
 
-            {/* Logo */}
+            {/* Logo row */}
             <div style={{
-              display:        'flex',
-              alignItems:     'center',
-              gap:            '12px',
+              display:    'flex',
+              alignItems: 'center',
+              gap:        '12px',
             }}>
+              {/* Logo icon box */}
               <div style={{
-                width:        '40px',
-                height:       '40px',
-                borderRadius: '10px',
-                background:   `linear-gradient(135deg, ${accentColor}, #7c3aed)`,
-                display:      'flex',
-                alignItems:   'center',
+                width:          '40px',
+                height:         '40px',
+                borderRadius:   '10px',
+                background:     `linear-gradient(135deg, ${accentColor}, #7c3aed)`,
+                display:        'flex',
+                alignItems:     'center',
                 justifyContent: 'center',
               }}>
+                {/* Three lines icon — no map, written out explicitly */}
                 <div style={{
-                  width:        '20px',
-                  height:       '20px',
-                  display:      'flex',
+                  display:       'flex',
                   flexDirection: 'column',
-                  gap:          '3px',
+                  gap:           '3px',
+                  width:         '20px',
+                  height:        '20px',
+                  justifyContent: 'center',
                 }}>
-                  {[22, 18, 14].map((w, i) => (
-                    <div key={i} style={{
-                      width:        `${w}px`,
-                      height:       '3px',
-                      borderRadius: '2px',
-                      background:   'rgba(255,255,255,0.9)',
-                    }} />
-                  ))}
+                  <div style={{ width: '20px', height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.9)', display: 'flex' }} />
+                  <div style={{ width: '16px', height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.9)', display: 'flex' }} />
+                  <div style={{ width: '12px', height: '3px', borderRadius: '2px', background: 'rgba(255,255,255,0.9)', display: 'flex' }} />
                 </div>
               </div>
-              <span style={{
-                fontSize:   '22px',
-                fontWeight: 900,
-                color:      '#ffffff',
-                letterSpacing: '-0.5px',
-              }}>
-                Compic<span style={{ color: accentColor }}>fy</span>
-              </span>
+
+              {/* Logo text */}
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{
+                  fontSize:      '22px',
+                  fontWeight:    900,
+                  color:         '#ffffff',
+                  letterSpacing: '-0.5px',
+                }}>
+                  Compic
+                </span>
+                <span style={{
+                  fontSize:      '22px',
+                  fontWeight:    900,
+                  color:         accentColor,
+                  letterSpacing: '-0.5px',
+                }}>
+                  fy
+                </span>
+              </div>
             </div>
 
-            {/* Type badge if present */}
+            {/* Type badge — only rendered when type exists */}
             {type && (
               <div style={{
-                display:      'inline-flex',
-                alignItems:   'center',
-                padding:      '4px 12px',
-                borderRadius: '999px',
-                background:   `${accentColor}22`,
-                border:       `1px solid ${accentColor}44`,
-                color:        accentColor,
-                fontSize:     '13px',
-                fontWeight:   700,
+                display:       'flex',
+                alignItems:    'center',
+                padding:       '4px 12px',
+                borderRadius:  '999px',
+                background:    `${accentColor}22`,
+                border:        `1px solid ${accentColor}44`,
+                color:         accentColor,
+                fontSize:      '13px',
+                fontWeight:    700,
                 textTransform: 'capitalize',
-                width:        'fit-content',
+                width:         'fit-content',
               }}>
                 {type}
               </div>
@@ -148,24 +163,26 @@ export async function GET(request: NextRequest) {
 
             {/* Title */}
             <div style={{
-              fontSize:     cover ? '42px' : '56px',
-              fontWeight:   900,
-              color:        '#ffffff',
-              lineHeight:   1.1,
+              display:       'flex',
+              fontSize:      cover ? '42px' : '56px',
+              fontWeight:    900,
+              color:         '#ffffff',
+              lineHeight:    1.1,
               letterSpacing: '-1px',
-              maxWidth:     '640px',
+              maxWidth:      '640px',
             }}>
               {title}
             </div>
 
             {/* Description */}
             <div style={{
+              display:    'flex',
               fontSize:   '20px',
               color:      'rgba(255,255,255,0.55)',
               lineHeight: 1.5,
               maxWidth:   '580px',
             }}>
-              {description.slice(0, 120)}{description.length > 120 ? '…' : ''}
+              {shortDesc}
             </div>
 
             {/* Bottom tag */}
@@ -180,11 +197,12 @@ export async function GET(request: NextRequest) {
                 height:       '6px',
                 borderRadius: '50%',
                 background:   accentColor,
+                display:      'flex',
               }} />
               <span style={{
-                fontSize:  '14px',
-                color:     'rgba(255,255,255,0.35)',
-                fontWeight: 600,
+                fontSize:      '14px',
+                color:         'rgba(255,255,255,0.35)',
+                fontWeight:    600,
                 letterSpacing: '1px',
                 textTransform: 'uppercase',
               }}>
@@ -204,15 +222,16 @@ export async function GET(request: NextRequest) {
               flexShrink:   0,
               boxShadow:    `0 0 60px ${accentColor}44, 0 20px 60px rgba(0,0,0,0.6)`,
               border:       '1px solid rgba(255,255,255,0.1)',
+              display:      'flex',
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={cover}
                 alt={title}
                 style={{
-                  width:      '100%',
-                  height:     '100%',
-                  objectFit:  'cover',
+                  width:     '100%',
+                  height:    '100%',
+                  objectFit: 'cover',
                 }}
               />
               {/* Overlay gradient */}
@@ -220,29 +239,27 @@ export async function GET(request: NextRequest) {
                 position:   'absolute',
                 inset:      0,
                 background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)',
+                display:    'flex',
               }} />
             </div>
           )}
 
-          {/* Right — decorative stack (homepage OG) */}
+          {/* Right — decorative stack (no cover / homepage OG) */}
           {!cover && (
             <div style={{
-              display:        'flex',
-              flexDirection:  'column',
-              gap:            '12px',
-              opacity:        0.4,
-              transform:      'rotate(6deg)',
+              display:       'flex',
+              flexDirection: 'column',
+              gap:           '12px',
+              opacity:       0.4,
+              transform:     'rotate(6deg)',
             }}>
-              {['#f43f5e', '#8b5cf6', '#14b8a6', '#f59e0b'].map((color, i) => (
-                <div key={i} style={{
-                  width:        `${180 - i * 20}px`,
-                  height:       '8px',
-                  borderRadius: '4px',
-                  background:   color,
-                }} />
-              ))}
+              <div style={{ width: '180px', height: '8px', borderRadius: '4px', background: '#f43f5e', display: 'flex' }} />
+              <div style={{ width: '160px', height: '8px', borderRadius: '4px', background: '#8b5cf6', display: 'flex' }} />
+              <div style={{ width: '140px', height: '8px', borderRadius: '4px', background: '#14b8a6', display: 'flex' }} />
+              <div style={{ width: '120px', height: '8px', borderRadius: '4px', background: '#f59e0b', display: 'flex' }} />
             </div>
           )}
+
         </div>
       </div>
     ),
