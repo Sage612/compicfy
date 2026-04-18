@@ -6,8 +6,10 @@ import { Toaster } from 'sonner'
 import { CookieBanner } from '@/components/ui/CookieBanner'
 import './globals.css'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
+
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'Compicfy — Find your next obsession',
     template: '%s | Compicfy',
@@ -17,24 +19,56 @@ export const metadata: Metadata = {
   authors: [{ name: 'Compicfy' }],
   creator: 'Compicfy',
   openGraph: {
-    type: 'website',
-    locale: 'en_US',
-    url: process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud',
-    siteName: 'Compicfy',
-    title: 'Compicfy — Find your next obsession',
+    type:        'website',
+    locale:      'en_US',
+    url:         SITE_URL,
+    siteName:    'Compicfy',
+    title:       'Compicfy — Find your next obsession',
     description: 'Community-driven recommendations for manga, manhwa, manhua, and webtoons.',
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Compicfy' }],
   },
   twitter: {
-    card: 'summary_large_image',
-    title: 'Compicfy — Find your next obsession',
+    card:        'summary_large_image',
+    title:       'Compicfy — Find your next obsession',
     description: 'Community-driven recommendations for manga, manhwa, manhua, and webtoons.',
-    images: ['/og-image.png'],
+    images:      ['/og-image.png'],
   },
   robots: {
-    index: true,
-    follow: true,
+    index:     true,
+    follow:    true,
     googleBot: { index: true, follow: true },
+  },
+}
+
+// ── WebSite + SearchAction JSON-LD ────────────────────────────────
+// Enables Google Sitelinks Search Box and brand knowledge panel.
+// Completely invisible to users — only parsed by crawlers.
+const websiteJsonLd = {
+  '@context': 'https://schema.org',
+  '@type':    'WebSite',
+  name:       'Compicfy',
+  url:         SITE_URL,
+  description: 'Community-driven manga, manhwa, manhua, and webtoon recommendations.',
+  publisher: {
+    '@type': 'Organization',
+    name:    'Compicfy',
+    url:      SITE_URL,
+    logo: {
+      '@type':       'ImageObject',
+      url:           `${SITE_URL}/icons/icon-192.png`,
+      width:         192,
+      height:        192,
+    },
+  },
+  // SearchAction tells Google what the search URL pattern looks like.
+  // This is what powers the Sitelinks Search Box in Google results.
+  potentialAction: {
+    '@type':       'SearchAction',
+    target: {
+      '@type':      'EntryPoint',
+      urlTemplate:  `${SITE_URL}/browse?q={search_term_string}`,
+    },
+    'query-input': 'required name=search_term_string',
   },
 }
 
@@ -42,15 +76,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/*
-          width=device-width          — use actual device width, not layout width
-          initial-scale=1             — don't zoom on load
-          viewport-fit=cover          — respect notches/safe areas on modern phones
-          interactive-widget=resizes-visual — keyboard doesn't push layout up
-        */}
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual"
+        />
+        {/* WebSite structured data — injected once at root for all pages */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
       </head>
       <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>

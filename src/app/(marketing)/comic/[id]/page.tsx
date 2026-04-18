@@ -21,12 +21,43 @@ import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
 import { UserBadges } from '@/components/pro/UserBadges'
 import { ReadingProgressButton } from '@/components/recommendations/ReadingProgressButton'
+import { headers } from 'next/headers'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
 
 interface Props {
   params: Promise<{ id: string }>
 }
+
+// ── Helpers ───────────────────────────────────────────────────────
+
+/** Truncate at word boundary so we never cut mid-word */
+function truncateAtWord(str: string, max: number): string {
+  if (str.length <= max) return str
+  const cut = str.slice(0, max)
+  const lastSpace = cut.lastIndexOf(' ')
+  return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut) + '…'
+}
+
+/**
+ * Convert upvote ratio to a 1–5 star rating.
+ * 100% upvotes → 5.0, 50% → 3.0, 0% → 1.0
+ * Formula: 1 + (ratio * 4)
+ */
+function ratioToStars(upvotes: number, downvotes: number): number {
+  const total = upvotes + downvotes
+  if (total === 0) return 4 // default when no votes yet
+  const ratio = upvotes / total
+  return Math.round((1 + ratio * 4) * 10) / 10 // one decimal place
+}
+
+/** Return true when the request is from a known crawler */
+function isCrawler(userAgent: string): boolean {
+  return /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandex|facebot|ia_archiver|twitterbot|linkedinbot|whatsapp|telegrambot/i
+    .test(userAgent)
+}
+
+// ── Metadata ──────────────────────────────────────────────────────
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
@@ -37,10 +68,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq('id', id)
     .single()
 
-  const rec = data as Pick<
-    Recommendation,
-    'title' | 'description' | 'type' | 'genres' | 'author' | 'cover_url' | 'status'
-  > | null
+  type RecMeta = Pick<Recommendation, 'title' | 'description' | 'type' | 'genres' | 'author' | 'cover_url' | 'status'>
+  const rec = data as RecMeta | null
   if (!rec) return { title: 'Comic | Compicfy' }
 
   const typeLabel = rec.type
@@ -48,20 +77,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     : 'Comic'
 
   const genreList = rec.genres?.slice(0, 3).join(', ') ?? ''
-  const title = `${rec.title} ${typeLabel} | Compicfy`
 
-  const descParts = [
+  // Build description — truncate the whole thing to 155 chars (safe for all search engines)
+  const rawDesc = [
     `${rec.title} is a ${typeLabel.toLowerCase()}`,
-    rec.author ? `by ${rec.author}` : null,
-    genreList ? `in the genres ${genreList}` : null,
-    rec.status ? `— currently ${rec.status}` : null,
-    rec.description
-      ? `. ${rec.description.slice(0, 100)}`
-      : '. Discover where to read it and what the community thinks.',
+    rec.author   ? `by ${rec.author}`           : null,
+    genreList    ? `in the genres ${genreList}`  : null,
+    rec.status   ? `— currently ${rec.status}.` : null,
+    rec.description ? rec.description           : 'Discover where to read it and what the community thinks.',
   ].filter(Boolean).join(' ')
 
-  const description = descParts.slice(0, 160)
+  const description = truncateAtWord(rawDesc, 155)
 
+  // Keywords — filter empty strings so null author doesn't add a blank entry
   const keywords = [
     rec.title,
     `${rec.title} ${rec.type}`,
@@ -69,47 +97,47 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     `${rec.title} where to read`,
     `${rec.title} recommendation`,
     ...(rec.genres ?? []),
-    rec.author ?? '',
+    rec.author ?? null,      // null filtered out below
     typeLabel,
     'manga recommendation',
     'manhwa recommendation',
     'webtoon recommendation',
-  ].filter(Boolean)
+  ].filter((k): k is string => !!k && k.trim().length > 0)
 
   const ogParams = new URLSearchParams({
-    title: rec.title ?? '',
-    description: description ?? '',
+    title:       rec.title        ?? '',
+    description: description      ?? '',
     ...(rec.cover_url ? { cover: rec.cover_url } : {}),
-    ...(rec.type ? { type: rec.type } : {}),
+    ...(rec.type      ? { type:  rec.type      } : {}),
   })
   const ogImageUrl = `${SITE_URL}/api/og?${ogParams.toString()}`
+  const pageUrl    = `${SITE_URL}/comic/${id}`
+  const pageTitle  = `${rec.title} ${typeLabel} | Compicfy`
 
   return {
-    title,
+    title:       pageTitle,
     description,
     keywords,
+    alternates:  { canonical: pageUrl },
     openGraph: {
-      title,
+      title:       pageTitle,
       description,
-      type: 'article',
-      url: `${SITE_URL}/comic/${id}`,
+      type:        'article',
+      url:         pageUrl,
+      siteName:    'Compicfy',
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: `${rec.title} cover` }],
     },
     twitter: {
-      card: 'summary_large_image',
-      title,
+      card:        'summary_large_image',
+      title:       pageTitle,
       description,
-      images: [ogImageUrl],
-    },
-    alternates: {
-      canonical: `${SITE_URL}/comic/${id}`,
+      images:      [ogImageUrl],
     },
   }
 }
 
-// ── JSON-LD structured data ───────────────────────────────────────────────────
-// This is what Google uses for rich results — shows star ratings, author,
-// genre in search snippets. Completely invisible to users but huge for SEO.
+// ── JSON-LD ───────────────────────────────────────────────────────
+
 function ComicJsonLd({
   rec,
   id,
@@ -123,55 +151,56 @@ function ComicJsonLd({
     ? rec.type.charAt(0).toUpperCase() + rec.type.slice(1)
     : 'Comic'
 
-  // Build schema.org Book object — closest match for manga/comics
+  const ratingValue = ratioToStars(rec.upvotes ?? 0, rec.downvotes ?? 0)
+
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'Book',
-    name: rec.title,
-    description: rec.description,
-    url: `${SITE_URL}/comic/${id}`,
-    ...(rec.cover_url ? { image: rec.cover_url } : {}),
-    ...(rec.author ? { author: { '@type': 'Person', name: rec.author } } : {}),
-    ...(rec.year_released ? { datePublished: String(rec.year_released) } : {}),
-    bookFormat: 'GraphicNovel',
-    inLanguage: rec.original_language ?? 'ja',
-    genre: rec.genres ?? [],
-    // If we have review count, add aggregate rating
+    '@type':    'Book',
+    name:        rec.title,
+    description: rec.description
+      ? truncateAtWord(rec.description, 300)
+      : undefined,
+    url:         `${SITE_URL}/comic/${id}`,
+    ...(rec.cover_url     ? { image: rec.cover_url }                                         : {}),
+    ...(rec.author        ? { author: { '@type': 'Person', name: rec.author } }              : {}),
+    ...(rec.year_released ? { datePublished: String(rec.year_released) }                     : {}),
+    bookFormat:   'GraphicNovel',
+    inLanguage:   rec.original_language ?? 'ja',
+    genre:        rec.genres ?? [],
+
+    // Aggregate rating — only include when we have actual review data
     ...(rec.review_count > 0
       ? {
           aggregateRating: {
-            '@type': 'AggregateRating',
-            ratingCount: rec.review_count,
-            reviewCount: rec.review_count,
-            // We don't store average rating yet — use upvote ratio as proxy
-            ratingValue: rec.upvotes > 0
-              ? Math.min(5, Math.max(1, Math.round((rec.upvotes / Math.max(1, rec.upvotes + rec.downvotes)) * 5)))
-              : 4,
-            bestRating: 5,
-            worstRating: 1,
+            '@type':       'AggregateRating',
+            ratingValue,           // 1–5 derived from upvote ratio
+            ratingCount:   rec.review_count,
+            reviewCount:   rec.review_count,
+            bestRating:    5,
+            worstRating:   1,
           },
         }
       : {}),
-    // BreadcrumbList for better nav in search results
+
     breadcrumb: {
       '@type': 'BreadcrumbList',
       itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+        { '@type': 'ListItem', position: 1, name: 'Home',   item: SITE_URL },
         { '@type': 'ListItem', position: 2, name: 'Browse', item: `${SITE_URL}/browse` },
         { '@type': 'ListItem', position: 3, name: rec.title, item: `${SITE_URL}/comic/${id}` },
       ],
     },
-    // WebPage wrapper so Google understands the recommendation context
+
     mainEntityOfPage: {
-      '@type': 'WebPage',
-      '@id': `${SITE_URL}/comic/${id}`,
-      name: `${rec.title} — ${typeLabel} Recommendation`,
+      '@type':     'WebPage',
+      '@id':       `${SITE_URL}/comic/${id}`,
+      name:        `${rec.title} — ${typeLabel} Recommendation`,
       description: `Community recommendation for ${rec.title}. Recommended by ${recommenderName} on Compicfy.`,
       publisher: {
         '@type': 'Organization',
-        name: 'Compicfy',
-        url: SITE_URL,
-        logo: `${SITE_URL}/icons/icon-192.png`,
+        name:    'Compicfy',
+        url:      SITE_URL,
+        logo:    `${SITE_URL}/icons/icon-192.png`,
       },
     },
   }
@@ -183,6 +212,8 @@ function ComicJsonLd({
     />
   )
 }
+
+// ── Style maps ────────────────────────────────────────────────────
 
 const TYPE_STYLES: Record<string, { gradient: string; badge: string; glow: string; border: string }> = {
   manga:   { gradient: 'from-rose-500   to-pink-600',   badge: 'bg-rose-500/15   text-rose-500   border-rose-500/25',   glow: 'bg-rose-500/20',   border: 'border-rose-500/30'   },
@@ -199,11 +230,19 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: 'bg-red-500/10    text-red-600     dark:text-red-400     border-red-500/20',
 }
 
+// ── Page ──────────────────────────────────────────────────────────
+
 export default async function ComicDetailPage({ params }: Props) {
   const { id } = await params
   const supabase = await createClient()
 
-  await (supabase as any).rpc('increment_view_count', { rec_id: id })
+  // ── Bot-safe view count increment ────────────────────────────────
+  // Only increment for real users — crawlers inflated analytics badly
+  const headersList = await headers()
+  const ua = headersList.get('user-agent') ?? ''
+  if (!isCrawler(ua)) {
+    await (supabase as any).rpc('increment_view_count', { rec_id: id })
+  }
 
   const { data: rawRec } = await supabase
     .from('recommendations')
@@ -217,7 +256,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Age gate
+  // ── Age gate ──────────────────────────────────────────────────────
   if (rec.content_rating === 'adult' || rec.content_rating === 'mature') {
     if (!user) {
       return (
@@ -227,7 +266,8 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
           <h1 className="text-2xl font-black">Age Restricted</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
-            This comic contains {rec.content_rating === 'adult' ? '18+' : '17+'} content. Log in and enable adult content in settings to view it.
+            This comic contains {rec.content_rating === 'adult' ? '18+' : '17+'} content.
+            Log in and enable adult content in settings to view it.
           </p>
           <div className="flex justify-center gap-3">
             <Link href="/browse"><Button variant="outline">Back to Browse</Button></Link>
@@ -267,23 +307,22 @@ export default async function ComicDetailPage({ params }: Props) {
     .maybeSingle()
 
   const profile = profileData as {
-    username: string
-    display_name: string | null
-    avatar_url: string | null
-    role: string
-    is_pro: boolean
-    pro_expires_at: string | null
+    username:             string
+    display_name:         string | null
+    avatar_url:           string | null
+    role:                 string
+    is_pro:               boolean
+    pro_expires_at:       string | null
     verified_recommender: boolean
   } | null
 
   const recommenderIsPro = profile
     ? profile.role === 'admin' ||
-      (profile.is_pro &&
-        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+      (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
     : false
 
   const recommenderIsVerified = profile?.verified_recommender ?? false
-  const recommenderName = profile?.display_name || profile?.username || 'unknown'
+  const recommenderName       = profile?.display_name || profile?.username || 'unknown'
 
   let userVote: 'up' | 'down' | null = null
   let isSaved = false
@@ -293,19 +332,18 @@ export default async function ComicDetailPage({ params }: Props) {
       (supabase as any).from('saves').select('id').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle(),
     ])
     userVote = (voteRes.data?.vote_type as 'up' | 'down') ?? null
-    isSaved = !!saveRes.data
+    isSaved  = !!saveRes.data
   }
 
   const typeStyle = TYPE_STYLES[rec.type] ?? {
     gradient: 'from-primary to-violet-500',
-    badge: 'bg-primary/15 text-primary border-primary/25',
-    glow: 'bg-primary/20',
-    border: 'border-primary/30',
+    badge:    'bg-primary/15 text-primary border-primary/25',
+    glow:     'bg-primary/20',
+    border:   'border-primary/30',
   }
 
   return (
     <>
-      {/* JSON-LD structured data — injected into <head> by Next.js */}
       <ComicJsonLd rec={rec} id={id} recommenderName={recommenderName} />
 
       <div className="min-h-screen">
@@ -394,7 +432,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
               <ShareButton
                 title={rec.title}
-                url={`https://compicfy.cloud/comic/${id}`}
+                url={`${SITE_URL}/comic/${id}`}
               />
 
               {rec.official_platforms && rec.official_platforms.length > 0 && (
@@ -431,10 +469,10 @@ export default async function ComicDetailPage({ params }: Props) {
                 <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-tight">{rec.title}</h1>
 
                 <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
-                  {rec.author && <span className="flex items-center gap-1.5"><User size={13} />{rec.author}</span>}
-                  {rec.artist && rec.artist !== rec.author && <span className="flex items-center gap-1.5"><Palette size={13} />{rec.artist}</span>}
-                  {rec.year_released && <span className="flex items-center gap-1.5"><Calendar size={13} />{rec.year_released}</span>}
-                  {rec.chapter_count && <span className="flex items-center gap-1.5"><Hash size={13} />{rec.chapter_count} ch.</span>}
+                  {rec.author  && <span className="flex items-center gap-1.5"><User    size={13} />{rec.author}</span>}
+                  {rec.artist  && rec.artist !== rec.author && <span className="flex items-center gap-1.5"><Palette  size={13} />{rec.artist}</span>}
+                  {rec.year_released  && <span className="flex items-center gap-1.5"><Calendar size={13} />{rec.year_released}</span>}
+                  {rec.chapter_count  && <span className="flex items-center gap-1.5"><Hash     size={13} />{rec.chapter_count} ch.</span>}
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
@@ -499,7 +537,11 @@ export default async function ComicDetailPage({ params }: Props) {
 
               <div className="space-y-3">
                 <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reviews</h2>
-                <ReviewSection recommendationId={id} currentUserId={user?.id ?? null} isLoggedIn={!!user} />
+                <ReviewSection
+                  recommendationId={id}
+                  currentUserId={user?.id ?? null}
+                  isLoggedIn={!!user}
+                />
               </div>
 
               <Suspense fallback={<div className="h-40 bg-muted/30 animate-pulse rounded-2xl border border-border mt-6" />}>
