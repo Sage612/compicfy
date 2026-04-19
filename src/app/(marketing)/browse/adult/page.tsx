@@ -14,21 +14,21 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = { title: '18+ Comics' }
 
 interface SearchParams {
-  q?: string
-  type?: string
-  genre?: string
+  q?:      string
+  type?:   string
+  genre?:  string
   status?: string
-  sort?: string
+  sort?:   string
 }
 
 interface Props {
   searchParams: Promise<SearchParams>
 }
 
-const PAGE_SIZE    = 24
+const PAGE_SIZE     = 24
 const ADULT_RATINGS = ['adult', 'mature'] as const
 
-// ── All section fetchers share one client ────────────────────────
+// ── Section fetchers ─────────────────────────────────────────────────────────
 
 async function getFeatured(s: SupabaseClient) {
   const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ADULT_RATINGS).order('daily_votes', { ascending: false }).limit(8)
@@ -62,9 +62,9 @@ async function getHiddenGems(s: SupabaseClient) {
 
 async function getYouMightLike(s: SupabaseClient, userId: string) {
   const { data } = await (s as any).rpc('get_personalized_recommendations', {
-    p_user_id:        userId,
-    p_exclude_id:     null,
-    p_limit:          12,
+    p_user_id:         userId,
+    p_exclude_id:      null,
+    p_limit:           12,
     p_content_ratings: ['mature', 'adult'],
   })
   return (data as Recommendation[]) ?? []
@@ -94,6 +94,15 @@ async function getInitialGrid(s: SupabaseClient, params: SearchParams) {
   }
 }
 
+// ── Fetch interaction count (votes + saves) ───────────────────────────────────
+async function getInteractionCount(s: SupabaseClient, userId: string): Promise<number> {
+  const [votesRes, savesRes] = await Promise.all([
+    s.from('votes').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    s.from('saves').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+  ])
+  return (votesRes.count ?? 0) + (savesRes.count ?? 0)
+}
+
 function hasActiveFilters(p: SearchParams) {
   return !!(p.q || p.type || p.genre || p.status || p.sort)
 }
@@ -119,9 +128,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
   const params      = await searchParams
   const isFiltering = hasActiveFilters(params)
 
-  // ── Single shared client ─────────────────────────────────────────
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
@@ -160,7 +167,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
     )
   }
 
-  // All parallel, all sharing the same client
+  // Fetch interaction count in parallel with sections
   const [
     featured,
     trending,
@@ -170,6 +177,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
     hiddenGems,
     youMightLike,
     { items, total },
+    interactionCount,
   ] = await Promise.all([
     isFiltering ? Promise.resolve([]) : getFeatured(supabase),
     isFiltering ? Promise.resolve([]) : getTrending(supabase),
@@ -179,6 +187,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
     isFiltering ? Promise.resolve([]) : getHiddenGems(supabase),
     isFiltering ? Promise.resolve([]) : getYouMightLike(supabase, user.id),
     getInitialGrid(supabase, params),
+    getInteractionCount(supabase, user.id),
   ])
 
   const clientParams: Record<string, string> = { adult: 'true' }
@@ -218,7 +227,9 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         <p className="text-xs text-muted-foreground leading-relaxed">
           This section contains adult (18+) and mature (17+) rated content, manually approved by admins.
           To disable, go to{' '}
-          <Link href="/dashboard/settings" className="underline hover:text-foreground transition-colors">Settings</Link>.
+          <Link href="/dashboard/settings" className="underline hover:text-foreground transition-colors">
+            Settings
+          </Link>.
         </p>
       </div>
 
@@ -258,12 +269,14 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         <FilterBar adult={true} />
       </Suspense>
 
-      {/* ── Comic Grid ── */}
+      {/* ── Comic Grid — with For You tab ── */}
       <ComicGridClient
         initialItems={items}
         initialTotal={total}
         searchParams={clientParams}
         apiPath="/api/recommendations"
+        userId={user.id}
+        interactionCount={interactionCount}
       />
     </div>
   )

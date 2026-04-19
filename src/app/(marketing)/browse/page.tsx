@@ -11,11 +11,11 @@ import type { Recommendation } from '@/types/database.types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 interface SearchParams {
-  q?: string
-  type?: string
-  genre?: string
+  q?:      string
+  type?:   string
+  genre?:  string
   status?: string
-  sort?: string
+  sort?:   string
 }
 
 interface Props {
@@ -25,7 +25,7 @@ interface Props {
 const PAGE_SIZE    = 24
 const SAFE_RATINGS = '("adult","mature")'
 
-// ── All section fetchers share one client ────────────────────────
+// ── Section fetchers ─────────────────────────────────────────────────────────
 
 async function getFeatured(s: SupabaseClient) {
   const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('daily_votes', { ascending: false }).limit(8)
@@ -59,9 +59,9 @@ async function getHiddenGems(s: SupabaseClient) {
 
 async function getYouMightLike(s: SupabaseClient, userId: string | null) {
   const { data } = await (s as any).rpc('get_personalized_recommendations', {
-    p_user_id:        userId,
-    p_exclude_id:     null,
-    p_limit:          12,
+    p_user_id:         userId,
+    p_exclude_id:      null,
+    p_limit:           12,
     p_content_ratings: ['all_ages', 'teen'],
   })
   return (data as Recommendation[]) ?? []
@@ -91,6 +91,16 @@ async function getInitialGrid(s: SupabaseClient, params: SearchParams) {
   }
 }
 
+// ── Fetch user's interaction count (votes + saves) ────────────────────────────
+// Used to decide whether "For You" tab is unlocked
+async function getInteractionCount(s: SupabaseClient, userId: string): Promise<number> {
+  const [votesRes, savesRes] = await Promise.all([
+    s.from('votes').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    s.from('saves').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+  ])
+  return (votesRes.count ?? 0) + (savesRes.count ?? 0)
+}
+
 function hasActiveFilters(p: SearchParams) {
   return !!(p.q || p.type || p.genre || p.status || p.sort)
 }
@@ -99,22 +109,21 @@ export default async function BrowsePage({ searchParams }: Props) {
   const params      = await searchParams
   const isFiltering = hasActiveFilters(params)
 
-  // ── Single shared client ─────────────────────────────────────────
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
 
-  let adultEnabled = false
+  let adultEnabled     = false
+  let interactionCount = 0
+
   if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('adult_content_enabled')
-      .eq('id', user.id)
-      .single()
-    adultEnabled = (profile as any)?.adult_content_enabled === true
+    const [profileRes, interactions] = await Promise.all([
+      supabase.from('profiles').select('adult_content_enabled').eq('id', user.id).single(),
+      getInteractionCount(supabase, user.id),
+    ])
+    adultEnabled     = (profileRes.data as any)?.adult_content_enabled === true
+    interactionCount = interactions
   }
 
-  // All parallel, all sharing the same client
   const [
     featured,
     trending,
@@ -189,11 +198,15 @@ export default async function BrowsePage({ searchParams }: Props) {
         <div className="space-y-10">
           <HorizontalSection title="Trending Today"       emoji="🔥" recommendations={trending}      viewAllHref="/browse?sort=trending" />
           <HorizontalSection title="Recently Added"       emoji="✨" recommendations={recent}        viewAllHref="/browse?sort=recent"   />
-          {adminPicks.length > 0    && <HorizontalSection title="Admin Picks"          emoji="👑" recommendations={adminPicks}                                            />}
+          {adminPicks.length > 0   && <HorizontalSection title="Admin Picks"          emoji="👑" recommendations={adminPicks}     />}
           <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse?sort=score"    />
-          {hiddenGems.length > 0    && <HorizontalSection title="Hidden Gems"          emoji="💎" recommendations={hiddenGems}                                            />}
-          {youMightLike.length > 0  && (
-            <HorizontalSection title={user ? 'You Might Like' : 'Popular Picks'} emoji="🎯" recommendations={youMightLike} />
+          {hiddenGems.length > 0   && <HorizontalSection title="Hidden Gems"          emoji="💎" recommendations={hiddenGems}     />}
+          {youMightLike.length > 0 && (
+            <HorizontalSection
+              title={user ? 'You Might Like' : 'Popular Picks'}
+              emoji="🎯"
+              recommendations={youMightLike}
+            />
           )}
         </div>
       )}
@@ -215,12 +228,14 @@ export default async function BrowsePage({ searchParams }: Props) {
         <FilterBar adult={false} />
       </Suspense>
 
-      {/* ── Comic Grid ── */}
+      {/* ── Comic Grid — with For You tab ── */}
       <ComicGridClient
         initialItems={items}
         initialTotal={total}
         searchParams={clientParams}
         apiPath="/api/recommendations"
+        userId={user?.id ?? null}
+        interactionCount={interactionCount}
       />
     </div>
   )
