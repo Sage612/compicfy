@@ -14,42 +14,40 @@ import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/format'
 import Link from 'next/link'
 
-// ── Types ─────────────────────────────────────────────────────────
 interface UserRecord {
-  id:                  string
-  username:            string
-  display_name:        string | null
-  avatar_url:          string | null
-  role:                string
-  is_banned:           boolean
-  ban_reason:          string | null
-  is_suspended:        boolean
-  suspended_until:     string | null
-  suspension_reason:   string | null
-  appeal_status:       string | null
-  appeal_text:         string | null
+  id:                    string
+  username:              string
+  display_name:          string | null
+  avatar_url:            string | null
+  role:                  string
+  is_banned:             boolean
+  ban_reason:            string | null
+  is_suspended:          boolean
+  suspended_until:       string | null
+  suspension_reason:     string | null
+  appeal_status:         string | null
+  appeal_text:           string | null
   total_recommendations: number
-  total_reviews:       number
-  member_since:        string
+  total_reviews:         number
+  member_since:          string
 }
 
 const FILTERS = [
-  { value: 'all',        label: 'All Users'      },
-  { value: 'banned',     label: '🚫 Banned'      },
-  { value: 'suspended',  label: '⏸️ Suspended'   },
-  { value: 'moderator',  label: '🛡️ Moderators'  },
-  { value: 'admin',      label: '👑 Admins'      },
+  { value: 'all',       label: 'All Users'     },
+  { value: 'banned',    label: '🚫 Banned'     },
+  { value: 'suspended', label: '⏸️ Suspended'  },
+  { value: 'moderator', label: '🛡️ Moderators' },
+  { value: 'admin',     label: '👑 Admins'     },
 ]
 
 const ROLES = ['user', 'moderator', 'admin']
 
 const ROLE_STYLES: Record<string, string> = {
-  admin:     'bg-primary/10   text-primary   border-primary/20',
-  moderator: 'bg-blue-500/10  text-blue-600  border-blue-500/20',
-  user:      'bg-muted        text-muted-foreground border-border',
+  admin:     'bg-primary/10  text-primary         border-primary/20',
+  moderator: 'bg-blue-500/10 text-blue-600        border-blue-500/20',
+  user:      'bg-muted       text-muted-foreground border-border',
 }
 
-// Suspension duration options
 const SUSPENSION_DURATIONS = [
   { label: '1 hour',   hours: 1   },
   { label: '6 hours',  hours: 6   },
@@ -67,23 +65,22 @@ function isSuspensionActive(user: UserRecord): boolean {
 
 function formatSuspendedUntil(iso: string | null): string {
   if (!iso) return 'indefinitely'
-  const d = new Date(iso)
-  const now = new Date()
-  const diffMs = d.getTime() - now.getTime()
+  const diffMs = new Date(iso).getTime() - Date.now()
   if (diffMs <= 0) return 'expired'
   const diffH = Math.floor(diffMs / 3600000)
-  if (diffH < 1) return 'less than 1h left'
+  if (diffH < 1)  return '< 1h left'
   if (diffH < 24) return `${diffH}h left`
-  const diffD = Math.floor(diffH / 24)
-  return `${diffD}d left`
+  return `${Math.floor(diffH / 24)}d left`
 }
 
+// ── Parent ────────────────────────────────────────────────────────
+
 export function AdminUsers() {
-  const [users, setUsers]           = useState<UserRecord[]>([])
-  const [filter, setFilter]         = useState('all')
-  const [search, setSearch]         = useState('')
-  const [loading, setLoading]       = useState(true)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [users,         setUsers]         = useState<UserRecord[]>([])
+  const [filter,        setFilter]        = useState('all')
+  const [search,        setSearch]        = useState('')
+  const [loading,       setLoading]       = useState(true)
+  const [expandedId,    setExpandedId]    = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   const fetchUsers = useCallback(async () => {
@@ -102,8 +99,8 @@ export function AdminUsers() {
   }, [filter, search])
 
   useEffect(() => {
-    const timeout = setTimeout(fetchUsers, 300)
-    return () => clearTimeout(timeout)
+    const t = setTimeout(fetchUsers, 300)
+    return () => clearTimeout(t)
   }, [fetchUsers])
 
   const handleAction = async (id: string, action: string, extra: Record<string, any> = {}) => {
@@ -146,7 +143,6 @@ export function AdminUsers() {
   return (
     <div className="space-y-4">
 
-      {/* Search + filters */}
       <div className="space-y-2">
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -175,19 +171,16 @@ export function AdminUsers() {
         </div>
       </div>
 
-      {/* Legend */}
       <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground px-1">
-        <span className="flex items-center gap-1"><Ban size={10} className="text-red-500" /> Permanent ban — account blocked indefinitely</span>
-        <span className="flex items-center gap-1"><Clock size={10} className="text-amber-500" /> Suspension — temporary, auto-lifts after duration</span>
+        <span className="flex items-center gap-1"><Ban size={10} className="text-red-500" /> Permanent ban</span>
+        <span className="flex items-center gap-1"><Clock size={10} className="text-amber-500" /> Suspension — auto-lifts</span>
       </div>
 
-      {/* List */}
       {loading ? (
         <div className="flex justify-center py-16">
           <Loader2 size={24} className="animate-spin text-muted-foreground" />
         </div>
       ) : users.length === 0 ? (
-        /* ── Empty state ── */
         <div className="relative flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border overflow-hidden">
           <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
@@ -204,75 +197,77 @@ export function AdminUsers() {
         </div>
       ) : (
         <div className="space-y-2">
-          {users.map((user) => {
-            const isExpanded       = expandedId === user.id
-            const initials         = (user.display_name || user.username || 'U').slice(0, 2).toUpperCase()
-            const suspensionActive = isSuspensionActive(user)
-
-            return (
-              <UserRow
-                key={user.id}
-                user={user}
-                isExpanded={isExpanded}
-                initials={initials}
-                suspensionActive={suspensionActive}
-                actionLoading={actionLoading}
-                onToggleExpand={() => setExpandedId(isExpanded ? null : user.id)}
-                onAction={handleAction}
-                onDelete={handleDelete}
-              />
-            )
-          })}
+          {users.map((user) => (
+            <UserRow
+              key={user.id}
+              user={user}
+              isExpanded={expandedId === user.id}
+              initials={(user.display_name || user.username || 'U').slice(0, 2).toUpperCase()}
+              suspensionActive={isSuspensionActive(user)}
+              actionLoading={actionLoading}
+              onToggleExpand={() => setExpandedId(expandedId === user.id ? null : user.id)}
+              onAction={handleAction}
+              onDelete={handleDelete}
+            />
+          ))}
         </div>
       )}
     </div>
   )
 }
 
-// ── Separate row component to keep the inner state clean ──────────
+// ── Row ───────────────────────────────────────────────────────────
+
 function UserRow({
-  user,
-  isExpanded,
-  initials,
-  suspensionActive,
-  actionLoading,
-  onToggleExpand,
-  onAction,
-  onDelete,
+  user, isExpanded, initials, suspensionActive,
+  actionLoading, onToggleExpand, onAction, onDelete,
 }: {
-  user:              UserRecord
-  isExpanded:        boolean
-  initials:          string
-  suspensionActive:  boolean
-  actionLoading:     string | null
-  onToggleExpand:    () => void
-  onAction:          (id: string, action: string, extra?: Record<string, any>) => Promise<void>
-  onDelete:          (id: string, username: string) => Promise<void>
+  user:             UserRecord
+  isExpanded:       boolean
+  initials:         string
+  suspensionActive: boolean
+  actionLoading:    string | null
+  onToggleExpand:   () => void
+  onAction:         (id: string, action: string, extra?: Record<string, any>) => Promise<void>
+  onDelete:         (id: string, username: string) => Promise<void>
 }) {
-  const [banReason,         setBanReason]         = useState('')
-  const [suspendReason,     setSuspendReason]      = useState('')
-  const [suspendDuration,   setSuspendDuration]    = useState<number>(24)
-  const [activePanel, setActivePanel]              = useState<'ban' | 'suspend' | 'role' | null>(null)
+  const [banReason,       setBanReason]       = useState('')
+  const [suspendReason,   setSuspendReason]   = useState('')
+  const [suspendDuration, setSuspendDuration] = useState<number>(24)
+  const [activePanel,     setActivePanel]     = useState<'ban' | 'suspend' | 'role' | null>(null)
 
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden hover:border-primary/30 transition-colors">
 
-      {/* ── Header row ── */}
-      <div className="flex items-center gap-3 p-4">
-        <Avatar className="h-10 w-10 shrink-0">
+      {/* ── Header ─────────────────────────────────────────────────
+          Layout: avatar | [info column that stacks everything]
+          The info column owns ALL text + action buttons so nothing
+          ever overflows sideways on mobile.                        */}
+      <div className="flex gap-3 p-3.5">
+
+        <Avatar className="h-9 w-9 shrink-0 mt-0.5">
           <AvatarImage src={user.avatar_url ?? undefined} />
           <AvatarFallback className="text-xs bg-gradient-to-br from-primary to-violet-500 text-white font-bold">
             {initials}
           </AvatarFallback>
         </Avatar>
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+        {/* Everything else lives here and stacks top-to-bottom */}
+        <div className="flex-1 min-w-0 space-y-1.5">
+
+          {/* Row 1: username + role badge + status badges */}
+          <div className="flex flex-wrap items-center gap-1.5">
             <Link href={`/profile/${user.username}`} target="_blank">
-              <p className="text-sm font-black hover:text-primary transition-colors">@{user.username}</p>
+              <span className="text-sm font-black hover:text-primary transition-colors">
+                @{user.username}
+              </span>
             </Link>
-            <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize', ROLE_STYLES[user.role] ?? ROLE_STYLES.user)}>
-              {user.role === 'admin' && <Shield size={9} className="mr-1" />}{user.role}
+            <span className={cn(
+              'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize',
+              ROLE_STYLES[user.role] ?? ROLE_STYLES.user
+            )}>
+              {user.role === 'admin' && <Shield size={9} className="mr-1" />}
+              {user.role}
             </span>
             {user.is_banned && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-red-500/10 text-red-600 border-red-500/20">
@@ -281,7 +276,7 @@ function UserRow({
             )}
             {suspensionActive && !user.is_banned && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">
-                <Clock size={9} /> Suspended · {formatSuspendedUntil(user.suspended_until)}
+                <Clock size={9} /> {formatSuspendedUntil(user.suspended_until)}
               </span>
             )}
             {user.appeal_status === 'pending' && (
@@ -290,82 +285,96 @@ function UserRow({
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {user.total_recommendations} recs · {user.total_reviews} reviews · Joined {formatDate(user.member_since)}
+
+          {/* Row 2: meta */}
+          <p className="text-xs text-muted-foreground">
+            {user.total_recommendations} recs · {user.total_reviews} reviews · {formatDate(user.member_since)}
           </p>
+
+          {/* Row 3: reason pills (only when relevant) */}
           {user.is_banned && user.ban_reason && (
-            <p className="text-xs text-red-500 mt-0.5">Ban: {user.ban_reason}</p>
+            <p className="text-xs text-red-500 truncate">Ban: {user.ban_reason}</p>
           )}
           {suspensionActive && user.suspension_reason && (
-            <p className="text-xs text-amber-600 mt-0.5">Suspended: {user.suspension_reason}</p>
+            <p className="text-xs text-amber-600 truncate">Suspended: {user.suspension_reason}</p>
           )}
-        </div>
 
-        {/* Quick action buttons */}
-        <div className="flex gap-0.5 shrink-0">
-          {/* Unban */}
-          {user.is_banned && (
+          {/* Row 4: action buttons — flex-wrap so they flow to next
+              line instead of overflowing off-screen on mobile      */}
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+
+            {user.is_banned && (
+              <Button
+                variant="outline" size="sm"
+                className="h-7 gap-1 text-xs px-2.5 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10"
+                onClick={() => onAction(user.id, 'unban')}
+                disabled={!!actionLoading}
+              >
+                {actionLoading === `${user.id}-unban`
+                  ? <Loader2 size={11} className="animate-spin" />
+                  : <CheckCircle size={11} />
+                }
+                Unban
+              </Button>
+            )}
+
+            {suspensionActive && !user.is_banned && (
+              <Button
+                variant="outline" size="sm"
+                className="h-7 gap-1 text-xs px-2.5 text-amber-600 border-amber-500/30 hover:bg-amber-500/10"
+                onClick={() => onAction(user.id, 'unsuspend')}
+                disabled={!!actionLoading}
+              >
+                {actionLoading === `${user.id}-unsuspend`
+                  ? <Loader2 size={11} className="animate-spin" />
+                  : <CheckCircle size={11} />
+                }
+                Unsuspend
+              </Button>
+            )}
+
             <Button
-              variant="ghost" size="sm"
-              className="gap-1.5 text-emerald-500 hover:text-emerald-500 h-8 text-xs"
-              onClick={() => onAction(user.id, 'unban')}
+              variant="outline" size="sm"
+              className="h-7 gap-1 text-xs px-2.5 text-red-500 border-red-500/30 hover:bg-red-500/10"
               disabled={!!actionLoading}
+              onClick={() => {
+                if (window.confirm(`Permanently delete @${user.username}? This cannot be undone.`)) {
+                  onDelete(user.id, user.username)
+                }
+              }}
             >
-              <CheckCircle size={12} /> Unban
-            </Button>
-          )}
-
-          {/* Unsuspend */}
-          {suspensionActive && !user.is_banned && (
-            <Button
-              variant="ghost" size="sm"
-              className="gap-1.5 text-amber-500 hover:text-amber-600 h-8 text-xs"
-              onClick={() => onAction(user.id, 'unsuspend')}
-              disabled={!!actionLoading}
-            >
-              <CheckCircle size={12} /> Unsuspend
-            </Button>
-          )}
-
-          {/* Delete */}
-          <Button
-            variant="ghost" size="icon"
-            className="h-8 w-8 text-red-500 hover:text-red-500"
-            disabled={!!actionLoading}
-            onClick={() => {
-              if (window.confirm(`Permanently delete @${user.username}? This cannot be undone.`)) {
-                onDelete(user.id, user.username)
+              {actionLoading === `${user.id}-delete`
+                ? <Loader2 size={11} className="animate-spin" />
+                : <Trash2 size={11} />
               }
-            }}
-            title="Delete user"
-          >
-            {actionLoading === `${user.id}-delete`
-              ? <Loader2 size={13} className="animate-spin" />
-              : <Trash2 size={13} />
-            }
-          </Button>
+              Delete
+            </Button>
 
-          {/* Expand */}
-          <Button
-            variant="ghost" size="icon"
-            className="h-8 w-8"
-            onClick={onToggleExpand}
-          >
-            {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          </Button>
+            {/* More/Less — ml-auto pushes it to the right on wide
+                screens, but wraps naturally on narrow ones         */}
+            <Button
+              variant="outline" size="sm"
+              className="h-7 gap-1 text-xs px-2.5 ml-auto"
+              onClick={onToggleExpand}
+            >
+              {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+              {isExpanded ? 'Less' : 'More'}
+            </Button>
+
+          </div>
         </div>
       </div>
 
       {/* ── Expanded panel ── */}
       {isExpanded && (
-        <div className="px-4 pb-4 border-t border-border pt-4 space-y-5 bg-muted/10">
+        <div className="px-4 pb-4 border-t border-border pt-4 space-y-4 bg-muted/10">
 
-          {/* Panel selector tabs */}
+          {/* Panel tabs */}
           <div className="flex gap-1.5 flex-wrap">
             {[
-              { key: 'role',    label: '🛡️ Change Role'    },
-              { key: 'suspend', label: '⏸️ Suspend'        },
-              { key: 'ban',     label: '🚫 Permanent Ban'  },
+              { key: 'role',    label: '🛡️ Role'   },
+              { key: 'suspend', label: '⏸️ Suspend' },
+              { key: 'ban',     label: '🚫 Ban'     },
             ].map(({ key, label }) => (
               <button
                 key={key}
@@ -382,7 +391,7 @@ function UserRow({
             ))}
           </div>
 
-          {/* ── Role panel ── */}
+          {/* Role panel */}
           {activePanel === 'role' && (
             <div className="space-y-2">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Change Role</p>
@@ -407,7 +416,7 @@ function UserRow({
             </div>
           )}
 
-          {/* ── Suspend panel ── */}
+          {/* Suspend panel */}
           {activePanel === 'suspend' && (
             <div className="space-y-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
               <div>
@@ -415,8 +424,7 @@ function UserRow({
                   Temporary Suspension
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Suspensions auto-expire. The user cannot log in until the suspension lifts.
-                  Unlike a ban, their account is not flagged permanently.
+                  Auto-expires. User cannot access the platform until it lifts.
                 </p>
               </div>
 
@@ -440,33 +448,33 @@ function UserRow({
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Reason</p>
-                <Textarea
-                  value={suspendReason}
-                  onChange={e => setSuspendReason(e.target.value)}
-                  placeholder="Reason for suspension (shown to user)..."
-                  rows={2}
-                  className="resize-none text-sm"
-                />
-              </div>
+              <Textarea
+                value={suspendReason}
+                onChange={e => setSuspendReason(e.target.value)}
+                placeholder="Reason for suspension (shown to user)..."
+                rows={2}
+                className="resize-none text-sm"
+              />
 
               <Button
                 size="sm"
-                className="gap-2 bg-amber-500 hover:bg-amber-600 text-white border-0"
-                onClick={() => onAction(user.id, 'suspend', { reason: suspendReason, duration_hours: suspendDuration })}
+                className="gap-2 w-full sm:w-auto bg-amber-500 hover:bg-amber-600 text-white border-0"
+                onClick={() => onAction(user.id, 'suspend', {
+                  reason:         suspendReason,
+                  duration_hours: suspendDuration,
+                })}
                 disabled={!suspendReason.trim() || !!actionLoading}
               >
                 {actionLoading === `${user.id}-suspend`
                   ? <Loader2 size={13} className="animate-spin" />
                   : <Clock size={13} />
                 }
-                Suspend for {SUSPENSION_DURATIONS.find(d => d.hours === suspendDuration)?.label}
+                Suspend · {SUSPENSION_DURATIONS.find(d => d.hours === suspendDuration)?.label}
               </Button>
             </div>
           )}
 
-          {/* ── Ban panel ── */}
+          {/* Ban panel */}
           {activePanel === 'ban' && !user.is_banned && (
             <div className="space-y-3 p-3 rounded-xl bg-red-500/5 border border-red-500/20">
               <div>
@@ -474,14 +482,14 @@ function UserRow({
                   Permanent Ban
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  This permanently blocks the account until manually unbanned. Use suspension for temporary actions.
+                  Blocks the account indefinitely until manually unbanned.
                 </p>
               </div>
 
               <Textarea
                 value={banReason}
                 onChange={e => setBanReason(e.target.value)}
-                placeholder="Reason for permanent ban (shown to user)..."
+                placeholder="Reason for ban (shown to user)..."
                 rows={2}
                 className="resize-none text-sm"
               />
@@ -489,7 +497,7 @@ function UserRow({
               <Button
                 size="sm"
                 variant="destructive"
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto"
                 onClick={() => onAction(user.id, 'ban', { reason: banReason })}
                 disabled={!banReason.trim() || !!actionLoading}
               >
@@ -502,33 +510,34 @@ function UserRow({
             </div>
           )}
 
-          {user.is_banned && activePanel === 'ban' && (
-            <p className="text-xs text-muted-foreground px-1">
-              User is already permanently banned. Use the <strong>Unban</strong> button above to lift it.
+          {activePanel === 'ban' && user.is_banned && (
+            <p className="text-xs text-muted-foreground">
+              Already banned. Use <strong>Unban</strong> above to lift it.
             </p>
           )}
 
-          {/* ── Appeal panel ── */}
+          {/* Appeal */}
           {user.appeal_status === 'pending' && user.appeal_text && (
             <div className="space-y-2 p-3 rounded-xl bg-orange-500/5 border border-orange-500/20">
               <p className="text-xs font-bold text-orange-600">Ban Appeal</p>
               <p className="text-sm">{user.appeal_text}</p>
-              <div className="flex gap-2 flex-wrap">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
-                  className="gap-1.5 bg-emerald-500 hover:bg-emerald-600"
+                  className="gap-1.5 bg-emerald-500 hover:bg-emerald-600 flex-1 sm:flex-none"
                   onClick={() => onAction(user.id, 'resolve_appeal', { appeal_status: 'approved' })}
                   disabled={!!actionLoading}
                 >
-                  <CheckCircle size={13} /> Approve (Unban)
+                  <CheckCircle size={13} /> Approve
                 </Button>
                 <Button
                   size="sm"
                   variant="destructive"
+                  className="gap-1.5 flex-1 sm:flex-none"
                   onClick={() => onAction(user.id, 'resolve_appeal', { appeal_status: 'rejected' })}
                   disabled={!!actionLoading}
                 >
-                  <XCircle size={13} /> Reject Appeal
+                  <XCircle size={13} /> Reject
                 </Button>
               </div>
             </div>
