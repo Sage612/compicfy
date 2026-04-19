@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  House, Plus, ScrollText, BookMarked, Radar, Crown, LayoutList     
+  House, BookOpen, ScrollText, BookMarked, Radar, Crown, LayoutList
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -76,23 +76,30 @@ export function MobileNav() {
 
   if (!authReady) return null
 
-  // Lists — pro users get pro lists, others get regular
-  const listsHref  = isPro ? '/pro/lists'  : '/dashboard/lists'
-  const listsLabel = isPro ? 'Pro Lists'   : 'Lists'
+  const listsHref = isPro ? '/pro/lists' : '/dashboard/lists'
 
   const firstSlot = !isLoggedIn
     ? { href: '/',     label: 'Home', icon: House,      exact: true  }
     : { href: '/feed', label: 'Feed', icon: LayoutList, exact: false }
 
   const lastSlot = !isLoggedIn
-    ? { href: '/pricing', label: 'Pro',     icon: Crown,      isProItem: true  }
-    : { href: listsHref,  label: listsLabel, icon: BookMarked                  }
+    ? { href: '/pricing', label: 'Go Pro', icon: Crown,      isProItem: true }
+    : { href: listsHref,  label: 'Lists',  icon: BookMarked                  }
+
+  // ── Centre slot: context-aware recommend button ───────────────────────────
+  // Label says "Rec" not "Add" — unambiguous, specific to what this app does
+  const recSlot = {
+    href:    isLoggedIn ? '/dashboard/recommendations/new' : '/login',
+    label:   'Rec',
+    icon:    BookOpen,
+    isRec:   true,
+  }
 
   const navItems = [
     firstSlot,
-    { href: '/browse',                        label: 'Browse', icon: Radar               },
-    { href: '/dashboard/recommendations/new', label: 'Add',    icon: Plus, isAdd: true    },
-    { href: '/news',                          label: 'News',   icon: ScrollText            },
+    { href: '/browse', label: 'Browse', icon: Radar               },
+    recSlot,
+    { href: '/news',   label: 'News',   icon: ScrollText           },
     lastSlot,
   ]
 
@@ -106,27 +113,27 @@ export function MobileNav() {
 
       <div className="relative flex items-center justify-around px-1 h-16">
         {navItems.map((item: any) => {
-          const { href, label, icon: Icon, exact, isAdd, isProItem } = item
+          const { href, label, icon: Icon, exact, isRec, isProItem } = item
           const isActive = exact ? pathname === href : pathname.startsWith(href)
-          const target   = isAdd && !isLoggedIn ? '/login' : href
 
-          /* ── Center Add button ── */
-          if (isAdd) {
+          /* ── Centre Recommend button ── */
+          if (isRec) {
             return (
               <Link
                 key={href}
-                href={target}
+                href={href}
                 className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
               >
                 <div className={cn(
-                  'w-10 h-10 rounded-xl flex items-center justify-center',
+                  'w-11 h-11 rounded-2xl flex items-center justify-center',
                   'bg-gradient-to-br from-primary to-violet-500',
+                  'shadow-lg shadow-primary/30',
                   'active:opacity-80 hover:opacity-90',
                   'transition-all duration-200 ease-out'
                 )}>
-                  <Icon size={19} className="text-white" strokeWidth={2.5} />
+                  <Icon size={20} className="text-white" strokeWidth={2.5} />
                 </div>
-                <span className="text-[10px] font-semibold text-muted-foreground leading-none">
+                <span className="text-[10px] font-bold text-primary leading-none">
                   {label}
                 </span>
               </Link>

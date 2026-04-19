@@ -18,9 +18,9 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
   Sun, Moon, Monitor, Radar, ScrollText,
-  LayoutDashboard, Settings, LogOut, Plus,
+  LayoutDashboard, Settings, LogOut, BookOpen,
   User as UserIcon, Bell,
-  ShoppingBag, Crown, CreditCard, Sparkles, LayoutList, BookMarked
+  ShoppingBag, Crown, CreditCard, Sparkles, LayoutList, BookMarked,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -43,8 +43,9 @@ function LogoMark({ className }: { className?: string }) {
 
 export function Header() {
   const pathname = usePathname()
-  const router = useRouter()
+  const router   = useRouter()
   const { theme, setTheme } = useTheme()
+
   const [mounted, setMounted]         = useState(false)
   const [user, setUser]               = useState<User | null>(null)
   const [avatarUrl, setAvatarUrl]     = useState<string | null>(null)
@@ -102,7 +103,6 @@ export function Header() {
           )
         }
       }
-
       setAuthReady(true)
     }
     getUser()
@@ -128,30 +128,26 @@ export function Header() {
     router.push('/')
     router.refresh()
   }
-  // Custom Visibility Logic: Admin and Pro users don't see the crown link.
-  // Moderators (mod) and regular users (user) do see it if they aren't Pro.
-  const showProLink = mounted && authReady && !!user && !isPro && (role === 'user' || role === 'mod')
 
-  // Navigation Logic
-const dashboardHref  = isPro ? '/pro/dashboard'     : '/dashboard'
-const listsHref      = isPro ? '/pro/lists'         : '/dashboard/lists'
-const billingHref    = isPro ? '/pro/billing'       : '/dashboard/billing'
-const settingsHref   = isPro ? '/pro/settings'      : '/dashboard/settings'
-const notificationsHref     = isPro ? '/pro/notifications' : '/dashboard/notifications'
-
-const dashboardLabel = isPro ? 'Pro Dashboard' : 'Dashboard'
-const billingLabel   = isPro ? 'Pro Billing'   : 'Billing'
-const listsLabel     = isPro ? 'Pro Lists'     : 'Lists'
+  const showProLink       = mounted && authReady && !!user && !isPro && (role === 'user' || role === 'mod')
+  const dashboardHref     = isPro ? '/pro/dashboard'     : '/dashboard'
+  const listsHref         = isPro ? '/pro/lists'         : '/dashboard/lists'
+  const billingHref       = isPro ? '/pro/billing'       : '/dashboard/billing'
+  const settingsHref      = isPro ? '/pro/settings'      : '/dashboard/settings'
+  const notificationsHref = isPro ? '/pro/notifications' : '/dashboard/notifications'
+  const dashboardLabel    = isPro ? 'Pro Dashboard'      : 'Dashboard'
+  const billingLabel      = isPro ? 'Pro Billing'        : 'Billing'
+  const listsLabel        = isPro ? 'Pro Lists'          : 'Lists'
 
   const publicNavLinks = [
-    { href: '/browse',    label: 'Browse', icon: Radar      },
+    { href: '/browse',    label: 'Browse', icon: Radar       },
     { href: '/news',      label: 'News',   icon: ScrollText  },
     { href: '/affiliate', label: 'Shop',   icon: ShoppingBag },
   ]
 
   const authNavLinks = [
-    { href: '/feed',   label: 'Feed',   icon: LayoutList },
-    { href: listsHref, label: listsLabel, icon: BookMarked }, // Restored Lists to Header
+    { href: '/feed',   label: 'Feed',     icon: LayoutList },
+    { href: listsHref, label: listsLabel, icon: BookMarked },
   ]
 
   const themeOptions = [
@@ -165,17 +161,16 @@ const listsLabel     = isPro ? 'Pro Lists'     : 'Lists'
     : user?.email?.slice(0, 2).toUpperCase() ?? 'U'
 
   return (
-    <header
-      className={cn(
-        'fixed top-0 left-0 right-0 z-50 h-14',
-        'bg-background/90 backdrop-blur-lg border-b border-border',
-        'transition-all duration-300',
-        scrolled && 'shadow-sm shadow-black/5 border-border/80',
-        !visible && '-translate-y-full'
-      )}
-    >
+    <header className={cn(
+      'fixed top-0 left-0 right-0 z-50 h-14',
+      'bg-background/90 backdrop-blur-lg border-b border-border',
+      'transition-all duration-300',
+      scrolled && 'shadow-sm shadow-black/5 border-border/80',
+      !visible && '-translate-y-full'
+    )}>
       <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between gap-4">
 
+        {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
           <div className={cn(
             'w-8 h-8 rounded-xl flex items-center justify-center',
@@ -191,6 +186,7 @@ const listsLabel     = isPro ? 'Pro Lists'     : 'Lists'
           </span>
         </Link>
 
+        {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-0.5">
           {publicNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
@@ -248,9 +244,12 @@ const listsLabel     = isPro ? 'Pro Lists'     : 'Lists'
           )}
         </nav>
 
+        {/* Right side */}
         <div className="flex items-center gap-2 flex-1 justify-end">
           <GlobalSearch />
           <div className="flex items-center gap-1">
+
+            {/* Theme toggle */}
             {mounted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -259,7 +258,12 @@ const listsLabel     = isPro ? 'Pro Lists'     : 'Lists'
                     className="h-8 w-8 text-muted-foreground hover:text-foreground"
                     aria-label="Toggle theme"
                   >
-                    {theme === 'light' ? <Sun size={15} /> : theme === 'dark' ? <Moon size={15} /> : <Monitor size={15} />}
+                    {theme === 'light'
+                      ? <Sun size={15} />
+                      : theme === 'dark'
+                      ? <Moon size={15} />
+                      : <Monitor size={15} />
+                    }
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-36">
@@ -271,13 +275,14 @@ const listsLabel     = isPro ? 'Pro Lists'     : 'Lists'
                     >
                       <Icon size={13} />
                       {label}
-                      {theme === value && <span className="ml-auto text-primary">✓</span>}
+                      {theme === value && <span className="ml-auto text-primary">&#10003;</span>}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
 
+            {/* Logged-out CTA */}
             {authReady && !user && (
               <div className="flex items-center gap-1.5 ml-1">
                 <Link href="/login">
@@ -293,20 +298,23 @@ const listsLabel     = isPro ? 'Pro Lists'     : 'Lists'
               </div>
             )}
 
+            {/* Logged-in actions */}
             {authReady && user && (
               <div className="flex items-center gap-1 ml-0.5">
+                {/* Desktop recommend button — clear label */}
                 <Link href="/dashboard/recommendations/new" className="hidden md:flex">
                   <Button
                     size="sm"
-                    className="h-8 px-3 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 flex items-center justify-center"
+                    className="h-8 px-3 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20"
                   >
-                    <Plus size={14} strokeWidth={2.5} />
-                    <span className="text-sm">Add</span>
+                    <BookOpen size={14} strokeWidth={2.5} />
+                    <span className="text-sm">Recommend</span>
                   </Button>
                 </Link>
 
                 <NotificationBell userId={user.id} />
 
+                {/* Avatar dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/40 focus-visible:ring-primary/40 transition-all outline-none">
@@ -347,15 +355,11 @@ const listsLabel     = isPro ? 'Pro Lists'     : 'Lists'
                     )}
 
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                      <Link
-                        href={dashboardHref}
-                        className={cn(isPro && 'text-amber-600 font-semibold')}
-                      >
-                        {isPro ? (
-                          <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
-                        ) : (
-                          <LayoutDashboard size={13} className="text-muted-foreground shrink-0" />
-                        )}
+                      <Link href={dashboardHref} className={cn(isPro && 'text-amber-600 font-semibold')}>
+                        {isPro
+                          ? <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
+                          : <LayoutDashboard size={13} className="text-muted-foreground shrink-0" />
+                        }
                         {dashboardLabel}
                       </Link>
                     </DropdownMenuItem>
@@ -363,28 +367,25 @@ const listsLabel     = isPro ? 'Pro Lists'     : 'Lists'
                     <DropdownMenuSeparator className="my-1" />
 
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-  <Link href={notificationsHref}>
-    <Bell size={13} className="text-muted-foreground" />
-    Notifications
-  </Link>
-</DropdownMenuItem>
-                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-  <Link href={settingsHref}>
-    <Settings size={13} className={cn(isPro ? "text-amber-500" : "text-muted-foreground")} />
-    Settings
-  </Link>
-</DropdownMenuItem>
+                      <Link href={notificationsHref}>
+                        <Bell size={13} className="text-muted-foreground" />
+                        Notifications
+                      </Link>
+                    </DropdownMenuItem>
 
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                      <Link
-                        href={billingHref}
-                        className={cn(isPro && 'text-amber-600 font-semibold')}
-                      >
-                        {isPro ? (
-                          <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
-                        ) : (
-                          <CreditCard size={13} className="text-muted-foreground shrink-0" />
-                        )}
+                      <Link href={settingsHref}>
+                        <Settings size={13} className={cn(isPro ? 'text-amber-500' : 'text-muted-foreground')} />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                      <Link href={billingHref} className={cn(isPro && 'text-amber-600 font-semibold')}>
+                        {isPro
+                          ? <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
+                          : <CreditCard size={13} className="text-muted-foreground shrink-0" />
+                        }
                         {billingLabel}
                       </Link>
                     </DropdownMenuItem>
@@ -421,7 +422,6 @@ const listsLabel     = isPro ? 'Pro Lists'     : 'Lists'
                       <LogOut size={13} />
                       Sign out
                     </DropdownMenuItem>
-
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

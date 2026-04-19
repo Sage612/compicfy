@@ -26,7 +26,7 @@ const footerLinks = {
     { label: 'About',                href: '/about'                         },
     { label: 'FAQ',                  href: '/faq'                           },
     { label: 'Community Guidelines', href: '/guidelines'                    },
-    { label: 'Submit a Comic',       href: '/dashboard/recommendations/new' },
+    { label: 'Recommend a Comic',    href: '/dashboard/recommendations/new' },
     { label: 'Discord',              href: 'https://discord.gg/7WPGMb696N' },
   ],
   Legal: [
@@ -56,11 +56,12 @@ export function Footer() {
                 Compic<span className="text-primary">fy</span>
               </span>
             </Link>
+
+            {/* Distinct tagline — not AI boilerplate */}
             <p className="text-sm text-muted-foreground leading-relaxed max-w-[200px]">
-              Your community for discovering manga, manhwa, manhua &amp; webtoons.
+              The place where comic fans tell each other what to read next.
             </p>
 
-            {/* Shop link in brand column */}
             <Link
               href="/affiliate"
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-semibold hover:bg-primary/20 transition-colors"
@@ -69,7 +70,6 @@ export function Footer() {
               Shop Merch
             </Link>
 
-            {/* Fixed Discord Link */}
             <Link
               href="https://discord.gg/7WPGMb696N"
               target="_blank"
@@ -104,12 +104,11 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Affiliate disclosure — visible on ALL screen sizes */}
+        {/* Affiliate disclosure — clean and short */}
         <div className="mb-8 p-3 rounded-xl bg-muted/40 border border-border">
           <p className="text-[10px] text-muted-foreground leading-relaxed text-center sm:text-left">
-            Compicfy participates in the Amazon Services LLC Associates Program and other affiliate advertising programs
-            designed to provide a means for sites to earn advertising fees by advertising and linking to official retailers.
-            Some links on this site are affiliate links — we may earn a small commission at no extra cost to you.
+            Some links on Compicfy are affiliate links. We may earn a small commission if you purchase
+            through them, at no extra cost to you. We only link to official retailers and licensed platforms.
           </p>
         </div>
 
@@ -118,13 +117,11 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="flex flex-col gap-2 text-[11px] text-muted-foreground sm:flex-row sm:justify-between sm:items-center">
           <p className="text-center sm:text-left leading-relaxed">
-            © {new Date().getFullYear()} Compicfy. All rights reserved.
+            &copy; {new Date().getFullYear()} Compicfy. All rights reserved.
             <span className="block sm:inline sm:ml-1">We do not host or link to pirated content.</span>
           </p>
-
-          {/* Desktop only */}
           <p className="hidden sm:flex items-center gap-1 shrink-0">
-            Made with <span className="text-rose-500 mx-0.5">❤️</span> for comic fans everywhere
+            Made with <span className="text-rose-500 mx-0.5">&hearts;</span> for comic fans everywhere
           </p>
         </div>
       </div>
