@@ -17,37 +17,38 @@ import {
 } from '@/components/ui/sheet'
 
 const TYPES = [
-  { value: '', label: 'All' },
-  { value: 'manga', label: 'Manga' },
-  { value: 'manhwa', label: 'Manhwa' },
-  { value: 'manhua', label: 'Manhua' },
+  { value: '',        label: 'All'     },
+  { value: 'manga',   label: 'Manga'   },
+  { value: 'manhwa',  label: 'Manhwa'  },
+  { value: 'manhua',  label: 'Manhua'  },
   { value: 'webtoon', label: 'Webtoon' },
-  { value: 'comic', label: 'Comic' },
-  { value: 'other', label: 'Other' },
+  { value: 'comic',   label: 'Comic'   },
+  { value: 'other',   label: 'Other'   },
 ]
 
 const SORTS = [
-  { value: 'score',    label: '🏆', full: 'Top Rated' },
-  { value: 'trending', label: '🔥', full: 'Trending'  },
-  { value: 'recent',   label: '✨', full: 'Newest'    },
+  { value: 'score',    label: '🏆', full: 'Top Rated'    },
+  { value: 'trending', label: '🔥', full: 'Trending'     },
+  { value: 'recent',   label: '✨', full: 'Newest'       },
+  { value: 'top',      label: '👑', full: 'All Time'     },
 ]
 
 const STATUSES = [
   { value: '',          label: 'Any Status' },
-  { value: 'ongoing',   label: 'Ongoing'   },
-  { value: 'completed', label: 'Completed' },
-  { value: 'hiatus',    label: 'Hiatus'    },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'ongoing',   label: 'Ongoing'    },
+  { value: 'completed', label: 'Completed'  },
+  { value: 'hiatus',    label: 'Hiatus'     },
+  { value: 'cancelled', label: 'Cancelled'  },
 ]
 
 const TYPE_COLORS: Record<string, string> = {
-  manga:   'data-[active=true]:bg-rose-500    data-[active=true]:border-rose-500    data-[active=true]:text-white',
-  manhwa:  'data-[active=true]:bg-violet-500  data-[active=true]:border-violet-500  data-[active=true]:text-white',
-  manhua:  'data-[active=true]:bg-amber-500   data-[active=true]:border-amber-500   data-[active=true]:text-white',
-  webtoon: 'data-[active=true]:bg-teal-500    data-[active=true]:border-teal-500    data-[active=true]:text-white',
-  comic:   'data-[active=true]:bg-blue-500    data-[active=true]:border-blue-500    data-[active=true]:text-white',
-  other:   'data-[active=true]:bg-zinc-500    data-[active=true]:border-zinc-500    data-[active=true]:text-white',
-  '':      'data-[active=true]:bg-primary     data-[active=true]:border-primary     data-[active=true]:text-primary-foreground',
+  manga:   'data-[active=true]:bg-rose-500   data-[active=true]:border-rose-500   data-[active=true]:text-white',
+  manhwa:  'data-[active=true]:bg-violet-500 data-[active=true]:border-violet-500 data-[active=true]:text-white',
+  manhua:  'data-[active=true]:bg-amber-500  data-[active=true]:border-amber-500  data-[active=true]:text-white',
+  webtoon: 'data-[active=true]:bg-teal-500   data-[active=true]:border-teal-500   data-[active=true]:text-white',
+  comic:   'data-[active=true]:bg-blue-500   data-[active=true]:border-blue-500   data-[active=true]:text-white',
+  other:   'data-[active=true]:bg-zinc-500   data-[active=true]:border-zinc-500   data-[active=true]:text-white',
+  '':      'data-[active=true]:bg-primary    data-[active=true]:border-primary    data-[active=true]:text-primary-foreground',
 }
 
 interface Props {
@@ -60,7 +61,7 @@ export function FilterBar({ adult = false }: Props) {
   const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const [dropdownQuery, setDropdownQuery] = useState('')
-  const [showDropdown, setShowDropdown] = useState(false)
+  const [showDropdown, setShowDropdown]   = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
 
   const currentType   = searchParams.get('type')   ?? ''
@@ -84,16 +85,16 @@ export function FilterBar({ adult = false }: Props) {
   const hasActiveFilters = currentType || currentGenre || currentStatus || currentSearch
 
   return (
-    <div className="space-y-3">
+    <div className="w-full space-y-3">
 
       {/* ── Row 1: Search + mobile filter trigger ── */}
-      <div className="flex gap-2">
-        <div className="relative flex-1" ref={searchRef}>
+      <div className="flex gap-2 w-full">
+        <div className="relative flex-1 min-w-0" ref={searchRef}>
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
           <Input
             placeholder="Search by title, author, genre…"
             defaultValue={currentSearch}
-            className="pl-9 h-10 bg-card border-border focus:border-primary transition-colors"
+            className="w-full pl-9 h-10 bg-card border-border focus:border-primary transition-colors"
             onFocus={() => setShowDropdown(true)}
             onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
             onChange={(e) => {
@@ -118,7 +119,6 @@ export function FilterBar({ adult = false }: Props) {
             </button>
           )}
 
-          {/* Search dropdown */}
           {showDropdown && dropdownQuery.length >= 2 && (
             <SearchDropdown
               query={dropdownQuery}
@@ -186,11 +186,11 @@ export function FilterBar({ adult = false }: Props) {
       )}
 
       {/* ── Row 2: Sort pills ── */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 w-full">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
           Sort
         </span>
-        <div className="flex gap-1.5">
+        <div className="flex gap-1.5 flex-wrap">
           {SORTS.map(({ value, label, full }) => (
             <button
               key={value}
@@ -210,49 +210,49 @@ export function FilterBar({ adult = false }: Props) {
       </div>
 
       {/* ── Row 3: Desktop type + status chips ── */}
-<div className="hidden md:flex items-center gap-3 flex-wrap">
-  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-    Type
-  </span>
-  <div className="flex gap-1.5 flex-wrap">
-    {TYPES.map(({ value, label }) => (
-      <button
-        key={value}
-        data-active={currentType === value}
-        onClick={() => updateParam('type', value)}
-        className={cn(
-          'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
-          TYPE_COLORS[value] ?? TYPE_COLORS[''],
-          currentType !== value && 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-        )}
-      >
-        {label}
-      </button>
-    ))}
-  </div>
+      <div className="hidden md:flex items-center gap-3 flex-wrap w-full">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+          Type
+        </span>
+        <div className="flex gap-1.5 flex-wrap">
+          {TYPES.map(({ value, label }) => (
+            <button
+              key={value}
+              data-active={currentType === value}
+              onClick={() => updateParam('type', value)}
+              className={cn(
+                'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
+                TYPE_COLORS[value] ?? TYPE_COLORS[''],
+                currentType !== value && 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
-  <div className="w-px h-5 bg-border" />
+        <div className="w-px h-5 bg-border shrink-0" />
 
-  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-    Status
-  </span>
-  <div className="flex gap-1.5 flex-wrap">
-    {STATUSES.map(({ value, label }) => (
-      <button
-        key={value}
-        onClick={() => updateParam('status', value)}
-        className={cn(
-          'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
-          currentStatus === value
-            ? 'bg-primary text-primary-foreground border-primary'
-            : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-        )}
-      >
-        {label}
-      </button>
-    ))}
-  </div>
-</div>
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+          Status
+        </span>
+        <div className="flex gap-1.5 flex-wrap">
+          {STATUSES.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => updateParam('status', value)}
+              className={cn(
+                'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
+                currentStatus === value
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* ── Active genre badge ── */}
       {currentGenre && (
@@ -274,10 +274,10 @@ export function FilterBar({ adult = false }: Props) {
 function MobileFilters({
   currentType, currentGenre, currentStatus, updateParam,
 }: {
-  currentType: string
-  currentGenre: string
+  currentType:   string
+  currentGenre:  string
   currentStatus: string
-  updateParam: (key: string, value: string) => void
+  updateParam:   (key: string, value: string) => void
 }) {
   return (
     <div className="space-y-6 pb-8">
