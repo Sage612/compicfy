@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils'
 import { MangaSearch } from './MangaSearch'
 import { createClient } from '@/lib/supabase/client'
 
-const FREE_REC_LIMIT = 30
+const FREE_REC_LIMIT = 50
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Max 200 characters'),

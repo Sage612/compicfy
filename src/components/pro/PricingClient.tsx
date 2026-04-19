@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
   Crown, Check, Sparkles, Zap, BookOpen,
-  Bookmark, BookMarked, Filter, Star,
-  BarChart2, Download, Bell, Eye,
-  Palette, ArrowRight, Shield, AlertTriangle,
+  Bookmark, BookMarked, Star, BarChart2,
+  Download, Bell, Eye, ArrowRight,
+  Shield, Users, TrendingUp, Lock,
+  BadgeCheck, Flame,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -25,29 +26,40 @@ interface Props {
   } | null
 }
 
+// ── Free tier — generous limits, not punishing ────────────────────────────────
 const FREE_FEATURES = [
-  { icon: BookOpen,   text: '30 recommendations per month' },
-  { icon: Bookmark,   text: '50 saved comics'              },
-  { icon: BookMarked, text: '3 reading lists'              },
-  { icon: Star,       text: 'Reviews & voting'             },
+  { icon: BookOpen,   text: '50 recommendations per month'  },
+  { icon: Bookmark,   text: '100 saved comics'              },
+  { icon: BookMarked, text: '5 reading lists'               },
+  { icon: Star,       text: 'Reviews & voting'              },
+  { icon: Users,      text: 'Follow other readers'          },
+  { icon: Bell,       text: 'Basic notifications'           },
 ]
 
-const PRO_FEATURES = [
-  { icon: BookOpen,   text: 'Unlimited recommendations',       highlight: false },
-  { icon: Bookmark,   text: 'Unlimited saves',                 highlight: false },
-  { icon: BookMarked, text: 'Unlimited reading lists',         highlight: false },
-  { icon: Zap,        text: 'Ad-free experience',              highlight: false },
-  { icon: Crown,      text: 'Exclusive 👑 Pro badge',          highlight: true  },
-  { icon: BarChart2,  text: 'Recommendation analytics',        highlight: true  },
-  { icon: Eye,        text: 'See who viewed your profile',     highlight: true  },
-  { icon: Download,   text: 'Export reading lists (CSV/PDF)',  highlight: true  },
+// ── Pro tier — status, visibility, power features ────────────────────────────
+// Split into two groups: status perks (feel special) and power features
+const PRO_STATUS = [
+  { icon: Crown,      text: 'Exclusive 👑 Pro badge on profile & recommendations', highlight: true  },
+  { icon: BadgeCheck, text: 'Eligible for Verified Recommender badge',             highlight: true  },
+  { icon: TrendingUp, text: 'Priority placement in Community Picks section',        highlight: true  },
+  { icon: Flame,      text: 'Early access to new features',                        highlight: true  },
+]
+
+const PRO_POWER = [
+  { icon: BookOpen,   text: 'Unlimited recommendations',      highlight: false },
+  { icon: Bookmark,   text: 'Unlimited saves',                highlight: false },
+  { icon: BookMarked, text: 'Unlimited reading lists',        highlight: false },
+  { icon: BarChart2,  text: 'Recommendation analytics',       highlight: false },
+  { icon: Eye,        text: 'See who viewed your profile',    highlight: false },
+  { icon: Download,   text: 'Export reading lists (CSV/PDF)', highlight: false },
+  { icon: Zap,        text: 'Ad-free experience',             highlight: false },
 ]
 
 const ERROR_MESSAGES: Record<string, string> = {
-  missing_reference:    'Payment reference was missing. Please try again.',
-  payment_failed:       'Your payment was not completed. Please try again.',
-  invalid_metadata:     'Something went wrong with your payment. Please contact support.',
-  verification_failed:  'We could not verify your payment. If you were charged, please contact support.',
+  missing_reference:   'Payment reference was missing. Please try again.',
+  payment_failed:      'Your payment was not completed. Please try again.',
+  invalid_metadata:    'Something went wrong with your payment. Please contact support.',
+  verification_failed: 'We could not verify your payment. If you were charged, please contact support.',
 }
 
 export function PricingClient({ user, profile }: Props) {
@@ -61,7 +73,6 @@ export function PricingClient({ user, profile }: Props) {
     (profile?.is_pro &&
       (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
 
-  // Show error toast if redirected back with an error param
   useEffect(() => {
     const error = searchParams.get('error')
     if (error) {
@@ -75,23 +86,15 @@ export function PricingClient({ user, profile }: Props) {
       window.location.href = '/signup?redirect=/pricing'
       return
     }
-
     setLoading(true)
     try {
       const res = await fetch('/api/paystack/initialize', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan: billing }),
+        body:    JSON.stringify({ plan: billing }),
       })
-
       const data = await res.json()
-
-      if (!res.ok) {
-        toast.error(data.error ?? 'Failed to initialize payment')
-        return
-      }
-
-      // Redirect to Paystack checkout
+      if (!res.ok) { toast.error(data.error ?? 'Failed to initialize payment'); return }
       window.location.href = data.authorization_url
     } catch {
       toast.error('Something went wrong. Please try again.')
@@ -101,27 +104,27 @@ export function PricingClient({ user, profile }: Props) {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-12 space-y-12">
+    <div className="max-w-5xl mx-auto px-4 py-12 space-y-14">
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="text-center space-y-4">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm font-semibold">
           <Crown size={14} className="fill-amber-500" />
           Compicfy Pro
         </div>
         <h1 className="text-4xl md:text-5xl font-black tracking-tight">
-          Unlock the full{' '}
+          Stand out as a{' '}
           <span className="bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
-            Compicfy
-          </span>{' '}
-          experience
+            top recommender
+          </span>
         </h1>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">
-          Unlimited recommendations, unlimited list, analytics and more. Cancel anytime.
+          Pro isn't about removing limits — it's about giving serious comic fans
+          the recognition, visibility, and tools they deserve.
         </p>
       </div>
 
-      {/* Admin state */}
+      {/* ── Admin state ── */}
       {isAdmin && (
         <div className="max-w-md mx-auto p-6 rounded-2xl border border-primary/30 bg-primary/5 text-center space-y-3">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto">
@@ -139,7 +142,7 @@ export function PricingClient({ user, profile }: Props) {
         </div>
       )}
 
-      {/* Already Pro state */}
+      {/* ── Already Pro state ── */}
       {!isAdmin && isPro && (
         <div className="max-w-md mx-auto p-6 rounded-2xl border border-amber-500/30 bg-amber-500/5 text-center space-y-3">
           <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center mx-auto">
@@ -164,7 +167,7 @@ export function PricingClient({ user, profile }: Props) {
         </div>
       )}
 
-      {/* Pricing cards — only for non-admin, non-pro users */}
+      {/* ── Pricing cards ── */}
       {!isAdmin && !isPro && (
         <>
           {/* Billing toggle */}
@@ -196,7 +199,7 @@ export function PricingClient({ user, profile }: Props) {
             </button>
           </div>
 
-          {/* Pricing cards */}
+          {/* Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
 
             {/* Free card */}
@@ -207,7 +210,7 @@ export function PricingClient({ user, profile }: Props) {
                   <span className="text-4xl font-black">$0</span>
                   <span className="text-muted-foreground text-sm mb-1.5">/forever</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Perfect for casual readers</p>
+                <p className="text-sm text-muted-foreground">Everything you need to get started</p>
               </div>
 
               <div className="space-y-2.5">
@@ -259,17 +262,33 @@ export function PricingClient({ user, profile }: Props) {
                 <p className="text-sm text-muted-foreground">For serious comic fans</p>
               </div>
 
-              <div className="space-y-2.5">
-                {PRO_FEATURES.map(({ icon: Icon, text, highlight }) => (
-                  <div key={text} className={cn(
-                    'flex items-center gap-2.5 text-sm',
-                    highlight ? 'text-foreground font-medium' : 'text-muted-foreground'
-                  )}>
-                    <div className={cn(
-                      'w-5 h-5 rounded-full flex items-center justify-center shrink-0',
-                      highlight ? 'bg-amber-500/20' : 'bg-emerald-500/15'
-                    )}>
-                      <Check size={11} className={highlight ? 'text-amber-500' : 'text-emerald-500'} />
+              {/* Status perks — the "feel special" section */}
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-2">
+                  Status & Recognition
+                </p>
+                {PRO_STATUS.map(({ icon: Icon, text }) => (
+                  <div key={text} className="flex items-start gap-2.5 text-sm font-medium">
+                    <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <Check size={11} className="text-amber-500" />
+                    </div>
+                    {text}
+                  </div>
+                ))}
+              </div>
+
+              {/* Divider */}
+              <div className="h-px bg-border" />
+
+              {/* Power features */}
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">
+                  Power Features
+                </p>
+                {PRO_POWER.map(({ icon: Icon, text }) => (
+                  <div key={text} className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                    <div className="w-5 h-5 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
+                      <Check size={11} className="text-emerald-500" />
                     </div>
                     {text}
                   </div>
@@ -282,13 +301,9 @@ export function PricingClient({ user, profile }: Props) {
                 className="w-full gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:opacity-90 border-0 text-white font-bold shadow-lg shadow-amber-500/20 h-11"
               >
                 {loading ? (
-                  <>Processing...</>
+                  <>Processing…</>
                 ) : (
-                  <>
-                    <Sparkles size={15} />
-                    {user ? 'Upgrade to Pro' : 'Get Pro'}
-                    <ArrowRight size={14} />
-                  </>
+                  <><Sparkles size={15} />{user ? 'Upgrade to Pro' : 'Get Pro'}<ArrowRight size={14} /></>
                 )}
               </Button>
 
@@ -298,24 +313,42 @@ export function PricingClient({ user, profile }: Props) {
             </div>
           </div>
 
-          {/* Mod note */}
           {isMod && (
             <p className="text-center text-xs text-muted-foreground">
               As a moderator, you already have most Pro features for free.
-              Upgrading unlocks custom themes, analytics, and profile views.
+              Upgrading unlocks analytics, profile views and early access features.
             </p>
           )}
         </>
       )}
 
-      {/* FAQ */}
+      {/* ── Social proof strip ── */}
+      <div className="max-w-3xl mx-auto rounded-2xl border border-border bg-card p-6 flex flex-col sm:flex-row items-center gap-6 text-center sm:text-left">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20 mx-auto sm:mx-0">
+          <Crown size={24} className="text-white" />
+        </div>
+        <div className="space-y-1">
+          <p className="font-black text-base">The 👑 badge means something here</p>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Pro members are the backbone of Compicfy. Their recommendations get priority
+            visibility, their profiles stand out, and they're first in line for the
+            Verified Recommender badge — the highest recognition on the platform.
+          </p>
+        </div>
+      </div>
+
+      {/* ── FAQ ── */}
       <div className="max-w-2xl mx-auto space-y-4">
         <h2 className="text-xl font-black text-center">Frequently asked questions</h2>
         <div className="space-y-3">
           {[
             {
               q: 'Can I cancel anytime?',
-              a: 'Yes. You can cancel your subscription at any time from your billing page. Your Pro access remains active until the end of your billing period.',
+              a: 'Yes. Cancel from your billing page at any time. Pro access stays active until the end of your billing period.',
+            },
+            {
+              q: "What's the Verified Recommender badge?",
+              a: "It's a purple ✓ badge shown on your profile and recommendations. Pro members can apply for it — it's awarded to users who consistently submit high-quality, community-loved recommendations.",
             },
             {
               q: 'What payment methods are supported?',
@@ -323,7 +356,7 @@ export function PricingClient({ user, profile }: Props) {
             },
             {
               q: 'What happens to my data if I downgrade?',
-              a: 'Your data is never deleted. If you go back to free, you keep everything you created. You just lose access to Pro features until you resubscribe.',
+              a: "Your data is never deleted. If you go back to free, you keep everything you created. You lose Pro status and power features until you resubscribe.",
             },
             {
               q: 'Is there a refund policy?',
