@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendWelcomeEmail } from '@/lib/email/send'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
+
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/browse'
 
@@ -24,28 +26,25 @@ export async function GET(request: Request) {
           .single()
 
         if (p) { profile = p; break }
-
-        // Wait 500ms before retry
         await new Promise(r => setTimeout(r, 500))
       }
 
       const isNew = profile?.member_since &&
         (Date.now() - new Date(profile.member_since).getTime()) < 5 * 60 * 1000
 
-      // Send welcome email for new users
       if (isNew && user.email && profile?.username) {
         await sendWelcomeEmail(user.email, profile.username)
       }
 
-      // Only redirect to onboarding if explicitly false (new user)
-      // NULL means existing user before this feature — send to browse
       if (profile?.onboarding_completed === false) {
-        return NextResponse.redirect(`${origin}/onboarding`)
+        return NextResponse.redirect(`${SITE_URL}/onboarding`)
       }
 
-      return NextResponse.redirect(`${origin}${next}`)
+      // Always use SITE_URL — never trust `origin` from request.url
+      // because on some hosts/proxies it resolves to localhost
+      return NextResponse.redirect(`${SITE_URL}${next}`)
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+  return NextResponse.redirect(`${SITE_URL}/login?error=auth_failed`)
 }
