@@ -24,7 +24,7 @@ interface ReadingList {
   reading_list_items: { count: number }[]
 }
 
-const FREE_LIST_LIMIT = 3
+const FREE_LIST_LIMIT = 5
 
 export function ReadingListsClient({ initialLists }: { initialLists: ReadingList[] }) {
   const [lists, setLists] = useState(initialLists)

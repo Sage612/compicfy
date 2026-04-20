@@ -11,7 +11,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Saved Comics' }
 
-const FREE_SAVE_LIMIT = 50
+const FREE_SAVE_LIMIT = 100
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
