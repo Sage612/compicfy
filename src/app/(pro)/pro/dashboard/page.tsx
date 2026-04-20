@@ -44,7 +44,7 @@ export default async function ProDashboardPage() {
 
   if (!isPro) redirect('/pricing?reason=pro_required')
 
-  const { data: followData } = await (supabase as any)
+  const { data: followData } = await supabase
     .from('follows').select('following_id').eq('follower_id', user.id)
 
   const followingIds = (followData ?? []).map((f: any) => f.following_id)
@@ -109,8 +109,8 @@ export default async function ProDashboardPage() {
   ]
 
   const statsRow2 = [
-    { label: 'Profile Views', value: viewsThisMonth ?? 0,  icon: Eye,   color: 'text-blue-500',  bg: 'bg-blue-500/10', href: '/pro/profile-views' },
-    { label: 'Leaderboard',   value: leaderboardEntry?.rank ? `#${leaderboardEntry.rank}` : '—', icon: Trophy, color: 'text-amber-500', bg: 'bg-amber-500/10', href: '/pro/leaderboard' },
+    { label: 'Profile Views', value: viewsThisMonth ?? 0,  icon: Eye,   color: 'text-blue-500',  bg: 'bg-blue-500/10' },
+    { label: 'Leaderboard',   value: leaderboardEntry?.rank ? `#${leaderboardEntry.rank}` : '—', icon: Trophy, color: 'text-amber-500', bg: 'bg-amber-500/10'},
   ]
 
   return (
@@ -270,7 +270,7 @@ export default async function ProDashboardPage() {
                   Find something to read
                 </Button>
               </Link>
-              <Link href="/dashboard/lists">
+              <Link href="/pro/lists">
                 <Button size="sm" variant="outline" className="gap-1.5 border-teal-500/30 hover:border-teal-500/60 text-teal-600">
                   <BookMarked size={13} />
                   My Lists
