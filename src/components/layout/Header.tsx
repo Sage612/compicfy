@@ -146,7 +146,7 @@ export function Header() {
   ]
 
   const authNavLinks = [
-    { href: '/feed',   label: 'Feed',     icon: LayoutList },
+    { href: '/feed',   label: 'Feed',    icon: LayoutList },
     { href: listsHref, label: listsLabel, icon: BookMarked },
   ]
 
@@ -170,7 +170,7 @@ export function Header() {
     )}>
       <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between gap-4">
 
-        {/* Logo */}
+        {/* Logo — always visible */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
           <div className={cn(
             'w-8 h-8 rounded-xl flex items-center justify-center',
@@ -181,13 +181,14 @@ export function Header() {
           )}>
             <LogoMark className="w-[18px] h-[18px]" />
           </div>
+          {/* Show wordmark on sm+ so landscape phones still see it */}
           <span className="hidden sm:inline font-black text-[15px] tracking-tight leading-none">
             Compic<span className="text-primary">fy</span>
           </span>
         </Link>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-0.5">
+        {/* Desktop nav — lg: = 1024px+ only (tablets/laptops, NOT landscape phones) */}
+        <nav className="hidden lg:flex items-center gap-0.5">
           {publicNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
             return (
@@ -244,7 +245,7 @@ export function Header() {
           )}
         </nav>
 
-        {/* Right side */}
+        {/* Right side actions */}
         <div className="flex items-center gap-2 flex-1 justify-end">
           <GlobalSearch />
           <div className="flex items-center gap-1">
@@ -286,6 +287,7 @@ export function Header() {
             {authReady && !user && (
               <div className="flex items-center gap-1.5 ml-1">
                 <Link href="/login">
+                  {/* Show login text on sm+ (covers landscape phones too) */}
                   <Button variant="ghost" size="sm" className="hidden sm:flex h-8 text-sm font-medium">
                     Log in
                   </Button>
@@ -301,8 +303,8 @@ export function Header() {
             {/* Logged-in actions */}
             {authReady && user && (
               <div className="flex items-center gap-1 ml-0.5">
-                {/* Desktop recommend button — clear label */}
-                <Link href="/dashboard/recommendations/new" className="hidden md:flex">
+                {/* Recommend button — only on lg:+ so it doesn't crowd mobile header */}
+                <Link href="/dashboard/recommendations/new" className="hidden lg:flex">
                   <Button
                     size="sm"
                     className="h-8 px-3 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20"

@@ -86,26 +86,26 @@ export function MobileNav() {
     ? { href: '/pricing', label: 'Go Pro', icon: Crown,      isProItem: true }
     : { href: listsHref,  label: 'Lists',  icon: BookMarked                  }
 
-  // ── Centre slot: context-aware recommend button ───────────────────────────
-  // Label says "Rec" not "Add" — unambiguous, specific to what this app does
   const recSlot = {
-    href:    isLoggedIn ? '/dashboard/recommendations/new' : '/login',
-    label:   'Rec',
-    icon:    BookOpen,
-    isRec:   true,
+    href:  isLoggedIn ? '/dashboard/recommendations/new' : '/login',
+    label: 'Rec',
+    icon:  BookOpen,
+    isRec: true,
   }
 
   const navItems = [
     firstSlot,
-    { href: '/browse', label: 'Browse', icon: Radar               },
+    { href: '/browse', label: 'Browse', icon: Radar      },
     recSlot,
-    { href: '/news',   label: 'News',   icon: ScrollText           },
+    { href: '/news',   label: 'News',   icon: ScrollText },
     lastSlot,
   ]
 
   return (
+    // lg: = 1024px+ hides this — same breakpoint as Header desktop nav
+    // so there's no gap where both show or neither shows
     <nav className={cn(
-      'fixed bottom-0 left-0 right-0 z-50 md:hidden',
+      'fixed bottom-0 left-0 right-0 z-50 lg:hidden',
       'transition-transform duration-300 ease-in-out',
       !visible && 'translate-y-full'
     )}>
