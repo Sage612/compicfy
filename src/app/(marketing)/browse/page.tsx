@@ -178,9 +178,9 @@ export default async function BrowsePage({ searchParams }: Props) {
           )}
           <Link href="/dashboard/recommendations/new">
             <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 h-8 px-3">
-              <Plus size={14} />
-              <span className="hidden sm:inline">Add Comic</span>
-              <span className="sm:hidden text-xs font-semibold">Add</span>
+              <BookOpen size={14} />
+              <span className="hidden sm:inline">Recommend</span>
+              <span className="sm:hidden text-xs font-semibold">Rec</span>
             </Button>
           </Link>
         </div>
