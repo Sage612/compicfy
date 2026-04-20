@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { FeedCard } from './FeedCard'
-import { Loader2, BookOpen, LayoutList, UserPlus, Search, Radar } from 'lucide-react'
+import { Loader2, BookOpen, LayoutList, UserPlus, Radar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -36,8 +36,13 @@ export function FeedList({
   const [reactionCounts, setReactionCounts] = useState<Record<string, number>>({})
   const [userReactions,  setUserReactions]  = useState<Record<string, boolean>>({})
 
-  const supabase    = createClient()
-  const mountedRef  = useRef(true)
+  // Top contributors to follow — fetched only when following nobody
+  const [topContributors, setTopContributors] = useState<any[]>([])
+  const [followingIds,    setFollowingIds]    = useState<Set<string>>(new Set())
+  const [followLoading,   setFollowLoading]   = useState<string | null>(null)
+
+  const supabase   = createClient()
+  const mountedRef = useRef(true)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -45,20 +50,47 @@ export function FeedList({
     return () => { mountedRef.current = false }
   }, [])
 
-  // Reset items when tab changes
   useEffect(() => {
     setItems(initialItems)
     setTotal(initialTotal)
     setHasMore(initialHasMore)
     setOffset(initialItems.length)
-    // Clear reaction state so stale data from previous tab doesn't bleed in
     setReactionCounts({})
     setUserReactions({})
   }, [tab])
 
-  // ── Fetch reactions ──────────────────────────────────────────────
-  // Extracted as a standalone async so it can be called both from
-  // the useEffect below AND after loadMore appends new items.
+  // Fetch top contributors when following nobody on following tab
+  useEffect(() => {
+    if (!(tab === 'following' && isFollowingNobody)) return
+
+    const fetchContributors = async () => {
+      try {
+        const res  = await fetch('/api/users/top-contributors?limit=6')
+        const data = await res.json()
+        setTopContributors(data.users ?? [])
+      } catch { /* non-fatal */ }
+    }
+
+    fetchContributors()
+  }, [tab, isFollowingNobody])
+
+  const handleFollow = async (profileId: string) => {
+    setFollowLoading(profileId)
+    try {
+      const res = await fetch('/api/follows', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ following_id: profileId }),
+      })
+      if (res.ok) {
+        setFollowingIds(prev => new Set([...prev, profileId]))
+        toast.success('Following!')
+      }
+    } catch { /* silent */ } finally {
+      setFollowLoading(null)
+    }
+  }
+
   const fetchReactions = useCallback(async (currentItems: any[]) => {
     if (currentItems.length === 0) return
     const ids = currentItems.map((i: any) => i.id)
@@ -78,47 +110,30 @@ export function FeedList({
       if (r.user_id === userId) mine[r.recommendation_id] = true
     })
 
-    // Merge — preserves counts for already-loaded items when a new
-    // page is fetched, without overwriting optimistic toggles
     setReactionCounts(prev => ({ ...prev, ...counts }))
     setUserReactions(prev  => ({ ...prev, ...mine  }))
-  }, [userId]) // supabase client is stable, userId is the only real dep
+  }, [userId])
 
-  // Run on mount + every time items array reference changes
-  // (tab reset → new array ref, loadMore append → new array ref)
-  useEffect(() => {
-    fetchReactions(items)
-  }, [items]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchReactions(items) }, [items])
 
-  // Sync state after a toggle without re-fetching from DB
   const handleReactionToggle = useCallback((id: string, reacted: boolean) => {
     setUserReactions(prev  => ({ ...prev, [id]: reacted }))
     setReactionCounts(prev => ({
       ...prev,
-      [id]: reacted
-        ? (prev[id] ?? 0) + 1
-        : Math.max(0, (prev[id] ?? 1) - 1),
+      [id]: reacted ? (prev[id] ?? 0) + 1 : Math.max(0, (prev[id] ?? 1) - 1),
     }))
   }, [])
 
-  // Load next page
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return
     setLoading(true)
-
     try {
-      const params = new URLSearchParams({
-        limit:  String(PAGE_SIZE),
-        offset: String(offset),
-      })
-      const res  = await fetch(`/api/feed/${tab}?${params}`)
-      const data = await res.json()
-
+      const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) })
+      const res    = await fetch(`/api/feed/${tab}?${params}`)
+      const data   = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to load')
       if (!mountedRef.current) return
-
       const newItems = data.items ?? []
-      // setItems triggers the fetchReactions useEffect automatically
       setItems(prev => [...prev, ...newItems])
       setOffset(prev => prev + newItems.length)
       setHasMore(data.hasMore ?? false)
@@ -130,65 +145,129 @@ export function FeedList({
     }
   }, [loading, hasMore, offset, tab, total])
 
-  // IntersectionObserver infinite scroll
   useEffect(() => {
     const sentinel = sentinelRef.current
     if (!sentinel) return
-
     const observer = new IntersectionObserver(
       (entries) => { if (entries[0].isIntersecting) loadMore() },
       { rootMargin: '200px' }
     )
-
     observer.observe(sentinel)
     return () => observer.disconnect()
   }, [loadMore])
 
-  // ── Empty states ──
+  // ── Empty: following nobody ──────────────────────────────────────
   if (tab === 'following' && isFollowingNobody) {
     return (
-      <div className="text-center py-20 rounded-2xl border border-dashed border-border space-y-4">
-        <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
-          <UserPlus size={22} className="text-muted-foreground opacity-40" />
-        </div>
-        <div>
-          <h3 className="font-black text-lg">You're not following anyone yet</h3>
-          <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
-            Follow users whose taste you trust to see their picks here
+      <div className="space-y-6">
+        {/* Comic-panel empty state */}
+        <div className="relative flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-border overflow-hidden">
+          <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+          <div className="relative mb-8 w-36 h-36 mx-auto">
+            <div className="absolute top-0 left-0 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" />
+            <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
+            <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
+              <UserPlus size={18} className="text-primary opacity-60" />
+              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">Follow</span>
+            </div>
+          </div>
+          <p className="text-sm font-black">You're not following anyone yet</p>
+          <p className="text-xs text-muted-foreground mt-1 text-center max-w-xs px-4">
+            Follow readers whose taste you trust to see their picks here
           </p>
+          <div className="flex gap-3 justify-center mt-6">
+            <Link href="/browse">
+              <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20" size="sm">
+                <Radar size={14} />
+                Discover Comics
+              </Button>
+            </Link>
+            <Link href="/feed?tab=discover">
+              <Button variant="outline" size="sm" className="gap-2">
+                Try Discover
+              </Button>
+            </Link>
+          </div>
         </div>
-        <div className="flex gap-3 justify-center">
-          <Link href="/browse">
-            <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">
-              <Radar size={14} />
-              Discover Comics
-            </Button>
-          </Link>
-          <Link
-            href="/feed?tab=discover"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
-          >
-            Try Discover
-          </Link>
-        </div>
+
+        {/* Top contributors to follow */}
+        {topContributors.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                Suggested readers to follow
+              </p>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {topContributors.map((contributor: any) => {
+                const initials   = (contributor.display_name || contributor.username || 'U').slice(0, 2).toUpperCase()
+                const isFollowed = followingIds.has(contributor.id)
+                return (
+                  <div
+                    key={contributor.id}
+                    className="flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/30 transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
+                      {contributor.avatar_url
+                        ? <img src={contributor.avatar_url} alt={initials} className="w-full h-full object-cover" />
+                        : initials
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black truncate">
+                        {contributor.display_name || contributor.username}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {contributor.total_recommendations ?? 0} recommendations
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={isFollowed ? 'outline' : 'default'}
+                      className={isFollowed
+                        ? 'h-7 text-xs px-3 gap-1 border-primary/30 text-primary'
+                        : 'h-7 text-xs px-3 gap-1 bg-gradient-to-r from-primary to-violet-500 border-0 hover:opacity-90'
+                      }
+                      onClick={() => !isFollowed && handleFollow(contributor.id)}
+                      disabled={followLoading === contributor.id || isFollowed}
+                    >
+                      {followLoading === contributor.id
+                        ? <Loader2 size={11} className="animate-spin" />
+                        : isFollowed ? '✓ Following' : '+ Follow'
+                      }
+                    </Button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
 
+  // ── Empty: following someone but no recs yet ─────────────────────
   if (tab === 'following' && !isFollowingNobody && items.length === 0) {
     return (
-      <div className="text-center py-20 rounded-2xl border border-dashed border-border space-y-4">
-        <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
-          <LayoutList size={22} className="text-muted-foreground opacity-40" />
+      <div className="relative flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border overflow-hidden">
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+        <div className="relative mb-8 w-36 h-36 mx-auto">
+          <div className="absolute top-0 left-0 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" />
+          <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
+          <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
+            <LayoutList size={18} className="text-primary opacity-60" />
+            <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">Empty</span>
+          </div>
         </div>
-        <div>
-          <h3 className="font-black text-lg">Nothing here yet</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            The people you follow haven't shared any approved recommendations yet
-          </p>
-        </div>
-        <Link href="/feed?tab=discover">
-          <Button variant="outline" className="gap-2">
+        <p className="text-sm font-black">Nothing here yet</p>
+        <p className="text-xs text-muted-foreground mt-1 text-center max-w-xs px-4">
+          The people you follow haven't shared any approved recommendations yet
+        </p>
+        <Link href="/feed?tab=discover" className="mt-6">
+          <Button variant="outline" size="sm" className="gap-2">
             <BookOpen size={14} />
             Try Discover Instead
           </Button>
@@ -197,18 +276,24 @@ export function FeedList({
     )
   }
 
+  // ── Empty: discover tab ──────────────────────────────────────────
   if (tab === 'discover' && items.length === 0) {
     return (
-      <div className="text-center py-20 rounded-2xl border border-dashed border-border space-y-4">
-        <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
-          <BookOpen size={22} className="text-muted-foreground opacity-40" />
+      <div className="relative flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border overflow-hidden">
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+        <div className="relative mb-8 w-36 h-36 mx-auto">
+          <div className="absolute top-0 left-0 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" />
+          <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
+          <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
+            <BookOpen size={18} className="text-primary opacity-60" />
+            <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">Discover</span>
+          </div>
         </div>
-        <div>
-          <h3 className="font-black text-lg">Nothing to discover yet</h3>
-          <p className="text-sm text-muted-foreground mt-1">Be the first to recommend a comic</p>
-        </div>
-        <Link href="/dashboard/recommendations/new">
-          <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">
+        <p className="text-sm font-black">Nothing to discover yet</p>
+        <p className="text-xs text-muted-foreground mt-1">Be the first to recommend a comic</p>
+        <Link href="/dashboard/recommendations/new" className="mt-6">
+          <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
             Submit a Recommendation
           </Button>
         </Link>
@@ -216,6 +301,7 @@ export function FeedList({
     )
   }
 
+  // ── Feed items ───────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">

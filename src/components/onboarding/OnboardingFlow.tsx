@@ -14,9 +14,9 @@ import { GENRES } from '@/lib/utils/constants'
 import Image from 'next/image'
 
 interface Props {
-  userId: string
-  username: string
-  displayName: string
+  userId:       string
+  username:     string
+  displayName:  string
   initialGenres: string[]
 }
 
@@ -25,48 +25,43 @@ type Step = typeof STEPS[number]
 
 const TOUR_ITEMS = [
   {
-    icon: Radar,
+    icon:  Radar,
     color: 'from-rose-500 to-pink-600',
     title: 'Browse',
-    desc: 'Discover manga, manhwa, manhua and webtoons recommended by the community.',
+    desc:  'Discover manga, manhwa, manhua and webtoons recommended by the community.',
   },
   {
-    icon: LayoutList,
+    icon:  LayoutList,
     color: 'from-primary to-violet-500',
     title: 'Following Feed',
-    desc: 'See the latest recommendations from people you follow — like a Twitter for comics.',
+    desc:  'See the latest recommendations from people you follow — like a Twitter for comics.',
   },
   {
-    icon: BookMarked,
+    icon:  BookMarked,
     color: 'from-teal-500 to-cyan-600',
     title: 'Reading Lists',
-    desc: 'Organise your reading — Currently Reading, Plan to Read, Completed and more.',
+    desc:  'Organise your reading — Currently Reading, Plan to Read, Completed and more.',
   },
   {
-    icon: Bell,
+    icon:  Bell,
     color: 'from-emerald-500 to-teal-500',
     title: 'Notifications',
-    desc: 'Get notified when someone votes on your recommendation or follows you.',
+    desc:  'Get notified when someone votes on your recommendation or follows you.',
   },
 ]
 
 interface ComicPreview {
-  id: string
-  title: string
+  id:        string
+  title:     string
   cover_url: string | null
-  type: string
-  genres: string[]
-  upvotes: number
+  type:      string
+  genres:    string[]
+  upvotes:   number
 }
 
-/**
- * Helper component to handle broken images individually
- */
 function ComicImage({ src, alt }: { src: string | null; alt: string }) {
   const [error, setError] = useState(false)
-  // High quality generic placeholder if image fails
   const fallback = 'https://images.unsplash.com/photo-1612036782180-6f0b6cd846fe?q=80&w=500'
-
   return (
     <Image
       src={error || !src ? fallback : src}
@@ -74,7 +69,7 @@ function ComicImage({ src, alt }: { src: string | null; alt: string }) {
       fill
       className="object-cover group-hover:scale-105 transition-transform duration-300"
       sizes="(max-width: 640px) 50vw, 33vw"
-      unoptimized={true} // Bypasses Next.js proxy for external community covers
+      unoptimized
       onError={() => setError(true)}
     />
   )
@@ -82,17 +77,18 @@ function ComicImage({ src, alt }: { src: string | null; alt: string }) {
 
 export function OnboardingFlow({ userId, username, displayName, initialGenres }: Props) {
   const router = useRouter()
-  const [step, setStep] = useState<Step>('welcome')
+  const [step,           setStep]           = useState<Step>('welcome')
   const [selectedGenres, setSelectedGenres] = useState<string[]>(initialGenres)
-  const [saving, setSaving] = useState(false)
-
-  const [comics, setComics] = useState<ComicPreview[]>([])
-  const [loadingComics, setLoadingComics] = useState(false)
-  const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
+  const [saving,         setSaving]         = useState(false)
+  const [comics,         setComics]         = useState<ComicPreview[]>([])
+  const [loadingComics,  setLoadingComics]  = useState(false)
+  const [votedIds,       setVotedIds]       = useState<Set<string>>(new Set())
+  const [savedIds,       setSavedIds]       = useState<Set<string>>(new Set())
+  const [votingId,       setVotingId]       = useState<string | null>(null)
+  const [savingId,       setSavingId]       = useState<string | null>(null)
 
   const currentStepIndex = STEPS.indexOf(step)
-  const progress = (currentStepIndex / (STEPS.length - 1)) * 100
+  const progress         = (currentStepIndex / (STEPS.length - 1)) * 100
 
   const toggleGenre = (genre: string) => {
     setSelectedGenres(prev =>
@@ -108,7 +104,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
       const genreParam = selectedGenres.length > 0
         ? `&genre=${encodeURIComponent(selectedGenres[0])}`
         : ''
-      const res = await fetch(`/api/recommendations?limit=6&sort=score${genreParam}&adult=false`)
+      const res  = await fetch(`/api/recommendations?limit=6&sort=score${genreParam}&adult=false`)
       const data = await res.json()
       setComics(data.recommendations ?? [])
     } catch {
@@ -124,36 +120,78 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
   }
 
   const handleVote = async (comicId: string) => {
-    if (votedIds.has(comicId)) return
-    setVotedIds(prev => new Set([...prev, comicId]))
+    // Prevent double-voting
+    if (votedIds.has(comicId) || votingId === comicId) return
+
+    setVotingId(comicId)
     try {
-      await fetch(`/api/recommendations/${comicId}/vote`, {
-        method: 'POST',
+      const res = await fetch(`/api/recommendations/${comicId}/vote`, {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ vote_type: 'up' }),
+        body:    JSON.stringify({ vote_type: 'up' }),
       })
-    } catch { /* silent */ }
+
+      if (res.status === 401) {
+        // Session not ready yet — mark optimistically and move on
+        // The vote will be lost but we don't want to break onboarding UX
+        setVotedIds(prev => new Set([...prev, comicId]))
+        return
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        console.error('[onboarding/vote] error:', data)
+        toast.error('Could not vote right now — try again from browse')
+        return
+      }
+
+      // Vote succeeded
+      setVotedIds(prev => new Set([...prev, comicId]))
+    } catch (err) {
+      console.error('[onboarding/vote] unexpected error:', err)
+      // Don't show an error toast — just silently skip, onboarding shouldn't be blocked by a vote
+    } finally {
+      setVotingId(null)
+    }
   }
 
   const handleSave = async (comicId: string) => {
-    if (savedIds.has(comicId)) return
-    setSavedIds(prev => new Set([...prev, comicId]))
+    if (savedIds.has(comicId) || savingId === comicId) return
+
+    setSavingId(comicId)
     try {
-      await fetch('/api/saves', {
-        method: 'POST',
+      const res = await fetch('/api/saves', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recommendation_id: comicId }),
+        body:    JSON.stringify({ recommendation_id: comicId }),
       })
-    } catch { /* silent */ }
+
+      if (res.status === 401) {
+        setSavedIds(prev => new Set([...prev, comicId]))
+        return
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        console.error('[onboarding/save] error:', data)
+        return
+      }
+
+      setSavedIds(prev => new Set([...prev, comicId]))
+    } catch (err) {
+      console.error('[onboarding/save] unexpected error:', err)
+    } finally {
+      setSavingId(null)
+    }
   }
 
   const handleComplete = async () => {
     setSaving(true)
     try {
       const res = await fetch('/api/onboarding/complete', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ favorite_genres: selectedGenres }),
+        body:    JSON.stringify({ favorite_genres: selectedGenres }),
       })
       if (!res.ok) throw new Error()
       router.push('/browse')
@@ -170,6 +208,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
+
         {/* Progress bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
@@ -200,10 +239,10 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             </div>
             <div className="grid grid-cols-2 gap-3 text-left">
               {[
-                { icon: BookOpen, text: 'Discover comics', color: 'text-rose-500' },
-                { icon: LayoutList, text: 'Follow readers', color: 'text-primary' },
-                { icon: BookMarked, text: 'Track your reading', color: 'text-teal-500' },
-                { icon: Globe, text: 'Share recommendations', color: 'text-emerald-500' },
+                { icon: BookOpen,   text: 'Discover comics',       color: 'text-rose-500'    },
+                { icon: LayoutList, text: 'Follow readers',         color: 'text-primary'     },
+                { icon: BookMarked, text: 'Track your reading',     color: 'text-teal-500'    },
+                { icon: Globe,      text: 'Share recommendations',  color: 'text-emerald-500' },
               ].map(({ icon: Icon, text, color }) => (
                 <div key={text} className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/50 border border-border">
                   <Icon size={15} className={color} />
@@ -272,7 +311,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
           <div className="rounded-3xl border border-border bg-card p-8 space-y-6">
             <div className="space-y-2">
               <h2 className="text-2xl font-black tracking-tight">
-                {selectedGenres.length > 0 ? `Top picks for you 🎯` : `Popular right now 🔥`}
+                {selectedGenres.length > 0 ? 'Top picks for you 🎯' : 'Popular right now 🔥'}
               </h2>
               <p className="text-sm text-muted-foreground">
                 Upvote anything that catches your eye — it helps us personalise your feed.
@@ -293,8 +332,11 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {comics.map((comic) => {
-                  const voted = votedIds.has(comic.id)
-                  const saved = savedIds.has(comic.id)
+                  const voted  = votedIds.has(comic.id)
+                  const saved  = savedIds.has(comic.id)
+                  const voting = votingId === comic.id
+                  const saving = savingId === comic.id
+
                   return (
                     <div
                       key={comic.id}
@@ -309,24 +351,39 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
                       <div className="p-2.5 space-y-2 flex-1 flex flex-col justify-between">
                         <p className="text-xs font-bold leading-tight line-clamp-2">{comic.title}</p>
                         <div className="flex items-center gap-1.5">
+                          {/* Vote button */}
                           <button
                             onClick={() => handleVote(comic.id)}
+                            disabled={voting}
                             className={cn(
                               'flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[10px] font-bold border transition-all',
-                              voted ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary hover:text-primary'
+                              voted
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'border-border text-muted-foreground hover:border-primary hover:text-primary active:scale-95'
                             )}
                           >
-                            <ThumbsUp size={10} />
+                            {voting
+                              ? <Loader2 size={10} className="animate-spin" />
+                              : <ThumbsUp size={10} />
+                            }
                             {voted ? 'Voted' : 'Vote'}
                           </button>
+
+                          {/* Save button */}
                           <button
                             onClick={() => handleSave(comic.id)}
+                            disabled={saving}
                             className={cn(
                               'h-7 w-7 flex items-center justify-center rounded-lg border transition-all',
-                              saved ? 'bg-teal-500 text-white border-teal-500' : 'border-border text-muted-foreground hover:border-teal-500 hover:text-teal-500'
+                              saved
+                                ? 'bg-teal-500 text-white border-teal-500'
+                                : 'border-border text-muted-foreground hover:border-teal-500 hover:text-teal-500 active:scale-95'
                             )}
                           >
-                            <Bookmark size={10} />
+                            {saving
+                              ? <Loader2 size={10} className="animate-spin" />
+                              : <Bookmark size={10} />
+                            }
                           </button>
                         </div>
                       </div>
@@ -335,6 +392,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
                 })}
               </div>
             )}
+
             <div className="flex gap-3 pt-2">
               <Button variant="ghost" onClick={() => setStep('genres')} className="flex-1">Back</Button>
               <Button
@@ -370,7 +428,10 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             </div>
             <div className="flex gap-3 pt-2">
               <Button variant="ghost" onClick={() => setStep('discover')} className="flex-1">Back</Button>
-              <Button onClick={() => setStep('done')} className="flex-1 gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20 font-bold">
+              <Button
+                onClick={() => setStep('done')}
+                className="flex-1 gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20 font-bold"
+              >
                 Almost done <ArrowRight size={15} />
               </Button>
             </div>
@@ -405,11 +466,19 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
                 <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Saved</p>
               </div>
             </div>
-            <Button onClick={handleComplete} disabled={saving} className="w-full h-11 gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:opacity-90 border-0 shadow-lg shadow-emerald-500/20 font-bold text-white">
-              {saving ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : <>Start exploring <ArrowRight size={16} /></>}
+            <Button
+              onClick={handleComplete}
+              disabled={saving}
+              className="w-full h-11 gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:opacity-90 border-0 shadow-lg shadow-emerald-500/20 font-bold text-white"
+            >
+              {saving
+                ? <><Loader2 size={15} className="animate-spin" /> Saving…</>
+                : <>Start exploring <ArrowRight size={16} /></>
+              }
             </Button>
           </div>
         )}
+
       </div>
     </div>
   )

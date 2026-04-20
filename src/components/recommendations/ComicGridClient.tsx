@@ -4,23 +4,22 @@ import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { ComicCardSkeleton } from '@/components/recommendations/ComicCardSkeleton'
 import { Button } from '@/components/ui/button'
-import { BookOpen, Loader2, Plus, Sparkles, LayoutGrid, Lock } from 'lucide-react'
+import { BookOpen, Loader2, Plus, Sparkles, LayoutGrid, Lock, Search } from 'lucide-react'
 import Link from 'next/link'
 import type { Recommendation } from '@/types/database.types'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  initialItems:    Recommendation[]
-  initialTotal:    number
-  searchParams:    Record<string, string>
-  apiPath?:        string
-  // Personalization props — passed from browse page
-  userId?:         string | null
-  interactionCount?: number   // votes + saves the user has made
+  initialItems:      Recommendation[]
+  initialTotal:      number
+  searchParams:      Record<string, string>
+  apiPath?:          string
+  userId?:           string | null
+  interactionCount?: number
 }
 
-const PAGE_SIZE          = 24
-const MIN_INTERACTIONS   = 5   // minimum before "For You" activates
+const PAGE_SIZE        = 24
+const MIN_INTERACTIONS = 5
 
 type GridTab = 'all' | 'foryou'
 
@@ -48,28 +47,21 @@ export function ComicGridClient({
   const [loading,  setLoading]  = useState(false)
   const [hydrated, setHydrated] = useState(false)
 
-  // Tab state — "For You" only available for logged-in users with enough history
   const forYouUnlocked = !!userId && interactionCount >= MIN_INTERACTIONS
-  const [activeTab, setActiveTab] = useState<GridTab>('all')
+  const [activeTab,     setActiveTab]     = useState<GridTab>('all')
   const [forYouItems,   setForYouItems]   = useState<Recommendation[]>([])
   const [forYouLoading, setForYouLoading] = useState(false)
   const forYouFetched = useRef(false)
+  const prevKeyRef    = useRef(sessionKey)
 
-  const prevKeyRef = useRef(sessionKey)
-
-  // ── Restore from sessionStorage ──────────────────────────────────
+  // ── Session restore ──────────────────────────────────────────────
   useLayoutEffect(() => {
     setHydrated(true)
     try {
       const raw = sessionStorage.getItem(sessionKey)
       if (!raw) return
       const saved = JSON.parse(raw)
-      if (
-        Array.isArray(saved.items) &&
-        saved.items.length > 0 &&
-        typeof saved.total === 'number' &&
-        typeof saved.page  === 'number'
-      ) {
+      if (Array.isArray(saved.items) && saved.items.length > 0 && typeof saved.total === 'number' && typeof saved.page === 'number') {
         setItems(saved.items)
         setTotal(saved.total)
         setPage(saved.page)
@@ -77,7 +69,6 @@ export function ComicGridClient({
     } catch {}
   }, [sessionKey])
 
-  // ── Restore scroll position ──────────────────────────────────────
   useEffect(() => {
     if (!hydrated) return
     try {
@@ -85,40 +76,25 @@ export function ComicGridClient({
       if (!y) return
       const target = parseInt(y, 10)
       if (isNaN(target) || target <= 0) return
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          window.scrollTo({ top: target, behavior: 'instant' })
-        })
-      })
+      requestAnimationFrame(() => requestAnimationFrame(() => window.scrollTo({ top: target, behavior: 'instant' })))
     } catch {}
   }, [hydrated, scrollKey])
 
-  // ── Save scroll position ─────────────────────────────────────────
   useEffect(() => {
-    const save = () => {
-      try { sessionStorage.setItem(scrollKey, String(Math.round(window.scrollY))) } catch {}
-    }
+    const save = () => { try { sessionStorage.setItem(scrollKey, String(Math.round(window.scrollY))) } catch {} }
     window.addEventListener('scroll', save, { passive: true })
     return () => window.removeEventListener('scroll', save)
   }, [scrollKey])
 
-  // ── Save items to sessionStorage ─────────────────────────────────
   useEffect(() => {
     if (!hydrated) return
-    try {
-      sessionStorage.setItem(sessionKey, JSON.stringify({ items, total, page }))
-    } catch {}
+    try { sessionStorage.setItem(sessionKey, JSON.stringify({ items, total, page })) } catch {}
   }, [items, total, page, hydrated, sessionKey])
 
-  // ── Reset when filters change ────────────────────────────────────
   useEffect(() => {
     if (prevKeyRef.current === sessionKey) return
     prevKeyRef.current = sessionKey
-    try {
-      Object.keys(sessionStorage).forEach(k => {
-        if (k.startsWith('cgrid_')) sessionStorage.removeItem(k)
-      })
-    } catch {}
+    try { Object.keys(sessionStorage).forEach(k => { if (k.startsWith('cgrid_')) sessionStorage.removeItem(k) }) } catch {}
     setItems(initialItems)
     setTotal(initialTotal)
     setPage(1)
@@ -127,13 +103,12 @@ export function ComicGridClient({
     setForYouItems([])
   }, [sessionKey, initialItems, initialTotal])
 
-  // ── Fetch "For You" items when tab is clicked ────────────────────
   const fetchForYou = useCallback(async () => {
     if (forYouFetched.current || !userId) return
     forYouFetched.current = true
     setForYouLoading(true)
     try {
-      const res  = await fetch(`/api/recommendations/personalized?limit=48`)
+      const res  = await fetch('/api/recommendations/personalized?limit=48')
       const data = await res.json()
       setForYouItems(data.recommendations ?? [])
     } catch {
@@ -154,15 +129,10 @@ export function ComicGridClient({
     setLoading(true)
     try {
       const nextPage = page + 1
-      const params   = new URLSearchParams({
-        ...searchParams,
-        page:  String(nextPage),
-        limit: String(PAGE_SIZE),
-      })
-      const res  = await fetch(`${apiPath}?${params}`)
-      const data = await res.json()
-      const newItems: Recommendation[] = data.recommendations ?? data.data ?? []
-      setItems(prev => [...prev, ...newItems])
+      const params   = new URLSearchParams({ ...searchParams, page: String(nextPage), limit: String(PAGE_SIZE) })
+      const res      = await fetch(`${apiPath}?${params}`)
+      const data     = await res.json()
+      setItems(prev => [...prev, ...(data.recommendations ?? data.data ?? [])])
       setPage(nextPage)
     } catch {
       console.error('Failed to load more')
@@ -171,7 +141,25 @@ export function ComicGridClient({
     }
   }, [page, searchParams, apiPath])
 
-  // ── Tab bar — only shown for logged-in users ─────────────────────
+  // ── Derive active filter info for empty state messaging ──────────
+  const activeQuery  = searchParams.q      ?? ''
+  const activeType   = searchParams.type   ?? ''
+  const activeGenre  = searchParams.genre  ?? ''
+  const activeStatus = searchParams.status ?? ''
+  const hasFilters   = !!(activeQuery || activeType || activeGenre || activeStatus)
+
+  const emptyTitle = activeQuery
+    ? `No results for "${activeQuery}"`
+    : hasFilters
+    ? 'No comics match these filters'
+    : 'No comics yet'
+
+  const emptySubtext = activeQuery
+    ? 'Try a different title, author, or genre'
+    : hasFilters
+    ? 'Try adjusting or clearing your filters'
+    : 'Be the first to add a recommendation!'
+
   const showTabs = !!userId
 
   return (
@@ -192,7 +180,6 @@ export function ComicGridClient({
             <LayoutGrid size={13} />
             All Comics
           </button>
-
           <button
             onClick={() => forYouUnlocked && handleTabChange('foryou')}
             className={cn(
@@ -203,11 +190,7 @@ export function ComicGridClient({
                 ? 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
                 : 'bg-card border-border text-muted-foreground opacity-60 cursor-not-allowed'
             )}
-            title={
-              !forYouUnlocked
-                ? `Vote or save ${MIN_INTERACTIONS - interactionCount} more comics to unlock`
-                : undefined
-            }
+            title={!forYouUnlocked ? `Vote or save ${MIN_INTERACTIONS - interactionCount} more comics to unlock` : undefined}
           >
             <Sparkles size={13} />
             For You
@@ -221,7 +204,6 @@ export function ComicGridClient({
         </div>
       )}
 
-      {/* "For You" unlock prompt — shown when close to threshold */}
       {showTabs && !forYouUnlocked && interactionCount >= MIN_INTERACTIONS - 3 && (
         <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
           <Sparkles size={13} className="text-primary shrink-0" />
@@ -234,22 +216,28 @@ export function ComicGridClient({
         </div>
       )}
 
-      {/* ── For You tab content ── */}
+      {/* For You tab */}
       {activeTab === 'foryou' && (
         <>
           {forYouLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <ComicCardSkeleton key={i} />
-              ))}
+              {Array.from({ length: 12 }).map((_, i) => <ComicCardSkeleton key={i} />)}
             </div>
           ) : forYouItems.length === 0 ? (
-            <div className="text-center py-16">
-              <Sparkles size={28} className="mx-auto mb-3 text-muted-foreground opacity-30" />
-              <p className="text-sm font-semibold mb-1">No personalised picks yet</p>
-              <p className="text-xs text-muted-foreground">
-                Vote and save more comics to improve your recommendations
-              </p>
+            /* ── For You empty state ── */
+            <div className="relative flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border overflow-hidden">
+              <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+              <div className="relative mb-8 w-36 h-36 mx-auto">
+                <div className="absolute top-0 left-0 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" />
+                <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
+                <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
+                  <Sparkles size={18} className="text-primary opacity-60" />
+                  <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">For You</span>
+                </div>
+              </div>
+              <p className="text-sm font-black">No personalised picks yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Vote and save more comics to improve your recommendations</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -257,48 +245,65 @@ export function ComicGridClient({
                 {forYouItems.length} picks based on your taste
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {forYouItems.map(rec => (
-                  <ComicCard key={rec.id} recommendation={rec} />
-                ))}
+                {forYouItems.map(rec => <ComicCard key={rec.id} recommendation={rec} />)}
               </div>
             </div>
           )}
         </>
       )}
 
-      {/* ── All Comics tab content ── */}
+      {/* All Comics tab */}
       {activeTab === 'all' && (
         <>
           {!items.length ? (
-            <div className="text-center py-20">
-              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
-                <BookOpen size={28} className="text-muted-foreground opacity-40" />
+            /* ── Comic-panel empty state ── */
+            <div className="relative flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border overflow-hidden">
+              <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+
+              <div className="relative mb-8 w-36 h-36 mx-auto">
+                <div className="absolute top-0 left-0 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" />
+                <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
+                <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
+                  {activeQuery
+                    ? <Search size={18} className="text-primary opacity-60" />
+                    : <BookOpen size={18} className="text-primary opacity-60" />
+                  }
+                  <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">
+                    {activeQuery ? 'No results' : 'Empty'}
+                  </span>
+                </div>
               </div>
-              <h3 className="text-lg font-black mb-1">No comics found</h3>
-              <p className="text-muted-foreground text-sm mb-6">
-                {Object.keys(searchParams).some(k => ['q', 'type', 'genre', 'status'].includes(k))
-                  ? 'Try adjusting your filters'
-                  : 'Be the first to add a recommendation!'}
-              </p>
-              <Link href="/dashboard/recommendations/new">
-                <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
-                  <Plus size={15} />
-                  Submit a Recommendation
-                </Button>
-              </Link>
+
+              <p className="text-sm font-black">{emptyTitle}</p>
+              <p className="text-xs text-muted-foreground mt-1 text-center max-w-xs px-4">{emptySubtext}</p>
+
+              <div className="flex flex-wrap gap-3 justify-center mt-6">
+                {hasFilters && (
+                  <Link href="/browse">
+                    <Button variant="outline" size="sm" className="gap-1.5">
+                      Clear filters
+                    </Button>
+                  </Link>
+                )}
+                {!hasFilters && (
+                  <Link href="/dashboard/recommendations/new">
+                    <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
+                      <Plus size={14} />
+                      Submit a Recommendation
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </div>
           ) : (
             <>
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {items.length} of {total} comic{total !== 1 ? 's' : ''}
               </p>
-
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {items.map(rec => (
-                  <ComicCard key={rec.id} recommendation={rec} />
-                ))}
+                {items.map(rec => <ComicCard key={rec.id} recommendation={rec} />)}
               </div>
-
               {hasMore && (
                 <div className="flex justify-center pt-2">
                   <Button
@@ -314,7 +319,6 @@ export function ComicGridClient({
                   </Button>
                 </div>
               )}
-
               {!hasMore && items.length > PAGE_SIZE && (
                 <p className="text-center text-xs text-muted-foreground py-2">
                   You've seen all {total} comics 🎉

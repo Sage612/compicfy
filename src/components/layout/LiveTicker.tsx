@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 
 interface TickerItem {
-  title: string
-  type: string
+  title:    string
+  type:     string
   username: string
 }
 
@@ -13,24 +13,37 @@ interface Props {
   items: TickerItem[]
 }
 
-export function LiveTicker({ items }: Props) {
-  const trackRef = useRef<HTMLDivElement>(null)
+// Shown when no real activity exists yet — makes the platform feel alive
+const FALLBACK_ITEMS: TickerItem[] = [
+  { title: 'Solo Leveling',         type: 'manhwa',  username: 'compicfy' },
+  { title: 'Tower of God',          type: 'manhwa',  username: 'compicfy' },
+  { title: 'Berserk',               type: 'manga',   username: 'compicfy' },
+  { title: 'Omniscient Reader',     type: 'manhwa',  username: 'compicfy' },
+  { title: 'One Punch Man',         type: 'manga',   username: 'compicfy' },
+  { title: 'Lore Olympus',          type: 'webtoon', username: 'compicfy' },
+  { title: 'The Beginning After the End', type: 'webtoon', username: 'compicfy' },
+  { title: 'Vinland Saga',          type: 'manga',   username: 'compicfy' },
+]
 
-  // Duplicate items so the scroll loops seamlessly
-  const doubled = [...items, ...items]
+export function LiveTicker({ items }: Props) {
+  const trackRef   = useRef<HTMLDivElement>(null)
+  const display    = items.length > 0 ? items : FALLBACK_ITEMS
+  // Duplicate so scroll loops seamlessly
+  const doubled    = [...display, ...display]
+  const speed      = display.length * 4  // seconds — more items = longer cycle
 
   return (
     <div className="border-y border-border bg-muted/30 overflow-hidden py-3 select-none">
       <div className="flex items-center gap-4">
 
-        {/* Static live badge — doesn't scroll */}
+        {/* Static live badge */}
         <div className="flex items-center gap-2 pl-4 shrink-0 z-10 bg-muted/30">
           <span className="relative flex h-2 w-2 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75" />
             <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500" />
           </span>
           <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">
-            Live
+            {items.length > 0 ? 'Live' : 'Featured'}
           </span>
         </div>
 
@@ -39,9 +52,7 @@ export function LiveTicker({ items }: Props) {
           <div
             ref={trackRef}
             className="flex items-center gap-8 whitespace-nowrap"
-            style={{
-              animation: `ticker ${items.length * 4}s linear infinite`,
-            }}
+            style={{ animation: `ticker ${speed}s linear infinite` }}
           >
             {doubled.map((rec, i) => (
               <span
@@ -50,9 +61,7 @@ export function LiveTicker({ items }: Props) {
               >
                 <span className="text-primary font-bold">@{rec.username}</span>
                 <span>recommended</span>
-                <span className="font-semibold text-foreground">
-                  {rec.title}
-                </span>
+                <span className="font-semibold text-foreground">{rec.title}</span>
                 <span className="capitalize text-muted-foreground/40 text-[10px]">
                   · {rec.type}
                 </span>
@@ -62,7 +71,7 @@ export function LiveTicker({ items }: Props) {
           </div>
         </div>
 
-        {/* Static See all link — doesn't scroll */}
+        {/* Static See all */}
         <div className="shrink-0 pr-4 z-10 bg-muted/30">
           <Link
             href="/browse"

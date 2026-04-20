@@ -24,13 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     title:       'Compicfy — Find your next obsession.',
     description: 'Community-powered comic discovery. Browse, recommend, and vote.',
-    images: [{
-      // Points to our dynamic OG image route
-      url:    `${SITE_URL}/api/og`,
-      width:  1200,
-      height: 630,
-      alt:    'Compicfy — Find your next obsession.',
-    }],
+    images: [{ url: `${SITE_URL}/api/og`, width: 1200, height: 630, alt: 'Compicfy — Find your next obsession.' }],
   },
   twitter: {
     card:        'summary_large_image',
@@ -86,81 +80,41 @@ export default async function HomePage() {
     { data: fallbackData },
     { data: recentActivity },
   ] = await Promise.all([
-    supabase
-      .from('recommendations')
-      .select('*')
-      .eq('is_approved', true)
-      .not('content_rating', 'in', '("adult","mature")')
-      .order('score', { ascending: false })
-      .limit(6),
-    supabase
-      .from('news')
-      .select('*')
-      .eq('is_published', true)
-      .order('published_at', { ascending: false })
-      .limit(3),
-    supabase
-      .from('profiles')
-      .select('id', { count: 'exact', head: true }),
-    supabase
-      .from('recommendations')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_approved', true),
-    supabase
-      .from('reviews')
-      .select('id', { count: 'exact', head: true }),
-    // Try featured first
-    supabase
-      .from('recommendations')
-      .select('*')
-      .eq('is_approved', true)
-      .eq('is_featured', true)
-      .not('content_rating', 'in', '("adult","mature")')
-      .order('score', { ascending: false })
-      .limit(1),
-    // Fallback — top scored comic regardless of featured flag
-    supabase
-      .from('recommendations')
-      .select('*')
-      .eq('is_approved', true)
-      .not('content_rating', 'in', '("adult","mature")')
-      .order('score', { ascending: false })
-      .limit(1),
-    supabase
-      .from('recommendations')
-      .select('title, type, user_id, profiles!recommendations_user_id_fkey(username)')
-      .eq('is_approved', true)
-      .not('content_rating', 'in', '("adult","mature")')
-      .order('created_at', { ascending: false })
-      .limit(6),
+    supabase.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(6),
+    supabase.from('news').select('*').eq('is_published', true).order('published_at', { ascending: false }).limit(3),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }),
+    supabase.from('recommendations').select('id', { count: 'exact', head: true }).eq('is_approved', true),
+    supabase.from('reviews').select('id', { count: 'exact', head: true }),
+    supabase.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(1),
+    supabase.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(1),
+    supabase.from('recommendations').select('title, type, user_id, profiles!recommendations_user_id_fkey(username)').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('created_at', { ascending: false }).limit(6),
   ])
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const topComics    = (trending        as Recommendation[]) ?? []
-  const latestNews   = (recentNews      as News[])           ?? []
+  const topComics    = (trending       as Recommendation[]) ?? []
+  const latestNews   = (recentNews     as News[])           ?? []
   const totalMembers = memberCount ?? 0
   const totalComics  = comicCount  ?? 0
   const totalReviews = reviewCount ?? 0
-  const activity     = (recentActivity  ?? []) as any[]
+  const activity     = (recentActivity ?? []) as any[]
 
-  // Use featured comic if available, otherwise fall back to top-scored
-  const spotlight = (
-    (featuredData?.[0] ?? fallbackData?.[0])
-  ) as Recommendation | undefined
-
-  // Show "Featured" badge only if it's actually featured
+  const spotlight           = (featuredData?.[0] ?? fallbackData?.[0]) as Recommendation | undefined
   const spotlightIsFeatured = !!(featuredData?.[0])
-  const spotlightTypeStyle  = spotlight
-    ? TYPE_COLORS[spotlight.type] ?? TYPE_COLORS.other
-    : ''
+  const spotlightTypeStyle  = spotlight ? (TYPE_COLORS[spotlight.type] ?? TYPE_COLORS.other) : ''
+
+  // Always pass ticker items — component handles fallback internally
+  const tickerItems = activity.map((rec: any) => ({
+    title:    rec.title,
+    type:     rec.type,
+    username: rec.profiles?.username ?? 'someone',
+  }))
 
   return (
     <div className="flex flex-col">
 
-      {/* ── HERO ─────────────────────────────────────────────────── */}
+      {/* ── HERO ── */}
       <section className="relative overflow-hidden min-h-[92vh] flex flex-col items-center justify-center">
-
         <div className="absolute inset-0 bg-background" />
 
         {/* Glow blobs */}
@@ -170,7 +124,6 @@ export default async function HomePage() {
           <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full bg-primary/5 dark:bg-primary/8 blur-[120px]" />
         </div>
 
-        {/* Particles */}
         <div className="absolute inset-0 opacity-50 dark:opacity-90">
           <ParticleCanvas />
         </div>
@@ -211,7 +164,7 @@ export default async function HomePage() {
                       <path d="M2,9 Q75,2 150,6 Q225,10 298,4" stroke="url(#heroGrad)" strokeWidth="3" fill="none" strokeLinecap="round" />
                       <defs>
                         <linearGradient id="heroGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.6" />
+                          <stop offset="0%"   stopColor="#8b5cf6" stopOpacity="0.6" />
                           <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.6" />
                         </linearGradient>
                       </defs>
@@ -249,7 +202,7 @@ export default async function HomePage() {
                 )}
               </div>
 
-              {/* Stats */}
+              {/* Stats — show real numbers or "Growing" for zeros */}
               <div className="flex flex-wrap gap-5 pt-2 justify-center md:justify-start">
                 {[
                   { label: 'Members',       value: totalMembers, icon: Users,         color: 'text-violet-500', bg: 'bg-violet-500/10' },
@@ -262,7 +215,10 @@ export default async function HomePage() {
                     </div>
                     <div>
                       <p className="font-bold text-foreground tabular-nums leading-tight">
-                        {value > 0 ? <AnimatedCounter target={value} suffix="+" /> : 'Growing'}
+                        {value > 0
+                          ? <><AnimatedCounter target={value} suffix="+" /></>
+                          : <span className="text-muted-foreground text-xs">Growing</span>
+                        }
                       </p>
                       <p className="text-xs text-muted-foreground leading-tight">{label}</p>
                     </div>
@@ -271,10 +227,7 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Right — Spotlight comic
-                Always shows if ANY approved safe comic exists.
-                Badge says "Featured" only if it's actually featured,
-                otherwise "Top Rated".                                 */}
+            {/* Right — Spotlight comic */}
             {spotlight && (
               <div className="hidden md:flex justify-center items-center">
                 <Link href={`/comic/${spotlight.id}`} className="group relative">
@@ -308,17 +261,10 @@ export default async function HomePage() {
                         {spotlight.title}
                       </p>
                       <div className="flex items-center gap-3 text-white/60 text-xs">
-                        <span className="flex items-center gap-1">
-                          <ThumbsUp size={10} />
-                          {spotlight.upvotes}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Bookmark size={10} />
-                          {spotlight.save_count}
-                        </span>
+                        <span className="flex items-center gap-1"><ThumbsUp size={10} />{spotlight.upvotes}</span>
+                        <span className="flex items-center gap-1"><Bookmark size={10} />{spotlight.save_count}</span>
                       </div>
                     </div>
-                    {/* Badge changes based on whether it's featured or fallback */}
                     <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-[10px] font-black text-white border border-white/10">
                       {spotlightIsFeatured ? '✨ Top Pick' : '🏆 Top Rated'}
                     </div>
@@ -336,18 +282,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── SOCIAL PROOF TICKER ──────────────────────────────────── */}
-      {activity.length > 0 && (
-        <LiveTicker
-          items={activity.map((rec: any) => ({
-            title:    rec.title,
-            type:     rec.type,
-            username: rec.profiles?.username ?? 'someone',
-          }))}
-        />
-      )}
+      {/* ── LIVE TICKER — always rendered, fallback handled internally ── */}
+      <LiveTicker items={tickerItems} />
 
-      {/* ── PLATFORM TRUST BAR ───────────────────────────────────── */}
+      {/* ── PLATFORM TRUST BAR ── */}
       <section className="border-b border-border bg-muted/10">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <p className="text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">
@@ -367,7 +305,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── GENRE MOOD PILLS ──────────────────────────────────────── */}
+      {/* ── GENRE MOOD PILLS ── */}
       <section className="border-b border-border bg-muted/20">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <p className="text-center text-xs font-bold uppercase tracking-widest text-muted-foreground mb-5">
@@ -386,7 +324,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── TRENDING COMICS ──────────────────────────────────────── */}
+      {/* ── TRENDING COMICS ── */}
       {topComics.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 py-16 space-y-6 w-full">
           <div className="flex items-center justify-between">
@@ -411,7 +349,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* ── HOW IT WORKS ─────────────────────────────────────────── */}
+      {/* ── HOW IT WORKS ── */}
       <section className="relative overflow-hidden border-y border-border bg-muted/20">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-violet-500/5 blur-3xl" />
@@ -430,8 +368,8 @@ export default async function HomePage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { step: '01', icon: BookOpen,   title: 'Submit a Recommendation', desc: 'Share a manga, manhwa, or webtoon you love. Add genres, a cover, and tell us why others need to read it.',                gradient: 'from-violet-500 to-purple-600', glow: 'group-hover:shadow-violet-500/20' },
-              { step: '02', icon: TrendingUp, title: 'Community Votes',         desc: 'The community upvotes great picks. The best ones rise to the top and land on the featured carousel.',                          gradient: 'from-primary to-blue-600',     glow: 'group-hover:shadow-primary/20'   },
+              { step: '01', icon: BookOpen,   title: 'Submit a Recommendation', desc: 'Share a manga, manhwa, or webtoon you love. Add genres, a cover, and tell us why others need to read it.',                       gradient: 'from-violet-500 to-purple-600', glow: 'group-hover:shadow-violet-500/20' },
+              { step: '02', icon: TrendingUp, title: 'Community Votes',         desc: 'The community upvotes great picks. The best ones rise to the top and land on the featured carousel.',                                gradient: 'from-primary to-blue-600',     glow: 'group-hover:shadow-primary/20'   },
               { step: '03', icon: Heart,      title: 'Discover & Save',         desc: 'Find your next obsession through community picks. Leave reviews, save favourites, track your reading list.', gradient: 'from-rose-500 to-pink-600',    glow: 'group-hover:shadow-rose-500/20'  },
             ].map(({ step, icon: Icon, title, desc, gradient, glow }) => (
               <div key={step} className={`group relative p-7 rounded-3xl bg-card border border-border space-y-4 hover:border-transparent hover:shadow-2xl ${glow} transition-all duration-300`}>
@@ -447,7 +385,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── LATEST NEWS ──────────────────────────────────────────── */}
+      {/* ── LATEST NEWS ── */}
       {latestNews.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 py-16 space-y-6 w-full">
           <div className="flex items-center justify-between">
@@ -472,7 +410,7 @@ export default async function HomePage() {
         </section>
       )}
 
-      {/* ── CTA BANNER ───────────────────────────────────────────── */}
+      {/* ── CTA BANNER ── */}
       <section className="max-w-7xl mx-auto px-4 py-16 w-full">
         <div className="relative overflow-hidden rounded-3xl p-8 md:p-14 bg-zinc-950 dark:bg-zinc-900 border border-white/5">
           <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-violet-500/20 blur-3xl pointer-events-none" />
