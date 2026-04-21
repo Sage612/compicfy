@@ -9,7 +9,7 @@ import { ShareButton } from './ShareButton'
 
 interface ComicCardProps {
   recommendation: Recommendation
-  className?: string
+  className?:     string
 }
 
 const statusConfig = {
@@ -28,25 +28,27 @@ const typeColors: Record<string, string> = {
   other:   'from-slate-500 to-zinc-600',
 }
 
-// Score tiers — gives users an instant quality signal
-function getScoreTier(score: number): {
-  label: string
-  color: string
-  bg:    string
-} {
-  if (score >= 100) return { label: `${formatNumber(score)}`,  color: 'text-amber-300',   bg: 'bg-amber-500/25'   }
-  if (score >= 50)  return { label: `${formatNumber(score)}`,  color: 'text-emerald-300', bg: 'bg-emerald-500/25' }
-  if (score >= 10)  return { label: `${formatNumber(score)}`,  color: 'text-sky-300',     bg: 'bg-sky-500/25'     }
-  if (score > 0)    return { label: `${formatNumber(score)}`,  color: 'text-white/70',    bg: 'bg-white/10'       }
+function getScoreTier(score: number) {
+  if (score >= 100) return { label: formatNumber(score), color: 'text-amber-300',   bg: 'bg-amber-500/25'   }
+  if (score >= 50)  return { label: formatNumber(score), color: 'text-emerald-300', bg: 'bg-emerald-500/25' }
+  if (score >= 10)  return { label: formatNumber(score), color: 'text-sky-300',     bg: 'bg-sky-500/25'     }
+  if (score > 0)    return { label: formatNumber(score), color: 'text-white/70',    bg: 'bg-white/10'       }
   return { label: '0', color: 'text-white/40', bg: 'bg-white/5' }
+}
+
+/** True when the comic was added within the last 7 days */
+function isNewThisWeek(createdAt: string): boolean {
+  const diff = Date.now() - new Date(createdAt).getTime()
+  return diff < 7 * 24 * 60 * 60 * 1000
 }
 
 export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
   const status       = statusConfig[rec.status as keyof typeof statusConfig]
-  const typeGradient = typeColors[rec.type] || typeColors.other
+  const typeGradient = typeColors[rec.type] ?? typeColors.other
   const comicUrl     = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'}/comic/${rec.id}`
   const score        = rec.score ?? (rec.upvotes - rec.downvotes)
   const scoreTier    = getScoreTier(score)
+  const isNew        = isNewThisWeek(rec.created_at)
 
   return (
     <div className={cn('group relative flex flex-col', className)}>
@@ -64,10 +66,7 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
               loading="lazy"
             />
           ) : (
-            <div className={cn(
-              'absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br',
-              typeGradient
-            )}>
+            <div className={cn('absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br', typeGradient)}>
               <BookOpen size={28} className="text-white/60" />
               <span className="text-[10px] text-white/50 text-center px-3 leading-snug">{rec.title}</span>
             </div>
@@ -79,41 +78,41 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
 
         {/* Type pill — top left */}
         <div className="absolute top-2.5 left-2.5 pointer-events-none">
-          <span className={cn(
-            'inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider text-white bg-gradient-to-r shadow-lg',
-            typeGradient
-          )}>
+          <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider text-white bg-gradient-to-r shadow-lg', typeGradient)}>
             {rec.type}
           </span>
         </div>
 
-        {/* ── Score badge — top right, hides on hover for share button ── */}
-        {score > 0 && (
+        {/* ── NEW badge — top right, only for recent comics ── */}
+        {isNew && (
           <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none z-10">
-            <span className={cn(
-              'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black backdrop-blur-sm',
-              scoreTier.bg, scoreTier.color
-            )}>
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-500 text-white shadow-lg">
+              NEW
+            </span>
+          </div>
+        )}
+
+        {/* Score badge — top right, only when not new */}
+        {!isNew && score > 0 && (
+          <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none z-10">
+            <span className={cn('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black backdrop-blur-sm', scoreTier.bg, scoreTier.color)}>
               <ThumbsUp size={8} />
               {scoreTier.label}
             </span>
           </div>
         )}
 
-        {/* Age rating — only shown when no score or score is 0 */}
-        {(rec.content_rating === 'adult' || rec.content_rating === 'mature') && score <= 0 && (
+        {/* Age rating — only when no score and not new */}
+        {!isNew && (rec.content_rating === 'adult' || rec.content_rating === 'mature') && score <= 0 && (
           <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none">
-            <span className={cn(
-              'inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black text-white',
-              rec.content_rating === 'adult' ? 'bg-red-600' : 'bg-orange-500'
-            )}>
+            <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black text-white', rec.content_rating === 'adult' ? 'bg-red-600' : 'bg-orange-500')}>
               {rec.content_rating === 'adult' ? '18+' : '17+'}
             </span>
           </div>
         )}
 
-        {/* Featured star — only shown when no score */}
-        {rec.is_featured && score <= 0 && (
+        {/* Featured star — only when no score and not new */}
+        {!isNew && rec.is_featured && score <= 0 && (
           <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none">
             <Star size={14} className="text-amber-400 fill-amber-400 drop-shadow-lg" />
           </div>
@@ -155,10 +154,7 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
       {rec.genres?.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2 px-0.5">
           {rec.genres.slice(0, 2).map((genre) => (
-            <span
-              key={genre}
-              className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-medium"
-            >
+            <span key={genre} className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-medium">
               {genre}
             </span>
           ))}

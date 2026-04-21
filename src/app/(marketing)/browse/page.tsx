@@ -25,8 +25,6 @@ interface Props {
 const PAGE_SIZE    = 24
 const SAFE_RATINGS = '("adult","mature")'
 
-// ── Section fetchers ─────────────────────────────────────────────────────────
-
 async function getFeatured(s: SupabaseClient) {
   const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('daily_votes', { ascending: false }).limit(8)
   return (data as Recommendation[]) ?? []
@@ -39,6 +37,20 @@ async function getTrending(s: SupabaseClient) {
 
 async function getRecent(s: SupabaseClient) {
   const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('created_at', { ascending: false }).limit(12)
+  return (data as Recommendation[]) ?? []
+}
+
+// New this week — approved in the last 7 days, ordered by score
+async function getNewThisWeek(s: SupabaseClient) {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const { data } = await s
+    .from('recommendations')
+    .select('*')
+    .eq('is_approved', true)
+    .not('content_rating', 'in', SAFE_RATINGS)
+    .gte('created_at', sevenDaysAgo)
+    .order('score', { ascending: false })
+    .limit(12)
   return (data as Recommendation[]) ?? []
 }
 
@@ -78,21 +90,10 @@ async function getInitialGrid(s: SupabaseClient, params: SearchParams) {
     p_limit:  PAGE_SIZE,
     p_offset: 0,
   })
-
-  const { count } = await s
-    .from('recommendations')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_approved', true)
-    .not('content_rating', 'in', SAFE_RATINGS)
-
-  return {
-    items: (data as Recommendation[]) ?? [],
-    total: count ?? 0,
-  }
+  const { count } = await s.from('recommendations').select('*', { count: 'exact', head: true }).eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS)
+  return { items: (data as Recommendation[]) ?? [], total: count ?? 0 }
 }
 
-// ── Fetch user's interaction count (votes + saves) ────────────────────────────
-// Used to decide whether "For You" tab is unlocked
 async function getInteractionCount(s: SupabaseClient, userId: string): Promise<number> {
   const [votesRes, savesRes] = await Promise.all([
     s.from('votes').select('*', { count: 'exact', head: true }).eq('user_id', userId),
@@ -128,6 +129,7 @@ export default async function BrowsePage({ searchParams }: Props) {
     featured,
     trending,
     recent,
+    newThisWeek,
     adminPicks,
     communityFavs,
     hiddenGems,
@@ -137,6 +139,7 @@ export default async function BrowsePage({ searchParams }: Props) {
     isFiltering ? Promise.resolve([]) : getFeatured(supabase),
     isFiltering ? Promise.resolve([]) : getTrending(supabase),
     isFiltering ? Promise.resolve([]) : getRecent(supabase),
+    isFiltering ? Promise.resolve([]) : getNewThisWeek(supabase),
     isFiltering ? Promise.resolve([]) : getAdminPicks(supabase),
     isFiltering ? Promise.resolve([]) : getCommunityFavourites(supabase),
     isFiltering ? Promise.resolve([]) : getHiddenGems(supabase),
@@ -167,13 +170,10 @@ export default async function BrowsePage({ searchParams }: Props) {
             </p>
           </div>
         </div>
-
         <div className="flex items-center gap-2 shrink-0">
           {adultEnabled && (
             <Link href="/browse/adult">
-              <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 h-8 px-2.5">
-                🔞
-              </Button>
+              <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 h-8 px-2.5">🔞</Button>
             </Link>
           )}
           <Link href="/dashboard/recommendations/new">
@@ -196,7 +196,11 @@ export default async function BrowsePage({ searchParams }: Props) {
       {/* ── Horizontal Sections ── */}
       {!isFiltering && (
         <div className="space-y-10">
-          <HorizontalSection title="Trending Today"       emoji="🔥" recommendations={trending}      viewAllHref="/browse?sort=trending" />
+          <HorizontalSection title="Trending Today"  emoji="🔥" recommendations={trending}     viewAllHref="/browse?sort=trending" />
+          {/* New This Week — only shown when there are actually new comics */}
+          {newThisWeek.length > 0 && (
+            <HorizontalSection title="New This Week" emoji="🆕" recommendations={newThisWeek}  viewAllHref="/browse?sort=recent"   />
+          )}
           <HorizontalSection title="Recently Added"       emoji="✨" recommendations={recent}        viewAllHref="/browse?sort=recent"   />
           {adminPicks.length > 0   && <HorizontalSection title="Admin Picks"          emoji="👑" recommendations={adminPicks}     />}
           <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse?sort=score"    />
@@ -228,7 +232,7 @@ export default async function BrowsePage({ searchParams }: Props) {
         <FilterBar adult={false} />
       </Suspense>
 
-      {/* ── Comic Grid — with For You tab ── */}
+      {/* ── Comic Grid ── */}
       <ComicGridClient
         initialItems={items}
         initialTotal={total}

@@ -45,6 +45,20 @@ async function getRecent(s: SupabaseClient) {
   return (data as Recommendation[]) ?? []
 }
 
+// New this week — approved in the last 7 days, ordered by score
+async function getNewThisWeek(s: SupabaseClient) {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+  const { data } = await s
+    .from('recommendations')
+    .select('*')
+    .eq('is_approved', true)
+    .in('content_rating', ADULT_RATINGS)
+    .gte('created_at', sevenDaysAgo)
+    .order('score', { ascending: false })
+    .limit(12)
+  return (data as Recommendation[]) ?? []
+}
+
 async function getAdminPicks(s: SupabaseClient) {
   const { data } = await s.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).in('content_rating', ADULT_RATINGS).order('featured_at', { ascending: false }).limit(12)
   return (data as Recommendation[]) ?? []
@@ -172,6 +186,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
     featured,
     trending,
     recent,
+    newThisWeek,
     adminPicks,
     communityFavs,
     hiddenGems,
@@ -182,6 +197,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
     isFiltering ? Promise.resolve([]) : getFeatured(supabase),
     isFiltering ? Promise.resolve([]) : getTrending(supabase),
     isFiltering ? Promise.resolve([]) : getRecent(supabase),
+    isFiltering ? Promise.resolve([]) : getNewThisWeek(supabase),
     isFiltering ? Promise.resolve([]) : getAdminPicks(supabase),
     isFiltering ? Promise.resolve([]) : getCommunityFavourites(supabase),
     isFiltering ? Promise.resolve([]) : getHiddenGems(supabase),
@@ -243,7 +259,10 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
       {/* ── Horizontal Sections ── */}
       {!isFiltering && (
         <div className="space-y-8">
-          {trending.length > 0      && <HorizontalSection title="Trending Today"       emoji="🔥" recommendations={trending}      viewAllHref="/browse/adult?sort=trending" />}
+          {trending.length > 0 && <HorizontalSection title="Trending Today" emoji="🔥" recommendations={trending} viewAllHref="/browse/adult?sort=trending" />}
+           {newThisWeek.length > 0 && (
+                      <HorizontalSection title="New This Week" emoji="🆕" recommendations={newThisWeek}  viewAllHref="/browse/adult?sort=recent"   />
+                    )}
           {recent.length > 0        && <HorizontalSection title="Recently Added"       emoji="✨" recommendations={recent}        viewAllHref="/browse/adult?sort=recent"   />}
           {adminPicks.length > 0    && <HorizontalSection title="Admin Picks"          emoji="👑" recommendations={adminPicks}                                               />}
           {communityFavs.length > 0 && <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse/adult?sort=score"    />}
