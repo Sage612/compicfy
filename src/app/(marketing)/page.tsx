@@ -201,7 +201,7 @@ export default async function HomePage() {
                 ) : (
                   <Link href="/dashboard/recommendations/new">
                     <Button size="lg" variant="outline" className="gap-2 h-12 px-6 font-semibold hover:border-primary/50">
-                      <Sparkles size={17} />
+                      <BookOpen size={17} />
                       Share a Rec?
                     </Button>
                   </Link>

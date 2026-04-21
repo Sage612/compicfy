@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import {
   CalendarDays, BookOpen, Star, ThumbsUp,
-  Globe, BookMarked, Users, Pin, ArrowRight,
+  Globe, BookMarked, Users, Pin, ArrowRight, PenLine,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
@@ -14,6 +14,7 @@ import { ComicCard } from '@/components/recommendations/ComicCard'
 import { ProAvatar } from '@/components/pro/ProAvatar'
 import { ProBadge } from '@/components/pro/ProBadge'
 import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
+import { Button } from '@/components/ui/button'
 
 interface Props {
   params: Promise<{ username: string }>
@@ -347,16 +348,32 @@ export default async function ProfilePage({ params }: Props) {
           )}
         </section>
       ) : (
-        <div className="text-center py-14 rounded-2xl border border-dashed border-border space-y-3">
-          <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
-            <BookOpen size={22} className="text-muted-foreground opacity-40" />
+        <div className="relative flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-border overflow-hidden">
+          <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+          <div className="relative mb-6 w-36 h-36 mx-auto">
+            <div className="absolute top-0 left-0 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" />
+            <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
+            <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
+              <BookOpen size={18} className="text-primary opacity-60" />
+              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">Empty</span>
+            </div>
           </div>
-          <div>
-            <p className="font-black text-sm">No recommendations yet</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              @{profile.username} hasn't shared any recommendations yet.
-            </p>
-          </div>
+          <p className="font-black text-sm">No recommendations yet</p>
+          <p className="text-xs text-muted-foreground mt-1 text-center px-4">
+            {isOwner
+              ? 'Share a comic you love and help the community find their next read.'
+              : `@${profile.username} hasn't shared any recommendations yet.`
+            }
+          </p>
+          {isOwner && (
+            <Link href="/dashboard/recommendations/new" className="mt-5">
+              <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 hover:opacity-90 shadow-md shadow-primary/20">
+                <PenLine size={13} />
+                Submit your first recommendation
+              </Button>
+            </Link>
+          )}
         </div>
       )}
 
