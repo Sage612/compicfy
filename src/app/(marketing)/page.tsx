@@ -6,10 +6,11 @@ import { NewsCard } from '@/components/news/NewsCard'
 import { ParticleCanvas } from '@/components/layout/ParticleCanvas'
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter'
 import { LiveTicker } from '@/components/layout/LiveTicker'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   ArrowRight, Radar, BookOpen, Users, TrendingUp,
   Star, Sparkles, ChevronRight, Heart, Zap,
-  ThumbsUp, MessageSquare, Bookmark,
+  ThumbsUp, MessageSquare, Bookmark, Trophy,
 } from 'lucide-react'
 import type { Recommendation } from '@/types/database.types'
 import type { News } from '@/types/database.types'
@@ -67,6 +68,12 @@ const TYPE_COLORS: Record<string, string> = {
   other:   'bg-zinc-500/20   text-zinc-400   border-zinc-500/30',
 }
 
+const RANK_STYLES: Record<number, { bg: string; text: string }> = {
+  0: { bg: 'bg-amber-500/20', text: 'text-amber-400' },
+  1: { bg: 'bg-slate-400/20', text: 'text-slate-400' },
+  2: { bg: 'bg-amber-700/20', text: 'text-amber-600' },
+}
+
 export default async function HomePage() {
   const supabase = await createClient()
 
@@ -79,6 +86,7 @@ export default async function HomePage() {
     { data: featuredData },
     { data: fallbackData },
     { data: recentActivity },
+    { data: topContributors },
   ] = await Promise.all([
     supabase.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(6),
     supabase.from('news').select('*').eq('is_published', true).order('published_at', { ascending: false }).limit(3),
@@ -88,22 +96,24 @@ export default async function HomePage() {
     supabase.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(1),
     supabase.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(1),
     supabase.from('recommendations').select('title, type, user_id, profiles!recommendations_user_id_fkey(username)').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('created_at', { ascending: false }).limit(6),
+    // Top contributors — public, excludes admins and banned users
+    supabase.from('profiles').select('id, username, display_name, avatar_url, total_recommendations').eq('is_banned', false).not('role', 'eq', 'admin').gt('total_recommendations', 0).order('total_recommendations', { ascending: false }).limit(6),
   ])
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const topComics    = (trending       as Recommendation[]) ?? []
-  const latestNews   = (recentNews     as News[])           ?? []
+  const topComics    = (trending        as Recommendation[]) ?? []
+  const latestNews   = (recentNews      as News[])           ?? []
   const totalMembers = memberCount ?? 0
   const totalComics  = comicCount  ?? 0
   const totalReviews = reviewCount ?? 0
-  const activity     = (recentActivity ?? []) as any[]
+  const activity     = (recentActivity  ?? []) as any[]
+  const contributors = (topContributors ?? []) as any[]
 
   const spotlight           = (featuredData?.[0] ?? fallbackData?.[0]) as Recommendation | undefined
   const spotlightIsFeatured = !!(featuredData?.[0])
   const spotlightTypeStyle  = spotlight ? (TYPE_COLORS[spotlight.type] ?? TYPE_COLORS.other) : ''
 
-  // Always pass ticker items — component handles fallback internally
   const tickerItems = activity.map((rec: any) => ({
     title:    rec.title,
     type:     rec.type,
@@ -117,7 +127,6 @@ export default async function HomePage() {
       <section className="relative overflow-hidden min-h-[92vh] flex flex-col items-center justify-center">
         <div className="absolute inset-0 bg-background" />
 
-        {/* Glow blobs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full bg-violet-500/8 dark:bg-violet-500/12 blur-[140px]" />
           <div className="absolute top-1/3 -left-32 w-[400px] h-[400px] rounded-full bg-rose-500/6 dark:bg-rose-500/10 blur-[100px]" />
@@ -128,7 +137,6 @@ export default async function HomePage() {
           <ParticleCanvas />
         </div>
 
-        {/* Decorative panels — desktop only */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
           <div className="absolute top-16 right-20 w-32 h-44 rounded-2xl border border-primary/10 dark:border-primary/15 rotate-6 bg-primary/[0.02]" />
           <div className="absolute top-8  right-40 w-24 h-32 rounded-2xl border border-violet-500/10 dark:border-violet-500/15 -rotate-3 bg-violet-500/[0.02]" />
@@ -139,16 +147,14 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* Hero content */}
         <div className="relative z-10 max-w-7xl mx-auto px-4 py-16 md:py-24 w-full">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
 
-            {/* Left — text */}
-            <div className="space-y-6 text-center md:text-left">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/15 to-primary/15 border border-primary/20 text-primary text-sm font-semibold">
+                <div className="space-y-6 text-center md:text-left">
+             {/* ── <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/15 to-primary/15 border border-primary/20 text-primary text-sm font-semibold">
                 <Zap size={13} className="fill-primary" />
                 Community-Powered Discovery
-              </div>
+              </div> ── */}
 
               <div className="space-y-1">
                 <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tight">
@@ -202,7 +208,6 @@ export default async function HomePage() {
                 )}
               </div>
 
-              {/* Stats — show real numbers or "Growing" for zeros */}
               <div className="flex flex-wrap gap-5 pt-2 justify-center md:justify-start">
                 {[
                   { label: 'Members',       value: totalMembers, icon: Users,         color: 'text-violet-500', bg: 'bg-violet-500/10' },
@@ -227,7 +232,6 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Right — Spotlight comic */}
             {spotlight && (
               <div className="hidden md:flex justify-center items-center">
                 <Link href={`/comic/${spotlight.id}`} className="group relative">
@@ -275,14 +279,13 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* Scroll indicator */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 text-muted-foreground/30 text-[10px] tracking-widest uppercase pointer-events-none">
           <span>scroll</span>
           <div className="w-px h-8 bg-gradient-to-b from-muted-foreground/20 to-transparent" />
         </div>
       </section>
 
-      {/* ── LIVE TICKER — always rendered, fallback handled internally ── */}
+      {/* ── LIVE TICKER ── */}
       <LiveTicker items={tickerItems} />
 
       {/* ── PLATFORM TRUST BAR ── */}
@@ -293,10 +296,7 @@ export default async function HomePage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6">
             {PLATFORMS.map((p) => (
-              <div
-                key={p.name}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card text-xs font-bold text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
-              >
+              <div key={p.name} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card text-xs font-bold text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
                 {p.name}
               </div>
@@ -345,6 +345,68 @@ export default async function HomePage() {
             {topComics.map((rec) => (
               <ComicCard key={rec.id} recommendation={rec} />
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── TOP CONTRIBUTORS ── */}
+      {contributors.length > 0 && (
+        <section className="border-y border-border bg-muted/10">
+          <div className="max-w-7xl mx-auto px-4 py-14 space-y-8">
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold uppercase tracking-widest">
+                <Trophy size={11} />
+                Top Contributors
+              </div>
+              <h2 className="text-2xl font-black tracking-tight">The people behind the picks</h2>
+              <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+                Real readers sharing what they love. Follow them to never miss a great rec.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+              {contributors.map((contributor: any, i: number) => {
+                const initials  = (contributor.display_name || contributor.username || 'U').slice(0, 2).toUpperCase()
+                const rankStyle = RANK_STYLES[i] ?? { bg: 'bg-muted', text: 'text-muted-foreground' }
+                return (
+                  <Link
+                    key={contributor.id}
+                    href={`/profile/${contributor.username}`}
+                    className="group flex flex-col items-center gap-2.5 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 text-center"
+                  >
+                    <div className="relative">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={contributor.avatar_url ?? undefined} />
+                        <AvatarFallback className="text-sm bg-gradient-to-br from-primary to-violet-500 text-white font-bold">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      {i < 3 && (
+                        <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black border-2 border-card ${rankStyle.bg} ${rankStyle.text}`}>
+                          {i + 1}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 w-full">
+                      <p className="text-xs font-black truncate group-hover:text-primary transition-colors">
+                        {contributor.display_name || contributor.username}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {contributor.total_recommendations} recs
+                      </p>
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+
+            <div className="text-center">
+              <Link href="/browse">
+                <Button variant="outline" size="sm" className="gap-1.5 hover:border-primary/40">
+                  Browse their recommendations <ChevronRight size={13} />
+                </Button>
+              </Link>
+            </div>
           </div>
         </section>
       )}
