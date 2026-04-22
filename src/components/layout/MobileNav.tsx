@@ -13,7 +13,6 @@ export function MobileNav() {
   const pathname                    = usePathname()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [isPro, setIsPro]           = useState(false)
-  const [role, setRole]             = useState<string>('user')
   const [authReady, setAuthReady]   = useState(false)
   const [visible, setVisible]       = useState(true)
   const lastScrollY                 = useRef(0)
@@ -32,7 +31,6 @@ export function MobileNav() {
           .single()
 
         if (profile) {
-          setRole(profile.role)
           setIsPro(
             profile.role === 'admin' ||
             (profile.is_pro &&
@@ -48,7 +46,6 @@ export function MobileNav() {
       if (!session?.user) {
         setIsLoggedIn(false)
         setIsPro(false)
-        setRole('user')
       } else {
         setIsLoggedIn(true)
       }
@@ -74,43 +71,44 @@ export function MobileNav() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Pro link: show for logged-out visitors, free users, mods — hide for admin/pro
-  const showProLink = !isLoggedIn || (!isPro && role !== 'admin')
+  // ── Slot definitions ─────────────────────────────────────────────
 
-  const listsHref = isPro ? '/pro/lists' : '/dashboard/lists'
-
+  // First slot: Home for visitors, Feed for logged-in
   const firstSlot = !isLoggedIn
-    ? { href: '/',     label: 'Home', icon: House,      exact: true  }
-    : { href: '/feed', label: 'Feed', icon: LayoutList, exact: false }
+    ? { href: '/',     label: 'Home', icon: House,      exact: true,  isRec: false, isProItem: false }
+    : { href: '/feed', label: 'Feed', icon: LayoutList, exact: false, isRec: false, isProItem: false }
 
-  // Last slot: Pro link for non-pro users (incl. logged out), Lists for pro/admin
-  const lastSlot = showProLink
-    ? { href: '/pricing', label: 'Go Pro', icon: Crown,      isProItem: true }
-    : { href: listsHref,  label: 'Lists',  icon: BookMarked, isProItem: false }
-
+  // Centre slot: Recommend (logged in) or nudge to login (visitor)
   const recSlot = {
     href:  isLoggedIn ? '/dashboard/recommendations/new' : '/login',
     label: 'Rec',
     icon:  BookOpen,
     isRec: true,
+    isProItem: false,
+    exact: false,
   }
+
+  // Last slot:
+  //   Visitor      → Go Pro (amber Crown)
+  //   Logged in    → Lists  (pro lists for pro/admin, normal lists otherwise)
+  const lastSlot = !isLoggedIn
+    ? { href: '/pricing',                            label: 'Go Pro', icon: Crown,      isProItem: true,  isRec: false, exact: false }
+    : { href: isPro ? '/pro/lists' : '/dashboard/lists', label: 'Lists',  icon: BookMarked, isProItem: false, isRec: false, exact: false }
 
   const navItems = [
     firstSlot,
-    { href: '/browse', label: 'Browse', icon: Radar      },
+    { href: '/browse', label: 'Browse', icon: Radar,      isRec: false, isProItem: false, exact: false },
     recSlot,
-    { href: '/news',   label: 'News',   icon: ScrollText },
+    { href: '/news',   label: 'News',   icon: ScrollText, isRec: false, isProItem: false, exact: false },
     lastSlot,
   ]
 
-  // Don't return null during auth check — render a stable skeleton nav instead
-  // so the page layout doesn't jump when the nav appears
+  // Stable skeleton while auth resolves — prevents layout jump
   if (!authReady) {
     return (
       <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
         <div className="absolute inset-0 bg-background/95 backdrop-blur-lg border-t border-border" />
         <div className="relative flex items-center justify-around px-1 h-16">
-          {/* 5 skeleton dots matching the real nav shape */}
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="flex flex-col items-center justify-center gap-1.5 px-2 py-2 min-w-[44px]">
               <div className="w-10 h-10 rounded-xl bg-muted/50 animate-pulse" />
@@ -132,7 +130,7 @@ export function MobileNav() {
       <div className="absolute inset-0 bg-background/95 backdrop-blur-lg border-t border-border" />
 
       <div className="relative flex items-center justify-around px-1 h-16">
-        {navItems.map((item: any) => {
+        {navItems.map((item) => {
           const { href, label, icon: Icon, exact, isRec, isProItem } = item
           const isActive = exact ? pathname === href : pathname.startsWith(href)
 
@@ -153,14 +151,12 @@ export function MobileNav() {
                 )}>
                   <Icon size={20} className="text-white" strokeWidth={2.5} />
                 </div>
-                <span className="text-[10px] font-bold text-primary leading-none">
-                  {label}
-                </span>
+                <span className="text-[10px] font-bold text-primary leading-none">{label}</span>
               </Link>
             )
           }
 
-          /* ── Pro/pricing item ── */
+          /* ── Go Pro item (visitors only) ── */
           if (isProItem) {
             return (
               <Link
