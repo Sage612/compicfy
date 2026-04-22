@@ -31,6 +31,10 @@ export type Database = {
           is_banned: boolean
           ban_reason: string | null
           banned_at: string | null
+          // Suspension fields
+          is_suspended: boolean
+          suspended_until: string | null
+          suspension_reason: string | null
           // Appeal fields (used when user appeals a ban)
           appeal_status: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text: string | null
@@ -61,6 +65,9 @@ export type Database = {
           is_banned?: boolean
           ban_reason?: string | null
           banned_at?: string | null
+          is_suspended?: boolean
+          suspended_until?: string | null
+          suspension_reason?: string | null
           appeal_status?: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text?: string | null
           verified_recommender?: boolean
@@ -86,6 +93,9 @@ export type Database = {
           is_banned?: boolean
           ban_reason?: string | null
           banned_at?: string | null
+          is_suspended?: boolean
+          suspended_until?: string | null
+          suspension_reason?: string | null
           appeal_status?: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text?: string | null
           verified_recommender?: boolean
@@ -731,3 +741,34 @@ export type ReadingList           = Database['public']['Tables']['reading_lists'
 export type ReadingListItem       = Database['public']['Tables']['reading_list_items']['Row']
 export type ReadingListItemInsert = Database['public']['Tables']['reading_list_items']['Insert']
 export type ReadingListItemUpdate = Database['public']['Tables']['reading_list_items']['Update']
+
+// ─── API Response & Error Types ────────────────────────────────────────────
+
+/** Generic API error response */
+export type ApiError = {
+  error: string
+}
+
+/** Status endpoint - unauthenticated response */
+export type StatusUnauthenticatedResponse = {
+  authenticated: false
+}
+
+/** Status endpoint - authenticated but default response */
+export type StatusDefaultResponse = {
+  authenticated: true
+  is_suspended: false
+  is_banned: false
+}
+
+/** Status endpoint - authenticated with suspension/ban details */
+export type StatusDetailedResponse = {
+  authenticated: true
+  is_banned: boolean
+  is_suspended: boolean
+  suspended_until: string | null
+  suspension_reason: string | null
+}
+
+/** Status endpoint - all possible responses */
+export type StatusResponse = StatusUnauthenticatedResponse | StatusDefaultResponse | StatusDetailedResponse | ApiError
