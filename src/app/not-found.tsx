@@ -4,73 +4,79 @@ import { BookOpen, Home, Radar, ArrowRight } from 'lucide-react'
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center relative overflow-hidden bg-background">
 
-      {/* Background blobs */}
-      <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+      {/* Dynamic Background Blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[5%] -right-[5%] w-[45%] h-[45%] rounded-full bg-primary/5 blur-[100px]" />
+        <div className="absolute -bottom-[5%] -left-[5%] w-[45%] h-[45%] rounded-full bg-violet-500/5 blur-[100px]" />
+      </div>
 
-      {/* Stacked comic panels illustration */}
-      <div className="relative mb-8 w-36 h-36 mx-auto">
-        {/* Back panels */}
-        <div className="absolute top-0 left-0 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" />
-        <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
-        {/* Front panel — the 404 */}
-        <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
-          <BookOpen size={18} className="text-primary opacity-60" />
-          <span className="text-2xl font-black text-primary leading-none">404</span>
-          <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Not Found</span>
+      {/* Stacked Comic Panels Illustration */}
+      <div className="relative mb-10 w-40 h-40 mx-auto">
+        {/* Decorative Back panels */}
+        <div className="absolute top-0 left-0 w-24 h-32 rounded-2xl border-2 border-border bg-card/50 rotate-[-15deg] opacity-30 shadow-sm" />
+        <div className="absolute top-2 left-6 w-24 h-32 rounded-2xl border-2 border-border bg-card rotate-[-8deg] opacity-60 shadow-md" />
+        
+        {/* Main "Hero" Panel */}
+        <div className="absolute top-6 left-12 w-24 h-32 rounded-2xl border-2 border-primary/40 bg-card shadow-2xl flex flex-col items-center justify-center gap-1.5 animate-in fade-in zoom-in duration-500 rotate-[2deg]">
+          <div className="relative">
+             <BookOpen size={20} className="text-primary mb-1" />
+             {/* Tiny shimmer effect */}
+             <div className="absolute inset-0 bg-primary/20 blur-xl scale-150 animate-pulse" />
+          </div>
+          <span className="text-3xl font-black text-primary leading-none tracking-tighter">404</span>
+          <span className="text-[9px] font-black text-muted-foreground/80 uppercase tracking-[0.2em]">Lost</span>
         </div>
       </div>
 
-      {/* Heading */}
-      <div className="space-y-3 mb-8 max-w-sm">
-        <h1 className="text-3xl font-black tracking-tight">
-          This chapter doesn't exist
+      {/* Content */}
+      <div className="relative z-10 space-y-4 mb-10 max-w-sm mx-auto">
+        <h1 className="text-4xl font-black tracking-tight italic uppercase">
+          CHAPTER DELETED?
         </h1>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          The page you're looking for may have been moved, deleted, or never existed.
-          Let's get you back on track.
+        <p className="text-muted-foreground text-sm leading-relaxed px-4">
+          This page hasn't been serialized yet. It might have moved to a different volume or never existed at all.
         </p>
       </div>
 
-      {/* Actions */}
-      <div className="flex flex-wrap items-center justify-center gap-3 mb-10">
-        <Link href="/browse">
-          <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
-            <Radar size={14} />
+      {/* Main Actions */}
+      <div className="relative z-10 flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
+        <Link href="/browse" className="w-full sm:w-auto">
+          <Button className="w-full gap-2 bg-gradient-to-r from-primary to-violet-600 border-0 shadow-lg shadow-primary/25 hover:scale-[1.03] transition-transform">
+            <Radar size={16} />
             Browse Comics
           </Button>
         </Link>
-        <Link href="/">
-          <Button variant="outline" className="gap-2 hover:border-primary/40 hover:text-primary">
-            <Home size={14} />
+        <Link href="/" className="w-full sm:w-auto">
+          <Button variant="outline" className="w-full gap-2 border-border hover:bg-muted font-bold">
+            <Home size={16} />
             Go Home
           </Button>
         </Link>
       </div>
 
-      {/* Quick links */}
-      <div className="flex flex-col items-center gap-2">
-        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-          Or try one of these
-        </p>
-        <div className="flex flex-wrap justify-center gap-2">
+      {/* Quick Navigation Footer */}
+      <div className="relative z-10 flex flex-col items-center gap-4">
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/60">
+          Try a different route
+        </span>
+        <nav className="flex flex-wrap justify-center gap-2 max-w-xs">
           {[
             { href: '/news',    label: 'News'    },
-            { href: '/feed',  label: 'Feed'  },
-            { href: '/pricing', label: 'Pricing' },
+            { href: '/feed',    label: 'Feed'    },
+            { href: '/pricing', label: 'Pro' },
           ].map(({ href, label }) => (
             <Link
               key={href}
               href={href}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border border-border bg-card text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
+              className="group inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-border bg-card/50 text-muted-foreground hover:text-primary hover:border-primary/40 transition-all shadow-sm"
             >
               {label}
-              <ArrowRight size={10} />
+              <ArrowRight size={12} className="opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
             </Link>
           ))}
-        </div>
+        </nav>
       </div>
 
     </div>
