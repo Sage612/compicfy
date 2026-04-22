@@ -74,7 +74,8 @@ export function MobileNav() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  if (!authReady) return null
+  // Pro link: show for logged-out visitors, free users, mods — hide for admin/pro
+  const showProLink = !isLoggedIn || (!isPro && role !== 'admin')
 
   const listsHref = isPro ? '/pro/lists' : '/dashboard/lists'
 
@@ -82,9 +83,10 @@ export function MobileNav() {
     ? { href: '/',     label: 'Home', icon: House,      exact: true  }
     : { href: '/feed', label: 'Feed', icon: LayoutList, exact: false }
 
-  const lastSlot = !isLoggedIn
+  // Last slot: Pro link for non-pro users (incl. logged out), Lists for pro/admin
+  const lastSlot = showProLink
     ? { href: '/pricing', label: 'Go Pro', icon: Crown,      isProItem: true }
-    : { href: listsHref,  label: 'Lists',  icon: BookMarked                  }
+    : { href: listsHref,  label: 'Lists',  icon: BookMarked, isProItem: false }
 
   const recSlot = {
     href:  isLoggedIn ? '/dashboard/recommendations/new' : '/login',
@@ -101,9 +103,27 @@ export function MobileNav() {
     lastSlot,
   ]
 
+  // Don't return null during auth check — render a stable skeleton nav instead
+  // so the page layout doesn't jump when the nav appears
+  if (!authReady) {
+    return (
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
+        <div className="absolute inset-0 bg-background/95 backdrop-blur-lg border-t border-border" />
+        <div className="relative flex items-center justify-around px-1 h-16">
+          {/* 5 skeleton dots matching the real nav shape */}
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex flex-col items-center justify-center gap-1.5 px-2 py-2 min-w-[44px]">
+              <div className="w-10 h-10 rounded-xl bg-muted/50 animate-pulse" />
+              <div className="w-8 h-2 rounded bg-muted/40 animate-pulse" />
+            </div>
+          ))}
+        </div>
+        <div className="bg-background/95" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
+      </nav>
+    )
+  }
+
   return (
-    // lg: = 1024px+ hides this — same breakpoint as Header desktop nav
-    // so there's no gap where both show or neither shows
     <nav className={cn(
       'fixed bottom-0 left-0 right-0 z-50 lg:hidden',
       'transition-transform duration-300 ease-in-out',

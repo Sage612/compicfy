@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -20,7 +20,7 @@ const signupSchema = z.object({
     .min(3, 'At least 3 characters')
     .max(30, 'Max 30 characters')
     .regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers, underscores only'),
-  email: z.string().email('Please enter a valid email'),
+  email:    z.string().email('Please enter a valid email'),
   password: z
     .string()
     .min(8, 'At least 8 characters')
@@ -29,74 +29,77 @@ const signupSchema = z.object({
   confirmPassword: z.string(),
 }).refine((d) => d.password === d.confirmPassword, {
   message: "Passwords don't match",
-  path: ['confirmPassword'],
+  path:    ['confirmPassword'],
 })
 
 type SignupForm = z.infer<typeof signupSchema>
 
 export default function SignupPage() {
-  const router = useRouter()
-  const supabase = createClient()
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+  const supabase     = createClient()
+
+  // Preserve the destination so after signup the user lands where they wanted
+  const next = searchParams.get('next') ?? '/onboarding'
+
   const [showPassword, setShowPassword] = useState(false)
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [showConfirm,  setShowConfirm]  = useState(false)
+  const [loading,      setLoading]      = useState(false)
 
   const { register, handleSubmit, formState: { errors } } = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
   })
 
   const onSubmit = async (data: SignupForm) => {
-  setLoading(true)
+    setLoading(true)
 
-  // Check username availability
-  const { data: existingUser } = await supabase
-    .from('profiles')
-    .select('username')
-    .eq('username', data.username.toLowerCase())
-    .single()
+    const { data: existingUser } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', data.username.toLowerCase())
+      .single()
 
-  if (existingUser) {
-    toast.error('Username is already taken')
-    setLoading(false)
-    return
-  }
+    if (existingUser) {
+      toast.error('Username is already taken')
+      setLoading(false)
+      return
+    }
 
-  // Create account
-  const { error } = await supabase.auth.signUp({
-    email: data.email,
-    password: data.password,
-    options: {
-      data: {
-        username: data.username.toLowerCase(),
-        display_name: data.username,
+    const { error } = await supabase.auth.signUp({
+      email:    data.email,
+      password: data.password,
+      options: {
+        data: {
+          username:     data.username.toLowerCase(),
+          display_name: data.username,
+        },
+        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
       },
-      emailRedirectTo: `${window.location.origin}/api/auth/callback`,
-    },
-  })
+    })
 
-  if (error) {
-    toast.error(error.message)
-    setLoading(false)
-    return
+    if (error) {
+      toast.error(error.message)
+      setLoading(false)
+      return
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email:    data.email,
+      password: data.password,
+    })
+
+    if (signInError) {
+      toast.success('Account created! Please sign in.')
+      router.push('/login')
+      return
+    }
+
+    toast.success('Welcome to Compicfy! 🎉')
+    // New users always go through onboarding first.
+    // After onboarding they'll be sent to `next` if it was stored.
+    router.push('/onboarding')
+    router.refresh()
   }
-
-  // Since email verification is disabled, sign them in immediately
-  const { error: signInError } = await supabase.auth.signInWithPassword({
-    email: data.email,
-    password: data.password,
-  })
-
-  if (signInError) {
-    // Account created but auto sign-in failed — send to login
-    toast.success('Account created! Please sign in.')
-    router.push('/login')
-    return
-  }
-
-  toast.success('Welcome to Compicfy! 🎉')
-  router.push('/onboarding')
-  router.refresh()
-}
 
   return (
     <div className="w-full max-w-md space-y-6">
@@ -217,7 +220,10 @@ export default function SignupPage() {
 
       <p className="text-sm text-muted-foreground text-center">
         Already have an account?{' '}
-        <Link href="/login" className="text-primary hover:underline font-semibold">
+        <Link
+          href={`/login${next !== '/onboarding' ? `?next=${encodeURIComponent(next)}` : ''}`}
+          className="text-primary hover:underline font-semibold"
+        >
           Sign in
         </Link>
       </p>

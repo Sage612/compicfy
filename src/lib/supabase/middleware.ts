@@ -23,12 +23,11 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
+  // Essential: refresh the auth session
   const { data: { user } } = await supabase.auth.getUser()
-
   const pathname = request.nextUrl.pathname
 
-  // ── Allow blocked/suspended pages through without any checks ────
-  // Otherwise we'd get an infinite redirect loop
+  // 1. Bypass check (Prevent infinite loops)
   const isBypassPath =
     pathname.startsWith('/blocked') ||
     pathname.startsWith('/suspended') ||
@@ -39,7 +38,7 @@ export async function updateSession(request: NextRequest) {
 
   if (isBypassPath) return supabaseResponse
 
-  // ── Check ban + suspension for logged-in users ───────────────────
+  // 2. Logged-in User Checks (Bans, Suspensions, Admin Roles)
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -48,7 +47,7 @@ export async function updateSession(request: NextRequest) {
       .single()
 
     if (profile) {
-      // Permanent ban — redirect to /blocked
+      // HANDLE PERMANENT BAN
       if (profile.is_banned) {
         const url = request.nextUrl.clone()
         url.pathname = '/blocked'
@@ -56,58 +55,42 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url)
       }
 
-      // Suspension — check if still active (suspended_until in the future)
+      // HANDLE TEMPORARY SUSPENSION
       if (profile.is_suspended) {
-        const suspendedUntil = profile.suspended_until
-          ? new Date(profile.suspended_until)
-          : null
-
+        const suspendedUntil = profile.suspended_until ? new Date(profile.suspended_until) : null
         const isStillSuspended = !suspendedUntil || suspendedUntil > new Date()
 
         if (isStillSuspended) {
           const url = request.nextUrl.clone()
           url.pathname = '/suspended'
           url.searchParams.set('reason', profile.suspension_reason ?? 'Temporary suspension')
-          if (suspendedUntil) {
-            url.searchParams.set('until', suspendedUntil.toISOString())
-          }
+          if (suspendedUntil) url.searchParams.set('until', suspendedUntil.toISOString())
           return NextResponse.redirect(url)
         } else {
-          // Suspension expired — auto-lift it in the background
-          // Fire and forget, don't await so we don't slow down the request
-          (supabase as any)
-            .from('profiles')
-            .update({
-              is_suspended:      false,
-              suspended_until:   null,
-              suspension_reason: null,
-            })
+          // AUTO-LIFT: Suspension expired, clear it in background
+          supabase.from('profiles')
+            .update({ is_suspended: false, suspended_until: null, suspension_reason: null })
             .eq('id', user.id)
             .then(() => {})
-            .catch(() => {})
         }
       }
 
-      // Admin route guard
+      // ADMIN ROUTE GUARD
       if (pathname.startsWith('/admin')) {
         if (!['admin', 'moderator'].includes(profile.role)) {
-          const url = request.nextUrl.clone()
-          url.pathname = '/dashboard'
-          return NextResponse.redirect(url)
+          return NextResponse.redirect(new URL('/dashboard', request.url))
         }
       }
     }
   }
 
-  // ── Protected route guard (unauthenticated) ──────────────────────
-  const protectedPaths = ['/dashboard', '/admin']
-  const isProtectedPath = protectedPaths.some((path) =>
-    pathname.startsWith(path)
-  )
+  // 3. Protected Routes check (Require login)
+  const protectedPaths = ['/dashboard', '/admin', '/pro', '/feed', '/onboarding']
+  const isProtectedPath = protectedPaths.some(p => pathname.startsWith(p))
 
   if (isProtectedPath && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
+    const url = new URL('/login', request.url)
+    url.searchParams.set('next', pathname) // Improved: remembers where user was going
     return NextResponse.redirect(url)
   }
 

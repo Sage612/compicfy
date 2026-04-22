@@ -2,27 +2,12 @@ import Link from 'next/link'
 import { Clock, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Metadata } from 'next'
+import { SuspendedCountdown } from '@/components/user/SuspendedCountdown'
 
 export const metadata: Metadata = { title: 'Account Suspended' }
 
 interface Props {
   searchParams: Promise<{ reason?: string; until?: string }>
-}
-
-function formatTimeLeft(isoDate: string): string {
-  const diff = new Date(isoDate).getTime() - Date.now()
-  if (diff <= 0) return 'shortly'
-
-  const hours = Math.floor(diff / 3600000)
-  const mins  = Math.floor((diff % 3600000) / 60000)
-
-  if (hours >= 24) {
-    const days = Math.floor(hours / 24)
-    const remH = hours % 24
-    return remH > 0 ? `${days}d ${remH}h` : `${days} day${days > 1 ? 's' : ''}`
-  }
-  if (hours > 0) return `${hours}h ${mins}m`
-  return `${mins} minute${mins !== 1 ? 's' : ''}`
 }
 
 function formatDate(isoDate: string): string {
@@ -37,8 +22,7 @@ function formatDate(isoDate: string): string {
 
 export default async function SuspendedPage({ searchParams }: Props) {
   const { reason, until } = await searchParams
-  const timeLeft = until ? formatTimeLeft(until) : null
-  const liftDate = until ? formatDate(until)     : null
+  const liftDate = until ? formatDate(until) : null
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
@@ -61,10 +45,10 @@ export default async function SuspendedPage({ searchParams }: Props) {
         <h1 className="text-3xl font-black tracking-tight">Account Suspended</h1>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Your account has been temporarily suspended.
-          {timeLeft && (
-            <> Access will be restored in <strong className="text-amber-500">{timeLeft}</strong>.</>
-          )}
         </p>
+
+        {/* Client component handles live countdown + auto-redirect */}
+        {until && <SuspendedCountdown until={until} />}
 
         {liftDate && (
           <div className="mt-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">

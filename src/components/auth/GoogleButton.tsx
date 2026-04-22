@@ -5,39 +5,40 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
+
 export function GoogleButton({ mode }: { mode: 'signin' | 'signup' }) {
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
 
   const handleGoogle = async () => {
     setLoading(true)
-    console.log('Starting Google OAuth...')
-    console.log('Redirect to:', `${window.location.origin}/api/auth/callback`)
+
+    // Capture where the user was trying to go before auth
+    // e.g. /comic/123 → after OAuth they land back there
+    const next = new URLSearchParams(window.location.search).get('next') ?? ''
+    const callbackUrl = `${SITE_URL}/api/auth/callback${next ? `?next=${encodeURIComponent(next)}` : ''}`
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/api/auth/callback`,
+        // Always use SITE_URL — never window.location.origin
+        // because on dev.compicfy.cloud, origin is correct but
+        // Supabase's allowed redirect list must match exactly
+        redirectTo: callbackUrl,
       },
     })
 
-    console.log('OAuth response data:', data)
-    console.log('OAuth response error:', error)
-
     if (error) {
       toast.error(`Google error: ${error.message}`)
-      console.error('Google OAuth error:', error)
       setLoading(false)
       return
     }
 
-    // data.url is where Supabase wants to redirect
     if (data?.url) {
-      console.log('Redirecting to:', data.url)
       window.location.href = data.url
     } else {
       toast.error('No redirect URL returned from Supabase')
-      console.error('No URL in OAuth response')
       setLoading(false)
     }
   }

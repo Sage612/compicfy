@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -15,17 +15,23 @@ import { toast } from 'sonner'
 import { Eye, EyeOff, Loader2, BookOpen, ArrowRight } from 'lucide-react'
 
 const loginSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
+  email:    z.string().email('Please enter a valid email'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 
 type LoginForm = z.infer<typeof loginSchema>
 
 export default function LoginPage() {
-  const router = useRouter()
-  const supabase = createClient()
+  const router       = useRouter()
+  const searchParams = useSearchParams()
+  const supabase     = createClient()
+
+  // Where to send the user after a successful login.
+  // Falls back to /browse if nothing was stored.
+  const next = searchParams.get('next') ?? '/browse'
+
   const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [loading,      setLoading]      = useState(false)
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -34,7 +40,7 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setLoading(true)
     const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email: data.email,
+      email:    data.email,
       password: data.password,
     })
 
@@ -44,7 +50,6 @@ export default function LoginPage() {
       return
     }
 
-    // Check if user has completed onboarding
     const { data: profile } = await supabase
       .from('profiles')
       .select('onboarding_completed')
@@ -57,7 +62,8 @@ export default function LoginPage() {
     if ((profile as any)?.onboarding_completed === false) {
       router.push('/onboarding')
     } else {
-      router.push('/browse')
+      // Respect the ?next= param so the user lands where they were going
+      router.push(next)
     }
   }
 
@@ -76,6 +82,7 @@ export default function LoginPage() {
       {/* Card */}
       <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm shadow-xl shadow-black/5 p-6 space-y-5">
 
+        {/* GoogleButton reads ?next= from the URL automatically */}
         <GoogleButton mode="signin" />
 
         <div className="relative flex items-center gap-3">
@@ -142,7 +149,10 @@ export default function LoginPage() {
 
       <p className="text-sm text-muted-foreground text-center">
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="text-primary hover:underline font-semibold">
+        <Link
+          href={`/signup${next !== '/browse' ? `?next=${encodeURIComponent(next)}` : ''}`}
+          className="text-primary hover:underline font-semibold"
+        >
           Sign up free
         </Link>
       </p>

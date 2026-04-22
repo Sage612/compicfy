@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Bell, BellOff } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -22,13 +22,41 @@ interface Notification {
   data?:      Record<string, any>
 }
 
-// Convert VAPID public key from base64 to Uint8Array
-// AFTER
 function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
-  const padding  = '='.repeat((4 - base64String.length % 4) % 4)
-  const base64   = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-  const rawData  = window.atob(base64)
-  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0))).buffer as ArrayBuffer
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0))).buffer as ArrayBuffer
+}
+
+async function getOrRegisterSW(): Promise<ServiceWorkerRegistration> {
+  // If already registered and active, return it
+  const existing = await navigator.serviceWorker.getRegistration('/sw.js')
+  if (existing) return existing
+
+  // Register fresh
+  const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+
+  // Wait for it to become active (handles installing/waiting states)
+  await new Promise<void>((resolve, reject) => {
+    if (reg.active) { resolve(); return }
+
+    const sw = reg.installing ?? reg.waiting
+    if (!sw) { reject(new Error('SW not installing')); return }
+
+    sw.addEventListener('statechange', function handler() {
+      if (sw.state === 'activated') {
+        sw.removeEventListener('statechange', handler)
+        resolve()
+      }
+      if (sw.state === 'redundant') {
+        sw.removeEventListener('statechange', handler)
+        reject(new Error('SW became redundant'))
+      }
+    })
+  })
+
+  return reg
 }
 
 async function subscribeToPush(): Promise<boolean> {
@@ -38,11 +66,14 @@ async function subscribeToPush(): Promise<boolean> {
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') return false
 
-    const reg = await navigator.serviceWorker.register('/sw.js')
-    await navigator.serviceWorker.ready
+    const reg = await getOrRegisterSW()
 
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
     if (!vapidKey) { console.warn('No VAPID public key set'); return false }
+
+    // Unsubscribe any stale subscription first to avoid conflicts
+    const existing = await reg.pushManager.getSubscription()
+    if (existing) await existing.unsubscribe()
 
     const subscription = await reg.pushManager.subscribe({
       userVisibleOnly:      true,
@@ -53,10 +84,7 @@ async function subscribeToPush(): Promise<boolean> {
     const res = await fetch('/api/push/subscribe', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        endpoint: sub.endpoint,
-        keys:     sub.keys,
-      }),
+      body:    JSON.stringify({ endpoint: sub.endpoint, keys: sub.keys }),
     })
 
     return res.ok
@@ -70,7 +98,7 @@ async function unsubscribeFromPush(): Promise<boolean> {
   try {
     if (!('serviceWorker' in navigator)) return false
 
-    const reg          = await navigator.serviceWorker.getRegistration('/sw.js')
+    const reg = await navigator.serviceWorker.getRegistration('/sw.js')
     if (!reg) return false
 
     const subscription = await reg.pushManager.getSubscription()
@@ -90,10 +118,10 @@ async function unsubscribeFromPush(): Promise<boolean> {
 }
 
 export function NotificationBell({ userId }: { userId: string }) {
-  const [notifications,   setNotifications]   = useState<Notification[]>([])
-  const [open,            setOpen]            = useState(false)
-  const [pushEnabled,     setPushEnabled]     = useState<boolean | null>(null)
-  const [pushLoading,     setPushLoading]     = useState(false)
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [open,          setOpen]          = useState(false)
+  const [pushEnabled,   setPushEnabled]   = useState<boolean | null>(null)
+  const [pushLoading,   setPushLoading]   = useState(false)
   const supabase = createClient()
 
   const fetchNotifications = useCallback(async () => {
@@ -102,7 +130,7 @@ export function NotificationBell({ userId }: { userId: string }) {
     setNotifications(data.notifications ?? [])
   }, [])
 
-  // Check current push permission state
+  // Check current push state on mount
   useEffect(() => {
     const checkPush = async () => {
       if (!('Notification' in window) || !('serviceWorker' in navigator)) return
@@ -131,7 +159,7 @@ export function NotificationBell({ userId }: { userId: string }) {
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev])
+          setNotifications(prev => [payload.new as Notification, ...prev])
         }
       )
       .subscribe()
@@ -139,19 +167,19 @@ export function NotificationBell({ userId }: { userId: string }) {
     return () => { supabase.removeChannel(channel) }
   }, [userId, fetchNotifications])
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length
+  const unreadCount = notifications.filter(n => !n.is_read).length
   const preview     = notifications.slice(0, 5)
 
   const markAllRead = async () => {
     await fetch('/api/notifications', { method: 'PATCH' })
-    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
   }
 
   const dismiss = async (e: React.MouseEvent, id: string) => {
     e.preventDefault()
     e.stopPropagation()
     await fetch(`/api/notifications/${id}`, { method: 'DELETE' })
-    setNotifications((prev) => prev.filter((n) => n.id !== id))
+    setNotifications(prev => prev.filter(n => n.id !== id))
   }
 
   const handleOpen = (isOpen: boolean) => {
@@ -214,7 +242,6 @@ export function NotificationBell({ userId }: { userId: string }) {
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <span className="text-sm font-semibold">Notifications</span>
           <div className="flex items-center gap-2">
-            {/* Push toggle */}
             {pushEnabled !== null && 'Notification' in window && (
               <button
                 onClick={handleTogglePush}
@@ -244,7 +271,7 @@ export function NotificationBell({ userId }: { userId: string }) {
           </div>
         </div>
 
-        {/* Push prompt — shown once if permission not yet asked */}
+        {/* Push prompt — only shown when permission not yet asked */}
         {'Notification' in window && Notification.permission === 'default' && pushEnabled === false && (
           <div className="px-4 py-3 border-b border-border bg-primary/5">
             <p className="text-xs font-semibold text-foreground">Stay in the loop</p>

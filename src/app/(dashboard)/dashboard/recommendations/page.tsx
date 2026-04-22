@@ -9,6 +9,7 @@ import {
   Plus, BookOpen, Clock, CheckCircle, XCircle,
   ThumbsUp, ThumbsDown, MessageSquare, Bookmark,
   Search, Pencil, Trash2, Loader2, Sparkles,
+  Radar,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -217,13 +218,13 @@ export default function MyRecommendationsPage() {
           <div className="flex flex-wrap justify-center gap-3">
             <Link href="/dashboard/recommendations/new">
               <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
-                <Plus size={14} />
+                <BookOpen size={14} />
                 Submit a Recommendation
               </Button>
             </Link>
             <Link href="/browse">
               <Button variant="outline" className="gap-2 hover:border-primary/40 hover:text-primary transition-colors">
-                <Sparkles size={14} />
+                <Radar size={14} />
                 Browse Comics
               </Button>
             </Link>
@@ -233,19 +234,21 @@ export default function MyRecommendationsPage() {
 
       {/* Empty state — no results for current search/filter */}
       {!loading && recs.length > 0 && visible.length === 0 && (
-        <div className="text-center py-14 rounded-2xl border border-dashed border-border bg-card space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto">
-            <Search size={18} className="text-muted-foreground opacity-40" />
+        <div className="relative flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-border overflow-hidden bg-card">
+          <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+          <div className="relative w-16 h-16 rounded-2xl bg-muted/40 flex items-center justify-center mb-5">
+            <Search size={24} className="text-muted-foreground opacity-50" />
           </div>
           <h3 className="font-black text-sm">No matches found</h3>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground mt-1 text-center px-4">
             Try a different search term or filter
           </p>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => { setSearch(''); setFilter('all') }}
-            className="text-xs"
+            className="text-xs mt-4"
           >
             Clear filters
           </Button>

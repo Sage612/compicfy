@@ -129,7 +129,14 @@ export function Header() {
     router.refresh()
   }
 
-  const showProLink       = mounted && authReady && !!user && !isPro && (role === 'user' || role === 'mod')
+  // Pro link rules:
+  // Show for: logged-out visitors, logged-in free users, mods
+  // Hide for: admins, pro users (they already have it)
+  const showProLink = mounted && authReady && (
+    !user ||                                           // logged out
+    (!!user && !isPro && role !== 'admin')             // logged in but not pro/admin
+  )
+
   const dashboardHref     = isPro ? '/pro/dashboard'     : '/dashboard'
   const listsHref         = isPro ? '/pro/lists'         : '/dashboard/lists'
   const billingHref       = isPro ? '/pro/billing'       : '/dashboard/billing'
@@ -170,7 +177,7 @@ export function Header() {
     )}>
       <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between gap-4">
 
-        {/* Logo — always visible */}
+        {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
           <div className={cn(
             'w-8 h-8 rounded-xl flex items-center justify-center',
@@ -181,13 +188,12 @@ export function Header() {
           )}>
             <LogoMark className="w-[18px] h-[18px]" />
           </div>
-          {/* Show wordmark on sm+ so landscape phones still see it */}
           <span className="hidden sm:inline font-black text-[15px] tracking-tight leading-none">
             Compic<span className="text-primary">fy</span>
           </span>
         </Link>
 
-        {/* Desktop nav — lg: = 1024px+ only (tablets/laptops, NOT landscape phones) */}
+        {/* Desktop nav */}
         <nav className="hidden lg:flex items-center gap-0.5">
           {publicNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
@@ -208,8 +214,8 @@ export function Header() {
             )
           })}
 
+          {/* Auth-only nav links — only render once auth is resolved to prevent shift */}
           {authReady && user && <div className="w-px h-4 bg-border mx-1" />}
-
           {authReady && user && authNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
             return (
@@ -229,7 +235,15 @@ export function Header() {
             )
           })}
 
-          {showProLink && (
+          {/* Pro link — reserve its space so other items don't shift */}
+          {/* Always render a placeholder of the same width when authReady is false */}
+          {!authReady ? (
+            // Invisible placeholder — same size as the Pro button — prevents nav shift
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 ml-1 opacity-0 pointer-events-none text-sm font-semibold border border-transparent">
+              <Crown size={13} />
+              Pro
+            </span>
+          ) : showProLink ? (
             <Link
               href="/pricing"
               className={cn(
@@ -242,10 +256,10 @@ export function Header() {
               <Crown size={13} className="fill-amber-500 shrink-0" />
               Pro
             </Link>
-          )}
+          ) : null}
         </nav>
 
-        {/* Right side actions */}
+        {/* Right side */}
         <div className="flex items-center gap-2 flex-1 justify-end">
           <GlobalSearch />
           <div className="flex items-center gap-1">
@@ -283,151 +297,159 @@ export function Header() {
               </DropdownMenu>
             )}
 
-            {/* Logged-out CTA */}
-            {authReady && !user && (
-              <div className="flex items-center gap-1.5 ml-1">
-                <Link href="/login">
-                  {/* Show login text on sm+ (covers landscape phones too) */}
-                  <Button variant="ghost" size="sm" className="hidden sm:flex h-8 text-sm font-medium">
-                    Log in
-                  </Button>
-                </Link>
-                <Link href="/signup">
-                  <Button size="sm" className="h-8 text-sm font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
-                    Sign up
-                  </Button>
-                </Link>
-              </div>
-            )}
+            {/*
+              Right-side auth area:
+              Reserve a fixed min-width so the logo/nav never shift
+              while we wait for authReady.
+            */}
+            <div className="flex items-center gap-1 min-w-[88px] justify-end">
+              {!authReady ? (
+                // Skeleton placeholder — same rough width as "Log in / Sign up"
+                <div className="flex items-center gap-1.5">
+                  <div className="h-8 w-14 rounded-xl bg-muted/50 animate-pulse" />
+                  <div className="h-8 w-16 rounded-xl bg-muted/50 animate-pulse" />
+                </div>
+              ) : !user ? (
+                <div className="flex items-center gap-1.5 ml-1">
+                  <Link href="/login">
+                    <Button variant="ghost" size="sm" className="hidden sm:flex h-8 text-sm font-medium">
+                      Log in
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button size="sm" className="h-8 text-sm font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
+                      Sign up
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 ml-0.5">
+                  {/* Recommend button — lg only */}
+                  <Link href="/dashboard/recommendations/new" className="hidden lg:flex">
+                    <Button
+                      size="sm"
+                      className="h-8 px-3 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20"
+                    >
+                      <BookOpen size={14} strokeWidth={2.5} />
+                      <span className="text-sm">Recommend</span>
+                    </Button>
+                  </Link>
 
-            {/* Logged-in actions */}
-            {authReady && user && (
-              <div className="flex items-center gap-1 ml-0.5">
-                {/* Recommend button — only on lg:+ so it doesn't crowd mobile header */}
-                <Link href="/dashboard/recommendations/new" className="hidden lg:flex">
-                  <Button
-                    size="sm"
-                    className="h-8 px-3 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20"
-                  >
-                    <BookOpen size={14} strokeWidth={2.5} />
-                    <span className="text-sm">Recommend</span>
-                  </Button>
-                </Link>
+                  <NotificationBell userId={user.id} />
 
-                <NotificationBell userId={user.id} />
-
-                {/* Avatar dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/40 focus-visible:ring-primary/40 transition-all outline-none">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={avatarUrl ?? undefined} alt={displayName ?? 'User'} />
-                        <AvatarFallback className="text-xs font-black bg-gradient-to-br from-primary to-violet-500 text-white">
-                          {initials}
-                        </AvatarFallback>
-                      </Avatar>
-                    </button>
-                  </DropdownMenuTrigger>
-
-                  <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
-                    <DropdownMenuLabel className="font-normal px-2 py-2 mb-0.5">
-                      <div className="flex items-center gap-2.5">
-                        <Avatar className="h-9 w-9 shrink-0">
-                          <AvatarImage src={avatarUrl ?? undefined} />
+                  {/* Avatar dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/40 focus-visible:ring-primary/40 transition-all outline-none">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={avatarUrl ?? undefined} alt={displayName ?? 'User'} />
                           <AvatarFallback className="text-xs font-black bg-gradient-to-br from-primary to-violet-500 text-white">
                             {initials}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="min-w-0">
-                          <p className="font-black text-sm truncate leading-tight">{displayName ?? 'User'}</p>
-                          <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">{user.email}</p>
+                      </button>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
+                      <DropdownMenuLabel className="font-normal px-2 py-2 mb-0.5">
+                        <div className="flex items-center gap-2.5">
+                          <Avatar className="h-9 w-9 shrink-0">
+                            <AvatarImage src={avatarUrl ?? undefined} />
+                            <AvatarFallback className="text-xs font-black bg-gradient-to-br from-primary to-violet-500 text-white">
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <p className="font-black text-sm truncate leading-tight">{displayName ?? 'User'}</p>
+                            <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">{user.email}</p>
+                          </div>
                         </div>
-                      </div>
-                    </DropdownMenuLabel>
+                      </DropdownMenuLabel>
 
-                    <DropdownMenuSeparator className="my-1" />
+                      <DropdownMenuSeparator className="my-1" />
 
-                    {username && (
-                      <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                        <Link href={`/profile/${username}`}>
-                          <UserIcon size={13} className="text-muted-foreground" />
-                          View Profile
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-
-                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                      <Link href={dashboardHref} className={cn(isPro && 'text-amber-600 font-semibold')}>
-                        {isPro
-                          ? <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
-                          : <LayoutDashboard size={13} className="text-muted-foreground shrink-0" />
-                        }
-                        {dashboardLabel}
-                      </Link>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuSeparator className="my-1" />
-
-                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                      <Link href={notificationsHref}>
-                        <Bell size={13} className="text-muted-foreground" />
-                        Notifications
-                      </Link>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                      <Link href={settingsHref}>
-                        <Settings size={13} className={cn(isPro ? 'text-amber-500' : 'text-muted-foreground')} />
-                        Settings
-                      </Link>
-                    </DropdownMenuItem>
-
-                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                      <Link href={billingHref} className={cn(isPro && 'text-amber-600 font-semibold')}>
-                        {isPro
-                          ? <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
-                          : <CreditCard size={13} className="text-muted-foreground shrink-0" />
-                        }
-                        {billingLabel}
-                      </Link>
-                    </DropdownMenuItem>
-
-                    {showProLink && (
-                      <>
-                        <DropdownMenuSeparator className="my-1" />
-                        <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg bg-amber-500/5 hover:bg-amber-500/10 focus:bg-amber-500/10">
-                          <Link href="/pricing">
-                            <Sparkles size={13} className="text-amber-500" />
-                            <span className="text-amber-600 font-semibold">Upgrade to Pro</span>
+                      {username && (
+                        <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                          <Link href={`/profile/${username}`}>
+                            <UserIcon size={13} className="text-muted-foreground" />
+                            View Profile
                           </Link>
                         </DropdownMenuItem>
-                      </>
-                    )}
+                      )}
 
-                    <DropdownMenuSeparator className="my-1" />
+                      <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                        <Link href={dashboardHref} className={cn(isPro && 'text-amber-600 font-semibold')}>
+                          {isPro
+                            ? <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
+                            : <LayoutDashboard size={13} className="text-muted-foreground shrink-0" />
+                          }
+                          {dashboardLabel}
+                        </Link>
+                      </DropdownMenuItem>
 
-                    <DropdownMenuItem asChild className="rounded-lg">
-                      <a href="https://discord.gg/7WPGMb696N" target="_blank" rel="noopener noreferrer" className="gap-2 cursor-pointer">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-[#5865F2] shrink-0">
-                          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.102 18.08.114 18.1.141 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
-                        </svg>
-                        Join Discord
-                      </a>
-                    </DropdownMenuItem>
+                      <DropdownMenuSeparator className="my-1" />
 
-                    <DropdownMenuSeparator className="my-1" />
+                      <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                        <Link href={notificationsHref}>
+                          <Bell size={13} className="text-muted-foreground" />
+                          Notifications
+                        </Link>
+                      </DropdownMenuItem>
 
-                    <DropdownMenuItem
-                      onClick={handleSignOut}
-                      className="cursor-pointer gap-2 rounded-lg text-destructive focus:text-destructive"
-                    >
-                      <LogOut size={13} />
-                      Sign out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
+                      <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                        <Link href={settingsHref}>
+                          <Settings size={13} className={cn(isPro ? 'text-amber-500' : 'text-muted-foreground')} />
+                          Settings
+                        </Link>
+                      </DropdownMenuItem>
+
+                      <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                        <Link href={billingHref} className={cn(isPro && 'text-amber-600 font-semibold')}>
+                          {isPro
+                            ? <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
+                            : <CreditCard size={13} className="text-muted-foreground shrink-0" />
+                          }
+                          {billingLabel}
+                        </Link>
+                      </DropdownMenuItem>
+
+                      {showProLink && (
+                        <>
+                          <DropdownMenuSeparator className="my-1" />
+                          <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg bg-amber-500/5 hover:bg-amber-500/10 focus:bg-amber-500/10">
+                            <Link href="/pricing">
+                              <Sparkles size={13} className="text-amber-500" />
+                              <span className="text-amber-600 font-semibold">Upgrade to Pro</span>
+                            </Link>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+
+                      <DropdownMenuSeparator className="my-1" />
+
+                      <DropdownMenuItem asChild className="rounded-lg">
+                        <a href="https://discord.gg/7WPGMb696N" target="_blank" rel="noopener noreferrer" className="gap-2 cursor-pointer">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-[#5865F2] shrink-0">
+                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.102 18.08.114 18.1.141 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
+                          </svg>
+                          Join Discord
+                        </a>
+                      </DropdownMenuItem>
+
+                      <DropdownMenuSeparator className="my-1" />
+
+                      <DropdownMenuItem
+                        onClick={handleSignOut}
+                        className="cursor-pointer gap-2 rounded-lg text-destructive focus:text-destructive"
+                      >
+                        <LogOut size={13} />
+                        Sign out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
