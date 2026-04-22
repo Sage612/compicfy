@@ -7,16 +7,16 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
   BookOpen, Radar, LayoutList,
-  BookMarked, ChevronDown, Check, ArrowRight,
-  Sparkles, Globe, Bell, Loader2, ThumbsUp, Bookmark,
+  BookMarked, Check, ArrowRight,
+  Sparkles, Globe, Bell, Loader2, ThumbsUp, Bookmark, PenLine,
 } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
 import Image from 'next/image'
 
 interface Props {
-  userId:       string
-  username:     string
-  displayName:  string
+  userId:        string
+  username:      string
+  displayName:   string
   initialGenres: string[]
 }
 
@@ -24,30 +24,10 @@ const STEPS = ['welcome', 'genres', 'discover', 'tour', 'done'] as const
 type Step = typeof STEPS[number]
 
 const TOUR_ITEMS = [
-  {
-    icon:  Radar,
-    color: 'from-rose-500 to-pink-600',
-    title: 'Browse',
-    desc:  'Discover manga, manhwa, manhua and webtoons recommended by the community.',
-  },
-  {
-    icon:  LayoutList,
-    color: 'from-primary to-violet-500',
-    title: 'Following Feed',
-    desc:  'See the latest recommendations from people you follow — like a Twitter for comics.',
-  },
-  {
-    icon:  BookMarked,
-    color: 'from-teal-500 to-cyan-600',
-    title: 'Reading Lists',
-    desc:  'Organise your reading — Currently Reading, Plan to Read, Completed and more.',
-  },
-  {
-    icon:  Bell,
-    color: 'from-emerald-500 to-teal-500',
-    title: 'Notifications',
-    desc:  'Get notified when someone votes on your recommendation or follows you.',
-  },
+  { icon: Radar,      color: 'from-rose-500 to-pink-600',    title: 'Browse',         desc: 'Discover manga, manhwa, manhua and webtoons recommended by the community.'                            },
+  { icon: LayoutList, color: 'from-primary to-violet-500',   title: 'Following Feed', desc: 'See the latest recommendations from people you follow — like a Twitter for comics.'                   },
+  { icon: BookMarked, color: 'from-teal-500 to-cyan-600',    title: 'Reading Lists',  desc: 'Organise your reading — Currently Reading, Plan to Read, Completed and more.'                         },
+  { icon: Bell,       color: 'from-emerald-500 to-teal-500', title: 'Notifications',  desc: 'Get notified when someone votes on your recommendation or follows you.'                               },
 ]
 
 interface ComicPreview {
@@ -89,6 +69,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
 
   const currentStepIndex = STEPS.indexOf(step)
   const progress         = (currentStepIndex / (STEPS.length - 1)) * 100
+  const name             = displayName || username || 'there'
 
   const toggleGenre = (genre: string) => {
     setSelectedGenres(prev =>
@@ -120,9 +101,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
   }
 
   const handleVote = async (comicId: string) => {
-    // Prevent double-voting
     if (votedIds.has(comicId) || votingId === comicId) return
-
     setVotingId(comicId)
     try {
       const res = await fetch(`/api/recommendations/${comicId}/vote`, {
@@ -130,26 +109,19 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ vote_type: 'up' }),
       })
-
       if (res.status === 401) {
-        // Session not ready yet — mark optimistically and move on
-        // The vote will be lost but we don't want to break onboarding UX
         setVotedIds(prev => new Set([...prev, comicId]))
         return
       }
-
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         console.error('[onboarding/vote] error:', data)
         toast.error('Could not vote right now — try again from browse')
         return
       }
-
-      // Vote succeeded
       setVotedIds(prev => new Set([...prev, comicId]))
     } catch (err) {
       console.error('[onboarding/vote] unexpected error:', err)
-      // Don't show an error toast — just silently skip, onboarding shouldn't be blocked by a vote
     } finally {
       setVotingId(null)
     }
@@ -157,7 +129,6 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
 
   const handleSave = async (comicId: string) => {
     if (savedIds.has(comicId) || savingId === comicId) return
-
     setSavingId(comicId)
     try {
       const res = await fetch('/api/saves', {
@@ -165,18 +136,15 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ recommendation_id: comicId }),
       })
-
       if (res.status === 401) {
         setSavedIds(prev => new Set([...prev, comicId]))
         return
       }
-
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         console.error('[onboarding/save] error:', data)
         return
       }
-
       setSavedIds(prev => new Set([...prev, comicId]))
     } catch (err) {
       console.error('[onboarding/save] unexpected error:', err)
@@ -185,7 +153,8 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
     }
   }
 
-  const handleComplete = async () => {
+  // Shared save + navigate — destination lets both done-step buttons reuse this
+  const handleComplete = async (destination = '/browse') => {
     setSaving(true)
     try {
       const res = await fetch('/api/onboarding/complete', {
@@ -194,7 +163,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
         body:    JSON.stringify({ favorite_genres: selectedGenres }),
       })
       if (!res.ok) throw new Error()
-      router.push('/browse')
+      router.push(destination)
       router.refresh()
     } catch {
       toast.error('Something went wrong, please try again')
@@ -202,8 +171,6 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
       setSaving(false)
     }
   }
-
-  const name = displayName || username || 'there'
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -225,7 +192,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
           </div>
         </div>
 
-        {/* STEP 1: Welcome */}
+        {/* ── STEP 1: Welcome ── */}
         {step === 'welcome' && (
           <div className="rounded-3xl border border-border bg-card p-8 space-y-6 text-center">
             <div className="space-y-3">
@@ -259,7 +226,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
           </div>
         )}
 
-        {/* STEP 2: Genres */}
+        {/* ── STEP 2: Genres ── */}
         {step === 'genres' && (
           <div className="rounded-3xl border border-border bg-card p-8 space-y-6">
             <div className="space-y-2">
@@ -306,7 +273,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
           </div>
         )}
 
-        {/* STEP 3: Discover */}
+        {/* ── STEP 3: Discover ── */}
         {step === 'discover' && (
           <div className="rounded-3xl border border-border bg-card p-8 space-y-6">
             <div className="space-y-2">
@@ -336,12 +303,8 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
                   const saved  = savedIds.has(comic.id)
                   const voting = votingId === comic.id
                   const saving = savingId === comic.id
-
                   return (
-                    <div
-                      key={comic.id}
-                      className="group relative rounded-2xl border border-border overflow-hidden bg-muted/30 flex flex-col"
-                    >
+                    <div key={comic.id} className="group relative rounded-2xl border border-border overflow-hidden bg-muted/30 flex flex-col">
                       <div className="relative aspect-[3/4] bg-muted overflow-hidden">
                         <ComicImage src={comic.cover_url} alt={comic.title} />
                         <span className="absolute top-2 left-2 text-[10px] font-black uppercase px-1.5 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-sm z-10">
@@ -351,7 +314,6 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
                       <div className="p-2.5 space-y-2 flex-1 flex flex-col justify-between">
                         <p className="text-xs font-bold leading-tight line-clamp-2">{comic.title}</p>
                         <div className="flex items-center gap-1.5">
-                          {/* Vote button */}
                           <button
                             onClick={() => handleVote(comic.id)}
                             disabled={voting}
@@ -362,14 +324,9 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
                                 : 'border-border text-muted-foreground hover:border-primary hover:text-primary active:scale-95'
                             )}
                           >
-                            {voting
-                              ? <Loader2 size={10} className="animate-spin" />
-                              : <ThumbsUp size={10} />
-                            }
+                            {voting ? <Loader2 size={10} className="animate-spin" /> : <ThumbsUp size={10} />}
                             {voted ? 'Voted' : 'Vote'}
                           </button>
-
-                          {/* Save button */}
                           <button
                             onClick={() => handleSave(comic.id)}
                             disabled={saving}
@@ -380,10 +337,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
                                 : 'border-border text-muted-foreground hover:border-teal-500 hover:text-teal-500 active:scale-95'
                             )}
                           >
-                            {saving
-                              ? <Loader2 size={10} className="animate-spin" />
-                              : <Bookmark size={10} />
-                            }
+                            {saving ? <Loader2 size={10} className="animate-spin" /> : <Bookmark size={10} />}
                           </button>
                         </div>
                       </div>
@@ -406,7 +360,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
           </div>
         )}
 
-        {/* STEP 4: Tour */}
+        {/* ── STEP 4: Tour ── */}
         {step === 'tour' && (
           <div className="rounded-3xl border border-border bg-card p-8 space-y-6">
             <div className="space-y-2">
@@ -438,7 +392,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
           </div>
         )}
 
-        {/* STEP 5: Done */}
+        {/* ── STEP 5: Done ── */}
         {step === 'done' && (
           <div className="rounded-3xl border border-border bg-card p-8 space-y-6 text-center">
             <div className="space-y-3">
@@ -452,6 +406,8 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
                   : 'Head to Browse to start discovering comics!'}
               </p>
             </div>
+
+            {/* Stats */}
             <div className="grid grid-cols-3 gap-3 text-center">
               <div className="p-3 rounded-2xl bg-muted/50 border border-border space-y-1">
                 <p className="text-2xl font-black text-primary">{selectedGenres.length}</p>
@@ -466,8 +422,35 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
                 <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Saved</p>
               </div>
             </div>
+
+            {/* ── NEW: Submit first rec CTA ── */}
+            <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 text-left space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shrink-0 shadow-sm">
+                  <PenLine size={15} className="text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black">Got a hidden gem?</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Share a manga, manhwa, or webtoon you love. Every rec helps someone find their next obsession.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => handleComplete('/dashboard/recommendations/new')}
+                disabled={saving}
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
+              >
+                {saving ? <Loader2 size={13} className="animate-spin" /> : <PenLine size={13} />}
+                Submit my first recommendation
+              </Button>
+            </div>
+
+            {/* Primary CTA — unchanged */}
             <Button
-              onClick={handleComplete}
+              onClick={() => handleComplete('/browse')}
               disabled={saving}
               className="w-full h-11 gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:opacity-90 border-0 shadow-lg shadow-emerald-500/20 font-bold text-white"
             >

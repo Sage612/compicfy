@@ -1,9 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { ThumbsUp, ThumbsDown } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
@@ -11,10 +10,10 @@ import { useRouter } from 'next/navigation'
 
 interface Props {
   recommendationId: string
-  initialUpvotes: number
+  initialUpvotes:   number
   initialDownvotes: number
-  initialVote: 'up' | 'down' | null
-  isLoggedIn: boolean
+  initialVote:      'up' | 'down' | null
+  isLoggedIn:       boolean
 }
 
 export function VoteButtons({
@@ -24,12 +23,11 @@ export function VoteButtons({
   initialVote,
   isLoggedIn,
 }: Props) {
-  const router = useRouter()
-  const supabase = createClient()
-  const [upvotes, setUpvotes] = useState(initialUpvotes)
+  const router    = useRouter()
+  const [upvotes,   setUpvotes]   = useState(initialUpvotes)
   const [downvotes, setDownvotes] = useState(initialDownvotes)
-  const [userVote, setUserVote] = useState(initialVote)
-  const [loading, setLoading] = useState(false)
+  const [userVote,  setUserVote]  = useState(initialVote)
+  const [loading,   setLoading]   = useState(false)
 
   const handleVote = async (type: 'up' | 'down') => {
     if (!isLoggedIn) {
@@ -37,55 +35,58 @@ export function VoteButtons({
       router.push('/login')
       return
     }
-
     if (loading) return
     setLoading(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setLoading(false)
-      return
+    // Optimistic update
+    const prev = { upvotes, downvotes, userVote }
+
+    if (userVote === type) {
+      // Remove vote
+      if (type === 'up') setUpvotes(v => v - 1)
+      else setDownvotes(v => v - 1)
+      setUserVote(null)
+    } else if (userVote) {
+      // Switch vote
+      if (type === 'up') { setUpvotes(v => v + 1); setDownvotes(v => v - 1) }
+      else               { setDownvotes(v => v + 1); setUpvotes(v => v - 1) }
+      setUserVote(type)
+    } else {
+      // New vote
+      if (type === 'up') setUpvotes(v => v + 1)
+      else setDownvotes(v => v + 1)
+      setUserVote(type)
     }
 
     try {
-      if (userVote === type) {
-        // Remove vote
-        await supabase
-          .from('votes')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('recommendation_id', recommendationId)
+      const res = await fetch(`/api/recommendations/${recommendationId}/vote`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ vote_type: type }),
+      })
 
-        if (type === 'up') setUpvotes(v => v - 1)
-        else setDownvotes(v => v - 1)
-        setUserVote(null)
-      } else if (userVote) {
-        // Switch vote
-        await (supabase as any)
-  .from('votes')
-  .update({ vote_type: type })
-  .eq('user_id', user.id)
-  .eq('recommendation_id', recommendationId)
+      if (res.status === 401) {
+        // Session expired — roll back and redirect
+        setUpvotes(prev.upvotes)
+        setDownvotes(prev.downvotes)
+        setUserVote(prev.userVote)
+        toast.error('Please log in to vote')
+        router.push('/login')
+        return
+      }
 
-        if (type === 'up') {
-          setUpvotes(v => v + 1)
-          setDownvotes(v => v - 1)
-        } else {
-          setDownvotes(v => v + 1)
-          setUpvotes(v => v - 1)
-        }
-        setUserVote(type)
-      } else {
-        // New vote
-        await (supabase as any)
-  .from('votes')
-  .insert({ user_id: user.id, recommendation_id: recommendationId, vote_type: type })
-
-        if (type === 'up') setUpvotes(v => v + 1)
-        else setDownvotes(v => v + 1)
-        setUserVote(type)
+      if (!res.ok) {
+        // Roll back optimistic update
+        setUpvotes(prev.upvotes)
+        setDownvotes(prev.downvotes)
+        setUserVote(prev.userVote)
+        toast.error('Failed to vote')
       }
     } catch {
+      // Roll back
+      setUpvotes(prev.upvotes)
+      setDownvotes(prev.downvotes)
+      setUserVote(prev.userVote)
       toast.error('Failed to vote')
     } finally {
       setLoading(false)
@@ -104,7 +105,7 @@ export function VoteButtons({
           userVote === 'up' && 'bg-green-500/10 border-green-500/50 text-green-600 hover:bg-green-500/20'
         )}
       >
-        <ThumbsUp size={14} />
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <ThumbsUp size={14} />}
         {formatNumber(upvotes)}
       </Button>
       <Button
@@ -117,7 +118,7 @@ export function VoteButtons({
           userVote === 'down' && 'bg-red-500/10 border-red-500/50 text-red-600 hover:bg-red-500/20'
         )}
       >
-        <ThumbsDown size={14} />
+        {loading ? <Loader2 size={14} className="animate-spin" /> : <ThumbsDown size={14} />}
         {formatNumber(downvotes)}
       </Button>
     </div>
