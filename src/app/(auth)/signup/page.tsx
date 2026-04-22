@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -34,12 +34,11 @@ const signupSchema = z.object({
 
 type SignupForm = z.infer<typeof signupSchema>
 
-export default function SignupPage() {
+function SignupForm() {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const supabase     = createClient()
 
-  // Preserve the destination so after signup the user lands where they wanted
   const next = searchParams.get('next') ?? '/onboarding'
 
   const [showPassword, setShowPassword] = useState(false)
@@ -95,8 +94,6 @@ export default function SignupPage() {
     }
 
     toast.success('Welcome to Compicfy! 🎉')
-    // New users always go through onboarding first.
-    // After onboarding they'll be sent to `next` if it was stored.
     router.push('/onboarding')
     router.refresh()
   }
@@ -104,7 +101,6 @@ export default function SignupPage() {
   return (
     <div className="w-full max-w-md space-y-6">
 
-      {/* Header */}
       <div className="text-center space-y-2">
         <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-violet-500 items-center justify-center shadow-xl shadow-rose-500/20 mb-2">
           <Users size={24} className="text-white" />
@@ -113,7 +109,6 @@ export default function SignupPage() {
         <p className="text-muted-foreground text-sm">Find your next obsession</p>
       </div>
 
-      {/* Card */}
       <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm shadow-xl shadow-black/5 p-6 space-y-5">
 
         <GoogleButton mode="signup" />
@@ -228,5 +223,30 @@ export default function SignupPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="w-full max-w-md space-y-6 animate-pulse">
+        <div className="text-center space-y-2">
+          <div className="inline-flex w-14 h-14 rounded-2xl bg-muted mx-auto" />
+          <div className="h-8 w-48 bg-muted rounded-xl mx-auto" />
+          <div className="h-4 w-56 bg-muted/60 rounded mx-auto" />
+        </div>
+        <div className="rounded-3xl border border-border bg-card/80 p-6 space-y-4">
+          <div className="h-10 bg-muted rounded-xl" />
+          <div className="h-px bg-border" />
+          <div className="h-11 bg-muted rounded-xl" />
+          <div className="h-11 bg-muted rounded-xl" />
+          <div className="h-11 bg-muted rounded-xl" />
+          <div className="h-11 bg-muted rounded-xl" />
+          <div className="h-11 bg-muted rounded-xl" />
+        </div>
+      </div>
+    }>
+      <SignupForm />
+    </Suspense>
   )
 }

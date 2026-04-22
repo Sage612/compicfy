@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
@@ -21,13 +21,11 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
-export default function LoginPage() {
+function LoginForm() {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const supabase     = createClient()
 
-  // Where to send the user after a successful login.
-  // Falls back to /browse if nothing was stored.
   const next = searchParams.get('next') ?? '/browse'
 
   const [showPassword, setShowPassword] = useState(false)
@@ -62,7 +60,6 @@ export default function LoginPage() {
     if ((profile as any)?.onboarding_completed === false) {
       router.push('/onboarding')
     } else {
-      // Respect the ?next= param so the user lands where they were going
       router.push(next)
     }
   }
@@ -70,7 +67,6 @@ export default function LoginPage() {
   return (
     <div className="w-full max-w-md space-y-6">
 
-      {/* Header */}
       <div className="text-center space-y-2">
         <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-violet-500 items-center justify-center shadow-xl shadow-primary/20 mb-2">
           <BookOpen size={24} className="text-white" />
@@ -79,10 +75,8 @@ export default function LoginPage() {
         <p className="text-muted-foreground text-sm">Sign in to your Compicfy account</p>
       </div>
 
-      {/* Card */}
       <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm shadow-xl shadow-black/5 p-6 space-y-5">
 
-        {/* GoogleButton reads ?next= from the URL automatically */}
         <GoogleButton mode="signin" />
 
         <div className="relative flex items-center gap-3">
@@ -157,5 +151,28 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="w-full max-w-md space-y-6 animate-pulse">
+        <div className="text-center space-y-2">
+          <div className="inline-flex w-14 h-14 rounded-2xl bg-muted mx-auto" />
+          <div className="h-8 w-48 bg-muted rounded-xl mx-auto" />
+          <div className="h-4 w-56 bg-muted/60 rounded mx-auto" />
+        </div>
+        <div className="rounded-3xl border border-border bg-card/80 p-6 space-y-4">
+          <div className="h-10 bg-muted rounded-xl" />
+          <div className="h-px bg-border" />
+          <div className="h-11 bg-muted rounded-xl" />
+          <div className="h-11 bg-muted rounded-xl" />
+          <div className="h-11 bg-muted rounded-xl" />
+        </div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }
