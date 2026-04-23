@@ -38,7 +38,8 @@ export async function GET() {
 
     return NextResponse.json({
       authenticated:    true,
-      is_banned:        profile.is_banned        ?? false,
+      is_banned:        profile.is_banned ?? false, // This is what the BanWatchdog looks for
+      ban_reason:       profile.ban_reason ?? null,
       is_suspended:     isStillSuspended,
       suspended_until:  profile.suspended_until  ?? null,
       suspension_reason: profile.suspension_reason ?? null,
