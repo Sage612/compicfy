@@ -57,7 +57,6 @@ export function Footer() {
               </span>
             </Link>
 
-            {/* Distinct tagline — not AI boilerplate */}
             <p className="text-sm text-muted-foreground leading-relaxed max-w-[200px]">
               The place where comic fans tell each other what to read next.
             </p>
@@ -104,7 +103,7 @@ export function Footer() {
           ))}
         </div>
 
-        {/* Affiliate disclosure — clean and short */}
+        {/* Affiliate disclosure */}
         <div className="mb-8 p-3 rounded-xl bg-muted/40 border border-border">
           <p className="text-[10px] text-muted-foreground leading-relaxed text-center sm:text-left">
             Some links on Compicfy are affiliate links. We may earn a small commission if you purchase
@@ -114,14 +113,14 @@ export function Footer() {
 
         <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mb-6" />
 
-        {/* Bottom bar */}
-        <div className="flex flex-col gap-2 text-[11px] text-muted-foreground sm:flex-row sm:justify-between sm:items-center">
+        {/* Bottom bar — removed "Made with ❤️" filler line */}
+        <div className="flex flex-col gap-1 text-[11px] text-muted-foreground sm:flex-row sm:justify-between sm:items-center">
           <p className="text-center sm:text-left leading-relaxed">
             &copy; {new Date().getFullYear()} Compicfy. All rights reserved.
             <span className="block sm:inline sm:ml-1">We do not host or link to pirated content.</span>
           </p>
-          <p className="hidden sm:flex items-center gap-1 shrink-0">
-            Made with <span className="text-rose-500 mx-0.5">&hearts;</span> for comic fans everywhere
+          <p className="text-center sm:text-right text-muted-foreground/50 text-[10px]">
+            Comics only. No piracy. Ever.
           </p>
         </div>
       </div>

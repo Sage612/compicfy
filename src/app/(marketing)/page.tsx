@@ -96,7 +96,6 @@ export default async function HomePage() {
     supabase.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(1),
     supabase.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(1),
     supabase.from('recommendations').select('title, type, user_id, profiles!recommendations_user_id_fkey(username)').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('created_at', { ascending: false }).limit(6),
-    // Top contributors — public, excludes admins and banned users
     supabase.from('profiles').select('id, username, display_name, avatar_url, total_recommendations').eq('is_banned', false).not('role', 'eq', 'admin').gt('total_recommendations', 0).order('total_recommendations', { ascending: false }).limit(6),
   ])
 
@@ -137,25 +136,18 @@ export default async function HomePage() {
           <ParticleCanvas />
         </div>
 
+        {/* Decorative panels — no 読む watermark, replaced with subtle comic panel lines */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
           <div className="absolute top-16 right-20 w-32 h-44 rounded-2xl border border-primary/10 dark:border-primary/15 rotate-6 bg-primary/[0.02]" />
           <div className="absolute top-8  right-40 w-24 h-32 rounded-2xl border border-violet-500/10 dark:border-violet-500/15 -rotate-3 bg-violet-500/[0.02]" />
           <div className="absolute top-40 right-12 w-16 h-24 rounded-xl border border-rose-500/8 dark:border-rose-500/12 rotate-12" />
           <div className="absolute bottom-20 right-52 w-28 h-36 rounded-2xl border border-primary/8 dark:border-primary/12 -rotate-6 bg-primary/[0.01]" />
-          <div className="absolute bottom-16 left-10 text-[100px] font-black leading-none select-none opacity-[0.03] dark:opacity-[0.05] text-foreground tracking-tighter">
-            読む
-          </div>
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 py-16 md:py-24 w-full">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
 
-                <div className="space-y-6 text-center md:text-left">
-             {/* ── <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500/15 to-primary/15 border border-primary/20 text-primary text-sm font-semibold">
-                <Zap size={13} className="fill-primary" />
-                Community-Powered Discovery
-              </div> ── */}
-
+            <div className="space-y-6 text-center md:text-left">
               <div className="space-y-1">
                 <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tight">
                   Find your
@@ -208,27 +200,27 @@ export default async function HomePage() {
                 )}
               </div>
 
+              {/* Stats — show real numbers when available, nothing when zero */}
               <div className="flex flex-wrap gap-5 pt-2 justify-center md:justify-start">
                 {[
                   { label: 'Members',       value: totalMembers, icon: Users,         color: 'text-violet-500', bg: 'bg-violet-500/10' },
                   { label: 'Comics Shared', value: totalComics,  icon: BookOpen,      color: 'text-rose-500',   bg: 'bg-rose-500/10'   },
                   { label: 'Reviews',       value: totalReviews, icon: MessageSquare, color: 'text-amber-500',  bg: 'bg-amber-500/10'  },
-                ].map(({ label, value, icon: Icon, color, bg }) => (
-                  <div key={label} className="flex items-center gap-2 text-sm">
-                    <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center ${color}`}>
-                      <Icon size={14} />
+                ]
+                  .filter(({ value }) => value > 0)
+                  .map(({ label, value, icon: Icon, color, bg }) => (
+                    <div key={label} className="flex items-center gap-2 text-sm">
+                      <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center ${color}`}>
+                        <Icon size={14} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-foreground tabular-nums leading-tight">
+                          <AnimatedCounter target={value} suffix="+" />
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-tight">{label}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-foreground tabular-nums leading-tight">
-                        {value > 0
-                          ? <><AnimatedCounter target={value} suffix="+" /></>
-                          : <span className="text-muted-foreground text-xs">Growing</span>
-                        }
-                      </p>
-                      <p className="text-xs text-muted-foreground leading-tight">{label}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
 
@@ -423,16 +415,41 @@ export default async function HomePage() {
               <Sparkles size={11} />
               How it works
             </div>
-            <h2 className="text-3xl font-black tracking-tight">Simple as Sunday morning</h2>
+            {/* Replaced AI tagline with something direct and specific */}
+            <h2 className="text-3xl font-black tracking-tight">Three steps, zero gatekeeping</h2>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-              No algorithms. Just real readers sharing what they love.
+              Anyone can rec. The community decides what rises.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { step: '01', icon: BookOpen,   title: 'Submit a Recommendation', desc: 'Share a manga, manhwa, or webtoon you love. Add genres, a cover, and tell us why others need to read it.',                       gradient: 'from-violet-500 to-purple-600', glow: 'group-hover:shadow-violet-500/20' },
-              { step: '02', icon: TrendingUp, title: 'Community Votes',         desc: 'The community upvotes great picks. The best ones rise to the top and land on the featured carousel.',                                gradient: 'from-primary to-blue-600',     glow: 'group-hover:shadow-primary/20'   },
-              { step: '03', icon: Heart,      title: 'Discover & Save',         desc: 'Find your next obsession through community picks. Leave reviews, save favourites, track your reading list.', gradient: 'from-rose-500 to-pink-600',    glow: 'group-hover:shadow-rose-500/20'  },
+              {
+                step:     '01',
+                icon:     BookOpen,
+                title:    'Drop your rec',
+                // Specific, active, sounds like a real person wrote it
+                desc:     'Found something worth reading? Post it. Add a cover, pick genres, and write one honest reason why people should give it a shot.',
+                gradient: 'from-violet-500 to-purple-600',
+                glow:     'group-hover:shadow-violet-500/20',
+              },
+              {
+                step:     '02',
+                icon:     TrendingUp,
+                title:    'The community votes',
+                // Explains the actual mechanic, not vague "great picks rise"
+                desc:     'Other readers upvote or downvote. High-scoring recs hit the featured carousel daily — no admin hand-picking, just community signal.',
+                gradient: 'from-primary to-blue-600',
+                glow:     'group-hover:shadow-primary/20',
+              },
+              {
+                step:     '03',
+                icon:     Heart,
+                title:    'Read, review, repeat',
+                // Concrete actions, not fluff
+                desc:     'Save anything that catches your eye, leave a short review when you finish, and build a reading list that actually reflects what you liked.',
+                gradient: 'from-rose-500 to-pink-600',
+                glow:     'group-hover:shadow-rose-500/20',
+              },
             ].map(({ step, icon: Icon, title, desc, gradient, glow }) => (
               <div key={step} className={`group relative p-7 rounded-3xl bg-card border border-border space-y-4 hover:border-transparent hover:shadow-2xl ${glow} transition-all duration-300`}>
                 <span className="absolute top-5 right-6 text-5xl font-black text-muted-foreground/8 group-hover:text-muted-foreground/12 transition-colors select-none">{step}</span>
@@ -483,12 +500,14 @@ export default async function HomePage() {
               <Star size={13} className="fill-amber-400 text-amber-400" />
               Got a hidden gem?
             </div>
+            {/* Replaced generic AI copy with something punchy and specific */}
             <h2 className="text-3xl md:text-4xl font-black text-white leading-tight tracking-tight">
-              Help others find their<br className="hidden md:block" />
-              <span className="bg-gradient-to-r from-violet-400 to-rose-400 bg-clip-text text-transparent"> next favourite read.</span>
+              Someone out there needs to<br className="hidden md:block" />
+              <span className="bg-gradient-to-r from-violet-400 to-rose-400 bg-clip-text text-transparent"> read what you just finished.</span>
             </h2>
             <p className="text-white/60 leading-relaxed text-base max-w-lg">
-              Share your favourite manga, manhwa, or webtoon with thousands of readers. Every good rec helps someone fall in love with a new story.
+              Post the manga, manhwa, or webtoon you can't stop thinking about.
+              Takes two minutes. Might make someone's whole week.
             </p>
             <div className="flex flex-wrap gap-3 pt-1">
               <Link href={user ? '/dashboard/recommendations/new' : '/signup'}>
