@@ -1,10 +1,5 @@
 'use client'
 
-// Drop this component anywhere in the dashboard layout.
-// It fetches the user's draft/incomplete recommendations and
-// shows a persistent nudge until they complete or dismiss it
-// for the session.
-
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { PenLine, X, ChevronRight } from 'lucide-react'
@@ -13,6 +8,7 @@ import { cn } from '@/lib/utils'
 interface DraftRec {
   id:    string
   title: string
+  why_recommend: string | null
 }
 
 // Dismissed for current session only (reappears on next visit)
@@ -65,11 +61,11 @@ export function IncompleteRecNudge() {
       <div className="flex-1 min-w-0 space-y-1">
         <p className="text-sm font-black text-amber-600 leading-tight">
           {drafts.length === 1
-            ? 'You have an incomplete recommendation'
-            : `You have ${drafts.length} incomplete recommendations`}
+            ? 'Add "why recommend" to your recommendation'
+            : `Add "why recommend" to ${drafts.length} recommendations`}
         </p>
         <p className="text-xs text-muted-foreground leading-snug">
-          Finish and submit so the community can discover it.
+          Tell readers what makes this special.
         </p>
 
         <div className="flex flex-wrap gap-2 pt-1">
