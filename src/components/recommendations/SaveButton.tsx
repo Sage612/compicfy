@@ -1,63 +1,62 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Bookmark, Crown } from 'lucide-react'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils/cn'
-import { useRouter } from 'next/navigation'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import Link from 'next/link'
 
 interface Props {
   recommendationId: string
-  initialSaved: boolean
-  isLoggedIn: boolean
+  initialSaved:     boolean
+  isLoggedIn:       boolean
+  comicTitle?:      string
 }
 
-export function SaveButton({ recommendationId, initialSaved, isLoggedIn }: Props) {
-  const router = useRouter()
-  const [saved, setSaved] = useState(initialSaved)
-  const [loading, setLoading] = useState(false)
+export function SaveButton({
+  recommendationId,
+  initialSaved,
+  isLoggedIn,
+  comicTitle,
+}: Props) {
+  const [saved,     setSaved]     = useState(initialSaved)
+  const [loading,   setLoading]   = useState(false)
+  const [showAuth,  setShowAuth]  = useState(false)
 
   const handleSave = async () => {
     if (!isLoggedIn) {
-      toast.error('Please log in to save comics')
-      router.push('/login')
+      setShowAuth(true)
       return
     }
-
     if (loading) return
     setLoading(true)
 
     try {
       if (saved) {
-        // Unsave
         const res = await fetch('/api/saves', {
-          method: 'DELETE',
+          method:  'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recommendation_id: recommendationId }),
+          body:    JSON.stringify({ recommendation_id: recommendationId }),
         })
-
         if (!res.ok) {
           const data = await res.json()
           toast.error(data.error ?? 'Failed to remove save')
           return
         }
-
         setSaved(false)
         toast.success('Removed from saved')
       } else {
-        // Save
         const res = await fetch('/api/saves', {
-          method: 'POST',
+          method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recommendation_id: recommendationId }),
+          body:    JSON.stringify({ recommendation_id: recommendationId }),
         })
-
         const data = await res.json()
 
         if (!res.ok) {
-          // Hit the save limit — show upgrade prompt
+          if (res.status === 401) { setShowAuth(true); return }
           if (res.status === 403) {
             toast.error(
               <div className="flex flex-col gap-1.5">
@@ -90,18 +89,30 @@ export function SaveButton({ recommendationId, initialSaved, isLoggedIn }: Props
   }
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={handleSave}
-      disabled={loading}
-      className={cn(
-        'w-full gap-2',
-        saved && 'bg-primary/10 border-primary/50 text-primary hover:bg-primary/20'
-      )}
-    >
-      <Bookmark size={14} className={cn(saved && 'fill-current')} />
-      {loading ? 'Saving...' : saved ? 'Saved' : 'Save Comic'}
-    </Button>
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleSave}
+        disabled={loading}
+        className={cn(
+          'w-full gap-2',
+          saved && 'bg-primary/10 border-primary/50 text-primary hover:bg-primary/20'
+        )}
+      >
+        <Bookmark size={14} className={cn(saved && 'fill-current')} />
+        {loading ? 'Saving...' : saved ? 'Saved' : 'Save Comic'}
+      </Button>
+
+      <AuthPromptModal
+        open={showAuth}
+        onClose={() => setShowAuth(false)}
+        config={{
+          action: 'save this comic',
+          comicTitle,
+          icon: <Bookmark size={24} className="text-primary" />,
+        }}
+      />
+    </>
   )
 }

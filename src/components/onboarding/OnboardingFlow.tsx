@@ -29,7 +29,7 @@ const TOUR_ITEMS = [
     color: 'from-rose-500 to-pink-600',
     title: 'Browse',
     // Specific: what it actually shows, not a category description
-    desc:  'Community recs sorted by votes. Filter by genre, type, or platform — find something worth reading in under a minute.',
+    desc:  'Community recs sorted by votes. Filter by genre, type, or platform. find something worth reading in under a minute.',
   },
   {
     icon:  LayoutList,
@@ -50,7 +50,7 @@ const TOUR_ITEMS = [
     color: 'from-emerald-500 to-teal-500',
     title: 'Notifications',
     // Concrete trigger examples instead of vague "get notified"
-    desc:  'Someone upvoted your rec, left a review, or started following you — you\'ll know about it.',
+    desc:  'Someone upvoted your rec, left a review, or started following you,  you\'ll know about it.',
   },
 ]
 
@@ -209,7 +209,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
               </div>
               <h1 className="text-3xl font-black tracking-tight">Hey {name} 👋</h1>
               <p className="text-muted-foreground leading-relaxed">
-                Quick setup — 60 seconds and your browse page will actually match what you read.
+                Quick setup 60 seconds and your browse page will actually match what you read.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 text-left">
@@ -240,7 +240,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             <div className="space-y-2">
               <h2 className="text-2xl font-black tracking-tight">What do you read?</h2>
               <p className="text-sm text-muted-foreground">
-                Pick genres you actually enjoy — not what sounds impressive.
+                Pick genres you actually enjoy, not what sounds impressive.
                 <span className="text-muted-foreground/60 ml-1">({selectedGenres.length}/10)</span>
               </p>
             </div>
@@ -289,7 +289,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
                 {selectedGenres.length > 0 ? `Anything look good? 👀` : `What's popular right now 🔥`}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Upvote anything that catches your eye — it trains your personal feed.
+                Upvote anything that catches your eye, it trains your personal feed.
               </p>
             </div>
 
@@ -302,7 +302,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             ) : comics.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm">
                 <BookOpen size={32} className="mx-auto mb-3 opacity-30" />
-                Nothing here yet — head to Browse after setup.
+                Nothing here yet, head to Browse after setup.
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -411,7 +411,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
               <p className="text-muted-foreground leading-relaxed">
                 {selectedGenres.length > 0
                   ? `Your browse page is tuned for ${selectedGenres.slice(0, 2).join(' and ')}. The more you vote, the better it gets.`
-                  : 'Head to Browse — vote on a few things and your feed will start shaping up.'}
+                  : 'Head to Browse, vote on a few things and your feed will start shaping up.'}
               </p>
             </div>
 

@@ -5,6 +5,7 @@ import { ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
+import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 
 interface Props {
   recommendationId: string
@@ -12,6 +13,7 @@ interface Props {
   initialDownvotes: number
   initialVote:      'up' | 'down' | null
   isLoggedIn:       boolean
+  comicTitle?:      string
 }
 
 export function VoteButtons({
@@ -20,19 +22,19 @@ export function VoteButtons({
   initialDownvotes,
   initialVote,
   isLoggedIn,
+  comicTitle,
 }: Props) {
-  const [upvotes,       setUpvotes]       = useState(initialUpvotes)
-  const [downvotes,     setDownvotes]     = useState(initialDownvotes)
-  const [userVote,      setUserVote]      = useState(initialVote)
-  const [loading,       setLoading]       = useState(false)
-  // Inline nudge shown instead of a hard redirect when user is not logged in
-  const [showNudge,     setShowNudge]     = useState(false)
+  const [upvotes,   setUpvotes]   = useState(initialUpvotes)
+  const [downvotes, setDownvotes] = useState(initialDownvotes)
+  const [userVote,  setUserVote]  = useState(initialVote)
+  const [loading,   setLoading]   = useState(false)
+  const [showAuth,  setShowAuth]  = useState(false)
+  const [pendingVote, setPendingVote] = useState<'up' | 'down' | null>(null)
 
   const handleVote = async (type: 'up' | 'down') => {
     if (!isLoggedIn) {
-      // Show inline prompt — no redirect, no page jump
-      setShowNudge(true)
-      setTimeout(() => setShowNudge(false), 3500)
+      setPendingVote(type)
+      setShowAuth(true)
       return
     }
     if (loading) return
@@ -66,8 +68,8 @@ export function VoteButtons({
         setUpvotes(prev.upvotes)
         setDownvotes(prev.downvotes)
         setUserVote(prev.userVote)
-        setShowNudge(true)
-        setTimeout(() => setShowNudge(false), 3500)
+        setPendingVote(type)
+        setShowAuth(true)
         return
       }
 
@@ -88,7 +90,7 @@ export function VoteButtons({
   }
 
   return (
-    <div className="space-y-2">
+    <>
       <div className="flex gap-2">
         <button
           onClick={() => handleVote('up')}
@@ -118,18 +120,17 @@ export function VoteButtons({
         </button>
       </div>
 
-      {/* Inline login nudge — fades in/out, no redirect */}
-      <div className={cn(
-        'overflow-hidden transition-all duration-300',
-        showNudge ? 'max-h-12 opacity-100' : 'max-h-0 opacity-0'
-      )}>
-        <p className="text-xs text-center text-muted-foreground py-1">
-          <a href="/login" className="text-primary font-semibold hover:underline">Sign in</a>
-          {' '}or{' '}
-          <a href="/signup" className="text-primary font-semibold hover:underline">create an account</a>
-          {' '}to vote
-        </p>
-      </div>
-    </div>
+      <AuthPromptModal
+        open={showAuth}
+        onClose={() => { setShowAuth(false); setPendingVote(null) }}
+        config={{
+          action: pendingVote === 'up' ? 'upvote this comic' : 'downvote this comic',
+          comicTitle,
+          icon: pendingVote === 'up'
+            ? <ThumbsUp size={24} className="text-emerald-500" />
+            : <ThumbsDown size={24} className="text-rose-500" />,
+        }}
+      />
+    </>
   )
 }

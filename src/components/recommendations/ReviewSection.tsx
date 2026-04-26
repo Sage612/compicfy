@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { ReviewForm, type ReviewWithProfile } from './ReviewForm'
 import { ReviewCard } from './ReviewCard'
 import { Button } from '@/components/ui/button'
+import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { Loader2, MessageSquare, LogIn, Plus, Star } from 'lucide-react'
 import Link from 'next/link'
 import { StarRating } from './StarRating'
@@ -23,6 +24,7 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
   const [loadingMore, setLoadingMore] = useState(false)
   const [offset, setOffset] = useState(0)
   const [showForm, setShowForm] = useState(false)
+  const [showReviewAuth, setShowReviewAuth] = useState(false)
   const LIMIT = 10
 
   const userReview = reviews.find(r => r.user_id === currentUserId)
@@ -182,18 +184,32 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
           )}
         </>
       ) : (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl border border-dashed border-border bg-card/50">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MessageSquare size={15} className="text-muted-foreground/60" />
-            Have thoughts on this comic? Sign in to write a review.
-          </div>
-          <Link href="/login" className="shrink-0">
-            <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
+        <>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-2xl border border-dashed border-border bg-card/50">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <MessageSquare size={15} className="text-muted-foreground/60" />
+              Have thoughts on this comic? Sign in to write a review.
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 whitespace-nowrap shrink-0"
+              onClick={() => setShowReviewAuth(true)}
+            >
               <LogIn size={13} />
               Sign in to Review
             </Button>
-          </Link>
-        </div>
+          </div>
+
+          <AuthPromptModal
+            open={showReviewAuth}
+            onClose={() => setShowReviewAuth(false)}
+            config={{
+              action: 'write a review',
+              icon: <MessageSquare size={24} className="text-amber-500" />,
+            }}
+          />
+        </>
       )}
 
       {/* ── Reviews list ── */}
