@@ -4,13 +4,14 @@ import { Header } from '@/components/layout/Header'
 import { ProSidebar } from '@/components/pro/ProSidebar'
 import { ProMobileNav } from '@/components/pro/ProMobileNav'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
+import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 
 export default async function ProLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profile } = await (supabase as any)
+  const { data: profile } = await supabase
     .from('profiles')
     .select('role, is_pro, pro_expires_at')
     .eq('id', user.id)
@@ -34,6 +35,7 @@ export default async function ProLayout({ children }: { children: React.ReactNod
 
         {/* Main content — restore bottom padding on landscape phones */}
         <main className="flex-1 min-w-0 overflow-auto pb-20 md:pb-0 touch-land:pb-20">
+          <IncompleteRecNudge />
           {children}
         </main>
       </div>

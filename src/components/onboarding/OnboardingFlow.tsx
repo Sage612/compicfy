@@ -28,29 +28,25 @@ const TOUR_ITEMS = [
     icon:  Radar,
     color: 'from-rose-500 to-pink-600',
     title: 'Browse',
-    // Specific: what it actually shows, not a category description
-    desc:  'Community recs sorted by votes. Filter by genre, type, or platform. find something worth reading in under a minute.',
+    desc:  'Community recs sorted by votes. Filter by genre, type, or platform. Find something worth reading in under a minute.',
   },
   {
     icon:  LayoutList,
     color: 'from-primary to-violet-500',
     title: 'Your Feed',
-    // Removed the "like a Twitter for comics" AI simile
     desc:  'Follow readers whose taste you trust. Their new recs show up here so you never have to go hunting.',
   },
   {
     icon:  BookMarked,
     color: 'from-teal-500 to-cyan-600',
     title: 'Reading Lists',
-    // Less spec-sheet, more outcome-focused
-    desc:  'Keep track of what you\'re reading, what\'s on deck, and what you\'ve finished. No more "what was that thing I saved?"',
+    desc:  "Keep track of what you're reading, what's on deck, and what you've finished. No more \"what was that thing I saved?\"",
   },
   {
     icon:  Bell,
     color: 'from-emerald-500 to-teal-500',
     title: 'Notifications',
-    // Concrete trigger examples instead of vague "get notified"
-    desc:  'Someone upvoted your rec, left a review, or started following you,  you\'ll know about it.',
+    desc:  "Someone upvoted your rec, left a review, or started following you — you'll know about it.",
   },
 ]
 
@@ -125,26 +121,43 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
   }
 
   const handleVote = async (comicId: string) => {
-    if (votedIds.has(comicId) || votingId === comicId) return
+    // In onboarding we only allow upvoting once — no toggle
+    if (votedIds.has(comicId) || votingId !== null) return
+
     setVotingId(comicId)
     try {
       const res = await fetch(`/api/recommendations/${comicId}/vote`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Always send 'up' — we never un-vote during onboarding
         body:    JSON.stringify({ vote_type: 'up' }),
       })
-      if (res.status === 401) { setVotedIds(prev => new Set([...prev, comicId])); return }
-      if (!res.ok) { toast.error('Could not vote right now — try again from browse'); return }
+
+      if (res.status === 401) {
+        // Not logged in somehow — mark as voted in UI anyway so it doesn't loop
+        setVotedIds(prev => new Set([...prev, comicId]))
+        return
+      }
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('[onboarding/vote]', err)
+        toast.error('Could not vote — try again from Browse')
+        return
+      }
+
+      // Success — mark as voted
       setVotedIds(prev => new Set([...prev, comicId]))
     } catch (err) {
       console.error('[onboarding/vote]', err)
+      toast.error('Vote failed — check your connection')
     } finally {
       setVotingId(null)
     }
   }
 
   const handleSave = async (comicId: string) => {
-    if (savedIds.has(comicId) || savingId === comicId) return
+    if (savedIds.has(comicId) || savingId !== null) return
     setSavingId(comicId)
     try {
       const res = await fetch('/api/saves', {
@@ -209,15 +222,15 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
               </div>
               <h1 className="text-3xl font-black tracking-tight">Hey {name} 👋</h1>
               <p className="text-muted-foreground leading-relaxed">
-                Quick setup 60 seconds and your browse page will actually match what you read.
+                Quick setup — 60 seconds and your browse page will actually match what you read.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 text-left">
               {[
-                { icon: BookOpen,   text: 'Discover comics',      color: 'text-rose-500'    },
-                { icon: LayoutList, text: 'Follow readers',        color: 'text-primary'     },
-                { icon: BookMarked, text: 'Track your reading',    color: 'text-teal-500'    },
-                { icon: Globe,      text: 'Share your recs',       color: 'text-emerald-500' },
+                { icon: BookOpen,   text: 'Discover comics',   color: 'text-rose-500'    },
+                { icon: LayoutList, text: 'Follow readers',     color: 'text-primary'     },
+                { icon: BookMarked, text: 'Track your reading', color: 'text-teal-500'    },
+                { icon: Globe,      text: 'Share your recs',    color: 'text-emerald-500' },
               ].map(({ icon: Icon, text, color }) => (
                 <div key={text} className="flex items-center gap-2.5 p-3 rounded-xl bg-muted/50 border border-border">
                   <Icon size={15} className={color} />
@@ -240,7 +253,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             <div className="space-y-2">
               <h2 className="text-2xl font-black tracking-tight">What do you read?</h2>
               <p className="text-sm text-muted-foreground">
-                Pick genres you actually enjoy, not what sounds impressive.
+                Pick genres you actually enjoy.
                 <span className="text-muted-foreground/60 ml-1">({selectedGenres.length}/10)</span>
               </p>
             </div>
@@ -286,10 +299,10 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
           <div className="rounded-3xl border border-border bg-card p-8 space-y-6">
             <div className="space-y-2">
               <h2 className="text-2xl font-black tracking-tight">
-                {selectedGenres.length > 0 ? `Anything look good? 👀` : `What's popular right now 🔥`}
+                {selectedGenres.length > 0 ? 'Anything look good? 👀' : "What's popular right now 🔥"}
               </h2>
               <p className="text-sm text-muted-foreground">
-                Upvote anything that catches your eye, it trains your personal feed.
+                Upvote anything that catches your eye — it trains your personal feed.
               </p>
             </div>
 
@@ -302,15 +315,15 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             ) : comics.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm">
                 <BookOpen size={32} className="mx-auto mb-3 opacity-30" />
-                Nothing here yet, head to Browse after setup.
+                Nothing here yet — head to Browse after setup.
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {comics.map((comic) => {
-                  const voted  = votedIds.has(comic.id)
-                  const saved  = savedIds.has(comic.id)
-                  const voting = votingId === comic.id
-                  const saving = savingId === comic.id
+                  const voted   = votedIds.has(comic.id)
+                  const saved   = savedIds.has(comic.id)
+                  const voting  = votingId === comic.id
+                  const savingC = savingId === comic.id
                   return (
                     <div key={comic.id} className="group relative rounded-2xl border border-border overflow-hidden bg-muted/30 flex flex-col">
                       <div className="relative aspect-[3/4] bg-muted overflow-hidden">
@@ -324,28 +337,39 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => handleVote(comic.id)}
-                            disabled={voting}
+                            // Disabled once voted or while any vote is in flight
+                            disabled={voted || votingId !== null}
                             className={cn(
                               'flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[10px] font-bold border transition-all',
                               voted
-                                ? 'bg-primary text-primary-foreground border-primary'
+                                ? 'bg-primary text-primary-foreground border-primary cursor-default'
+                                : votingId !== null
+                                ? 'border-border text-muted-foreground opacity-50 cursor-not-allowed'
                                 : 'border-border text-muted-foreground hover:border-primary hover:text-primary active:scale-95'
                             )}
                           >
-                            {voting ? <Loader2 size={10} className="animate-spin" /> : <ThumbsUp size={10} />}
+                            {voting
+                              ? <Loader2 size={10} className="animate-spin" />
+                              : <ThumbsUp size={10} className={voted ? 'fill-current' : ''} />
+                            }
                             {voted ? 'Voted' : 'Vote'}
                           </button>
                           <button
                             onClick={() => handleSave(comic.id)}
-                            disabled={saving}
+                            disabled={saved || savingId !== null}
                             className={cn(
                               'h-7 w-7 flex items-center justify-center rounded-lg border transition-all',
                               saved
-                                ? 'bg-teal-500 text-white border-teal-500'
+                                ? 'bg-teal-500 text-white border-teal-500 cursor-default'
+                                : savingId !== null
+                                ? 'border-border text-muted-foreground opacity-50 cursor-not-allowed'
                                 : 'border-border text-muted-foreground hover:border-teal-500 hover:text-teal-500 active:scale-95'
                             )}
                           >
-                            {saving ? <Loader2 size={10} className="animate-spin" /> : <Bookmark size={10} />}
+                            {savingC
+                              ? <Loader2 size={10} className="animate-spin" />
+                              : <Bookmark size={10} className={saved ? 'fill-current' : ''} />
+                            }
                           </button>
                         </div>
                       </div>
@@ -415,23 +439,19 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
               </p>
             </div>
 
-            {/* Stats */}
             <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="p-3 rounded-2xl bg-muted/50 border border-border space-y-1">
-                <p className="text-2xl font-black text-primary">{selectedGenres.length}</p>
-                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Genres</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-muted/50 border border-border space-y-1">
-                <p className="text-2xl font-black text-primary">{votedIds.size}</p>
-                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Voted</p>
-              </div>
-              <div className="p-3 rounded-2xl bg-muted/50 border border-border space-y-1">
-                <p className="text-2xl font-black text-primary">{savedIds.size}</p>
-                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">Saved</p>
-              </div>
+              {[
+                { value: selectedGenres.length, label: 'Genres'  },
+                { value: votedIds.size,          label: 'Voted'   },
+                { value: savedIds.size,           label: 'Saved'   },
+              ].map(({ value, label }) => (
+                <div key={label} className="p-3 rounded-2xl bg-muted/50 border border-border space-y-1">
+                  <p className="text-2xl font-black text-primary">{value}</p>
+                  <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">{label}</p>
+                </div>
+              ))}
             </div>
 
-            {/* Submit rec CTA */}
             <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 text-left space-y-3">
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shrink-0 shadow-sm">
@@ -468,7 +488,6 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
             </Button>
           </div>
         )}
-
       </div>
     </div>
   )

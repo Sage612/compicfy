@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { CoverUpload } from './CoverUpload'
 import { GenreSelector } from './GenreSelector'
 import { PlatformSelector } from './PlatformSelector'
+import { SubmissionGuidelineBanner } from '@/components/recommendations/SubmissionGuidelineBanner'
 import { toast } from 'sonner'
 import {
   Loader2, BookOpen, Info, AlertTriangle, Sparkles,
@@ -316,6 +317,8 @@ export function RecommendationForm({ userId }: Props) {
           <MangaSearch onSelect={handleMangaSelect} />
         </div>
       </div>
+
+      <SubmissionGuidelineBanner />
 
       {/* Basic Info */}
       <FormSection icon={BookOpen} title="Basic Info">

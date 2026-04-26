@@ -410,8 +410,14 @@ export default async function ComicDetailPage({ params }: Props) {
                 initialDownvotes={rec.downvotes}
                 initialVote={userVote}
                 isLoggedIn={!!user}
+                comicTitle={rec.title}
               />
-              <SaveButton recommendationId={id} initialSaved={isSaved} isLoggedIn={!!user} />
+              <SaveButton
+                recommendationId={id}
+                initialSaved={isSaved}
+                isLoggedIn={!!user}
+                comicTitle={rec.title}
+              />
               <ReadingProgressButton
                 comicId={id}
                 chapterCount={rec.chapter_count}

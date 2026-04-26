@@ -6,6 +6,7 @@ import { DashboardNav } from '@/components/layout/DashboardNav'
 import { DashboardMobileNav } from '@/components/layout/DashboardMobileNav'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
+import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 import { Crown } from 'lucide-react'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -29,13 +30,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="min-h-screen flex flex-col">
       <Header />
       <div className="flex flex-1 pt-14">
-        {/*
-          Desktop sidebar:
-          - hidden on mobile (default)
-          - flex on md+ (desktop)
-          - touch-land:hidden = hide again on touch landscape phones
-            even if they're >= 768px wide
-        */}
+        
         <aside className="hidden md:flex touch-land:hidden flex-col w-56 shrink-0 border-r border-border p-3 gap-3">
           <DashboardNav />
 
@@ -57,12 +52,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
           )}
         </aside>
 
-        {/*
-          Main content:
-          - pb-20 on mobile (space for bottom nav)
-          - pb-0 on md+ desktop
-          - touch-land:pb-20 = restore bottom padding on landscape phones
-        */}
         <main className="flex-1 min-w-0 overflow-auto pb-20 md:pb-0 touch-land:pb-20">
           {!isPrivileged && recCount >= 20 && (
             <div className="px-4 pt-4">
@@ -75,16 +64,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
               />
             </div>
           )}
+          <IncompleteRecNudge />
           {children}
         </main>
       </div>
 
-      {/*
-        Mobile nav:
-        - visible by default (no md:hidden on the wrapper — the component handles it)
-        The DashboardMobileNav already has md:hidden inside it.
-        We override that with touch-land:block so it reappears on landscape phones.
-      */}
       <DashboardMobileNav />
       {isAdmin && <AdminFloatingButton />}
     </div>

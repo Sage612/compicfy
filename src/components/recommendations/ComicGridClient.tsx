@@ -276,7 +276,7 @@ export function ComicGridClient({
                   <p className="text-xs text-muted-foreground mt-1">Be the first to add a recommendation</p>
                   <Link href="/dashboard/recommendations/new" className="mt-5">
                     <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
-                      <Plus size={14} />
+                      <BookOpen size={14} />
                       Submit one now
                     </Button>
                   </Link>

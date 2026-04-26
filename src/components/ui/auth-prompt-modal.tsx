@@ -99,7 +99,25 @@ function PromptContent({ config, onClose, nextPath }: {
       </div>
 
       <p className="text-[11px] text-muted-foreground/60 max-w-[220px] leading-relaxed">
-        Free forever. No credit card required.
+        By signing up, you agree to our{' '}
+        <a
+          href="/terms"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:no-underline"
+        >
+          Terms of Service
+        </a>
+        {' '}and{' '}
+        <a
+          href="/privacy"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:no-underline"
+        >
+          Privacy Policy
+        </a>
+
       </p>
     </div>
   )
