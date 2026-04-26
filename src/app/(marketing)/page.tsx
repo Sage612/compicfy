@@ -44,7 +44,7 @@ const GENRES = [
   { label: 'Drama',         emoji: '🎭',  href: '/browse?genre=Drama'         },
   { label: 'Horror',        emoji: '👻',  href: '/browse?genre=Horror'        },
   { label: 'Sports',        emoji: '⚡',  href: '/browse?genre=Sports'        },
-  { label: 'Slice of Life', emoji: '🍵',  href: '/browse?genre=Slice-of-Life' },
+  { label: 'Slice of Life', emoji: '🍵',  href: '/browse?genre=Slice+of+Life' },
   { label: 'Mystery',       emoji: '🔍',  href: '/browse?genre=Mystery'       },
 ]
 

@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { ComicCardSkeleton } from '@/components/recommendations/ComicCardSkeleton'
 import { Button } from '@/components/ui/button'
-import { BookOpen, Loader2, Plus, Sparkles, LayoutGrid, Lock, Search } from 'lucide-react'
+import { BookOpen, Loader2, Plus, Sparkles, LayoutGrid, Lock, Search, Telescope } from 'lucide-react'
 import Link from 'next/link'
 import type { Recommendation } from '@/types/database.types'
 import { cn } from '@/lib/utils'
@@ -54,7 +54,6 @@ export function ComicGridClient({
   const forYouFetched = useRef(false)
   const prevKeyRef    = useRef(sessionKey)
 
-  // ── Session restore ──────────────────────────────────────────────
   useLayoutEffect(() => {
     setHydrated(true)
     try {
@@ -141,24 +140,11 @@ export function ComicGridClient({
     }
   }, [page, searchParams, apiPath])
 
-  // ── Derive active filter info for empty state messaging ──────────
   const activeQuery  = searchParams.q      ?? ''
   const activeType   = searchParams.type   ?? ''
   const activeGenre  = searchParams.genre  ?? ''
   const activeStatus = searchParams.status ?? ''
   const hasFilters   = !!(activeQuery || activeType || activeGenre || activeStatus)
-
-  const emptyTitle = activeQuery
-    ? `No results for "${activeQuery}"`
-    : hasFilters
-    ? 'No comics match these filters'
-    : 'No comics yet'
-
-  const emptySubtext = activeQuery
-    ? 'Try a different title, author, or genre'
-    : hasFilters
-    ? 'Try adjusting or clearing your filters'
-    : 'Be the first to add a recommendation!'
 
   const showTabs = !!userId
 
@@ -224,20 +210,21 @@ export function ComicGridClient({
               {Array.from({ length: 12 }).map((_, i) => <ComicCardSkeleton key={i} />)}
             </div>
           ) : forYouItems.length === 0 ? (
-            /* ── For You empty state ── */
-            <div className="relative flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border overflow-hidden">
-              <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
-              <div className="relative mb-8 w-36 h-36 mx-auto">
-                <div className="absolute top-0 left-0 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" />
-                <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
-                <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
-                  <Sparkles size={18} className="text-primary opacity-60" />
-                  <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">For You</span>
-                </div>
+            /* ── For You empty state — telescope, not stacked panels ── */
+            <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
+                <Telescope size={28} className="text-primary opacity-70" />
               </div>
-              <p className="text-sm font-black">No personalised picks yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Vote and save more comics to improve your recommendations</p>
+              <p className="text-sm font-black">Nothing to show yet</p>
+              <p className="text-xs text-muted-foreground mt-1 text-center max-w-xs px-4">
+                Vote and save comics in the <strong>All Comics</strong> tab — your personalised feed builds up as you go.
+              </p>
+              <button
+                onClick={() => handleTabChange('all')}
+                className="mt-5 text-xs text-primary font-semibold hover:underline"
+              >
+                Switch to All Comics →
+              </button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -256,45 +243,45 @@ export function ComicGridClient({
       {activeTab === 'all' && (
         <>
           {!items.length ? (
-            /* ── Comic-panel empty state ── */
-            <div className="relative flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border overflow-hidden">
-              <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
-
-              <div className="relative mb-8 w-36 h-36 mx-auto">
-                <div className="absolute top-0 left-0 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" />
-                <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
-                <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
-                  {activeQuery
-                    ? <Search size={18} className="text-primary opacity-60" />
-                    : <BookOpen size={18} className="text-primary opacity-60" />
-                  }
-                  <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">
-                    {activeQuery ? 'No results' : 'Empty'}
-                  </span>
-                </div>
-              </div>
-
-              <p className="text-sm font-black">{emptyTitle}</p>
-              <p className="text-xs text-muted-foreground mt-1 text-center max-w-xs px-4">{emptySubtext}</p>
-
-              <div className="flex flex-wrap gap-3 justify-center mt-6">
-                {hasFilters && (
-                  <Link href="/browse">
-                    <Button variant="outline" size="sm" className="gap-1.5">
-                      Clear filters
-                    </Button>
+            /* ── All Comics empty state — varies by context ── */
+            <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border">
+              {activeQuery ? (
+                <>
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-5">
+                    <Search size={26} className="text-muted-foreground opacity-50" />
+                  </div>
+                  <p className="text-sm font-black">No results for "{activeQuery}"</p>
+                  <p className="text-xs text-muted-foreground mt-1">Try a different title or author name</p>
+                  <Link href="/browse" className="mt-5">
+                    <Button variant="outline" size="sm">Clear search</Button>
                   </Link>
-                )}
-                {!hasFilters && (
-                  <Link href="/dashboard/recommendations/new">
+                </>
+              ) : hasFilters ? (
+                <>
+                  <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-5">
+                    <LayoutGrid size={26} className="text-muted-foreground opacity-50" />
+                  </div>
+                  <p className="text-sm font-black">No comics match these filters</p>
+                  <p className="text-xs text-muted-foreground mt-1">Try loosening the filters or clearing them</p>
+                  <Link href="/browse" className="mt-5">
+                    <Button variant="outline" size="sm">Clear filters</Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
+                    <BookOpen size={26} className="text-primary opacity-60" />
+                  </div>
+                  <p className="text-sm font-black">No comics yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Be the first to add a recommendation</p>
+                  <Link href="/dashboard/recommendations/new" className="mt-5">
                     <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
                       <Plus size={14} />
-                      Submit a Recommendation
+                      Submit one now
                     </Button>
                   </Link>
-                )}
-              </div>
+                </>
+              )}
             </div>
           ) : (
             <>
@@ -321,7 +308,7 @@ export function ComicGridClient({
               )}
               {!hasMore && items.length > PAGE_SIZE && (
                 <p className="text-center text-xs text-muted-foreground py-2">
-                  You've seen all {total} comics 🎉
+                  That's all {total} comics 🎉
                 </p>
               )}
             </>

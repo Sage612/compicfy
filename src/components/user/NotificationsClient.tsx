@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Bell, Trash2 } from 'lucide-react'
+import { Bell, Trash2, BellOff } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -39,25 +39,14 @@ export function NotificationsClient({
 
   if (!notifications.length) {
     return (
-      /* ── Unified comic-panel empty state ── */
-      <div className="relative flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border overflow-hidden">
-        {/* blobs */}
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
-
-        {/* stacked panels */}
-        <div className="relative mb-8 w-36 h-36 mx-auto">
-          <div className="absolute top-0 left-0 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" />
-          <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
-          <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
-            <Bell size={18} className="text-primary opacity-60" />
-            <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">All clear</span>
-          </div>
+      /* ── Empty state: simple icon, no stacked panels ── */
+      <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border">
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-5">
+          <BellOff size={26} className="text-muted-foreground opacity-50" />
         </div>
-
-        <p className="text-sm font-black">No notifications yet</p>
+        <p className="text-sm font-black">All clear</p>
         <p className="text-xs text-muted-foreground mt-1 text-center max-w-xs px-4">
-          You'll be notified about your recommendations, reviews, and account activity.
+          You'll see votes, reviews, and follows here when they come in.
         </p>
       </div>
     )
@@ -65,7 +54,6 @@ export function NotificationsClient({
 
   return (
     <div className="space-y-3">
-      {/* Clear all */}
       <div className="flex justify-end">
         <button
           onClick={dismissAll}

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, BookOpen, X, ArrowRight, Loader2 } from 'lucide-react'
+import { Search, BookOpen, X, ArrowRight, Loader2, TrendingUp, Flame } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const TYPE_COLORS: Record<string, string> = {
@@ -15,14 +15,31 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 interface SearchResult {
-  id: string
-  title: string
-  type: string
+  id:        string
+  title:     string
+  type:      string
   cover_url: string | null
-  author: string | null
-  genres: string[]
-  status: string
+  author:    string | null
+  genres:    string[]
+  status:    string
 }
+
+// Curated quick links — specific destinations, not just raw genre names
+// Feels like a real product made editorial choices, not an AI that defaulted to 5 obvious words
+const QUICK_LINKS = [
+  { label: '🔥 Trending',        href: '/browse?sort=trending'        },
+  { label: '🆕 New this week',   href: '/browse?sort=recent'          },
+  { label: '❤️ Top rated',       href: '/browse?sort=score'           },
+  { label: '⚔️ Action',          href: '/browse?genre=Action'         },
+  { label: '🌸 Romance',         href: '/browse?genre=Romance'        },
+  { label: '✨ Fantasy',         href: '/browse?genre=Fantasy'        },
+  { label: '👻 Horror',          href: '/browse?genre=Horror'         },
+  { label: '🎭 Drama',           href: '/browse?genre=Drama'          },
+  { label: '📖 Completed only',  href: '/browse?status=completed'     },
+  { label: '🟣 Manhwa',          href: '/browse?type=manhwa'          },
+  { label: '📱 Webtoon',         href: '/browse?type=webtoon'         },
+  { label: '💎 Hidden Gems',     href: '/browse?sort=saves'           },
+]
 
 export function GlobalSearch() {
   const [open,     setOpen]     = useState(false)
@@ -55,7 +72,6 @@ export function GlobalSearch() {
     return () => window.removeEventListener('keydown', handler)
   }, [close])
 
-  // Focus input when opened
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 50)
   }, [open])
@@ -125,22 +141,15 @@ export function GlobalSearch() {
 
   return (
     <>
-      {/* ── Backdrop ──────────────────────────────────────────────
-          onClick handles desktop clicks.
-          onTouchEnd + preventDefault handles mobile — without
-          preventDefault the browser intercepts the first touch to
-          dismiss the keyboard and never fires onClick at all.        */}
       <div
         className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
         onClick={close}
         onTouchEnd={(e) => { e.preventDefault(); close() }}
       />
 
-      {/* ── Modal ─────────────────────────────────────────────── */}
       <div className="fixed inset-x-4 top-16 z-[70] max-w-xl mx-auto sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-full">
         <div
           className="rounded-2xl border border-border bg-card shadow-2xl shadow-black/30 overflow-hidden"
-          // Stop touches on the modal itself from bubbling to the backdrop
           onTouchEnd={e => e.stopPropagation()}
         >
 
@@ -152,7 +161,7 @@ export function GlobalSearch() {
               value={query}
               onChange={e => handleInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search comics, manhwa, webtoons…"
+              placeholder="Search by title, author, genre…"
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground text-foreground"
             />
             {loading ? (
@@ -165,8 +174,6 @@ export function GlobalSearch() {
                 <X size={14} />
               </button>
             ) : null}
-
-            {/* ── Explicit close button — always visible on mobile ── */}
             <button
               onClick={close}
               className="ml-1 flex items-center justify-center h-7 w-7 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -232,9 +239,9 @@ export function GlobalSearch() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-primary">
-                        Browse all results for "{query}"
+                        See all results for "{query}"
                       </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">See full results with filters</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Browse with filters</p>
                     </div>
                     <ArrowRight size={12} className={cn('shrink-0 text-primary transition-opacity', selected === results.length ? 'opacity-100' : 'opacity-0')} />
                   </button>
@@ -246,30 +253,33 @@ export function GlobalSearch() {
           {/* Empty state */}
           {!loading && query.trim().length >= 2 && results.length === 0 && (
             <div className="px-4 py-8 text-center space-y-1">
-              <p className="text-sm font-semibold">No results for "{query}"</p>
-              <p className="text-xs text-muted-foreground">Try a different title or author name</p>
+              <p className="text-sm font-semibold">Nothing found for "{query}"</p>
+              <p className="text-xs text-muted-foreground">Try the title, author name, or a genre</p>
             </div>
           )}
 
-          {/* Quick links when nothing typed */}
+          {/* Quick links — editorial picks, not generic genre chips */}
           {query.trim().length < 2 && (
-            <div className="px-4 py-5 space-y-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick links</p>
-              <div className="flex flex-wrap gap-2">
-                {['Action', 'Romance', 'Fantasy', 'Horror', 'Sci-Fi'].map(genre => (
+            <div className="px-4 py-4 space-y-3">
+              <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                <Flame size={10} />
+                Jump to
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_LINKS.map(link => (
                   <button
-                    key={genre}
-                    onClick={() => { router.push(`/browse?genre=${genre}`); close() }}
-                    className="px-3 py-1.5 rounded-full border border-border bg-muted/40 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+                    key={link.href}
+                    onClick={() => { router.push(link.href); close() }}
+                    className="px-2.5 py-1.5 rounded-lg border border-border bg-muted/40 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all"
                   >
-                    {genre}
+                    {link.label}
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Footer — hidden on mobile to save space */}
+          {/* Footer — hidden on mobile */}
           <div className="hidden sm:flex px-4 py-2 border-t border-border items-center gap-3 text-[10px] text-muted-foreground/60">
             <span><kbd className="font-mono">↑↓</kbd> navigate</span>
             <span><kbd className="font-mono">↵</kbd> select</span>
