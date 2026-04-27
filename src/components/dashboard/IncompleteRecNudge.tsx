@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { PenLine, X, ChevronRight } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
 interface DraftRec {
@@ -16,53 +17,68 @@ export function IncompleteRecNudge() {
   const [drafts,  setDrafts]  = useState<DraftRec[]>([])
   const [visible, setVisible] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [isPro,   setIsPro]   = useState(false)
 
   useEffect(() => {
-    // Check session storage — but only after confirming we're in the browser
     try {
       if (typeof window !== 'undefined' && sessionStorage.getItem(SESSION_KEY)) {
         setLoading(false)
         return
       }
-    } catch {
-      // sessionStorage unavailable (private browsing edge case) — continue anyway
-    }
+    } catch {}
 
-    const fetchDrafts = async () => {
+    const run = async () => {
       try {
-        const res = await fetch('/api/recommendations/drafts', {
-          // No-cache so it always fetches fresh on each layout mount
-          cache: 'no-store',
-        })
+        // Check pro status so we can build the correct edit link
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
 
-        if (!res.ok) {
-          console.warn('[IncompleteRecNudge] API returned', res.status)
-          return
+        if (user) {
+          const { data: profile } = await (supabase as any)
+            .from('profiles')
+            .select('is_pro, pro_expires_at, role')
+            .eq('id', user.id)
+            .single()
+
+          if (profile) {
+            setIsPro(
+              profile.role === 'admin' ||
+              (profile.is_pro &&
+                (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+            )
+          }
         }
+
+        const res = await fetch('/api/recommendations/drafts', { cache: 'no-store' })
+        if (!res.ok) return
 
         const data = await res.json()
         const list: DraftRec[] = data.drafts ?? []
-
-        console.log('[IncompleteRecNudge] drafts found:', list.length, list)
 
         if (list.length > 0) {
           setDrafts(list)
           setVisible(true)
         }
       } catch (err) {
-        console.warn('[IncompleteRecNudge] fetch failed:', err)
+        console.warn('[IncompleteRecNudge] failed:', err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchDrafts()
+    run()
   }, [])
 
   const dismiss = () => {
     try { sessionStorage.setItem(SESSION_KEY, '1') } catch {}
     setVisible(false)
   }
+
+  // Edit route depends on whether user is pro or not
+  const editHref = (id: string) =>
+    isPro
+      ? `/pro/recommendations/${id}/edit`
+      : `/dashboard/recommendations/${id}/edit`
 
   if (loading || !visible || drafts.length === 0) return null
 
@@ -91,7 +107,7 @@ export function IncompleteRecNudge() {
           {drafts.slice(0, 3).map(draft => (
             <Link
               key={draft.id}
-              href={`/dashboard/recommendations/${draft.id}/edit`}
+              href={editHref(draft.id)}
               className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 hover:underline"
             >
               {draft.title.length > 28 ? draft.title.slice(0, 28) + '…' : draft.title}
@@ -100,7 +116,7 @@ export function IncompleteRecNudge() {
           ))}
           {drafts.length > 3 && (
             <Link
-              href="/dashboard/recommendations"
+              href={isPro ? '/pro/recommendations' : '/dashboard/recommendations'}
               className="text-xs font-semibold text-amber-600 hover:underline"
             >
               +{drafts.length - 3} more

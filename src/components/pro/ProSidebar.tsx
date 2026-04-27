@@ -6,7 +6,7 @@ import {
   LayoutDashboard, BookOpen, Bookmark, BookMarked,
   Bell, Settings, CreditCard, Crown,
   BarChart2, Eye, Download, Trophy, Sparkles,
-  Shield, Star,
+  Shield, Star, Plus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -15,21 +15,23 @@ interface ProSidebarProps {
 }
 
 const proItems = [
-  { href: '/pro/dashboard', label: 'Pro Dashboard', icon: LayoutDashboard, exact: true },
-  { href: '/pro/analytics', label: 'Analytics', icon: BarChart2 },
-  { href: '/pro/profile-views', label: 'Profile Views', icon: Eye },
-  { href: '/pro/export', label: 'Export Lists', icon: Download },
-  { href: '/pro/leaderboard', label: 'Leaderboard', icon: Trophy },
+  { href: '/pro/dashboard',      label: 'Pro Dashboard', icon: LayoutDashboard, exact: true },
+  { href: '/pro/analytics',      label: 'Analytics',     icon: BarChart2 },
+  { href: '/pro/profile-views',  label: 'Profile Views', icon: Eye       },
+  { href: '/pro/export',         label: 'Export Lists',  icon: Download  },
+  { href: '/pro/leaderboard',    label: 'Leaderboard',   icon: Trophy    },
 ]
 
 const platformItems = [
-  { href: '/pro/recommendations', label: 'My Comics', icon: BookOpen },
-  { href: '/pro/saved', label: 'Saved Comics', icon: Bookmark },
-  { href: '/pro/lists', label: 'Reading Lists', icon: BookMarked },
-  { href: '/pro/reviews', label: 'My Reviews', icon: Star },
-  { href: '/pro/notifications', label: 'Notifications', icon: Bell },
-  { href: '/pro/settings', label: 'Settings', icon: Settings },
-  { href: '/pro/billing', label: 'Billing', icon: CreditCard },
+  // Submit rec — points to pro route so user never leaves pro dashboard
+  { href: '/pro/recommendations/new', label: 'Submit a Rec',    icon: Plus,      isSubmit: true },
+  { href: '/pro/recommendations',     label: 'My Comics',       icon: BookOpen   },
+  { href: '/pro/saved',               label: 'Saved Comics',    icon: Bookmark   },
+  { href: '/pro/lists',               label: 'Reading Lists',   icon: BookMarked },
+  { href: '/pro/reviews',             label: 'My Reviews',      icon: Star       },
+  { href: '/pro/notifications',       label: 'Notifications',   icon: Bell       },
+  { href: '/pro/settings',            label: 'Settings',        icon: Settings   },
+  { href: '/pro/billing',             label: 'Billing',         icon: CreditCard },
 ]
 
 const adminItems = [
@@ -38,10 +40,11 @@ const adminItems = [
 
 export function ProSidebar({ role }: ProSidebarProps) {
   const pathname = usePathname()
-  const isAdmin = role === 'admin'
+  const isAdmin  = role === 'admin'
 
   return (
     <div className="flex flex-col gap-0.5 h-full">
+
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-3 mb-1">
         <div className="flex items-center gap-2.5">
@@ -59,6 +62,7 @@ export function ProSidebar({ role }: ProSidebarProps) {
       </div>
 
       <nav className="flex flex-col gap-0.5 flex-1 overflow-y-auto">
+
         {/* Pro Tools */}
         {proItems.map(({ href, label, icon: Icon, exact }) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
@@ -92,15 +96,23 @@ export function ProSidebar({ role }: ProSidebarProps) {
         <p className="text-[10px] font-black uppercase tracking-widest text-amber-600/60 px-3 py-1 mb-1">
           Platform
         </p>
-        {platformItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href || pathname.startsWith(href + '/')
+
+        {platformItems.map(({ href, label, icon: Icon, isSubmit }) => {
+          // For the submit link, only active on exact match so it
+          // doesn't highlight when viewing /pro/recommendations list
+          const isActive = isSubmit
+            ? pathname === href
+            : pathname === href || pathname.startsWith(href + '/')
+
           return (
             <Link
               key={href}
               href={href}
               className={cn(
                 'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-                isActive
+                isSubmit && !isActive
+                  ? 'text-amber-600 hover:bg-amber-500/10'
+                  : isActive
                   ? 'bg-amber-500/10 text-amber-600 border border-amber-500/10'
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
               )}
@@ -109,6 +121,8 @@ export function ProSidebar({ role }: ProSidebarProps) {
                 'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all',
                 isActive
                   ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30'
+                  : isSubmit
+                  ? 'bg-amber-500/10 text-amber-600 group-hover:bg-amber-500/20'
                   : 'bg-amber-500/5 group-hover:bg-amber-500/10'
               )}>
                 <Icon size={14} />
@@ -133,12 +147,16 @@ export function ProSidebar({ role }: ProSidebarProps) {
                   href={href}
                   className={cn(
                     'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
-                    isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
+                    isActive
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
                   )}
                 >
                   <div className={cn(
                     'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all',
-                    isActive ? 'bg-primary text-primary-foreground' : 'bg-muted group-hover:bg-accent'
+                    isActive
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted group-hover:bg-accent'
                   )}>
                     <Icon size={14} />
                   </div>
