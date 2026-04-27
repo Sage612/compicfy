@@ -64,7 +64,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
               />
             </div>
           )}
-          <IncompleteRecNudge />
+        <div className="px-4 pt-4">
+  <IncompleteRecNudge />
+</div>
           {children}
         </main>
       </div>

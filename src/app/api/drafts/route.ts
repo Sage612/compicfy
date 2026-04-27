@@ -11,22 +11,35 @@ export async function GET() {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ drafts: [] })
 
-    const { data } = (await supabase
+    if (!user) {
+      // Return empty instead of 401 — component handles gracefully
+      return NextResponse.json({ drafts: [] })
+    }
+
+    const { data, error } = (await supabase
       .from('recommendations')
       .select('id, title, why_recommend')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(20)) as { data: DraftRecommendation[] | null }
+      .limit(50)) as { data: DraftRecommendation[] | null; error: any }
+
+    if (error) {
+      console.error('[/api/recommendations/drafts]', error)
+      return NextResponse.json({ drafts: [] })
+    }
 
     const drafts = (data ?? [])
-      .filter(r => !r.why_recommend || r.why_recommend.trim().length === 0)
+      .filter(r => {
+        const why = (r.why_recommend ?? '').toString().trim()
+        return why.length === 0
+      })
       .slice(0, 10)
       .map(r => ({ id: r.id, title: r.title }))
 
     return NextResponse.json({ drafts })
-  } catch {
+  } catch (err) {
+    console.error('[/api/recommendations/drafts] unexpected:', err)
     return NextResponse.json({ drafts: [] })
   }
 }

@@ -43,7 +43,9 @@ export default async function ProLayout({ children }: { children: React.ReactNod
 
         {/* Main content — restore bottom padding on landscape phones */}
         <main className="flex-1 min-w-0 overflow-auto pb-20 md:pb-0 touch-land:pb-20">
-          <IncompleteRecNudge />
+          <div className="px-4 pt-4">
+  <IncompleteRecNudge />
+</div>
           {children}
         </main>
       </div>
