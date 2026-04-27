@@ -23,9 +23,6 @@ interface SearchResult {
   genres:    string[]
   status:    string
 }
-
-// Curated quick links — specific destinations, not just raw genre names
-// Feels like a real product made editorial choices, not an AI that defaulted to 5 obvious words
 const QUICK_LINKS = [
   { label: '🔥 Trending',        href: '/browse?sort=trending'        },
   { label: '🆕 New this week',   href: '/browse?sort=recent'          },
@@ -35,10 +32,6 @@ const QUICK_LINKS = [
   { label: '✨ Fantasy',         href: '/browse?genre=Fantasy'        },
   { label: '👻 Horror',          href: '/browse?genre=Horror'         },
   { label: '🎭 Drama',           href: '/browse?genre=Drama'          },
-  { label: '📖 Completed only',  href: '/browse?status=completed'     },
-  { label: '🟣 Manhwa',          href: '/browse?type=manhwa'          },
-  { label: '📱 Webtoon',         href: '/browse?type=webtoon'         },
-  { label: '💎 Hidden Gems',     href: '/browse?sort=saves'           },
 ]
 
 export function GlobalSearch() {

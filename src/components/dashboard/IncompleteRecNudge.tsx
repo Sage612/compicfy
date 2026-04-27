@@ -18,19 +18,39 @@ export function IncompleteRecNudge() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (sessionStorage.getItem(SESSION_KEY)) { setLoading(false); return }
+    // Check session storage — but only after confirming we're in the browser
+    try {
+      if (typeof window !== 'undefined' && sessionStorage.getItem(SESSION_KEY)) {
+        setLoading(false)
+        return
+      }
+    } catch {
+      // sessionStorage unavailable (private browsing edge case) — continue anyway
+    }
 
     const fetchDrafts = async () => {
       try {
-        const res  = await fetch('/api/recommendations/drafts')
+        const res = await fetch('/api/recommendations/drafts', {
+          // No-cache so it always fetches fresh on each layout mount
+          cache: 'no-store',
+        })
+
+        if (!res.ok) {
+          console.warn('[IncompleteRecNudge] API returned', res.status)
+          return
+        }
+
         const data = await res.json()
         const list: DraftRec[] = data.drafts ?? []
+
+        console.log('[IncompleteRecNudge] drafts found:', list.length, list)
+
         if (list.length > 0) {
           setDrafts(list)
           setVisible(true)
         }
-      } catch {
-        // Non-critical — fail silently
+      } catch (err) {
+        console.warn('[IncompleteRecNudge] fetch failed:', err)
       } finally {
         setLoading(false)
       }
@@ -40,7 +60,7 @@ export function IncompleteRecNudge() {
   }, [])
 
   const dismiss = () => {
-    sessionStorage.setItem(SESSION_KEY, '1')
+    try { sessionStorage.setItem(SESSION_KEY, '1') } catch {}
     setVisible(false)
   }
 
@@ -62,8 +82,9 @@ export function IncompleteRecNudge() {
             : `${drafts.length} recommendations are missing your take`}
         </p>
         <p className="text-xs text-muted-foreground leading-snug">
-          The "why do you recommend it?" field is empty.
-          Recs with a personal reason get <span className="font-semibold text-foreground">3× more votes</span> — takes 30 seconds.
+          The &quot;why do you recommend it?&quot; field is empty.
+          Recs with a personal reason get{' '}
+          <span className="font-semibold text-foreground">far more votes</span>, takes 30 seconds.
         </p>
 
         <div className="flex flex-wrap gap-2 pt-1">
