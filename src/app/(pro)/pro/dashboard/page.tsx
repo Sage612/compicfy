@@ -278,12 +278,12 @@ export default async function ProDashboardPage() {
               </Link>
             </div>
           </div>
-          <CurrentlyReadingSection initialItems={[]} lists={(listsForTracker ?? []) as any} />
+          <CurrentlyReadingSection initialItems={[]} lists={(listsForTracker ?? [])} />
         </div>
       ) : (
         <CurrentlyReadingSection
-          initialItems={(currentlyReading ?? []) as any}
-          lists={(listsForTracker ?? []) as any}
+          initialItems={(currentlyReading ?? [])}
+          lists={(listsForTracker ?? [])}
         />
       )}
 
@@ -311,7 +311,7 @@ export default async function ProDashboardPage() {
             <div className="flex gap-3 justify-center">
               <Link href="/feed?tab=discover">
                 <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 border-0 hover:opacity-90 shadow-md shadow-primary/20">
-                  <Radar size={13} />
+                  <UserPlus size={13} />
                   Discover Readers
                 </Button>
               </Link>
@@ -375,19 +375,22 @@ export default async function ProDashboardPage() {
         </div>
       </div>
 
-      {/* Pro perks */}
+      {/* Pro membership status */}
       <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
         <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-amber-500/10 blur-xl pointer-events-none" />
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">
             <Zap size={18} className="text-white" />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 space-y-1">
             <p className="font-black text-sm text-amber-700 dark:text-amber-400">
-              {isAdmin ? 'Admin · All Pro perks active forever' : 'All Pro perks active'}
+              {isAdmin ? 'Admin — lifetime access' : profile.pro_expires_at ? `Pro until ${formatDate(profile.pro_expires_at)}` : 'Pro — lifetime access'}
             </p>
-            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-              Thanks for being a Pro member! You have access to all Pro features and perks. We appreciate your support in helping us build a better platform for comic lovers everywhere.
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {isAdmin
+                ? 'Full platform access with no restrictions. Your actions are logged for accountability.'
+                : 'Unlimited recommendations, analytics, export, leaderboard, and priority review for your submissions.'
+              }
             </p>
           </div>
         </div>

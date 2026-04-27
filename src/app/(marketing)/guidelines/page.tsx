@@ -15,14 +15,14 @@ const SECTIONS = [
       'Accurately rate content (All Ages / Teen / Mature / Adult). Mislabelling mature content is grounds for removal.',
       'Write an honest, spoiler-free description of why the comic is worth reading.',
       'Do not submit duplicates. Search before submitting to check if a title already exists.',
-      'Cover images must be official promotional art or images sourced from recognised community databases (e.g. MyAnimeList, AniList) — not fan art, screenshots, or AI-generated images.',
+      'Cover images must be official promotional art or images sourced from recognised community databases (e.g. MyAnimeList, AniList), not fan art, screenshots, or AI-generated images.',
       'Do not submit AI-generated fake titles or descriptions.',
       'One account per person. Coordinated vote manipulation will result in permanent bans.',
     ],
   },
   {
     emoji: '⭐', title: 'Writing Reviews', rules: [
-      'Be honest and constructive. Critical reviews are welcome — cruel or personal attacks are not.',
+      'Be honest and constructive. Critical reviews are welcome, cruel or personal attacks are not.',
       "Mark reviews that contain plot spoilers with the spoiler warning toggle.",
       "Reviews must be about the comic itself, not the author's personal life or other works.",
       'Do not post the same review multiple times or copy others\' reviews.',
@@ -34,7 +34,7 @@ const SECTIONS = [
     emoji: '👍', title: 'Voting', rules: [
       'Vote based on whether a recommendation is well-presented and worth reading, not personal preference for the genre.',
       'Do not create multiple accounts to manipulate vote counts.',
-      'Vote brigading — organising others to vote a specific way — is a bannable offence.',
+      'Vote brigading, organising others to vote a specific way, is a bannable offence.',
     ],
   },
   {

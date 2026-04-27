@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server'
 import { recommendationSchema } from '@/lib/utils/validators'
 import { enforceRecLimit } from '@/lib/utils/proEnforce'
 
+type ExistingRec = {
+  id: string
+  title: string
+  is_approved: boolean
+}
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient()
@@ -18,7 +24,8 @@ export async function GET(request: Request) {
     const adult  = searchParams.get('adult')  === 'true'
     const offset = (page - 1) * limit
 
-    const { data, error } = await (supabase as any).rpc('search_recommendations', {
+    // @ts-expect-error - Supabase doesn't have full type definitions for custom RPC functions
+    const { data, error } = await supabase.rpc('search_recommendations', {
       p_query:  q      || null,
       p_type:   type   || null,
       p_genre:  genre  || null,
@@ -98,11 +105,11 @@ export async function POST(request: Request) {
     const data = parsed.data
 
     // Duplicate title check
-    const { data: existing } = await (supabase as any)
+    const { data: existing } = (await supabase
       .from('recommendations')
       .select('id, title, is_approved')
       .ilike('title', data.title.trim())
-      .single()
+      .single()) as { data: ExistingRec | null }
 
     if (existing) {
       return NextResponse.json(
@@ -118,25 +125,28 @@ export async function POST(request: Request) {
 
     const isAutoApproved = ['admin', 'moderator'].includes(profile?.role ?? '')
 
-    const { data: recommendation, error } = await (supabase as any)
+    const insertData = {
+      user_id:            user.id,
+      title:              data.title,
+      description:        data.description,
+      type:               data.type,
+      status:             data.status,
+      genres:             data.genres,
+      official_platforms: data.official_platforms,
+      cover_url:          data.cover_url    || null,
+      content_rating:     data.content_rating,
+      why_recommend:      data.why_recommend || null,
+      author:             data.author        || null,
+      artist:             data.artist        || null,
+      year_released:      data.year_released || null,
+      chapter_count:      data.chapter_count || null,
+      is_approved:        isAutoApproved,
+    }
+
+    // Supabase doesn't have proper type definitions for insert with custom table schema
+    const { data: recommendation, error } = await supabase
       .from('recommendations')
-      .insert({
-        user_id:            user.id,
-        title:              data.title,
-        description:        data.description,
-        type:               data.type,
-        status:             data.status,
-        genres:             data.genres,
-        official_platforms: data.official_platforms,
-        cover_url:          data.cover_url    || null,
-        content_rating:     data.content_rating,
-        why_recommend:      data.why_recommend || null,
-        author:             data.author        || null,
-        artist:             data.artist        || null,
-        year_released:      data.year_released || null,
-        chapter_count:      data.chapter_count || null,
-        is_approved:        isAutoApproved,
-      })
+      .insert(insertData as any)
       .select()
       .single()
 

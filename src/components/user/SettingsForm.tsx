@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -10,10 +10,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { AvatarUpload } from './AvatarUpload'
+import { DeleteAccountSection } from '@/components/user/DeleteAccountSection'
 import { toast } from 'sonner'
-import { Loader2, X, User, Heart, Shield, Globe, Sun, Moon, Monitor, Palette } from 'lucide-react'
+import { Loader2, X, User, Heart, Shield, Globe, Sun, Moon, Monitor, Palette, AlertTriangle } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
-import type { Profile, Database } from '@/types/database.types'
+import type { Profile } from '@/types/database.types'
 import { AdultContentToggle } from '@/components/user/AdultContentToggle'
 import { cn } from '@/lib/utils'
 import { useTheme } from 'next-themes'
@@ -57,10 +58,10 @@ interface Props {
 }
 
 export function SettingsForm({ profile, userId, isPro }: Props) {
-  const supabase = createClient()
+  const supabase    = createClient()
   const { setTheme } = useTheme()
-  const [saving, setSubmitting] = useState(false)
-  const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url)
+  const [saving,         setSubmitting]    = useState(false)
+  const [avatarUrl,      setAvatarUrl]     = useState(profile.avatar_url)
   const [selectedGenres, setSelectedGenres] = useState<string[]>(profile.favorite_genres || [])
   const [themePreference, setThemePreference] = useState<'dark' | 'light' | 'system'>(
     profile.theme_preference ?? 'system'
@@ -69,19 +70,19 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
   const { register, handleSubmit, watch, formState: { errors } } = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
-      username: profile.username,
+      username:     profile.username,
       display_name: profile.display_name || '',
-      bio: profile.bio || '',
-      website: profile.website || '',
+      bio:          profile.bio || '',
+      website:      profile.website || '',
     },
   })
 
   const bioValue = watch('bio') || ''
 
   const toggleGenre = (genre: string) => {
-    setSelectedGenres((prev) =>
+    setSelectedGenres(prev =>
       prev.includes(genre)
-        ? prev.filter((g) => g !== genre)
+        ? prev.filter(g => g !== genre)
         : prev.length >= 10 ? prev : [...prev, genre]
     )
   }
@@ -104,18 +105,15 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
       }
 
       const updateData: any = {
-        username: data.username.toLowerCase(),
-        display_name: data.display_name || null,
-        bio: data.bio || null,
-        website: data.website || null,
+        username:        data.username.toLowerCase(),
+        display_name:    data.display_name || null,
+        bio:             data.bio || null,
+        website:         data.website || null,
         favorite_genres: selectedGenres,
-        updated_at: new Date().toISOString(),
+        updated_at:      new Date().toISOString(),
       }
 
-      // Only save theme_preference for Pro/Admin users
-      if (isPro) {
-        updateData.theme_preference = themePreference
-      }
+      if (isPro) updateData.theme_preference = themePreference
 
       const { error } = await (supabase as any)
         .from('profiles')
@@ -123,11 +121,7 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
         .eq('id', userId)
 
       if (error) throw error
-
-      // Apply the theme immediately after saving
-      if (isPro) {
-        setTheme(themePreference)
-      }
+      if (isPro) setTheme(themePreference)
 
       toast.success('Profile updated!')
     } catch (error) {
@@ -139,9 +133,9 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
   }
 
   const themeOptions = [
-    { value: 'light'  as const, label: 'Light',  icon: Sun,     desc: 'Always light'         },
-    { value: 'dark'   as const, label: 'Dark',   icon: Moon,    desc: 'Always dark'           },
-    { value: 'system' as const, label: 'System', icon: Monitor, desc: 'Follows your OS theme' },
+    { value: 'light'  as const, label: 'Light',  icon: Sun,     desc: 'Always light'          },
+    { value: 'dark'   as const, label: 'Dark',   icon: Moon,    desc: 'Always dark'            },
+    { value: 'system' as const, label: 'System', icon: Monitor, desc: 'Follows your OS theme'  },
   ]
 
   return (
@@ -211,7 +205,7 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
         <FormSection icon={Palette} title="Theme Preference" accent="from-amber-400 to-orange-500">
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Choose your preferred theme. This is saved to your account and applies across all your sessions.
+              Saved to your account and applied across all sessions.
             </p>
             <div className="grid grid-cols-3 gap-2">
               {themeOptions.map(({ value, label, icon: Icon, desc }) => (
@@ -274,9 +268,9 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
         <AdultContentToggle userId={userId} initialEnabled={profile.adult_content_enabled ?? false} />
       </FormSection>
 
-      {/* Footer */}
+      {/* Save row */}
       <div className="flex items-center justify-between pt-1">
-        <p className="text-xs text-muted-foreground">Your profile is public and visible to all users</p>
+        <p className="text-xs text-muted-foreground">Username changes take effect immediately across the platform</p>
         <Button
           type="submit"
           disabled={saving}
@@ -284,9 +278,24 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
         >
           {saving
             ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
-            : 'Save Changes'}
+            : 'Save Changes'
+          }
         </Button>
       </div>
+
+      {/* ── Danger Zone ── */}
+      <div className="rounded-2xl border border-destructive/20 bg-card overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-destructive/15 bg-destructive/5">
+          <div className="w-7 h-7 rounded-lg bg-destructive/15 flex items-center justify-center shrink-0">
+            <AlertTriangle size={13} className="text-destructive" />
+          </div>
+          <h3 className="text-xs font-black uppercase tracking-widest text-destructive">Danger Zone</h3>
+        </div>
+        <div className="p-5">
+          <DeleteAccountSection />
+        </div>
+      </div>
+
     </form>
   )
 }

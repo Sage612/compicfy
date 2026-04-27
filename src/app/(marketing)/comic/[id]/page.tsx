@@ -525,12 +525,15 @@ export default async function ComicDetailPage({ params }: Props) {
               <div className="flex items-center justify-between py-3 border-t border-border text-xs text-muted-foreground">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span>Recommended by</span>
-                  <Link
-                    href={`/profile/${profile?.username}`}
-                    className="text-foreground hover:text-primary font-semibold transition-colors"
-                  >
-                    @{recommenderName}
-                  </Link>
+                  {profile?.username === 'deleted_user'
+                    ? <span className="text-muted-foreground italic">[deleted]</span>
+                    : <Link
+                        href={`/profile/${profile?.username}`}
+                        className="text-foreground hover:text-primary font-semibold transition-colors"
+                      >
+                        @{recommenderName}
+                      </Link>
+                  }
                   <UserBadges
                     role={profile?.role}
                     isPro={recommenderIsPro}

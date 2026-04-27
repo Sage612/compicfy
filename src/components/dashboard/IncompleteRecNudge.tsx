@@ -8,19 +8,16 @@ import { cn } from '@/lib/utils'
 interface DraftRec {
   id:    string
   title: string
-  why_recommend: string | null
 }
 
-// Dismissed for current session only (reappears on next visit)
 const SESSION_KEY = 'compicfy_nudge_dismissed'
 
 export function IncompleteRecNudge() {
-  const [drafts,    setDrafts]    = useState<DraftRec[]>([])
-  const [visible,   setVisible]   = useState(false)
-  const [loading,   setLoading]   = useState(true)
+  const [drafts,  setDrafts]  = useState<DraftRec[]>([])
+  const [visible, setVisible] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Don't show if already dismissed this session
     if (sessionStorage.getItem(SESSION_KEY)) { setLoading(false); return }
 
     const fetchDrafts = async () => {
@@ -33,7 +30,7 @@ export function IncompleteRecNudge() {
           setVisible(true)
         }
       } catch {
-        // Silent fail — nudge is non-critical
+        // Non-critical — fail silently
       } finally {
         setLoading(false)
       }
@@ -61,11 +58,12 @@ export function IncompleteRecNudge() {
       <div className="flex-1 min-w-0 space-y-1">
         <p className="text-sm font-black text-amber-600 leading-tight">
           {drafts.length === 1
-            ? 'Add "why recommend" to your recommendation'
-            : `Add "why recommend" to ${drafts.length} recommendations`}
+            ? '1 recommendation is missing your take'
+            : `${drafts.length} recommendations are missing your take`}
         </p>
         <p className="text-xs text-muted-foreground leading-snug">
-          Tell readers what makes this special.
+          The "why do you recommend it?" field is empty.
+          Recs with a personal reason get <span className="font-semibold text-foreground">3× more votes</span> — takes 30 seconds.
         </p>
 
         <div className="flex flex-wrap gap-2 pt-1">

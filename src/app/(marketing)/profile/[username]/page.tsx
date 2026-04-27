@@ -370,7 +370,7 @@ export default async function ProfilePage({ params }: Props) {
             <Link href="/dashboard/recommendations/new" className="mt-5">
               <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 hover:opacity-90 shadow-md shadow-primary/20">
                 <PenLine size={13} />
-                Submit your first recommendation
+                Submit your first rec
               </Button>
             </Link>
           )}

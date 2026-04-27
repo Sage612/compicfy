@@ -222,7 +222,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
               </div>
               <h1 className="text-3xl font-black tracking-tight">Hey {name} 👋</h1>
               <p className="text-muted-foreground leading-relaxed">
-                Quick setup — 60 seconds and your browse page will actually match what you read.
+                Quick setup, 60 seconds and your browse page will actually match what you read.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 text-left">

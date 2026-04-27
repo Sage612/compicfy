@@ -115,7 +115,7 @@ export function PricingClient({ user, profile }: Props) {
           </span>
         </h1>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">
-          Pro isn't just about removing limits—it's about the recognition, 
+          Pro isn't just about removing limits, it's about the recognition, 
           visibility, and tools that serious collectors deserve.
         </p>
       </div>

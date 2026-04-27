@@ -195,20 +195,16 @@ export default async function DashboardPage() {
           {/* Still render the section so the search box is available */}
           <CurrentlyReadingSection
             initialItems={[]}
-            lists={(listsForTracker ?? []) as any}
+            lists={(listsForTracker ?? [])}
           />
         </div>
       ) : (
         <CurrentlyReadingSection
-          initialItems={(currentlyReading ?? []) as any}
-          lists={(listsForTracker ?? []) as any}
+          initialItems={(currentlyReading ?? [])}
+          lists={(listsForTracker ?? [])}
         />
       )}
 
-      {/* ── Following feed preview ──
-          If following nobody: show a prompt to find people.
-          If following but no recs yet: show a gentle nudge.
-          Otherwise: show the feed items.                           */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">From People You Follow</h2>
@@ -316,21 +312,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Achievement teaser */}
-      <div className="relative overflow-hidden rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
-        <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-amber-500/10 blur-xl pointer-events-none" />
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/15 flex items-center justify-center shrink-0">
-            <Trophy size={22} className="text-amber-500" />
-          </div>
-          <div className="flex-1">
-            <p className="font-bold text-sm">Achievements coming soon</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Earn badges for sharing great comics and helping the community grow
-            </p>
-          </div>
-        </div>
-      </div>
+
 
     </div>
   )

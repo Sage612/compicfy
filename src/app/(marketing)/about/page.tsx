@@ -34,7 +34,7 @@ export default function AboutPage() {
           <div className="h-0.5 flex-1 bg-gradient-to-r from-primary/40 to-transparent" />
         </div>
         <div className="space-y-3 text-muted-foreground leading-relaxed">
-          <p>Compicfy was born from a simple frustration — finding great comics online meant wading through generic algorithm-driven lists that felt disconnected from what real readers actually loved. We wanted a space where genuine fans could surface hidden gems, debate the classics, and help each other find their next obsession.</p>
+          <p>Compicfy was born from a simple frustration, finding great comics online meant wading through generic algorithm-driven lists that felt disconnected from what real readers actually loved. We wanted a space where genuine fans could surface hidden gems, debate the classics, and help each other find their next obsession.</p>
           <p>What started as a small project grew into a thriving community of manga, manhwa, manhua, and webtoon enthusiasts from around the world. Every recommendation on Compicfy comes from a real reader who loved it enough to share it.</p>
         </div>
       </section>

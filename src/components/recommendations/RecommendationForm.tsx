@@ -522,15 +522,25 @@ export function RecommendationForm({ userId }: Props) {
           <Textarea id="description" {...register('description')} placeholder="What is this comic about?" rows={4} className="resize-none" />
           {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
         </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="why_recommend" className="text-sm font-semibold">
-              Why do you recommend it?
-              <span className="text-muted-foreground font-normal ml-1">(optional)</span>
-            </Label>
-            <span className="text-xs text-muted-foreground">{whyValue.length}/1000</span>
+        <div className="space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="why_recommend" className="text-sm font-black text-primary">
+                Why do you recommend it?
+              </Label>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                Optional — but recs with a personal reason get far more votes. What hooked you? Who is it for?
+              </p>
+            </div>
+            <span className="text-xs text-muted-foreground shrink-0 mt-0.5">{whyValue.length}/1000</span>
           </div>
-          <Textarea id="why_recommend" {...register('why_recommend')} placeholder="What makes this special? What should readers expect?" rows={3} className="resize-none" />
+          <Textarea
+            id="why_recommend"
+            {...register('why_recommend')}
+            placeholder="e.g. &quot;If you loved Tower of God, this hits the same notes but with better art. The first 20 chapters are slow but chapter 21 changes everything.&quot;"
+            rows={3}
+            className="resize-none border-primary/20 focus:border-primary bg-background"
+          />
         </div>
       </FormSection>
 
