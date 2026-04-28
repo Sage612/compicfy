@@ -60,7 +60,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi])
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi])
-  const scrollTo = useCallback((index: number) => emblaApi?.scrollTo(index), [emblaApi])
+  const scrollTo   = useCallback((index: number) => emblaApi?.scrollTo(index), [emblaApi])
 
   if (!recommendations.length) return null
 
@@ -70,12 +70,112 @@ export function FeaturedCarousel({ recommendations }: Props) {
         <div className="flex">
           {recommendations.map((rec, i) => {
             const accentColor = typeColors[rec.type] || typeColors.other
-            const status = statusConfig[rec.status as keyof typeof statusConfig]
+            const status      = statusConfig[rec.status as keyof typeof statusConfig]
 
             return (
               <div key={rec.id} className="relative flex-none w-full min-w-0">
-                {/* Fixed height container — this is the boundary, nothing escapes it */}
-                <div className="relative h-[300px] sm:h-[380px] md:h-[460px] overflow-hidden bg-zinc-950">
+
+                {/* ── MOBILE CARD (portrait, cover-dominant) ── */}
+                <div className="sm:hidden relative overflow-hidden bg-zinc-950" style={{ height: '480px' }}>
+
+                  {/* Full bleed portrait cover */}
+                  {rec.cover_url ? (
+                    <img
+                      src={rec.cover_url}
+                      alt={rec.title}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
+                      <BookOpen size={48} className="text-white/20" />
+                    </div>
+                  )}
+
+                  {/* Gradient overlay — darkens bottom for text */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
+
+                  {/* Colour tint */}
+                  <div
+                    className="absolute inset-0 opacity-20"
+                    style={{ background: `radial-gradient(ellipse at 50% 80%, ${accentColor}66, transparent 70%)` }}
+                  />
+
+                  {/* Accent left bar */}
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-1 opacity-90"
+                    style={{ background: `linear-gradient(to bottom, transparent, ${accentColor}, transparent)` }}
+                  />
+
+                  {/* Slide counter */}
+                  <div className="absolute top-4 right-4 text-xs text-white/30 font-mono tabular-nums">
+                    {String(i + 1).padStart(2, '0')} / {String(recommendations.length).padStart(2, '0')}
+                  </div>
+
+                  {/* Text content — pinned to bottom */}
+                  <div className="absolute bottom-0 left-0 right-0 px-5 pb-10 pt-8 flex flex-col gap-2.5">
+
+                    {/* Type + featured badges */}
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-widest"
+                        style={{
+                          background: `${accentColor}33`,
+                          border: `1px solid ${accentColor}55`,
+                          color: accentColor,
+                        }}
+                      >
+                        <Zap size={10} />
+                        {rec.type}
+                      </span>
+                      <span className="flex items-center gap-1 text-xs font-bold text-amber-400 uppercase tracking-widest">
+                        <Star size={10} className="fill-amber-400" />
+                        Featured
+                      </span>
+                    </div>
+
+                    {/* Title */}
+                    <h2 className="text-2xl font-black leading-tight text-white tracking-tight line-clamp-2">
+                      {rec.title}
+                    </h2>
+
+                    {/* Status + genres */}
+                    <div className="flex flex-wrap items-center gap-1.5 overflow-hidden" style={{ maxHeight: '28px' }}>
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 border border-white/10 shrink-0">
+                        <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status?.color)} />
+                        <span className="text-xs text-white/80 capitalize whitespace-nowrap">{status?.label ?? rec.status}</span>
+                      </div>
+                      {rec.genres?.slice(0, 2).map(genre => (
+                        <span
+                          key={genre}
+                          className="px-2 py-0.5 rounded-full text-xs text-white/70 bg-white/10 border border-white/10 whitespace-nowrap shrink-0"
+                        >
+                          {genre}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* CTA row */}
+                    <div className="flex items-center gap-3 pt-1">
+                      <Link href={`/comic/${rec.id}`} className="flex-1">
+                        <Button
+                          size="sm"
+                          className="w-full gap-2 font-bold text-zinc-950 border-0 shadow-lg h-11 text-sm"
+                          style={{ background: accentColor }}
+                        >
+                          <BookOpen size={14} />
+                          Read More
+                        </Button>
+                      </Link>
+                      <div className="flex items-center gap-1 text-sm text-white/50 shrink-0">
+                        <ThumbsUp size={13} />
+                        {formatNumber(rec.upvotes)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── DESKTOP CARD (landscape, unchanged) ── */}
+                <div className="hidden sm:block relative h-[380px] md:h-[460px] overflow-hidden bg-zinc-950">
 
                   {/* Full bleed background cover */}
                   {rec.cover_url && (
@@ -87,33 +187,27 @@ export function FeaturedCarousel({ recommendations }: Props) {
                     />
                   )}
 
-                  {/* Colour tint from type */}
                   <div
                     className="absolute inset-0 opacity-15"
                     style={{ background: `radial-gradient(ellipse at 70% 50%, ${accentColor}55, transparent 70%)` }}
                   />
-
-                  {/* Strong left gradient for text legibility */}
                   <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/98 via-zinc-950/75 to-zinc-950/20" />
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/60 via-transparent to-transparent" />
-
-                  {/* Decorative vertical accent line */}
                   <div
                     className="absolute left-0 top-0 bottom-0 w-1 opacity-80"
                     style={{ background: `linear-gradient(to bottom, transparent, ${accentColor}, transparent)` }}
                   />
 
-                  {/* Content — fills entire card height, padded top/bottom */}
-                  <div className="relative h-full flex items-center px-6 md:px-12 gap-4 sm:gap-8 py-8">
+                  <div className="relative h-full flex items-center px-6 md:px-12 gap-8 py-8">
 
-                    {/* Cover art — large on sm+, small thumbnail on mobile */}
+                    {/* Cover art */}
                     <div className="shrink-0">
                       <div className="relative">
                         <div
                           className="absolute -inset-3 rounded-2xl blur-xl opacity-40"
                           style={{ background: accentColor }}
                         />
-                        <div className="relative w-20 sm:w-32 md:w-44 aspect-[3/4] rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                        <div className="relative w-32 md:w-44 aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                           {rec.cover_url ? (
                             <img
                               src={rec.cover_url}
@@ -129,10 +223,8 @@ export function FeaturedCarousel({ recommendations }: Props) {
                       </div>
                     </div>
 
-                    {/* Text content — flex column, strictly contained, no overflow */}
-                    <div className="flex-1 min-w-0 min-h-0 flex flex-col justify-center gap-2 sm:gap-2.5 overflow-hidden">
-
-                      {/* Type + featured badge — always visible, never pushed */}
+                    {/* Text content */}
+                    <div className="flex-1 min-w-0 min-h-0 flex flex-col justify-center gap-2.5 overflow-hidden">
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <span
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-widest text-white"
@@ -147,18 +239,16 @@ export function FeaturedCarousel({ recommendations }: Props) {
                         </span>
                       </div>
 
-                      {/* Title — clamped, never wraps more than 2 lines */}
-                      <h2 className="text-xl sm:text-3xl md:text-4xl font-black leading-[1.05] text-white tracking-tight line-clamp-2 flex-shrink-0">
+                      <h2 className="text-3xl md:text-4xl font-black leading-[1.05] text-white tracking-tight line-clamp-2 flex-shrink-0">
                         {rec.title}
                       </h2>
 
-                      {/* Status + genres — single row, truncated */}
                       <div className="flex flex-wrap items-center gap-1.5 flex-shrink-0 overflow-hidden" style={{ maxHeight: '28px' }}>
                         <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 shrink-0">
                           <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status?.color)} />
                           <span className="text-xs text-white/70 capitalize whitespace-nowrap">{status?.label ?? rec.status}</span>
                         </div>
-                        {rec.genres?.slice(0, 3).map((genre) => (
+                        {rec.genres?.slice(0, 3).map(genre => (
                           <span
                             key={genre}
                             className="px-2 py-0.5 rounded-full text-xs text-white/60 bg-white/5 border border-white/10 whitespace-nowrap shrink-0"
@@ -168,8 +258,8 @@ export function FeaturedCarousel({ recommendations }: Props) {
                         ))}
                       </div>
 
-                      {/* Description — strictly clamped, flexible shrink */}
-                      <p className="text-sm text-white/50 leading-relaxed hidden sm:block max-w-md overflow-hidden"
+                      <p
+                        className="text-sm text-white/50 leading-relaxed hidden sm:block max-w-md overflow-hidden"
                         style={{
                           display: '-webkit-box',
                           WebkitLineClamp: 2,
@@ -180,7 +270,6 @@ export function FeaturedCarousel({ recommendations }: Props) {
                         {rec.description}
                       </p>
 
-                      {/* CTA + stats — always at bottom, never pushed out */}
                       <div className="flex items-center gap-4 flex-shrink-0 mt-auto pt-1">
                         <Link href={`/comic/${rec.id}`}>
                           <Button
@@ -202,24 +291,24 @@ export function FeaturedCarousel({ recommendations }: Props) {
                     </div>
                   </div>
 
-                  {/* Slide number */}
                   <div className="absolute top-4 right-4 text-xs text-white/20 font-mono tabular-nums">
                     {String(i + 1).padStart(2, '0')} / {String(recommendations.length).padStart(2, '0')}
                   </div>
                 </div>
+
               </div>
             )
           })}
         </div>
       </div>
 
-      {/* Nav arrows */}
+      {/* Nav arrows — desktop only */}
       <button
         onClick={scrollPrev}
         className={cn(
-          'absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full',
+          'hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full',
           'bg-white/5 backdrop-blur-md border border-white/10',
-          'flex items-center justify-center text-white',
+          'items-center justify-center text-white',
           'opacity-0 group-hover:opacity-100 transition-all duration-200',
           'hover:bg-white/15 hover:scale-110 hover:border-white/20',
           !canScrollPrev && 'cursor-not-allowed opacity-20'
@@ -232,9 +321,9 @@ export function FeaturedCarousel({ recommendations }: Props) {
       <button
         onClick={scrollNext}
         className={cn(
-          'absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full',
+          'hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full',
           'bg-white/5 backdrop-blur-md border border-white/10',
-          'flex items-center justify-center text-white',
+          'items-center justify-center text-white',
           'opacity-0 group-hover:opacity-100 transition-all duration-200',
           'hover:bg-white/15 hover:scale-110 hover:border-white/20',
           !canScrollNext && 'cursor-not-allowed opacity-20'
