@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Resend } from 'resend'
+import { createClient } from '@/lib/supabase/server'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -9,25 +10,66 @@ export async function POST(req: NextRequest) {
     const {
       claimant_name, claimant_email, company,
       copyrighted_work, infringing_url, content_type,
-      description, signature,
+      description, signature, good_faith, accuracy, authority,
     } = body
 
     // Basic validation
-    if (!claimant_name || !claimant_email || !copyrighted_work || !infringing_url || !content_type || !description || !signature) {
+    if (
+      !claimant_name || !claimant_email || !copyrighted_work ||
+      !infringing_url || !content_type || !description || !signature
+    ) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    const submittedAt = new Date().toLocaleString('en-US', { timeZone: 'UTC', dateStyle: 'full', timeStyle: 'short' })
+    // ── 1. Store in DB ───────────────────────────────────────────
+    // Use service role so unauthenticated users can submit
+    const { createClient: createAdmin } = await import('@supabase/supabase-js')
+    const adminClient = createAdmin(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
 
-    // Send notification to legal team
+    const ip = req.headers.get('x-forwarded-for') ??
+               req.headers.get('x-real-ip') ?? null
+
+    const { data: submission } = await adminClient
+      .from('dmca_submissions')
+      .insert({
+        claimant_name:    claimant_name.trim(),
+        claimant_email:   claimant_email.trim().toLowerCase(),
+        company:          company?.trim() || null,
+        copyrighted_work: copyrighted_work.trim(),
+        infringing_url:   infringing_url.trim(),
+        content_type:     content_type.trim(),
+        description:      description.trim(),
+        good_faith:       !!good_faith,
+        accuracy:         !!accuracy,
+        authority:        !!authority,
+        signature:        signature.trim(),
+        ip_address:       ip,
+        status:           'pending',
+      })
+      .select('id')
+      .single()
+
+    const submissionId = submission?.id ?? null
+    const submittedAt  = new Date().toLocaleString('en-US', {
+      timeZone: 'UTC', dateStyle: 'full', timeStyle: 'short',
+    })
+
+    // ── 2. Email admin ───────────────────────────────────────────
     await resend.emails.send({
-      from: 'Compicfy Legal <noreply@compicfy.com>',
-      to: ['legal@compicfy.com'],
-      subject: `🚨 DMCA Takedown Notice — ${claimant_name}`,
+      from: 'Compicfy Support <noreply@compicfy.cloud>',
+      to:   ['support@compicfy.cloud'],
+      subject: `🚨 DMCA Takedown Notice  ${claimant_name}`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #e11d48;">DMCA Takedown Notice Received</h2>
-          <p style="color: #6b7280; font-size: 14px;">Submitted at: ${submittedAt} UTC</p>
+          <p style="color: #6b7280; font-size: 14px;">
+            Submitted: ${submittedAt} UTC
+            ${submissionId ? ` · Reference ID: <strong>${submissionId}</strong>` : ''}
+          </p>
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 16px 0;" />
 
           <h3 style="margin-bottom: 4px;">Claimant Information</h3>
@@ -51,25 +93,30 @@ export async function POST(req: NextRequest) {
           <p style="font-size: 14px;"><em>${signature}</em></p>
 
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
-          <p style="font-size: 12px; color: #9ca3af;">All three required declarations were checked by the submitter. Respond to this notice within 72 hours.</p>
+          <p style="font-size: 12px; color: #9ca3af;">
+            All three required declarations were checked by the submitter.
+            Respond within 72 hours.
+            ${submissionId ? `<br/>Admin ref: ${submissionId}` : ''}
+          </p>
         </div>
       `,
     })
 
-    // Send confirmation to claimant
+    // ── 3. Confirmation to claimant ──────────────────────────────
     await resend.emails.send({
-      from: 'Compicfy Legal <noreply@compicfy.com>',
-      to: [claimant_email],
-      subject: 'DMCA Notice Received — Compicfy',
+      from: 'Compicfy Support <noreply@compicfy.cloud>',
+      to:   [claimant_email],
+      subject: 'DMCA Notice Received  Compicfy',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>DMCA Notice Received</h2>
           <p>Hi ${claimant_name},</p>
           <p>We have received your DMCA takedown notice regarding <strong>${copyrighted_work}</strong>.</p>
-          <p>Our legal team will review it and respond to this email address within <strong>72 hours</strong>.</p>
-          <p>If you need to follow up urgently, please email <a href="mailto:legal@compicfy.com">legal@compicfy.com</a> with your name and the URL you submitted.</p>
+          ${submissionId ? `<p>Your reference ID is <strong>${submissionId}</strong>,  keep this for follow-up.</p>` : ''}
+          <p>Our team will review your claim and respond to this email within <strong>72 hours</strong>.</p>
+          <p>To follow up, email <a href="mailto:support@compicfy.cloud">support@compicfy.cloud</a>${submissionId ? ` with reference ID: ${submissionId}` : ''}.</p>
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
-          <p style="font-size: 12px; color: #9ca3af;">Compicfy — Submitted: ${submittedAt} UTC</p>
+          <p style="font-size: 12px; color: #9ca3af;">Compicfy · Submitted: ${submittedAt} UTC</p>
         </div>
       `,
     })

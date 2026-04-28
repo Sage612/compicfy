@@ -529,7 +529,7 @@ export function RecommendationForm({ userId }: Props) {
                 Why do you recommend it?
               </Label>
               <p className="text-[11px] text-muted-foreground leading-snug">
-                Optional — but recs with a personal reason get far more votes. What hooked you? Who is it for?
+                Optional, but recs with a personal reason get far more votes. What hooked you? Who is it for?
               </p>
             </div>
             <span className="text-xs text-muted-foreground shrink-0 mt-0.5">{whyValue.length}/1000</span>

@@ -3,7 +3,7 @@ import { ShoppingBag, ExternalLink, Info } from 'lucide-react'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Shop & Merch | Compicfy',
+  title: 'Shop & Merch',
   description: 'Find manga volumes, figures, kawaii accessories and more from our affiliate partners.',
 }
 
@@ -26,7 +26,7 @@ const platforms = [
 },
   {
     name: 'Blippo',
-    description: 'Kawaii Japanese merchandise — plushies, stationery, accessories, snacks and more.',
+    description: 'Kawaii Japanese merchandise plushies, stationery, accessories, snacks and more.',
     color: 'from-pink-500 to-rose-500',
     bg: 'bg-pink-500/10',
     border: 'border-pink-500/20',
@@ -91,7 +91,7 @@ export default function AffiliatePage() {
             Shop manhwa &amp; <span className="text-primary">Kawaii Merch</span>
           </h1>
           <p className="text-muted-foreground text-sm md:text-base max-w-xl mx-auto leading-relaxed">
-            Browse merchandise from our trusted affiliate partners. Every purchase helps keep Compicfy free for the community.
+            Browse merchandise from our trusted affiliate partners.
           </p>
         </div>
       </div>
@@ -167,7 +167,7 @@ export default function AffiliatePage() {
         <div className="rounded-2xl border border-border bg-card p-6 text-center space-y-3">
           <h3 className="font-black text-lg">Find merch for a specific comic?</h3>
           <p className="text-sm text-muted-foreground">
-            Visit any comic detail page — we show relevant merchandise links based on the genre.
+            Visit any comic detail page, we show relevant merchandise links based on the genre.
           </p>
           <Link
             href="/browse"

@@ -437,7 +437,7 @@ export default async function HomePage() {
                 icon:     TrendingUp,
                 title:    'The community votes',
                 // Explains the actual mechanic, not vague "great picks rise"
-                desc:     'Other readers upvote or downvote. High-scoring recs hit the featured carousel daily — no admin hand-picking, just community signal.',
+                desc:     'Other readers upvote or downvote. High-scoring recs hit the featured carousel daily, no admin hand-picking, just community signal.',
                 gradient: 'from-primary to-blue-600',
                 glow:     'group-hover:shadow-primary/20',
               },

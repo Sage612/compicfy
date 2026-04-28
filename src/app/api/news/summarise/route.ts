@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         const fetchRes = await fetch(source_url, {
           headers: {
             // Pretend to be a browser so sites don't block us
-            'User-Agent': 'Mozilla/5.0 (compatible; Compicfy/1.0; +https://compicfy.com)',
+            'User-Agent': 'Mozilla/5.0 (compatible; Compicfy/1.0; +https://compicfy.cloud)',
             'Accept': 'text/html,application/xhtml+xml',
           },
           signal: AbortSignal.timeout(10000), // 10s timeout

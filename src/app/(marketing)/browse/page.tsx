@@ -4,7 +4,7 @@ import { FilterBar } from '@/components/recommendations/FilterBar'
 import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
 import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
-import { BookOpen, Radar, Plus } from 'lucide-react'
+import { BookOpen, Radar } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import type { Recommendation } from '@/types/database.types'
@@ -26,7 +26,7 @@ const PAGE_SIZE    = 24
 const SAFE_RATINGS = '("adult","mature")'
 
 async function getFeatured(s: SupabaseClient) {
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('daily_votes', { ascending: false }).limit(8)
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('daily_votes', { ascending: false }).limit(12)
   return (data as Recommendation[]) ?? []
 }
 

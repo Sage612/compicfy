@@ -45,7 +45,7 @@ async function getRecent(s: SupabaseClient) {
   return (data as Recommendation[]) ?? []
 }
 
-// New this week — approved in the last 7 days, ordered by score
+// New this week, approved in the last 7 days, ordered by score
 async function getNewThisWeek(s: SupabaseClient) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const { data } = await s

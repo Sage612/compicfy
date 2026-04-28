@@ -1,0 +1,46 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="100%" stop-color="#0f0f1a"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#818cf8" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#818cf8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100" height="100" rx="50" fill="url(#bg)"/>
+
+  <!-- Glow -->
+  <ellipse cx="50" cy="45" rx="30" ry="30" fill="url(#glow)" filter="url(#blur)"/>
+
+  <!-- Ghost body -->
+  <path
+    d="M30 55 Q30 30 50 28 Q70 30 70 55 L70 72 Q62 66 57 72 Q53 78 50 72 Q47 66 43 72 Q38 78 35 72 Q31 67 30 72 Z"
+    fill="#c7d2fe"
+    opacity="0.9"
+  />
+
+  <!-- Eyes -->
+  <ellipse cx="42" cy="52" rx="4.5" ry="5" fill="#1e1b4b"/>
+  <ellipse cx="58" cy="52" rx="4.5" ry="5" fill="#1e1b4b"/>
+
+  <!-- Eye shine -->
+  <circle cx="43.5" cy="50.5" r="1.5" fill="white" opacity="0.8"/>
+  <circle cx="59.5" cy="50.5" r="1.5" fill="white" opacity="0.8"/>
+
+  <!-- Subtle smile -->
+  <path d="M44 60 Q50 64 56 60" stroke="#1e1b4b" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Floating particles -->
+  <circle cx="22" cy="35" r="2" fill="#818cf8" opacity="0.4"/>
+  <circle cx="78" cy="40" r="1.5" fill="#818cf8" opacity="0.3"/>
+  <circle cx="25" cy="65" r="1" fill="#c7d2fe" opacity="0.5"/>
+  <circle cx="76" cy="68" r="1.5" fill="#c7d2fe" opacity="0.4"/>
+  <circle cx="50" cy="18" r="1" fill="#818cf8" opacity="0.5"/>
+</svg>

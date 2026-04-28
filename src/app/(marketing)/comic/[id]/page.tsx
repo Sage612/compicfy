@@ -24,6 +24,7 @@ import { ReadingProgressButton } from '@/components/recommendations/ReadingProgr
 import { headers } from 'next/headers'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
+const GHOST_ID = '00000000-0000-0000-0000-000000000000'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -70,7 +71,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   type RecMeta = Pick<Recommendation, 'title' | 'description' | 'type' | 'genres' | 'author' | 'cover_url' | 'status'>
   const rec = data as RecMeta | null
-  if (!rec) return { title: 'Comic | Compicfy' }
+  if (!rec) return { title: 'Comic' }
 
   const typeLabel = rec.type
     ? rec.type.charAt(0).toUpperCase() + rec.type.slice(1)
@@ -101,7 +102,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     typeLabel,
     'manga recommendation',
     'manhwa recommendation',
-    'webtoon recommendation',
+    'manhua recommendation',
+     'webtoon recommendation',
   ].filter((k): k is string => !!k && k.trim().length > 0)
 
   const ogParams = new URLSearchParams({
@@ -112,7 +114,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   })
   const ogImageUrl = `${SITE_URL}/api/og?${ogParams.toString()}`
   const pageUrl    = `${SITE_URL}/comic/${id}`
-  const pageTitle  = `${rec.title} ${typeLabel} | Compicfy`
+  const pageTitle  = `${rec.title} ${typeLabel}`
 
   return {
     title:       pageTitle,
@@ -316,13 +318,18 @@ export default async function ComicDetailPage({ params }: Props) {
     verified_recommender: boolean
   } | null
 
+  // Ghost check — use UUID not username
+  const isGhostRec = rec.user_id === GHOST_ID
+
   const recommenderIsPro = profile
     ? profile.role === 'admin' ||
       (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
     : false
 
   const recommenderIsVerified = profile?.verified_recommender ?? false
-  const recommenderName       = profile?.display_name || profile?.username || 'unknown'
+  const recommenderName       = isGhostRec
+    ? 'Ghost'
+    : (profile?.display_name || profile?.username || 'unknown')
 
   let userVote: 'up' | 'down' | null = null
   let isSaved = false
@@ -522,24 +529,34 @@ export default async function ComicDetailPage({ params }: Props) {
                 </div>
               )}
 
+              {/* ── Recommender attribution — only change from original ── */}
               <div className="flex items-center justify-between py-3 border-t border-border text-xs text-muted-foreground">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span>Recommended by</span>
-                  {profile?.username === 'deleted_user'
-                    ? <span className="text-muted-foreground italic">[deleted]</span>
-                    : <Link
-                        href={`/profile/${profile?.username}`}
-                        className="text-foreground hover:text-primary font-semibold transition-colors"
-                      >
-                        @{recommenderName}
-                      </Link>
-                  }
-                  <UserBadges
-                    role={profile?.role}
-                    isPro={recommenderIsPro}
-                    isVerified={recommenderIsVerified}
-                    size="sm"
-                  />
+                  {isGhostRec ? (
+                    <Link
+                      href="/profile/their_shadow"
+                      className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
+                    >
+                      👻 @their_shadow
+                      <span className="text-[10px] text-indigo-400/60 italic font-normal">archived</span>
+                    </Link>
+                  ) : (
+                    <Link
+                      href={`/profile/${profile?.username}`}
+                      className="text-foreground hover:text-primary font-semibold transition-colors"
+                    >
+                      @{recommenderName}
+                    </Link>
+                  )}
+                  {!isGhostRec && (
+                    <UserBadges
+                      role={profile?.role}
+                      isPro={recommenderIsPro}
+                      isVerified={recommenderIsVerified}
+                      size="sm"
+                    />
+                  )}
                 </div>
                 <span className="shrink-0">{formatDate(rec.created_at)}</span>
               </div>

@@ -16,6 +16,8 @@ import { ProBadge } from '@/components/pro/ProBadge'
 import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
 import { Button } from '@/components/ui/button'
 
+const GHOST_ID = '00000000-0000-0000-0000-000000000000'
+
 interface Props {
   params: Promise<{ username: string }>
 }
@@ -55,12 +57,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: `@${username}` }
 }
 
-const ROLE_STYLES: Record<string, { badge: string; icon: boolean }> = {
-  admin:     { badge: 'bg-primary/10 text-primary border-primary/20',     icon: true  },
-  moderator: { badge: 'bg-blue-500/10 text-blue-600 border-blue-500/20', icon: false },
-  user:      { badge: 'bg-muted text-muted-foreground border-border',     icon: false },
-}
-
 const THEME_GRADIENTS: Record<string, string> = {
   default:  'from-primary/20 via-violet-500/10 to-transparent',
   gold:     'from-amber-400/30 via-orange-500/15 to-transparent',
@@ -97,30 +93,36 @@ export default async function ProfilePage({ params }: Props) {
 
   const profile: ProfileData = {
     ...(profileData as any),
-    is_pro: (profileData as any).is_pro ?? false,
-    pro_expires_at: (profileData as any).pro_expires_at ?? null,
-    profile_theme: (profileData as any).profile_theme ?? 'default',
-    verified_recommender: (profileData as any).verified_recommender ?? false,
+    is_pro:                   (profileData as any).is_pro ?? false,
+    pro_expires_at:           (profileData as any).pro_expires_at ?? null,
+    profile_theme:            (profileData as any).profile_theme ?? 'default',
+    verified_recommender:     (profileData as any).verified_recommender ?? false,
     pinned_recommendation_id: (profileData as any).pinned_recommendation_id ?? null,
-    favorite_genres: (profileData as any).favorite_genres ?? [],
+    favorite_genres:          (profileData as any).favorite_genres ?? [],
   }
 
-  const isOwner      = viewer?.id === profile.id
-  const isPrivileged = isOwner || viewerRole === 'admin' || viewerRole === 'moderator'
+  // Ghost profile — the archivist
+  const isGhost  = profile.id === GHOST_ID
+  const isOwner  = viewer?.id === profile.id && !isGhost
 
-  const isPro       = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  const isAdmin     = profile.role === 'admin'
-  const showGold     = isPro && !isAdmin
-  const profileTheme   = profile.profile_theme ?? 'default'
-  const bannerGradient = showGold
+  const isPro    = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin  = profile.role === 'admin'
+  const showGold = isPro && !isAdmin
+
+  // Ghost always uses midnight theme
+  const profileTheme   = isGhost ? 'midnight' : (profile.profile_theme ?? 'default')
+  const bannerGradient = isGhost
+    ? 'from-indigo-900/40 via-slate-800/20 to-transparent'
+    : showGold
     ? (THEME_GRADIENTS[profileTheme] ?? THEME_GRADIENTS.default)
     : THEME_GRADIENTS.default
 
-  if (viewer?.id && viewer.id !== profile.id) {
+  // Track profile view — skip for ghost and self
+  if (viewer?.id && viewer.id !== profile.id && !isGhost) {
     try {
       await (supabase as any).rpc('track_profile_view', {
         p_profile_id: profile.id,
-        p_viewer_id: viewer.id,
+        p_viewer_id:  viewer.id,
       })
     } catch { /* Non-critical */ }
   }
@@ -136,7 +138,6 @@ export default async function ProfilePage({ params }: Props) {
     pinnedRec = (pinned as Recommendation) ?? null
   }
 
-  // Fetch up to 6 for the preview grid — always exclude adult/mature for public view
   let recQuery = supabase
     .from('recommendations')
     .select('*')
@@ -150,7 +151,6 @@ export default async function ProfilePage({ params }: Props) {
     recQuery = recQuery.neq('id', profile.pinned_recommendation_id)
   }
 
-  // Count ALL approved recs (excluding adult/mature) for "See all" badge
   let totalRecsQuery = (supabase as any)
     .from('recommendations')
     .select('*', { count: 'exact', head: true })
@@ -168,13 +168,16 @@ export default async function ProfilePage({ params }: Props) {
   ] = await Promise.all([
     recQuery,
     totalRecsQuery,
-    supabase
-      .from('reading_lists')
-      .select('id, name, description, is_public')
-      .eq('user_id', profile.id)
-      .eq('is_public', true)
-      .order('created_at', { ascending: false })
-      .limit(6),
+    // Ghost doesn't have reading lists
+    isGhost
+      ? Promise.resolve({ data: [] })
+      : supabase
+          .from('reading_lists')
+          .select('id, name, description, is_public')
+          .eq('user_id', profile.id)
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(6),
     supabase
       .from('follows')
       .select('*', { count: 'exact', head: true })
@@ -183,7 +186,7 @@ export default async function ProfilePage({ params }: Props) {
       .from('follows')
       .select('*', { count: 'exact', head: true })
       .eq('follower_id', profile.id),
-    viewer && !isOwner
+    viewer && !isOwner && !isGhost
       ? supabase
           .from('follows')
           .select('id')
@@ -198,7 +201,7 @@ export default async function ProfilePage({ params }: Props) {
   const totalRecs       = totalRecsCount ?? 0
   const hasMore         = totalRecs > recommendations.length
 
-  const lists: ReadingList[] = await Promise.all(
+  const lists: ReadingList[] = isGhost ? [] : await Promise.all(
     (listsData ?? []).map(async (list: any) => {
       const { count } = await supabase
         .from('reading_list_items')
@@ -208,18 +211,30 @@ export default async function ProfilePage({ params }: Props) {
     })
   )
 
-  const initials      = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
+  const initials       = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
   const favoriteGenres = Array.isArray(profile.favorite_genres) ? profile.favorite_genres : []
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-10">
 
       {/* ── Profile card ── */}
-      <div className={`rounded-2xl border overflow-hidden ${showGold ? 'border-amber-500/30' : 'border-border'} bg-card`}>
+      <div className={`rounded-2xl border overflow-hidden ${
+        isGhost   ? 'border-indigo-500/30' :
+        showGold  ? 'border-amber-500/30'  :
+                    'border-border'
+      } bg-card`}>
 
         {/* Banner */}
         <div className={`h-24 bg-gradient-to-br ${bannerGradient} relative`}>
-          {showGold && (
+          {isGhost && (
+            <>
+              <div className="absolute inset-0 opacity-20"
+                style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #4f46e5 0%, transparent 50%), radial-gradient(circle at 80% 20%, #7c3aed 0%, transparent 40%)' }}
+              />
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
+            </>
+          )}
+          {showGold && !isGhost && (
             <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
           )}
         </div>
@@ -235,7 +250,6 @@ export default async function ProfilePage({ params }: Props) {
                 isAdmin={isAdmin}
                 className="border-4 border-card shadow-lg shrink-0"
               />
-
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl font-black truncate">
@@ -248,13 +262,24 @@ export default async function ProfilePage({ params }: Props) {
               </div>
             </div>
 
-            {!isOwner && (
+            {/* Follow button — hidden for ghost and for self */}
+            {!isOwner && !isGhost && viewer && (
               <div className="shrink-0 sm:pb-1">
                 <FollowButton
                   profileId={profile.id}
                   initialFollowing={isFollowing}
                   isLoggedIn={!!viewer}
                 />
+              </div>
+            )}
+
+            {/* Ghost — show lore pill instead of follow button */}
+            {isGhost && (
+              <div className="shrink-0 sm:pb-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                  The Archivist
+                </div>
               </div>
             )}
           </div>
@@ -264,17 +289,22 @@ export default async function ProfilePage({ params }: Props) {
           )}
 
           <div className="flex flex-wrap gap-4">
-            <Link
-              href={`/profile/${profile.username}`}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Users size={13} className="text-primary/60" />
-              <span><strong className="text-foreground font-black">{followersCount ?? 0}</strong> followers</span>
-            </Link>
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Users size={13} className="text-primary/60" />
-              <span><strong className="text-foreground font-black">{followingCount ?? 0}</strong> following</span>
-            </div>
+            {/* Ghost doesn't show followers/following count */}
+            {!isGhost && (
+              <>
+                <Link
+                  href={`/profile/${profile.username}`}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Users size={13} className="text-primary/60" />
+                  <span><strong className="text-foreground font-black">{followersCount ?? 0}</strong> followers</span>
+                </Link>
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <Users size={13} className="text-primary/60" />
+                  <span><strong className="text-foreground font-black">{followingCount ?? 0}</strong> following</span>
+                </div>
+              </>
+            )}
             {[
               { icon: BookOpen, value: profile.total_recommendations, label: 'recommendations' },
               { icon: Star,     value: profile.total_reviews,          label: 'reviews'         },
@@ -285,13 +315,15 @@ export default async function ProfilePage({ params }: Props) {
                 <span><strong className="text-foreground font-black">{value ?? 0}</strong> {label}</span>
               </div>
             ))}
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <CalendarDays size={13} className="text-primary/60" />
-              <span>Joined {formatDate(profile.member_since)}</span>
-            </div>
+            {!isGhost && (
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <CalendarDays size={13} className="text-primary/60" />
+                <span>Joined {formatDate(profile.member_since)}</span>
+              </div>
+            )}
           </div>
 
-          {favoriteGenres.length > 0 && (
+          {favoriteGenres.length > 0 && !isGhost && (
             <div className="flex flex-wrap gap-1.5">
               {favoriteGenres.map((genre: string) => (
                 <Badge key={genre} variant="secondary" className="text-xs rounded-full">
@@ -320,8 +352,14 @@ export default async function ProfilePage({ params }: Props) {
       {recommendations.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black">Recent Recommendations</h2>
-            <div className={`h-0.5 flex-1 bg-gradient-to-r ${showGold ? 'from-amber-500/40' : 'from-primary/40'} to-transparent`} />
+            <h2 className="text-lg font-black">
+              {isGhost ? 'Archived Recommendations' : 'Recent Recommendations'}
+            </h2>
+            <div className={`h-0.5 flex-1 bg-gradient-to-r ${
+              isGhost  ? 'from-indigo-500/40' :
+              showGold ? 'from-amber-500/40'  :
+                         'from-primary/40'
+            } to-transparent`} />
             {hasMore && (
               <Link
                 href={`/profile/${profile.username}/recommendations`}
@@ -356,17 +394,23 @@ export default async function ProfilePage({ params }: Props) {
             <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
             <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
               <BookOpen size={18} className="text-primary opacity-60" />
-              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">Empty</span>
+              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">
+                {isGhost ? 'Archive' : 'Empty'}
+              </span>
             </div>
           </div>
-          <p className="font-black text-sm">No recommendations yet</p>
+          <p className="font-black text-sm">
+            {isGhost ? 'The archive is empty' : 'No recommendations yet'}
+          </p>
           <p className="text-xs text-muted-foreground mt-1 text-center px-4">
-            {isOwner
+            {isGhost
+              ? 'Comics find their way here when their recommenders move on. More always arrive.'
+              : isOwner
               ? 'Share a comic you love and help the community find their next read.'
               : `@${profile.username} hasn't shared any recommendations yet.`
             }
           </p>
-          {isOwner && (
+          {isOwner && !isGhost && (
             <Link href="/dashboard/recommendations/new" className="mt-5">
               <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 hover:opacity-90 shadow-md shadow-primary/20">
                 <PenLine size={13} />
@@ -377,8 +421,8 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       )}
 
-      {/* ── Public Reading Lists ── */}
-      {lists.length > 0 && (
+      {/* ── Public Reading Lists — hidden for ghost ── */}
+      {!isGhost && lists.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-black">Reading Lists</h2>

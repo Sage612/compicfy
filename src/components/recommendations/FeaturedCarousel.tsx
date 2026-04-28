@@ -104,16 +104,16 @@ export function FeaturedCarousel({ recommendations }: Props) {
                   />
 
                   {/* Content — fills entire card height, padded top/bottom */}
-                  <div className="relative h-full flex items-center px-6 md:px-12 gap-8 py-8">
+                  <div className="relative h-full flex items-center px-6 md:px-12 gap-4 sm:gap-8 py-8">
 
-                    {/* Cover art — fixed size, never shrinks */}
-                    <div className="hidden sm:block shrink-0">
+                    {/* Cover art — large on sm+, small thumbnail on mobile */}
+                    <div className="shrink-0">
                       <div className="relative">
                         <div
                           className="absolute -inset-3 rounded-2xl blur-xl opacity-40"
                           style={{ background: accentColor }}
                         />
-                        <div className="relative w-32 md:w-44 aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                        <div className="relative w-20 sm:w-32 md:w-44 aspect-[3/4] rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                           {rec.cover_url ? (
                             <img
                               src={rec.cover_url}
@@ -130,7 +130,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
                     </div>
 
                     {/* Text content — flex column, strictly contained, no overflow */}
-                    <div className="flex-1 min-w-0 min-h-0 flex flex-col justify-center gap-2.5 overflow-hidden">
+                    <div className="flex-1 min-w-0 min-h-0 flex flex-col justify-center gap-2 sm:gap-2.5 overflow-hidden">
 
                       {/* Type + featured badge — always visible, never pushed */}
                       <div className="flex items-center gap-2 flex-shrink-0">
