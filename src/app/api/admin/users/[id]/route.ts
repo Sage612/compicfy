@@ -194,12 +194,22 @@ export async function DELETE(
       .eq('id', id)
       .single()) as { data: { username: string } | null }
 
-    const service = getServiceClient()
+  const service = getServiceClient()
+
+    // Delete from auth.users first — this cascades to profiles
     const { error: deleteAuthError } = await service.auth.admin.deleteUser(id)
 
     if (deleteAuthError) {
+      // If auth delete fails, try direct profile delete as fallback
       console.error('Auth delete error:', deleteAuthError)
-      return NextResponse.json({ error: deleteAuthError.message }, { status: 500 })
+      const { error: profileDeleteError } = await service
+        .from('profiles')
+        .delete()
+        .eq('id', id)
+
+      if (profileDeleteError) {
+        return NextResponse.json({ error: 'Failed to delete user' }, { status: 500 })
+      }
     }
 
     await logAction(supabase!, user!.id, 'deleted user', 'user', id, target?.username ?? id, {})
