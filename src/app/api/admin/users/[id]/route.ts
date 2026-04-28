@@ -4,6 +4,7 @@ import { createClient as createServiceClient } from '@supabase/supabase-js'
 import { sendBannedEmail, sendUnbannedEmail, sendAppealResolvedEmail } from '@/lib/email/send'
 import { logAction } from '@/lib/utils/admin'
 
+const GHOST_ID = '00000000-0000-0000-0000-000000000000'
 function getServiceClient() {
   return createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,7 +17,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const auth = await requireRole(true) // admin only
+  const auth = await requireRole(true)
   if (auth.error) return auth.error
 
   const { user, supabase } = auth
@@ -34,23 +35,19 @@ export async function PATCH(
 
   switch (action) {
 
-    // ── Permanent ban ──────────────────────────────────────────────
     case 'ban':
       updates = {
-        is_banned:      true,
-        ban_reason:     reason,
-        banned_at:      new Date().toISOString(),
-        banned_by:      user!.id,
-        // Clear any suspension when doing a permanent ban
-        is_suspended:        false,
-        suspended_until:     null,
-        suspension_reason:   null,
+        is_banned:        true,
+        ban_reason:       reason,
+        banned_at:        new Date().toISOString(),
+        banned_by:        user!.id,
+        is_suspended:     false,
+        suspended_until:  null,
+        suspension_reason: null,
       }
       logMsg = 'banned user'
       break
 
-    // ── Temporary suspension ───────────────────────────────────────
-    // duration_hours: how many hours to suspend for (e.g. 1, 6, 24, 72, 168)
     case 'suspend': {
       const hours = Number(duration_hours)
       if (!hours || hours <= 0) {
@@ -61,13 +58,11 @@ export async function PATCH(
         is_suspended:      true,
         suspended_until:   suspendedUntil,
         suspension_reason: reason,
-        // Don't touch is_banned — they can be both (ban takes precedence in middleware)
       }
       logMsg = `suspended user for ${hours}h`
       break
     }
 
-    // ── Lift suspension early ──────────────────────────────────────
     case 'unsuspend':
       updates = {
         is_suspended:      false,
@@ -77,23 +72,20 @@ export async function PATCH(
       logMsg = 'lifted user suspension'
       break
 
-    // ── Permanent unban ────────────────────────────────────────────
     case 'unban':
       updates = {
-        is_banned:       false,
-        ban_reason:      null,
-        banned_at:       null,
-        banned_by:       null,
-        appeal_status:   'none',
-        // Also clear suspension in case they had both
-        is_suspended:    false,
-        suspended_until: null,
+        is_banned:         false,
+        ban_reason:        null,
+        banned_at:         null,
+        banned_by:         null,
+        appeal_status:     'none',
+        is_suspended:      false,
+        suspended_until:   null,
         suspension_reason: null,
       }
       logMsg = 'unbanned user'
       break
 
-    // ── Role change ────────────────────────────────────────────────
     case 'change_role':
       if (!['user', 'moderator', 'admin'].includes(role)) {
         return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
@@ -102,7 +94,6 @@ export async function PATCH(
       logMsg = `changed user role to ${role}`
       break
 
-    // ── Resolve ban appeal ─────────────────────────────────────────
     case 'resolve_appeal':
       updates = {
         appeal_status: body.appeal_status,
@@ -115,7 +106,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   }
 
-  // Use service client to bypass RLS for all profile updates
   const service = getServiceClient()
   const { data, error: updateError } = await service
     .from('profiles')
@@ -136,15 +126,14 @@ export async function PATCH(
     duration_hours,
   })
 
-  // Notifications + emails
   const notifyActions = ['ban', 'unban', 'resolve_appeal', 'suspend', 'unsuspend']
   if (notifyActions.includes(action)) {
     const messages: Record<string, string> = {
-      ban:        `Your account has been permanently banned. Reason: ${reason}`,
-      suspend:    `Your account has been suspended for ${duration_hours}h. Reason: ${reason}`,
-      unsuspend:  'Your account suspension has been lifted.',
-      unban:      'Your account ban has been lifted.',
-      resolve_appeal: `Your ban appeal has been ${body.appeal_status}.`,
+      ban:             `Your account has been permanently banned. Reason: ${reason}`,
+      suspend:         `Your account has been suspended for ${duration_hours}h. Reason: ${reason}`,
+      unsuspend:       'Your account suspension has been lifted.',
+      unban:           'Your account ban has been lifted.',
+      resolve_appeal:  `Your ban appeal has been ${body.appeal_status}.`,
     }
 
     await (supabase as any)!.from('notifications').insert({
@@ -159,8 +148,8 @@ export async function PATCH(
       const email = authUser?.user?.email
 
       if (email && target?.username) {
-        if (action === 'ban')    await sendBannedEmail(email, target.username, reason)
-        if (action === 'unban')  await sendUnbannedEmail(email, target.username)
+        if (action === 'ban')           await sendBannedEmail(email, target.username, reason)
+        if (action === 'unban')         await sendUnbannedEmail(email, target.username)
         if (action === 'resolve_appeal') {
           await sendAppealResolvedEmail(email, target.username, 'ban', body.appeal_status)
         }
@@ -194,14 +183,39 @@ export async function DELETE(
       .eq('id', id)
       .single()) as { data: { username: string } | null }
 
-  const service = getServiceClient()
+    const service = getServiceClient()
 
-    // Delete from auth.users first — this cascades to profiles
+    // Step 1 — Transfer recommendations to system account
+    // so content is preserved even after the user is gone
+    const { error: transferError } = await service
+      .from('recommendations')
+      .update({ user_id: GHOST_ID })
+      .eq('user_id', id)
+
+    if (transferError) {
+      console.error('Transfer error:', transferError)
+      return NextResponse.json({ error: 'Failed to transfer recommendations' }, { status: 500 })
+    }
+
+    // Step 2 — Clean up storage (best-effort, non-fatal)
+    try {
+      await service.storage.from('avatars').remove([`${id}/avatar`])
+      const { data: covers } = await service.storage.from('covers').list(id)
+      if (covers?.length) {
+        await service.storage
+          .from('covers')
+          .remove(covers.map((f: any) => `${id}/${f.name}`))
+      }
+    } catch {
+      // Storage cleanup failure should not block account deletion
+    }
+
+    // Step 3 — Delete from auth.users (cascades to profiles)
     const { error: deleteAuthError } = await service.auth.admin.deleteUser(id)
 
     if (deleteAuthError) {
-      // If auth delete fails, try direct profile delete as fallback
       console.error('Auth delete error:', deleteAuthError)
+      // Fallback — delete profile directly if auth delete fails
       const { error: profileDeleteError } = await service
         .from('profiles')
         .delete()
