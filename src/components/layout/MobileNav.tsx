@@ -80,7 +80,7 @@ export function MobileNav() {
 
   // Centre slot: Recommend (logged in) or nudge to login (visitor)
   const recSlot = {
-    href:  isLoggedIn ? '/dashboard/recommendations/new' : '/login',
+    href:  !isLoggedIn ? '/login' : isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new',
     label: 'Rec',
     icon:  BookOpen,
     isRec: true,
@@ -88,11 +88,8 @@ export function MobileNav() {
     exact: false,
   }
 
-  // Last slot:
-  //   Visitor      → Go Pro (amber Crown)
-  //   Logged in    → Lists  (pro lists for pro/admin, normal lists otherwise)
   const lastSlot = !isLoggedIn
-    ? { href: '/pricing',                            label: 'Go Pro', icon: Crown,      isProItem: true,  isRec: false, exact: false }
+    ? { href: '/pricing',                              label: 'Go Pro', icon: Crown,      isProItem: true,  isRec: false, exact: false }
     : { href: isPro ? '/pro/lists' : '/dashboard/lists', label: 'Lists',  icon: BookMarked, isProItem: false, isRec: false, exact: false }
 
   const navItems = [

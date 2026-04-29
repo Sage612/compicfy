@@ -149,6 +149,7 @@ export function Header() {
   const billingHref       = isPro ? '/pro/billing'       : '/dashboard/billing'
   const settingsHref      = isPro ? '/pro/settings'      : '/dashboard/settings'
   const notificationsHref = isPro ? '/pro/notifications' : '/dashboard/notifications'
+  const recommendHref     = isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'
   const dashboardLabel    = isPro ? 'Pro Dashboard'      : 'Dashboard'
   const billingLabel      = isPro ? 'Pro Billing'        : 'Billing'
   const listsLabel        = isPro ? 'Pro Lists'          : 'Lists'
@@ -319,7 +320,7 @@ export function Header() {
           ) : !user ? (
             <div className="flex items-center gap-1.5 ml-1">
               <Link href="/login">
-                <Button variant="ghost" size="sm" className="hidden sm:flex h-8 text-sm font-medium">
+                <Button variant="ghost" size="sm"className="h-8 text-sm font-medium">
                   Log in
                 </Button>
               </Link>
@@ -332,7 +333,7 @@ export function Header() {
           ) : (
             <div className="flex items-center gap-1 ml-0.5">
               {/* Recommend button — lg only */}
-              <Link href="/dashboard/recommendations/new" className="hidden lg:flex">
+              <Link href={recommendHref} className="hidden lg:flex">
                 <Button
                   size="sm"
                   className="h-8 px-3 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20"
