@@ -1,16 +1,13 @@
 'use client'
 
-import { useState, useTransition, useCallback, useRef } from 'react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { useState, useTransition, useCallback, useRef, useEffect } from 'react'
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
 } from '@/components/ui/sheet'
-import {
-  Search, X, SlidersHorizontal, BookOpen, Loader2,
-} from 'lucide-react'
+import { Search, X, SlidersHorizontal, BookOpen, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Recommendation } from '@/types/database.types'
 import { toast } from 'sonner'
@@ -26,8 +23,8 @@ const TYPES = [
 ]
 
 const SORTS = [
-  { value: 'recent', label: '✨', full: 'Newest'    },
-  { value: 'top',    label: '🏆', full: 'Top Rated' },
+  { value: 'recent', label: '✨', full: 'Newest'     },
+  { value: 'top',    label: '🏆', full: 'Top Rated'  },
   { value: 'votes',  label: '🔥', full: 'Most Voted' },
 ]
 
@@ -51,20 +48,11 @@ const TYPE_COLORS: Record<string, string> = {
 
 const PAGE_SIZE = 24
 
-interface Filters {
-  type:   string
-  genre:  string
-  status: string
-  sort:   string
-  q:      string
-}
-
 interface Props {
-  username:       string
-  userId:         string
-  initialItems:   Recommendation[]
-  initialTotal:   number
-  currentFilters: Filters
+  username:     string
+  userId:       string
+  initialItems: Recommendation[]
+  initialTotal: number
 }
 
 export function ProfileRecsClient({
@@ -72,73 +60,98 @@ export function ProfileRecsClient({
   userId,
   initialItems,
   initialTotal,
-  currentFilters,
 }: Props) {
-  const router        = useRouter()
-  const pathname      = usePathname()
-  const searchParams  = useSearchParams()
-  const [isPending, startTransition] = useTransition()
+  // ── All filter state lives HERE — no URL params, no stale props ──
+  const [q,      setQ]      = useState('')
+  const [type,   setType]   = useState('')
+  const [status, setStatus] = useState('')
+  const [sort,   setSort]   = useState('recent')
 
-  const [items, setItems]       = useState<Recommendation[]>(initialItems)
-  const [total, setTotal]       = useState(initialTotal)
-  const [page, setPage]         = useState(1)
+  const [items,       setItems]       = useState<Recommendation[]>(initialItems)
+  const [total,       setTotal]       = useState(initialTotal)
+  const [page,        setPage]        = useState(1)
+  const [fetching,    setFetching]    = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [searchInput, setSearchInput] = useState(currentFilters.q)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const updateParam = useCallback(
-    (key: string, value: string) => {
-      const params = new URLSearchParams(searchParams.toString())
-      if (value) params.set(key, value)
-      else params.delete(key)
-      params.delete('page')
-      setPage(1)
-      startTransition(() => router.push(`${pathname}?${params.toString()}`))
-    },
-    [pathname, router, searchParams]
-  )
+  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isFirstRender = useRef(true)
 
-  const clearAll = () => {
-    setSearchInput('')
-    setPage(1)
-    startTransition(() => router.push(pathname))
-  }
+  const hasFilters = !!(q || type || status)
 
-  const handleSearchChange = (value: string) => {
-    setSearchInput(value)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => updateParam('q', value), 400)
-  }
-
-  const loadMore = async () => {
-    setLoadingMore(true)
+  // ── Fetch from API whenever filters/sort change ──
+  const fetchRecs = useCallback(async (
+    filters: { q: string; type: string; status: string; sort: string },
+    offset = 0,
+    append = false,
+  ) => {
+    if (!append) setFetching(true)
     try {
       const params = new URLSearchParams()
-      params.set('user_id', userId)
-      params.set('offset', String((page) * PAGE_SIZE))
-      params.set('limit', String(PAGE_SIZE))
+      params.set('user_id',       userId)
+      params.set('offset',        String(offset))
+      params.set('limit',         String(PAGE_SIZE))
       params.set('exclude_adult', 'true')
-      if (currentFilters.type)   params.set('type',   currentFilters.type)
-      if (currentFilters.genre)  params.set('genre',  currentFilters.genre)
-      if (currentFilters.status) params.set('status', currentFilters.status)
-      if (currentFilters.sort)   params.set('sort',   currentFilters.sort)
-      if (currentFilters.q)      params.set('q',      currentFilters.q)
+      params.set('sort',          filters.sort)
+      if (filters.q)      params.set('q',      filters.q)
+      if (filters.type)   params.set('type',   filters.type)
+      if (filters.status) params.set('status', filters.status)
 
       const res  = await fetch(`/api/profile/${username}/recommendations?${params}`)
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Failed to load')
-      setItems(prev => [...prev, ...(data.recommendations ?? [])])
-      setPage(prev => prev + 1)
+
+      const incoming = (data.recommendations ?? []) as Recommendation[]
+      if (append) {
+        setItems(prev => [...prev, ...incoming])
+        setPage(prev => prev + 1)
+      } else {
+        setItems(incoming)
+        setTotal(data.total ?? incoming.length)
+        setPage(1)
+      }
     } catch {
-      toast.error('Failed to load more')
+      toast.error('Failed to load recommendations')
     } finally {
+      setFetching(false)
       setLoadingMore(false)
     }
+  }, [username, userId])
+
+  // ── Re-fetch when filters/sort change (skip on mount — we have SSR data) ──
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
+    fetchRecs({ q, type, status, sort })
+  }, [type, status, sort]) // q handled separately via debounce
+
+  const handleSearchChange = (value: string) => {
+    setQ(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      fetchRecs({ q: value, type, status, sort })
+    }, 400)
   }
 
-  const hasFilters  = !!(currentFilters.type || currentFilters.genre || currentFilters.status || currentFilters.q)
-  const hasMore     = items.length < total
-  const currentSort = currentFilters.sort || 'recent'
+  const handleSortChange = (value: string) => setSort(value)
+  const handleTypeChange = (value: string) => setType(value)
+  const handleStatusChange = (value: string) => setStatus(value)
+
+  const clearAll = () => {
+    setQ('')
+    setType('')
+    setStatus('')
+    setSort('recent')
+    fetchRecs({ q: '', type: '', status: '', sort: 'recent' })
+  }
+
+  const loadMore = () => {
+    setLoadingMore(true)
+    fetchRecs({ q, type, status, sort }, page * PAGE_SIZE, true)
+  }
+
+  const hasMore = items.length < total
 
   return (
     <div className="space-y-6">
@@ -146,19 +159,19 @@ export function ProfileRecsClient({
       {/* ── Filter bar ── */}
       <div className="space-y-3">
 
-        {/* Row 1: search + mobile filters */}
+        {/* Row 1: search + mobile sheet */}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
             <Input
-              value={searchInput}
+              value={q}
               onChange={e => handleSearchChange(e.target.value)}
               placeholder="Search recommendations…"
               className="pl-9 h-10 bg-card border-border focus:border-primary transition-colors"
             />
-            {searchInput && (
+            {q && (
               <button
-                onClick={() => { setSearchInput(''); updateParam('q', '') }}
+                onClick={() => handleSearchChange('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X size={14} />
@@ -166,12 +179,10 @@ export function ProfileRecsClient({
             )}
           </div>
 
-          {/* Mobile filters sheet */}
           <Sheet>
             <SheetTrigger asChild>
               <Button
-                variant="outline"
-                size="sm"
+                variant="outline" size="sm"
                 className={cn(
                   'h-10 gap-1.5 md:hidden relative shrink-0',
                   hasFilters && 'border-primary text-primary bg-primary/5'
@@ -186,14 +197,18 @@ export function ProfileRecsClient({
                 )}
               </Button>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-auto max-h-[80vh] overflow-y-auto rounded-t-2xl">
+            <SheetContent
+              side="bottom"
+              className="inset-x-0 left-0 right-0 w-full h-auto max-h-[80vh] overflow-y-auto rounded-t-2xl px-4"
+            >
               <SheetHeader className="mb-5">
                 <SheetTitle className="text-left">Filters</SheetTitle>
               </SheetHeader>
               <MobileFilterPanel
-                currentType={currentFilters.type}
-                currentStatus={currentFilters.status}
-                updateParam={updateParam}
+                currentType={type}
+                currentStatus={status}
+                onType={handleTypeChange}
+                onStatus={handleStatusChange}
               />
             </SheetContent>
           </Sheet>
@@ -212,15 +227,17 @@ export function ProfileRecsClient({
 
         {/* Row 2: sort pills */}
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Sort</span>
-          <div className="flex gap-1.5">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+            Sort
+          </span>
+          <div className="flex gap-1.5 flex-wrap">
             {SORTS.map(({ value, label, full }) => (
               <button
                 key={value}
-                onClick={() => updateParam('sort', value)}
+                onClick={() => handleSortChange(value)}
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all duration-150',
-                  currentSort === value
+                  sort === value
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
                     : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
                 )}
@@ -234,17 +251,19 @@ export function ProfileRecsClient({
 
         {/* Row 3: desktop type + status */}
         <div className="hidden md:flex items-center gap-3 flex-wrap">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Type</span>
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+            Type
+          </span>
           <div className="flex gap-1.5 flex-wrap">
             {TYPES.map(({ value, label }) => (
               <button
                 key={value}
-                data-active={currentFilters.type === value}
-                onClick={() => updateParam('type', value)}
+                data-active={type === value}
+                onClick={() => handleTypeChange(value)}
                 className={cn(
                   'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
                   TYPE_COLORS[value] ?? TYPE_COLORS[''],
-                  currentFilters.type !== value && 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                  type !== value && 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
                 )}
               >
                 {label}
@@ -252,15 +271,17 @@ export function ProfileRecsClient({
             ))}
           </div>
           <div className="w-px h-5 bg-border" />
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Status</span>
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+            Status
+          </span>
           <div className="flex gap-1.5 flex-wrap">
             {STATUSES.map(({ value, label }) => (
               <button
                 key={value}
-                onClick={() => updateParam('status', value)}
+                onClick={() => handleStatusChange(value)}
                 className={cn(
                   'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
-                  currentFilters.status === value
+                  status === value
                     ? 'bg-primary text-primary-foreground border-primary'
                     : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
                 )}
@@ -272,25 +293,33 @@ export function ProfileRecsClient({
         </div>
 
         {/* Results count */}
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            {isPending ? (
-              <span className="flex items-center gap-1.5">
-                <Loader2 size={11} className="animate-spin" /> Filtering…
-              </span>
-            ) : (
-              <>
-                <span className="font-semibold text-foreground">{total}</span>{' '}
-                recommendation{total !== 1 ? 's' : ''}
-                {hasFilters && <span className="text-primary ml-1">· filtered</span>}
-              </>
-            )}
-          </p>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          {fetching ? (
+            <span className="flex items-center gap-1.5">
+              <Loader2 size={11} className="animate-spin" /> Filtering…
+            </span>
+          ) : (
+            <>
+              <span className="font-semibold text-foreground">{total}</span>{' '}
+              recommendation{total !== 1 ? 's' : ''}
+              {hasFilters && <span className="text-primary ml-1">· filtered</span>}
+            </>
+          )}
+        </p>
       </div>
 
       {/* ── Grid ── */}
-      {items.length === 0 ? (
+      {fetching ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="space-y-2 animate-pulse">
+              <div className="w-full aspect-[3/4] rounded-2xl bg-muted" />
+              <div className="h-3.5 w-3/4 rounded bg-muted" />
+              <div className="h-3 w-1/2 rounded bg-muted" />
+            </div>
+          ))}
+        </div>
+      ) : items.length === 0 ? (
         <div className="text-center py-20 rounded-2xl border border-dashed border-border space-y-3">
           <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto">
             {hasFilters
@@ -324,7 +353,7 @@ export function ProfileRecsClient({
       )}
 
       {/* ── Load more ── */}
-      {hasMore && items.length > 0 && (
+      {hasMore && !fetching && items.length > 0 && (
         <div className="flex justify-center pt-2">
           <Button
             variant="outline"
@@ -344,11 +373,12 @@ export function ProfileRecsClient({
 }
 
 function MobileFilterPanel({
-  currentType, currentStatus, updateParam,
+  currentType, currentStatus, onType, onStatus,
 }: {
   currentType:   string
   currentStatus: string
-  updateParam:   (key: string, value: string) => void
+  onType:        (v: string) => void
+  onStatus:      (v: string) => void
 }) {
   return (
     <div className="space-y-6 pb-8">
@@ -359,7 +389,7 @@ function MobileFilterPanel({
             <button
               key={value}
               data-active={currentType === value}
-              onClick={() => updateParam('type', value)}
+              onClick={() => onType(value)}
               className={cn(
                 'px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all',
                 TYPE_COLORS[value] ?? TYPE_COLORS[''],
@@ -377,7 +407,7 @@ function MobileFilterPanel({
           {STATUSES.map(({ value, label }) => (
             <button
               key={value}
-              onClick={() => updateParam('status', value)}
+              onClick={() => onStatus(value)}
               className={cn(
                 'px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all',
                 currentStatus === value
