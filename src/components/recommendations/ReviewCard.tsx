@@ -96,8 +96,12 @@ export function ReviewCard({
             reason:      'Reported by user',
           }),
         })
+        if (res.status === 409) {
+          toast.info('You\'ve already reported this review')
+          return
+        }
         if (!res.ok) throw new Error()
-        toast.success('Report submitted — thank you')
+        toast.success('Report submitted, thank you')
       } catch {
         toast.error('Failed to submit report')
       } finally {

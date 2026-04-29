@@ -193,14 +193,14 @@ export function ReadingProgressButton({ comicId, chapterCount, isLoggedIn }: Pro
         onClick={() => setOpen(o => !o)}
         className={cn(
           // Same sizing as the other action buttons in the left column
-          'flex items-center justify-between w-full h-10 px-4 rounded-xl border text-sm font-semibold transition-all',
+         'flex items-center justify-between w-full h-10 px-4 rounded-xl border text-sm font-semibold transition-all text-center',
           currentStatus
             ? cn('border', currentStatus.color)
             : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary'
         )}
       >
         {/* Left side — icon + label, same pattern as Save/Share buttons */}
-        <span className="flex items-center gap-2 min-w-0">
+        <span className="flex items-center gap-2 min-w-0 flex-1 justify-center">
           {saving
             ? <Loader2 size={14} className="animate-spin shrink-0" />
             : currentStatus
