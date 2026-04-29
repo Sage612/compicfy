@@ -7,7 +7,7 @@ import { SimilarComics } from '@/components/recommendations/SimilarComics'
 import {
   BookOpen, Calendar, Hash, User, Palette,
   Globe, ExternalLink, ArrowLeft, ShieldAlert,
-  Star, ThumbsUp, Bookmark, MessageSquare, PenLine,
+  Star, ThumbsUp, Bookmark, MessageSquare,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils/format'
@@ -21,6 +21,7 @@ import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
 import { UserBadges } from '@/components/pro/UserBadges'
 import { ReadingProgressButton } from '@/components/recommendations/ReadingProgressButton'
+import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnButton'
 import { headers } from 'next/headers'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
@@ -449,16 +450,11 @@ export default async function ComicDetailPage({ params }: Props) {
               />
               {user && <AddToListButton recommendationId={id} userId={user.id} />}
 
-             <Link href={user ? submitRoute : `/login?next=/dashboard/recommendations/new`}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 w-full hover:border-primary/40 hover:text-primary transition-colors"
-                >
-                  <PenLine size={14} />
-                  Submit Your Own
-                </Button>
-              </Link>
+             <SubmitYourOwnButton
+                isLoggedIn={!!user}
+                submitRoute={submitRoute}
+                comicId={id}
+              />
 
               <ShareButton
                 title={rec.title}
