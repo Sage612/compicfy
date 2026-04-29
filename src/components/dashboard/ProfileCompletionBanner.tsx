@@ -11,8 +11,16 @@ interface Props {
   hasWebsite: boolean
 }
 
+const PROFILE_SESSION_KEY = 'compicfy_profile_banner_dismissed'
+
 export function ProfileCompletionBanner({ hasAvatar, hasBio, hasWebsite }: Props) {
-  const [dismissed, setDismissed] = useState(false)
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return typeof window !== 'undefined'
+        ? !!sessionStorage.getItem(PROFILE_SESSION_KEY)
+        : false
+    } catch { return false }
+  })
 
   const items = [
     { label: 'Add a profile photo',  done: hasAvatar,  icon: User,     anchor: '#avatar'  },
@@ -35,7 +43,10 @@ export function ProfileCompletionBanner({ hasAvatar, hasBio, hasWebsite }: Props
 
       {/* Dismiss button */}
       <button
-        onClick={() => setDismissed(true)}
+       onClick={() => {
+        try { sessionStorage.setItem(PROFILE_SESSION_KEY, '1') } catch {}
+        setDismissed(true)
+      }}
         className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-muted/50"
         aria-label="Dismiss"
       >

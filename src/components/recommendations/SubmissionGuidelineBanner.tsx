@@ -4,9 +4,8 @@ import { useEffect, useState } from 'react'
 import { X, BookOpen, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// Show the banner at most once every 4 days
-const STORAGE_KEY    = 'compicfy_guidelines_dismissed'
-const SHOW_EVERY_MS  = 4 * 24 * 60 * 60 * 1000 // 4 days
+// Show every new session, dismiss survives within-session navigation
+const STORAGE_KEY = 'compicfy_guidelines_dismissed'
 
 const RULES = [
   { ok: true,  text: 'Real titles only, no made up or placeholder names'                },
@@ -22,17 +21,14 @@ export function SubmissionGuidelineBanner() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (!raw) { setVisible(true); return }
-      const last = parseInt(raw, 10)
-      if (Date.now() - last > SHOW_EVERY_MS) setVisible(true)
+      setVisible(!sessionStorage.getItem(STORAGE_KEY))
     } catch {
       setVisible(true)
     }
   }, [])
 
   const dismiss = () => {
-    try { localStorage.setItem(STORAGE_KEY, String(Date.now())) } catch {}
+    try { sessionStorage.setItem(STORAGE_KEY, '1') } catch {}
     setVisible(false)
   }
 
@@ -75,7 +71,7 @@ export function SubmissionGuidelineBanner() {
         onClick={dismiss}
         className="text-xs text-primary hover:underline font-semibold"
       >
-        Got it, don't show for a few days
+        Got it, hide for this session.
       </button>
     </div>
   )
