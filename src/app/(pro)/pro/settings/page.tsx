@@ -11,7 +11,7 @@ export default async function ProSettingsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: profileData } = await (supabase as any)
+  const { data: profileData } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)

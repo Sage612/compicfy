@@ -20,9 +20,10 @@ export default async function MarketingLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col overflow-x-hidden">
       <Header />
-      <main className="flex-1 pt-14 pb-16 md:pb-0">
+      
+      <main className="flex-1 pt-14 pb-16 md:pb-0 overflow-x-hidden">
         {children}
       </main>
       <Footer />
