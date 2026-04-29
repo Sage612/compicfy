@@ -178,7 +178,6 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
           )}
           {userReview && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-sm text-emerald-600">
-              <span>✅</span>
               <span>You've reviewed this comic, find it below to edit.</span>
             </div>
           )}

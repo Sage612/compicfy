@@ -99,7 +99,24 @@ export default async function HomePage() {
     supabase.from('profiles').select('id, username, display_name, avatar_url, total_recommendations').eq('is_banned', false).not('role', 'eq', 'admin').gt('total_recommendations', 0).order('total_recommendations', { ascending: false }).limit(6),
   ])
 
-  const { data: { user } } = await supabase.auth.getUser()
+ const { data: { user } } = await supabase.auth.getUser()
+
+  // Determine correct submission route for current user
+  let submitRoute = '/dashboard/recommendations/new'
+  if (user) {
+    const { data: currentProfile } = await supabase
+      .from('profiles')
+      .select('role, is_pro, pro_expires_at')
+      .eq('id', user.id)
+      .single()
+    const isAdminOrMod = ['admin', 'moderator'].includes((currentProfile as any)?.role ?? '')
+    const isPro = (currentProfile as any)?.is_pro &&
+      (!(currentProfile as any)?.pro_expires_at ||
+        new Date((currentProfile as any).pro_expires_at) > new Date())
+    if (isAdminOrMod || isPro) {
+      submitRoute = '/pro/recommendations/new'
+    }
+  }
 
   const topComics    = (trending        as Recommendation[]) ?? []
   const latestNews   = (recentNews      as News[])           ?? []
@@ -191,7 +208,7 @@ export default async function HomePage() {
                     </Button>
                   </Link>
                 ) : (
-                  <Link href="/dashboard/recommendations/new">
+                <Link href={submitRoute}>
                     <Button size="lg" variant="outline" className="gap-2 h-12 px-6 font-semibold hover:border-primary/50">
                       <BookOpen size={17} />
                       Share a Rec?
@@ -510,7 +527,7 @@ export default async function HomePage() {
               Takes two minutes. Might make someone's whole week.
             </p>
             <div className="flex flex-wrap gap-3 pt-1">
-              <Link href={user ? '/dashboard/recommendations/new' : '/signup'}>
+             <Link href={user ? submitRoute : '/signup'}>
                 <Button size="lg" className="gap-2 h-12 bg-gradient-to-r from-violet-500 to-rose-500 hover:from-violet-400 hover:to-rose-400 text-white font-bold shadow-xl border-0">
                   <BookOpen size={15} />
                   {user ? 'Submit a Recommendation' : "Join Compicfy — it's free"}

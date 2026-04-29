@@ -58,7 +58,10 @@ function LoginForm() {
     router.refresh()
 
     if ((profile as any)?.onboarding_completed === false) {
-      router.push('/onboarding')
+      const onboardingDest = next !== '/browse'
+        ? `/onboarding?next=${encodeURIComponent(next)}`
+        : '/onboarding'
+      router.push(onboardingDest)
     } else {
       router.push(next)
     }

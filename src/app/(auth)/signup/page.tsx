@@ -94,7 +94,10 @@ function SignupForm() {
     }
 
     toast.success('Welcome to Compicfy! 🎉')
-    router.push('/onboarding')
+    const onboardingDest = next !== '/onboarding'
+      ? `/onboarding?next=${encodeURIComponent(next)}`
+      : '/onboarding'
+    router.push(onboardingDest)
     router.refresh()
   }
 

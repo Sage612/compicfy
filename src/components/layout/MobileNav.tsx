@@ -8,15 +8,17 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState, useRef } from 'react'
+import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 
 export function MobileNav() {
-  const pathname                    = usePathname()
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  const [isPro, setIsPro]           = useState(false)
-  const [authReady, setAuthReady]   = useState(false)
-  const [visible, setVisible]       = useState(true)
-  const lastScrollY                 = useRef(0)
-  const supabase                    = createClient()
+  const pathname                        = usePathname()
+  const [isLoggedIn, setIsLoggedIn]     = useState(false)
+  const [isPro, setIsPro]               = useState(false)
+  const [authReady, setAuthReady]       = useState(false)
+  const [visible, setVisible]           = useState(true)
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false)
+  const lastScrollY                     = useRef(0)
+  const supabase                        = createClient()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -73,14 +75,12 @@ export function MobileNav() {
 
   // ── Slot definitions ─────────────────────────────────────────────
 
-  // First slot: Home for visitors, Feed for logged-in
   const firstSlot = !isLoggedIn
     ? { href: '/',     label: 'Home', icon: House,      exact: true,  isRec: false, isProItem: false }
     : { href: '/feed', label: 'Feed', icon: LayoutList, exact: false, isRec: false, isProItem: false }
 
-  // Centre slot: Recommend (logged in) or nudge to login (visitor)
   const recSlot = {
-    href:  !isLoggedIn ? '/login' : isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new',
+    href:  isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new',
     label: 'Rec',
     icon:  BookOpen,
     isRec: true,
@@ -89,7 +89,7 @@ export function MobileNav() {
   }
 
   const lastSlot = !isLoggedIn
-    ? { href: '/pricing',                              label: 'Go Pro', icon: Crown,      isProItem: true,  isRec: false, exact: false }
+    ? { href: '/pricing',                                label: 'Go Pro', icon: Crown,      isProItem: true,  isRec: false, exact: false }
     : { href: isPro ? '/pro/lists' : '/dashboard/lists', label: 'Lists',  icon: BookMarked, isProItem: false, isRec: false, exact: false }
 
   const navItems = [
@@ -100,7 +100,6 @@ export function MobileNav() {
     lastSlot,
   ]
 
-  // Stable skeleton while auth resolves — prevents layout jump
   if (!authReady) {
     return (
       <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
@@ -119,42 +118,103 @@ export function MobileNav() {
   }
 
   return (
-    <nav className={cn(
-      'fixed bottom-0 left-0 right-0 z-50 lg:hidden',
-      'transition-transform duration-300 ease-in-out',
-      !visible && 'translate-y-full'
-    )}>
-      <div className="absolute inset-0 bg-background/95 backdrop-blur-lg border-t border-border" />
+    <>
+      <AuthPromptModal
+        open={showAuthPrompt}
+        onClose={() => setShowAuthPrompt(false)}
+        config={{
+          action: 'share a recommendation',
+          icon: <BookOpen size={24} className="text-primary" />,
+        }}
+      />
 
-      <div className="relative flex items-center justify-around px-1 h-16">
-        {navItems.map((item) => {
-          const { href, label, icon: Icon, exact, isRec, isProItem } = item
-          const isActive = exact ? pathname === href : pathname.startsWith(href)
+      <nav className={cn(
+        'fixed bottom-0 left-0 right-0 z-50 lg:hidden',
+        'transition-transform duration-300 ease-in-out',
+        !visible && 'translate-y-full'
+      )}>
+        <div className="absolute inset-0 bg-background/95 backdrop-blur-lg border-t border-border" />
 
-          /* ── Centre Recommend button ── */
-          if (isRec) {
-            return (
-              <Link
-                key={href}
-                href={href}
-                className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
-              >
-                <div className={cn(
-                  'w-11 h-11 rounded-2xl flex items-center justify-center',
-                  'bg-gradient-to-br from-primary to-violet-500',
-                  'shadow-lg shadow-primary/30',
-                  'active:opacity-80 hover:opacity-90',
-                  'transition-all duration-200 ease-out'
-                )}>
-                  <Icon size={20} className="text-white" strokeWidth={2.5} />
-                </div>
-                <span className="text-[10px] font-bold text-primary leading-none">{label}</span>
-              </Link>
-            )
-          }
+        <div className="relative flex items-center justify-around px-1 h-16">
+          {navItems.map((item) => {
+            const { href, label, icon: Icon, exact, isRec, isProItem } = item
+            const isActive = exact ? pathname === href : pathname.startsWith(href)
 
-          /* ── Go Pro item (visitors only) ── */
-          if (isProItem) {
+            /* ── Centre Recommend button ── */
+            if (isRec) {
+              // Guest → show auth modal instead of hard redirect
+              if (!isLoggedIn) {
+                return (
+                  <button
+                    key="rec-guest"
+                    onClick={() => setShowAuthPrompt(true)}
+                    className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
+                  >
+                    <div className={cn(
+                      'w-11 h-11 rounded-2xl flex items-center justify-center',
+                      'bg-gradient-to-br from-primary to-violet-500',
+                      'shadow-lg shadow-primary/30',
+                      'active:opacity-80 hover:opacity-90',
+                      'transition-all duration-200 ease-out'
+                    )}>
+                      <Icon size={20} className="text-white" strokeWidth={2.5} />
+                    </div>
+                    <span className="text-[10px] font-bold text-primary leading-none">{label}</span>
+                  </button>
+                )
+              }
+
+              // Logged in → normal link
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
+                >
+                  <div className={cn(
+                    'w-11 h-11 rounded-2xl flex items-center justify-center',
+                    'bg-gradient-to-br from-primary to-violet-500',
+                    'shadow-lg shadow-primary/30',
+                    'active:opacity-80 hover:opacity-90',
+                    'transition-all duration-200 ease-out'
+                  )}>
+                    <Icon size={20} className="text-white" strokeWidth={2.5} />
+                  </div>
+                  <span className="text-[10px] font-bold text-primary leading-none">{label}</span>
+                </Link>
+              )
+            }
+
+            /* ── Go Pro item (visitors only) ── */
+            if (isProItem) {
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
+                >
+                  <div className={cn(
+                    'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
+                    isActive
+                      ? 'bg-amber-500/20 text-amber-500 scale-110'
+                      : 'text-amber-500/70 hover:bg-amber-500/10'
+                  )}>
+                    <Icon size={19} strokeWidth={isActive ? 2.5 : 1.75} />
+                  </div>
+                  <span className={cn(
+                    'text-[10px] font-semibold leading-none transition-colors duration-150',
+                    isActive ? 'text-amber-500' : 'text-amber-500/70'
+                  )}>
+                    {label}
+                  </span>
+                  {isActive && (
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-amber-500" />
+                  )}
+                </Link>
+              )
+            }
+
+            /* ── Regular nav items ── */
             return (
               <Link
                 key={href}
@@ -164,54 +224,27 @@ export function MobileNav() {
                 <div className={cn(
                   'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
                   isActive
-                    ? 'bg-amber-500/20 text-amber-500 scale-110'
-                    : 'text-amber-500/70 hover:bg-amber-500/10'
+                    ? 'bg-primary/15 text-primary scale-110'
+                    : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
                 )}>
                   <Icon size={19} strokeWidth={isActive ? 2.5 : 1.75} />
                 </div>
                 <span className={cn(
                   'text-[10px] font-semibold leading-none transition-colors duration-150',
-                  isActive ? 'text-amber-500' : 'text-amber-500/70'
+                  isActive ? 'text-primary' : 'text-muted-foreground'
                 )}>
                   {label}
                 </span>
                 {isActive && (
-                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-amber-500" />
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary" />
                 )}
               </Link>
             )
-          }
+          })}
+        </div>
 
-          /* ── Regular nav items ── */
-          return (
-            <Link
-              key={href}
-              href={href}
-              className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
-            >
-              <div className={cn(
-                'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200',
-                isActive
-                  ? 'bg-primary/15 text-primary scale-110'
-                  : 'text-muted-foreground hover:bg-accent/60 hover:text-foreground'
-              )}>
-                <Icon size={19} strokeWidth={isActive ? 2.5 : 1.75} />
-              </div>
-              <span className={cn(
-                'text-[10px] font-semibold leading-none transition-colors duration-150',
-                isActive ? 'text-primary' : 'text-muted-foreground'
-              )}>
-                {label}
-              </span>
-              {isActive && (
-                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-primary" />
-              )}
-            </Link>
-          )
-        })}
-      </div>
-
-      <div className="bg-background/95" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
-    </nav>
+        <div className="bg-background/95" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
+      </nav>
+    </>
   )
 }

@@ -331,6 +331,23 @@ export default async function ComicDetailPage({ params }: Props) {
     ? 'Ghost'
     : (profile?.display_name || profile?.username || 'unknown')
 
+ // Determine correct submission route for current user
+  let submitRoute = '/dashboard/recommendations/new'
+  if (user) {
+    const { data: currentUserProfile } = await supabase
+      .from('profiles')
+      .select('role, is_pro, pro_expires_at')
+      .eq('id', user.id)
+      .single()
+    const isAdminOrMod = ['admin', 'moderator'].includes((currentUserProfile as any)?.role ?? '')
+    const isPro = (currentUserProfile as any)?.is_pro &&
+      (!(currentUserProfile as any)?.pro_expires_at ||
+        new Date((currentUserProfile as any).pro_expires_at) > new Date())
+    if (isAdminOrMod || isPro) {
+      submitRoute = '/pro/recommendations/new'
+    }
+  }
+
   let userVote: 'up' | 'down' | null = null
   let isSaved = false
   if (user) {
@@ -432,14 +449,14 @@ export default async function ComicDetailPage({ params }: Props) {
               />
               {user && <AddToListButton recommendationId={id} userId={user.id} />}
 
-              <Link href="/dashboard/recommendations/new">
+             <Link href={user ? submitRoute : `/login?next=/dashboard/recommendations/new`}>
                 <Button
                   variant="outline"
                   size="sm"
                   className="gap-2 w-full hover:border-primary/40 hover:text-primary transition-colors"
                 >
                   <PenLine size={14} />
-                  Have A Recommendation?
+                  Submit Your Own
                 </Button>
               </Link>
 

@@ -18,6 +18,7 @@ interface Props {
   username:      string
   displayName:   string
   initialGenres: string[]
+  next:          string
 }
 
 const STEPS = ['welcome', 'genres', 'discover', 'tour', 'done'] as const
@@ -75,7 +76,7 @@ function ComicImage({ src, alt }: { src: string | null; alt: string }) {
   )
 }
 
-export function OnboardingFlow({ userId, username, displayName, initialGenres }: Props) {
+export function OnboardingFlow({ userId, username, displayName, initialGenres, next }: Props) {
   const router = useRouter()
   const [step,           setStep]           = useState<Step>('welcome')
   const [selectedGenres, setSelectedGenres] = useState<string[]>(initialGenres)
@@ -175,8 +176,9 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
     }
   }
 
-  const handleComplete = async (destination = '/browse') => {
+  const handleComplete = async (destination?: string) => {
     setSaving(true)
+    const target = destination ?? next
     try {
       const res = await fetch('/api/onboarding/complete', {
         method:  'POST',
@@ -184,7 +186,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres }:
         body:    JSON.stringify({ favorite_genres: selectedGenres }),
       })
       if (!res.ok) throw new Error()
-      router.push(destination)
+      router.push(target)
       router.refresh()
     } catch {
       toast.error('Something went wrong, please try again')

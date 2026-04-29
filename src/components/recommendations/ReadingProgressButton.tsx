@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { timeAgo } from '@/lib/utils/format'
+import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 
 interface ReadingList {
   id:   string
@@ -46,7 +47,8 @@ export function ReadingProgressButton({ comicId, chapterCount, isLoggedIn }: Pro
   const [open,        setOpen]       = useState(false)
   const [chapter,     setChapter]    = useState<string>('')
   const [activeList,  setActiveList] = useState<string>('')
-  const [dirty,       setDirty]      = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const supabase    = createClient()
 
@@ -149,16 +151,26 @@ export function ReadingProgressButton({ comicId, chapterCount, isLoggedIn }: Pro
     }
   }
 
-  // Not logged in — match the style of other action buttons
+  // Not logged in — show auth modal instead of hard redirect
   if (!isLoggedIn) {
     return (
-      <a
-        href="/login"
-        className="flex items-center justify-center gap-2 w-full h-10 px-4 rounded-xl border border-border bg-card text-sm font-semibold text-muted-foreground hover:border-primary/40 hover:text-primary transition-all"
-      >
-        <BookOpen size={14} />
-        Track Progress
-      </a>
+      <>
+        <AuthPromptModal
+          open={showAuthPrompt}
+          onClose={() => setShowAuthPrompt(false)}
+          config={{
+            action: 'track your reading progress',
+            icon: <BookOpen size={24} className="text-primary" />,
+          }}
+        />
+        <button
+          onClick={() => setShowAuthPrompt(true)}
+          className="flex items-center justify-center gap-2 w-full h-10 px-4 rounded-xl border border-border bg-card text-sm font-semibold text-muted-foreground hover:border-primary/40 hover:text-primary transition-all"
+        >
+          <BookOpen size={14} />
+          Track Progress
+        </button>
+      </>
     )
   }
 

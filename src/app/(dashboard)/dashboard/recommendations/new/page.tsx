@@ -15,6 +15,22 @@ export default async function NewRecommendationPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Pro/admin users should use the pro submission route
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, is_pro, pro_expires_at')
+    .eq('id', user.id)
+    .single()
+
+  const isAdminOrMod = ['admin', 'moderator'].includes((profile as any)?.role ?? '')
+  const isPro = (profile as any)?.is_pro &&
+    (!(profile as any)?.pro_expires_at ||
+      new Date((profile as any).pro_expires_at) > new Date())
+
+  if (isAdminOrMod || isPro) {
+    redirect('/pro/recommendations/new')
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 

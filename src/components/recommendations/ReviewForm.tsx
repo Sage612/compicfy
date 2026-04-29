@@ -177,7 +177,7 @@ export function ReviewForm({
           onClick={() => setShowPrompts(v => !v)}
           className="w-full flex items-center justify-between px-3.5 py-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
         >
-          <span>✨ Need inspiration? Use a prompt</span>
+          <span>✨ Need inspiration? Use suggestions</span>
           {showPrompts ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
         </button>
 
@@ -228,7 +228,7 @@ export function ReviewForm({
             ))}
 
             <p className="text-[10px] text-muted-foreground/60">
-              Clicking a prompt appends it to your review. Edit freely after.
+              Clicking a suggestion appends it to your review. Edit freely after.
             </p>
           </div>
         )}
