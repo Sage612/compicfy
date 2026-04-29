@@ -24,11 +24,12 @@ export function VoteButtons({
   isLoggedIn,
   comicTitle,
 }: Props) {
-  const [upvotes,   setUpvotes]   = useState(initialUpvotes)
-  const [downvotes, setDownvotes] = useState(initialDownvotes)
-  const [userVote,  setUserVote]  = useState(initialVote)
-  const [loading,   setLoading]   = useState(false)
-  const [showAuth,  setShowAuth]  = useState(false)
+  const [upvotes,     setUpvotes]     = useState(initialUpvotes)
+  const [downvotes,   setDownvotes]   = useState(initialDownvotes)
+  const [userVote,    setUserVote]    = useState(initialVote)
+  // ── Track WHICH button is spinning, not just a boolean ──
+  const [loadingVote, setLoadingVote] = useState<'up' | 'down' | null>(null)
+  const [showAuth,    setShowAuth]    = useState(false)
   const [pendingVote, setPendingVote] = useState<'up' | 'down' | null>(null)
 
   const handleVote = async (type: 'up' | 'down') => {
@@ -37,8 +38,8 @@ export function VoteButtons({
       setShowAuth(true)
       return
     }
-    if (loading) return
-    setLoading(true)
+    if (loadingVote) return   // block if any vote is in flight
+    setLoadingVote(type)      // only spin THIS button
 
     const prev = { upvotes, downvotes, userVote }
 
@@ -85,16 +86,17 @@ export function VoteButtons({
       setUserVote(prev.userVote)
       toast.error('Failed to vote')
     } finally {
-      setLoading(false)
+      setLoadingVote(null)
     }
   }
 
   return (
     <>
       <div className="flex gap-2">
+        {/* ── Upvote ── */}
         <button
           onClick={() => handleVote('up')}
-          disabled={loading}
+          disabled={!!loadingVote}
           className={cn(
             'flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border text-sm font-semibold transition-all',
             userVote === 'up'
@@ -102,12 +104,17 @@ export function VoteButtons({
               : 'border-border text-muted-foreground hover:border-emerald-500/40 hover:text-emerald-600 hover:bg-emerald-500/5'
           )}
         >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <ThumbsUp size={14} />}
+          {loadingVote === 'up'
+            ? <Loader2 size={14} className="animate-spin" />
+            : <ThumbsUp size={14} />
+          }
           {formatNumber(upvotes)}
         </button>
+
+        {/* ── Downvote ── */}
         <button
           onClick={() => handleVote('down')}
-          disabled={loading}
+          disabled={!!loadingVote}
           className={cn(
             'flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border text-sm font-semibold transition-all',
             userVote === 'down'
@@ -115,7 +122,10 @@ export function VoteButtons({
               : 'border-border text-muted-foreground hover:border-rose-500/40 hover:text-rose-600 hover:bg-rose-500/5'
           )}
         >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <ThumbsDown size={14} />}
+          {loadingVote === 'down'
+            ? <Loader2 size={14} className="animate-spin" />
+            : <ThumbsDown size={14} />
+          }
           {formatNumber(downvotes)}
         </button>
       </div>

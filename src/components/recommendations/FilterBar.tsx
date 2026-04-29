@@ -27,10 +27,10 @@ const TYPES = [
 ]
 
 const SORTS = [
-  { value: 'score',    label: '🏆', full: 'Top Rated'    },
-  { value: 'trending', label: '🔥', full: 'Trending'     },
-  { value: 'recent',   label: '✨', full: 'Newest'       },
-  { value: 'top',      label: '👑', full: 'All Time'     },
+  { value: 'score',    label: '🏆', full: 'Top Rated' },
+  { value: 'trending', label: '🔥', full: 'Trending'  },
+  { value: 'recent',   label: '✨', full: 'Newest'    },
+  { value: 'top',      label: '👑', full: 'All Time'  },
 ]
 
 const STATUSES = [
@@ -151,7 +151,15 @@ export function FilterBar({ adult = false }: Props) {
               )}
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="h-auto max-h-[80vh] overflow-y-auto rounded-t-2xl">
+
+          <SheetContent
+            side="bottom"
+            className="
+              inset-x-0 left-0 right-0 w-full
+              h-auto max-h-[80vh] overflow-y-auto
+              rounded-t-2xl px-4
+            "
+          >
             <SheetHeader className="mb-5">
               <SheetTitle className="text-left">Filters</SheetTitle>
             </SheetHeader>

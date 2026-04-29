@@ -1,14 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, BookOpen, Layers } from 'lucide-react'
+import { ArrowLeft, Layers } from 'lucide-react'
 import type { Recommendation } from '@/types/database.types'
 import type { Metadata } from 'next'
 import { ProAvatar } from '@/components/pro/ProAvatar'
 import { ProBadge } from '@/components/pro/ProBadge'
 import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
-import { FilterBar } from '@/components/recommendations/FilterBar'
-import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
+import { ProfileRecsClient } from '@/components/profile/ProfileRecsClient'
 
 interface Props {
   params:       Promise<{ username: string }>
@@ -83,13 +82,6 @@ export default async function ProfileRecsPage({ params, searchParams }: Props) {
   const { data: recData, count: filteredCount } = await query
   const items = (recData ?? []) as Recommendation[]
 
-  // ── Params for ComicGridClient load-more calls ──
-  const clientParams: Record<string, string> = { sort }
-  if (sp.q)      clientParams.q      = sp.q
-  if (sp.type)   clientParams.type   = sp.type
-  if (sp.genre)  clientParams.genre  = sp.genre
-  if (sp.status) clientParams.status = sp.status
-
   const showGold = isPro && !isAdmin
 
   return (
@@ -106,7 +98,6 @@ export default async function ProfileRecsPage({ params, searchParams }: Props) {
 
       {/* ── Profile hero card ── */}
       <div className={`relative rounded-2xl border overflow-hidden ${showGold ? 'border-amber-500/30' : 'border-border'} bg-card`}>
-        {/* Subtle banner gradient */}
         <div className={`h-16 bg-gradient-to-br ${showGold ? 'from-amber-400/20 via-orange-500/10 to-transparent' : 'from-primary/20 via-violet-500/10 to-transparent'}`} />
 
         <div className="px-5 pb-5 -mt-8 flex items-end gap-4">
@@ -159,17 +150,19 @@ export default async function ProfileRecsPage({ params, searchParams }: Props) {
         <div className={`h-px flex-1 bg-gradient-to-r ${showGold ? 'from-amber-500/30' : 'from-primary/30'} to-transparent`} />
       </div>
 
-      {/* ── Filter bar ── */}
-      <FilterBar adult={false} />
-
-      {/* ── Grid ── */}
-      <ComicGridClient
+      <ProfileRecsClient
+        username={profile.username}
+        userId={profile.id}
         initialItems={items}
         initialTotal={filteredCount ?? 0}
-        searchParams={clientParams}
-        apiPath={`/api/profile/${profile.username}/recommendations`}
+        currentFilters={{
+          q:      sp.q      ?? '',
+          type:   sp.type   ?? '',
+          genre:  sp.genre  ?? '',
+          status: sp.status ?? '',
+          sort:   sort,
+        }}
       />
-
     </div>
   )
 }
