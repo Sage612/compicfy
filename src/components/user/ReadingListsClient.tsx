@@ -26,7 +26,13 @@ interface ReadingList {
 
 const FREE_LIST_LIMIT = 5
 
-export function ReadingListsClient({ initialLists }: { initialLists: ReadingList[] }) {
+export function ReadingListsClient({ 
+  initialLists, 
+  basePath = '/dashboard/lists' 
+}: { 
+  initialLists: ReadingList[], 
+  basePath?: string 
+}) {
   const [lists, setLists] = useState(initialLists)
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
@@ -330,7 +336,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
 
           <h3 className="font-black text-xl mb-2">No lists yet</h3>
           <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto leading-relaxed">
-            Create lists to organise your reading journey — currently reading, plan to read, all-time favourites.
+            Create lists to organise your reading journey, currently reading, plan to read, all-time favourites.
           </p>
 
           <div className="flex flex-wrap justify-center gap-3">
@@ -395,7 +401,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
                       </div>
                     ) : (
                       <Link
-                        href={`/dashboard/lists/${list.id}`}
+                        href={`${basePath}/${list.id}`}
                         className={cn(
                           'font-black text-sm truncate transition-colors block',
                           locked ? 'hover:text-amber-500' : 'hover:text-primary'
@@ -480,7 +486,7 @@ export function ReadingListsClient({ initialLists }: { initialLists: ReadingList
 
                 {/* Hover arrow */}
                 <Link
-                  href={`/dashboard/lists/${list.id}`}
+                  href={`${basePath}/${list.id}`}
                   className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
                   tabIndex={-1}
                 >

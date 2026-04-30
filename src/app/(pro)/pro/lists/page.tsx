@@ -18,7 +18,7 @@ export default async function ProListsPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <ReadingListsClient initialLists={lists ?? []} />
+      <ReadingListsClient initialLists={lists ?? []} basePath="/pro/lists" />
     </div>
   )
 }
