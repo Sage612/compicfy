@@ -11,7 +11,7 @@ import {
   Crown, BarChart2, Eye, Download, Trophy,
   BookOpen, Bookmark, ThumbsUp, ArrowRight,
   Sparkles, Zap, ChevronRight, Plus, Settings,
-  LayoutList, BookMarked, Flame, Users, UserPlus, Radar,
+  LayoutList, BookMarked, Flame, Users, UserPlus,
 } from 'lucide-react'
 import { formatDate, formatNumber, timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -58,7 +58,7 @@ export default async function ProDashboardPage() {
     { data: leaderboardData },
     { count: viewsThisMonth },
     { data: currentlyReading },
-    { data: feedItems },
+    { data: rawFeedItems },
     { data: listsForTracker },
   ] = await Promise.all([
     supabase.from('recommendations').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_approved', true),
@@ -73,14 +73,26 @@ export default async function ProDashboardPage() {
       .eq('reading_lists.user_id', user.id).eq('status', 'reading')
       .order('added_at', { ascending: false }).limit(6),
     followingIds.length > 0
-      ? (supabase as any).from('recommendations')
-          .select('id, title, cover_url, type, created_at, user_id, profiles(username, display_name, avatar_url)')
-          .in('user_id', followingIds).eq('is_approved', true)
+      ? (supabase as any)
+          .from('recommendations')
+          .select(`
+            id, title, cover_url, type, created_at, user_id,
+            profiles!recommendations_user_id_fkey(username, display_name, avatar_url)
+          `)
+          .in('user_id', followingIds)
+          .eq('is_approved', true)
           .not('content_rating', 'in', '("adult","mature")')
-          .order('created_at', { ascending: false }).limit(4)
+          .order('created_at', { ascending: false })
+          .limit(4)
       : Promise.resolve({ data: [] }),
     (supabase as any).from('reading_lists').select('id, name').eq('user_id', user.id).order('created_at', { ascending: false }),
   ])
+
+  // Normalise profiles join — can be object or single-item array
+  const feedItems = (rawFeedItems ?? []).map((r: any) => {
+    const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
+    return { ...r, profiles: p ?? null }
+  })
 
   const leaderboardEntry  = leaderboardData as { rank: number; score: number } | null
   const initials          = (profile.display_name || profile.username || 'U').slice(0, 2).toUpperCase()
@@ -97,7 +109,7 @@ export default async function ProDashboardPage() {
   const quickActions = [
     { href: '/dashboard/recommendations/new', icon: Plus,       label: 'Submit a Recommendation', desc: 'Share a comic with the community', gradient: 'from-violet-500 to-purple-600' },
     { href: '/feed',                           icon: LayoutList, label: 'Following Feed',           desc: 'Latest from people you follow',   gradient: 'from-primary to-violet-500'   },
-    { href: '/pro/lists',                icon: BookMarked, label: 'Reading Lists',            desc: 'Manage your reading collection',  gradient: 'from-teal-500 to-cyan-600'    },
+    { href: '/pro/lists',                      icon: BookMarked, label: 'Reading Lists',            desc: 'Manage your reading collection',  gradient: 'from-teal-500 to-cyan-600'    },
     { href: '/browse',                         icon: Flame,      label: 'Browse Comics',            desc: 'Discover new recommendations',    gradient: 'from-rose-500 to-pink-600'    },
   ]
 
@@ -105,12 +117,12 @@ export default async function ProDashboardPage() {
     { label: 'Recommendations', value: totalRecs ?? 0,      icon: BookOpen,   color: 'text-violet-500', bg: 'bg-violet-500/10', href: '/pro/recommendations' },
     { label: 'Saved Comics',     value: savedCount ?? 0,     icon: Bookmark,   color: 'text-rose-500',   bg: 'bg-rose-500/10',   href: '/pro/saved'           },
     { label: 'Reading Lists',    value: listsCount ?? 0,     icon: BookMarked, color: 'text-teal-500',   bg: 'bg-teal-500/10',   href: '/pro/lists'           },
-    { label: 'Following',        value: followingCount ?? 0, icon: Users,      color: 'text-primary',    bg: 'bg-primary/10',    href: '/feed'                      },
+    { label: 'Following',        value: followingCount ?? 0, icon: Users,      color: 'text-primary',    bg: 'bg-primary/10',    href: '/feed'                },
   ]
 
   const statsRow2 = [
-    { label: 'Profile Views', value: viewsThisMonth ?? 0,  icon: Eye,   color: 'text-blue-500',  bg: 'bg-blue-500/10' },
-    { label: 'Leaderboard',   value: leaderboardEntry?.rank ? `#${leaderboardEntry.rank}` : '—', icon: Trophy, color: 'text-amber-500', bg: 'bg-amber-500/10'},
+    { label: 'Profile Views', value: viewsThisMonth ?? 0, icon: Eye,   color: 'text-blue-500',  bg: 'bg-blue-500/10'  },
+    { label: 'Leaderboard',   value: leaderboardEntry?.rank ? `#${leaderboardEntry.rank}` : '—', icon: Trophy, color: 'text-amber-500', bg: 'bg-amber-500/10' },
   ]
 
   return (
@@ -177,7 +189,7 @@ export default async function ProDashboardPage() {
         </div>
       </div>
 
-      {/* Stats row 2 — Pro only */}
+      {/* Stats row 2 */}
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pro Stats</h2>
         <div className="grid grid-cols-2 gap-3">
@@ -250,7 +262,7 @@ export default async function ProDashboardPage() {
         </div>
       )}
 
-      {/* ── Reading tracker ── */}
+      {/* Reading tracker */}
       {!hasReadingItems ? (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Reading Tracker</h2>
@@ -287,7 +299,7 @@ export default async function ProDashboardPage() {
         />
       )}
 
-      {/* ── Following feed preview ── */}
+      {/* Following feed */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">From People You Follow</h2>
@@ -308,18 +320,16 @@ export default async function ProDashboardPage() {
               <p className="font-black text-sm">Follow readers you trust</p>
               <p className="text-xs text-muted-foreground mt-1">Their recommendations will appear here.</p>
             </div>
-            <div className="flex gap-3 justify-center">
-              <Link href="/feed?tab=discover">
-                <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 border-0 hover:opacity-90 shadow-md shadow-primary/20">
-                  <UserPlus size={13} />
-                  Discover Readers
-                </Button>
-              </Link>
-            </div>
+            <Link href="/feed?tab=discover">
+              <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 border-0 hover:opacity-90 shadow-md shadow-primary/20">
+                <UserPlus size={13} />
+                Discover Readers
+              </Button>
+            </Link>
           </div>
-        ) : feedItems && feedItems.length > 0 ? (
+        ) : feedItems.length > 0 ? (
           <div className="space-y-2">
-            {(feedItems as any[]).map((rec: any) => {
+            {feedItems.map((rec: any) => {
               const p = rec.profiles
               return (
                 <Link key={rec.id} href={`/comic/${rec.id}`} className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/30 transition-colors">

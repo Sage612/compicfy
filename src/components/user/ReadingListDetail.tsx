@@ -59,17 +59,22 @@ const TYPE_COLORS: Record<string, string> = {
 
 const STATUSES = Object.entries(STATUS_META).map(([value, meta]) => ({ value, ...meta }))
 
-export function ReadingListDetail({
-  list,
-  initialItems,
-  isLocked = false,
-  allLists = [],
-}: {
+interface Props {
   list:         ReadingList
   initialItems: ListItem[]
   isLocked?:    boolean
   allLists?:    { id: string; name: string }[]
-}) {
+  /** Where the back link points — defaults to /dashboard/lists */
+  backHref?:    string
+}
+
+export function ReadingListDetail({
+  list,
+  initialItems,
+  isLocked  = false,
+  allLists  = [],
+  backHref  = '/dashboard/lists',
+}: Props) {
   const router = useRouter()
   const [items,        setItems]        = useState(initialItems)
   const [removingId,   setRemovingId]   = useState<string | null>(null)
@@ -97,7 +102,6 @@ export function ReadingListDetail({
   }
 
   const handleAdded = (_comicId: string, _title: string, _listId: string, _status: string) => {
-    // Reload to get the full item with recommendation data
     window.location.reload()
   }
 
@@ -111,9 +115,9 @@ export function ReadingListDetail({
   return (
     <div className="space-y-6">
 
-      {/* Back */}
+      {/* Back link — uses backHref so pro users go to /pro/lists */}
       <Link
-        href="/dashboard/lists"
+        href={backHref}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft size={14} />
@@ -206,7 +210,13 @@ export function ReadingListDetail({
               {isLocked ? 'Upgrade to Pro to add comics' : 'Use the search above to add comics'}
             </p>
           </div>
-          {!isLocked && <Link href="/browse"><Button size="sm" className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">Browse Comics</Button></Link>}
+          {!isLocked && (
+            <Link href="/browse">
+              <Button size="sm" className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">
+                Browse Comics
+              </Button>
+            </Link>
+          )}
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 rounded-2xl border border-dashed border-border">
@@ -218,8 +228,6 @@ export function ReadingListDetail({
             const rec        = item.recommendations
             const statusMeta = STATUS_META[item.status] ?? STATUS_META.plan_to_read
             const typeStyle  = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
-
-            // Progress bar
             const progressPct = rec.chapter_count && item.progress_chapter
               ? Math.min(100, Math.round((item.progress_chapter / rec.chapter_count) * 100))
               : null
@@ -229,7 +237,6 @@ export function ReadingListDetail({
                 key={item.id}
                 className="group rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-200 overflow-hidden"
               >
-                {/* Progress bar */}
                 {progressPct !== null && (
                   <div className="h-0.5 bg-muted">
                     <div className="h-full bg-gradient-to-r from-primary to-violet-500 transition-all" style={{ width: `${progressPct}%` }} />
@@ -245,7 +252,9 @@ export function ReadingListDetail({
                     {rec.cover_url ? (
                       <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center"><BookOpen size={16} className="text-muted-foreground opacity-40" /></div>
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={16} className="text-muted-foreground opacity-40" />
+                      </div>
                     )}
                   </div>
 
@@ -264,17 +273,18 @@ export function ReadingListDetail({
                           )}
                         </div>
                       </div>
-                      {/* Remove */}
                       <button
                         onClick={e => handleRemove(e, item)}
                         disabled={removingId === item.id}
                         className="text-muted-foreground hover:text-destructive transition-colors shrink-0 p-1 rounded-lg hover:bg-destructive/10"
                       >
-                        {removingId === item.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                        {removingId === item.id
+                          ? <Loader2 size={13} className="animate-spin" />
+                          : <Trash2 size={13} />
+                        }
                       </button>
                     </div>
 
-                    {/* Inline chapter updater — disabled for locked lists */}
                     {!isLocked ? (
                       <ChapterUpdater
                         comicId={rec.id}

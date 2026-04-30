@@ -5,7 +5,7 @@ import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletio
 import { CurrentlyReadingSection } from '@/components/recommendations/CurrentlyReadingSection'
 import { Button } from '@/components/ui/button'
 import {
-  BookOpen, Bookmark, Plus, Settings, Flame, Trophy, ArrowRight,
+  BookOpen, Bookmark, Plus, Settings, Flame, ArrowRight,
   BookMarked, ChevronRight, LayoutList, Users, UserPlus, Radar,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -40,7 +40,7 @@ export default async function DashboardPage() {
 
   if (isPaidPro) redirect('/pro/dashboard')
 
-  const { data: followData } = await (supabase as any)
+  const { data: followData } = await supabase
     .from('follows').select('following_id').eq('follower_id', user.id)
 
   const followingIds = (followData ?? []).map((f: any) => f.following_id)
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
     { count: savedCount },
     { count: followingCount },
     { data: currentlyReading },
-    { data: feedItems },
+    { data: rawFeedItems },
     { data: listsForTracker },
   ] = await Promise.all([
     supabase.from('reading_lists').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
@@ -61,31 +61,43 @@ export default async function DashboardPage() {
       .eq('reading_lists.user_id', user.id).eq('status', 'reading')
       .order('added_at', { ascending: false }).limit(6),
     followingIds.length > 0
-      ? supabase.from('recommendations')
-          .select('id, title, cover_url, type, created_at, user_id, profiles(username, display_name, avatar_url)')
-          .in('user_id', followingIds).eq('is_approved', true)
+      ? (supabase as any)
+          .from('recommendations')
+          .select(`
+            id, title, cover_url, type, created_at, user_id,
+            profiles!recommendations_user_id_fkey(username, display_name, avatar_url)
+          `)
+          .in('user_id', followingIds)
+          .eq('is_approved', true)
           .not('content_rating', 'in', '("adult","mature")')
-          .order('created_at', { ascending: false }).limit(4)
+          .order('created_at', { ascending: false })
+          .limit(4)
       : Promise.resolve({ data: [] }),
     supabase.from('reading_lists').select('id, name').eq('user_id', user.id).order('created_at', { ascending: false }),
   ])
 
-  const initials         = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
+  // Normalise the profiles join — Supabase can return object or single-item array
+  const feedItems = (rawFeedItems ?? []).map((r: any) => {
+    const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
+    return { ...r, profiles: p ?? null }
+  })
+
+  const initials          = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
   const isFollowingNobody = (followingCount ?? 0) === 0
   const hasReadingItems   = (currentlyReading ?? []).length > 0
 
   const stats = [
     { label: 'Recommendations', value: profile.total_recommendations ?? 0, icon: BookOpen,   href: '/dashboard/recommendations', bg: 'bg-violet-500/10', text: 'text-violet-500' },
-    { label: 'Saved Comics',     value: savedCount ?? 0,                     icon: Bookmark,   href: '/dashboard/saved',           bg: 'bg-rose-500/10',   text: 'text-rose-500'  },
-    { label: 'Reading Lists',    value: listsCount ?? 0,                     icon: BookMarked, href: '/dashboard/lists',           bg: 'bg-teal-500/10',   text: 'text-teal-500'  },
-    { label: 'Following',        value: followingCount ?? 0,                 icon: Users,      href: '/feed',                      bg: 'bg-primary/10',    text: 'text-primary'   },
+    { label: 'Saved Comics',     value: savedCount ?? 0,                    icon: Bookmark,   href: '/dashboard/saved',           bg: 'bg-rose-500/10',   text: 'text-rose-500'  },
+    { label: 'Reading Lists',    value: listsCount ?? 0,                    icon: BookMarked, href: '/dashboard/lists',           bg: 'bg-teal-500/10',   text: 'text-teal-500'  },
+    { label: 'Following',        value: followingCount ?? 0,                icon: Users,      href: '/feed',                      bg: 'bg-primary/10',    text: 'text-primary'   },
   ]
 
   const quickActions = [
-    { href: '/dashboard/recommendations/new', icon: Plus,        label: 'Submit a Recommendation', desc: 'Share a comic with the community', gradient: 'from-violet-500 to-purple-600' },
-    { href: '/feed',                           icon: LayoutList,  label: 'Following Feed',           desc: 'Latest from people you follow',   gradient: 'from-primary to-violet-500'   },
-    { href: '/dashboard/lists',                icon: BookMarked,  label: 'Reading Lists',            desc: 'Manage your reading collection',  gradient: 'from-teal-500 to-cyan-600'    },
-    { href: '/browse',                         icon: Flame,       label: 'Browse Comics',            desc: 'Discover new recommendations',    gradient: 'from-rose-500 to-pink-600'    },
+    { href: '/dashboard/recommendations/new', icon: Plus,       label: 'Submit a Recommendation', desc: 'Share a comic with the community', gradient: 'from-violet-500 to-purple-600' },
+    { href: '/feed',                           icon: LayoutList, label: 'Following Feed',           desc: 'Latest from people you follow',   gradient: 'from-primary to-violet-500'   },
+    { href: '/dashboard/lists',                icon: BookMarked, label: 'Reading Lists',            desc: 'Manage your reading collection',  gradient: 'from-teal-500 to-cyan-600'    },
+    { href: '/browse',                         icon: Flame,      label: 'Browse Comics',            desc: 'Discover new recommendations',    gradient: 'from-rose-500 to-pink-600'    },
   ]
 
   return (
@@ -132,7 +144,6 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* Profile completion banner */}
       <ProfileCompletionBanner
         hasAvatar={!!profile.avatar_url}
         hasBio={!!profile.bio}
@@ -160,9 +171,7 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Reading tracker ──
-          If nothing is being tracked, show a prominent CTA instead
-          of just the empty search box alone.                       */}
+      {/* Reading tracker */}
       {!hasReadingItems ? (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Reading Tracker</h2>
@@ -192,11 +201,7 @@ export default async function DashboardPage() {
               </Link>
             </div>
           </div>
-          {/* Still render the section so the search box is available */}
-          <CurrentlyReadingSection
-            initialItems={[]}
-            lists={(listsForTracker ?? [])}
-          />
+          <CurrentlyReadingSection initialItems={[]} lists={(listsForTracker ?? [])} />
         </div>
       ) : (
         <CurrentlyReadingSection
@@ -205,6 +210,7 @@ export default async function DashboardPage() {
         />
       )}
 
+      {/* Following feed */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">From People You Follow</h2>
@@ -216,7 +222,6 @@ export default async function DashboardPage() {
         </div>
 
         {isFollowingNobody ? (
-          /* Not following anyone */
           <div className="relative overflow-hidden rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-6 text-center space-y-4">
             <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
@@ -243,10 +248,9 @@ export default async function DashboardPage() {
               </Link>
             </div>
           </div>
-        ) : feedItems && feedItems.length > 0 ? (
-          /* Has following + has items */
+        ) : feedItems.length > 0 ? (
           <div className="space-y-2">
-            {(feedItems as any[]).map((rec: any) => {
+            {feedItems.map((rec: any) => {
               const p         = rec.profiles
               const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
               return (
@@ -278,7 +282,6 @@ export default async function DashboardPage() {
             })}
           </div>
         ) : (
-          /* Has following but they haven't posted yet */
           <div className="flex items-center gap-3 p-4 rounded-2xl border border-dashed border-border bg-card/50 text-sm text-muted-foreground">
             <LayoutList size={16} className="text-muted-foreground/40 shrink-0" />
             <span>The people you follow haven't shared any recommendations yet.</span>
@@ -311,8 +314,6 @@ export default async function DashboardPage() {
           ))}
         </div>
       </div>
-
-
 
     </div>
   )
