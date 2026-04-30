@@ -9,17 +9,17 @@ import type { News } from '@/types/database.types'
 interface Props {
   searchParams: Promise<{
     category?: string
-    q?: string
-    page?: string
+    q?:        string
+    page?:     string
   }>
 }
 
 async function NewsGrid({ searchParams }: Props) {
-  const params = await searchParams
+  const params   = await searchParams
   const supabase = await createClient()
 
-  const page = parseInt(params.page ?? '1')
-  const limit = 12
+  const page   = parseInt(params.page ?? '1')
+  const limit  = 12
   const offset = (page - 1) * limit
 
   let query = supabase
@@ -34,7 +34,7 @@ async function NewsGrid({ searchParams }: Props) {
   query = query.range(offset, offset + limit - 1)
 
   const { data, count } = await query
-  const news = (data as News[]) ?? []
+  const news       = (data as News[]) ?? []
   const totalPages = Math.ceil((count ?? 0) / limit)
 
   if (!news.length) {
@@ -70,7 +70,9 @@ async function NewsGrid({ searchParams }: Props) {
               ← Previous
             </a>
           )}
-          <span className="text-sm text-muted-foreground font-medium">Page {page} of {totalPages}</span>
+          <span className="text-sm text-muted-foreground font-medium">
+            Page {page} of {totalPages}
+          </span>
           {page < totalPages && (
             <a
               href={`/news?page=${page + 1}`}
@@ -88,19 +90,29 @@ async function NewsGrid({ searchParams }: Props) {
 export default async function NewsPage({ searchParams }: Props) {
   const supabase = await createClient()
 
-  const { data: featuredNews } = await supabase
+  /*
+    Carousel feed: latest 10 published articles ordered by published_at.
+    The NewsCarousel component handles the daily shuffle client-side
+    using a seeded PRNG so the order is consistent all day and
+    changes automatically at midnight without any cron job.
+
+    We intentionally do NOT order by view_count here — popular articles
+    would get permanently stuck at the top. Instead every article gets
+    a daily rotation slot so newer content surfaces naturally.
+  */
+  const { data: carouselNews } = await supabase
     .from('news')
     .select('*')
     .eq('is_published', true)
-    .order('view_count', { ascending: false })
-    .limit(5)
+    .order('published_at', { ascending: false })
+    .limit(10)
 
-  const featured = (featuredNews as News[]) ?? []
+  const featured = (carouselNews as News[]) ?? []
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
 
-      {/* ── PAGE HEADER ── */}
+      {/* ── Page header ── */}
       <div className="flex items-end justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
@@ -115,29 +127,31 @@ export default async function NewsPage({ searchParams }: Props) {
         </div>
       </div>
 
-      {/* Featured carousel */}
+      {/* ── Carousel ── */}
       {featured.length > 0 && (
         <Suspense fallback={<div className="aspect-[16/9] max-h-96 rounded-2xl bg-muted animate-pulse" />}>
           <NewsCarousel news={featured} />
         </Suspense>
       )}
 
-      {/* Divider */}
+      {/* ── Divider ── */}
       <div className="relative flex items-center gap-4 py-1">
         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
         <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card shrink-0">
           <ScrollText size={12} className="text-muted-foreground" />
-          <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">All Articles</span>
+          <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+            All Articles
+          </span>
         </div>
         <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />
       </div>
 
-      {/* Filters */}
+      {/* ── Filters ── */}
       <Suspense fallback={<div className="h-20 bg-muted/30 rounded-xl animate-pulse" />}>
         <NewsFilters />
       </Suspense>
 
-      {/* Grid */}
+      {/* ── Grid ── */}
       <Suspense
         fallback={
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
