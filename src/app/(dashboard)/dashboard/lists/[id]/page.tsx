@@ -1,77 +1,89 @@
+// src/app/(dashboard)/dashboard/lists/[id]/page.tsx
 import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { redirect, notFound } from 'next/navigation'
+import { ReadingListDetail } from '@/components/user/ReadingListDetail'
+import type { Metadata } from 'next'
 
-export async function GET(request: Request) {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+interface Props {
+  params: Promise<{ id: string }>
+}
 
-    const { searchParams } = new URL(request.url)
-    const limit  = parseInt(searchParams.get('limit')  ?? '20')
-    const offset = parseInt(searchParams.get('offset') ?? '0')
+const FREE_LIST_LIMIT = 5
 
-    // Get IDs of people the user follows
-    const { data: followData } = await supabase
-      .from('follows')
-      .select('following_id')
-      .eq('follower_id', user.id)
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params
+  const supabase = await createClient()
+  const { data: list } = await (supabase as any)
+    .from('reading_lists')
+    .select('name')
+    .eq('id', id)
+    .single()
+  return { title: list?.name ? `${list.name} | Reading Lists` : 'Reading List' }
+}
 
-    const followingIds = (followData ?? []).map((f: any) => f.following_id)
+export default async function ListDetailPage({ params }: Props) {
+  const { id } = await params
+  const supabase = await createClient()
 
-    if (followingIds.length === 0) {
-      return NextResponse.json({ items: [], total: 0, hasMore: false, empty: true })
-    }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
-    // Count total
-    const { count } = await supabase
-      .from('recommendations')
-      .select('*', { count: 'exact', head: true })
-      .in('user_id', followingIds)
-      .eq('is_approved', true)
-      .not('content_rating', 'in', '("adult","mature")')
+  // Fetch profile for pro check
+  const { data: profile } = await (supabase as any)
+    .from('profiles')
+    .select('is_pro, pro_expires_at, role')
+    .eq('id', user.id)
+    .single()
 
-    // Fetch page
-    const { data: recs } = await (supabase as any)
-      .from('recommendations')
-      .select(`
-        id, title, cover_url, type, status, genres, description,
-        upvotes, review_count, created_at, user_id,
-        profiles!recommendations_user_id_fkey(
-          username, display_name, avatar_url,
-          role, is_pro, pro_expires_at, verified_recommender
-        )
-      `)
-      .in('user_id', followingIds)
-      .eq('is_approved', true)
-      .not('content_rating', 'in', '("adult","mature")')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1)
+  const isPro = profile
+    ? profile.role === 'admin' ||
+      ['admin', 'moderator'].includes(profile.role) ||
+      (profile.is_pro &&
+        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+    : false
 
-    // Flatten profiles join into top-level fields to match RPC shape FeedCard expects
-    const items = (recs ?? []).map((r: any) => {
-      const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
-      return {
-        ...r,
-        username:           p?.username           ?? '',
-        display_name:       p?.display_name        ?? null,
-        avatar_url:         p?.avatar_url          ?? null,
-        role:               p?.role               ?? 'user',
-        is_pro:             p?.is_pro             ?? false,
-        pro_expires_at:     p?.pro_expires_at      ?? null,
-        verified_recommender: p?.verified_recommender ?? false,
-        profiles: undefined,
-      }
-    })
+  // Fetch all lists for "Move to List" functionality and locking check
+  const { data: allListsData } = await (supabase as any)
+    .from('reading_lists')
+    .select('id, name, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true })
 
-    return NextResponse.json({
-      items,
-      total:   count ?? 0,
-      hasMore: (count ?? 0) > offset + limit,
-      empty:   false,
-    })
-  } catch (err) {
-    console.error('Following feed error:', err)
-    return NextResponse.json({ error: 'Failed to fetch feed' }, { status: 500 })
+  const list = (allListsData ?? []).find((l: any) => l.id === id)
+  if (!list) notFound()
+
+  // Compute isLocked: free users — check if this list is beyond the 5 oldest
+  let isLocked = false
+  if (!isPro && allListsData) {
+    const freeListIds = new Set(allListsData.slice(0, FREE_LIST_LIMIT).map((l: any) => l.id))
+    isLocked = !freeListIds.has(id)
   }
+
+  // Fetch items with list_id and chapter_count
+  const { data: items } = await supabase
+    .from('reading_list_items')
+    .select(`
+      id, 
+      list_id, 
+      status, 
+      progress_chapter, 
+      notes, 
+      added_at,
+      recommendations (
+        id, title, cover_url, type, status, genres, upvotes, chapter_count
+      )
+    `)
+    .eq('list_id', id)
+    .order('added_at', { ascending: false })
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <ReadingListDetail
+        list={list as any}
+        initialItems={(items ?? []) as any}
+        isLocked={isLocked}
+        allLists={(allListsData ?? []) as any}
+      />
+    </div>
+  )
 }
