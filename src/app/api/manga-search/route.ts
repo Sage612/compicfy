@@ -1,24 +1,8 @@
 import { NextResponse } from 'next/server'
+import type { SearchResult } from '@/app/api/search/route'
 
-interface MangaResult {
-  id: string
-  title: string
-  alternativeTitles: string[]
-  author: string
-  artist: string
-  description: string
-  genres: string[]
-  type: string
-  status: string
-  coverUrl: string
-  year: number | null
-  chapters: number | null
-  score: number | null
-  source: 'jikan' | 'mangadex' | 'anilist' | 'mangaupdates'
-}
-
-// ── Jikan (MyAnimeList) ──────────────────────────────────────────
-async function searchJikan(query: string): Promise<MangaResult[]> {
+// ── Jikan (MyAnimeList) ───────────────────────────────────────────
+async function searchJikan(query: string): Promise<SearchResult[]> {
   try {
     const res = await fetch(
       `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(query)}&limit=5&sfw=true`,
@@ -27,29 +11,48 @@ async function searchJikan(query: string): Promise<MangaResult[]> {
     if (!res.ok) return []
     const data = await res.json()
 
-    return (data.data ?? []).map((item: any) => ({
-      id: `jikan-${item.mal_id}`,
-      title: item.title_english || item.title,
-      alternativeTitles: [item.title, item.title_japanese].filter(Boolean),
-      author: item.authors?.[0]?.name?.replace(', ', ' ') ?? '',
-      artist: item.authors?.[1]?.name?.replace(', ', ' ') ?? item.authors?.[0]?.name?.replace(', ', ' ') ?? '',
-      description: item.synopsis?.replace(/\[Written by MAL Rewrite\]/g, '').trim() ?? '',
-      genres: item.genres?.map((g: any) => g.name) ?? [],
-      type: mapType(item.type),
-      status: mapStatus(item.status),
-      coverUrl: item.images?.jpg?.large_image_url ?? item.images?.jpg?.image_url ?? '',
-      year: item.published?.prop?.from?.year ?? null,
-      chapters: item.chapters ?? null,
-      score: item.score ?? null,
-      source: 'jikan' as const,
-    }))
+    return (data.data ?? []).map((item: any): SearchResult => {
+      const title  = item.title_english || item.title || ''
+      const author = item.authors?.[0]?.name?.replace(/,\s*/, ' ') ?? ''
+      const artist = item.authors?.[1]?.name?.replace(/,\s*/, ' ') ?? author
+      const cover  = item.images?.jpg?.large_image_url ?? item.images?.jpg?.image_url ?? ''
+      const genres = item.genres?.map((g: any) => g.name) ?? []
+      const type   = mapType(item.type)
+      const status = mapStatus(item.status)
+      const desc   = item.synopsis?.replace(/\[Written by MAL Rewrite\]/g, '').trim() ?? ''
+
+      return {
+        id:        `jikan-${item.mal_id}`,
+        title,
+        type,
+        cover_url: cover || null,
+        author:    author || null,
+        genres,
+        status,
+        source:    'jikan',
+        prefill: {
+          title,
+          type,
+          status,
+          genres:             genres.slice(0, 5),
+          description:        desc,
+          author,
+          artist,
+          cover_url:          cover,
+          year_released:      item.published?.prop?.from?.year ?? null,
+          chapter_count:      item.chapters ?? null,
+          alternative_titles: [item.title, item.title_japanese].filter(Boolean),
+          score:              item.score ?? null,
+        },
+      }
+    })
   } catch {
     return []
   }
 }
 
-// ── MangaDex ─────────────────────────────────────────────────────
-async function searchMangaDex(query: string): Promise<MangaResult[]> {
+// ── MangaDex ──────────────────────────────────────────────────────
+async function searchMangaDex(query: string): Promise<SearchResult[]> {
   try {
     const res = await fetch(
       `https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=5&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=safe&contentRating[]=suggestive`,
@@ -58,44 +61,66 @@ async function searchMangaDex(query: string): Promise<MangaResult[]> {
     if (!res.ok) return []
     const data = await res.json()
 
-    return (data.data ?? []).map((item: any) => {
-      const attr = item.attributes
+    return (data.data ?? []).map((item: any): SearchResult => {
+      const attr      = item.attributes
       const authorRel = item.relationships?.find((r: any) => r.type === 'author')
       const artistRel = item.relationships?.find((r: any) => r.type === 'artist')
-      const coverRel = item.relationships?.find((r: any) => r.type === 'cover_art')
+      const coverRel  = item.relationships?.find((r: any) => r.type === 'cover_art')
       const coverFile = coverRel?.attributes?.fileName
-      const coverUrl = coverFile
+      const cover     = coverFile
         ? `https://uploads.mangadex.org/covers/${item.id}/${coverFile}.512.jpg`
         : ''
 
-      const title =
+      const title = String(
         attr.title?.en ||
         attr.title?.['ja-ro'] ||
         Object.values(attr.title ?? {})[0] ||
         ''
-
-      const description =
+      )
+      const desc = String(
         attr.description?.en ||
         Object.values(attr.description ?? {})[0] ||
         ''
+      ).slice(0, 2000)
+
+      const genres = attr.tags
+        ?.filter((t: any) => t.attributes?.group === 'genre')
+        .map((t: any) => t.attributes?.name?.en ?? '')
+        .filter(Boolean) ?? []
+
+      const author = authorRel?.attributes?.name ?? ''
+      const artist = artistRel?.attributes?.name ?? author
+      const type   = 'manga'
+      const status = mapStatus(attr.status)
+
+      const altTitles = (attr.altTitles ?? [])
+        .flatMap((a: any) => Object.values(a))
+        .filter(Boolean)
+        .slice(0, 5) as string[]
 
       return {
-        id: `mangadex-${item.id}`,
-        title: String(title),
-        alternativeTitles: Object.values(attr.altTitles?.[0] ?? {}),
-        author: authorRel?.attributes?.name ?? '',
-        artist: artistRel?.attributes?.name ?? authorRel?.attributes?.name ?? '',
-        description: String(description).slice(0, 2000),
-        genres: attr.tags
-          ?.filter((t: any) => t.attributes?.group === 'genre')
-          .map((t: any) => t.attributes?.name?.en ?? '') ?? [],
-        type: 'manga',
-        status: mapStatus(attr.status),
-        coverUrl,
-        year: attr.year ?? null,
-        chapters: attr.lastChapter ? parseInt(attr.lastChapter) : null,
-        score: null,
-        source: 'mangadex' as const,
+        id:        `mangadex-${item.id}`,
+        title,
+        type,
+        cover_url: cover || null,
+        author:    author || null,
+        genres,
+        status,
+        source:    'mangadex',
+        prefill: {
+          title,
+          type,
+          status,
+          genres:             genres.slice(0, 5),
+          description:        desc,
+          author,
+          artist,
+          cover_url:          cover,
+          year_released:      attr.year ?? null,
+          chapter_count:      attr.lastChapter ? parseInt(attr.lastChapter) : null,
+          alternative_titles: altTitles,
+          score:              null,
+        },
       }
     })
   } catch {
@@ -104,43 +129,40 @@ async function searchMangaDex(query: string): Promise<MangaResult[]> {
 }
 
 // ── AniList ───────────────────────────────────────────────────────
-async function searchAniList(query: string): Promise<MangaResult[]> {
-  try {
-    const gql = `
-      query ($search: String) {
-        Page(perPage: 5) {
-          media(search: $search, type: MANGA, sort: SEARCH_MATCH) {
-            id
-            title { romaji english native }
-            description(asHtml: false)
-            genres
-            coverImage { extraLarge large }
-            staff(perPage: 10) {
-              edges {
-                role
-                node { name { full } }
-              }
-            }
-            startDate { year }
-            chapters
-            averageScore
-            status
-            format
+async function searchAniList(query: string): Promise<SearchResult[]> {
+  const gql = `
+    query ($search: String) {
+      Page(perPage: 5) {
+        media(search: $search, type: MANGA, sort: SEARCH_MATCH) {
+          id
+          title { romaji english native }
+          description(asHtml: false)
+          genres
+          coverImage { extraLarge large }
+          staff(perPage: 10) {
+            edges { role node { name { full } } }
           }
+          startDate { year }
+          chapters
+          averageScore
+          status
+          format
         }
       }
-    `
+    }
+  `
+  try {
     const res = await fetch('https://graphql.anilist.co', {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: gql, variables: { search: query } }),
-      next: { revalidate: 3600 },
+      body:    JSON.stringify({ query: gql, variables: { search: query } }),
+      next:    { revalidate: 3600 },
     })
     if (!res.ok) return []
-    const data = await res.json()
+    const data  = await res.json()
     const items = data?.data?.Page?.media ?? []
 
-    return items.map((item: any) => {
+    return items.map((item: any): SearchResult => {
       const author = item.staff?.edges?.find((e: any) =>
         e.role?.toLowerCase().includes('story') || e.role?.toLowerCase().includes('author')
       )?.node?.name?.full ?? ''
@@ -149,21 +171,36 @@ async function searchAniList(query: string): Promise<MangaResult[]> {
         e.role?.toLowerCase().includes('art') || e.role?.toLowerCase().includes('illustrat')
       )?.node?.name?.full ?? author
 
+      const title  = item.title?.english || item.title?.romaji || ''
+      const cover  = item.coverImage?.extraLarge || item.coverImage?.large || ''
+      const genres = item.genres ?? []
+      const type   = mapAniListFormat(item.format)
+      const status = mapAniListStatus(item.status)
+      const desc   = item.description?.replace(/<[^>]*>/g, '').trim() ?? ''
+
       return {
-        id: `anilist-${item.id}`,
-        title: item.title?.english || item.title?.romaji || '',
-        alternativeTitles: [item.title?.romaji, item.title?.native].filter(Boolean),
-        author,
-        artist,
-        description: item.description?.replace(/<[^>]*>/g, '').trim() ?? '',
-        genres: item.genres ?? [],
-        type: mapAniListFormat(item.format),
-        status: mapAniListStatus(item.status),
-        coverUrl: item.coverImage?.extraLarge || item.coverImage?.large || '',
-        year: item.startDate?.year ?? null,
-        chapters: item.chapters ?? null,
-        score: item.averageScore ? item.averageScore / 10 : null,
-        source: 'anilist' as const,
+        id:        `anilist-${item.id}`,
+        title,
+        type,
+        cover_url: cover || null,
+        author:    author || null,
+        genres,
+        status,
+        source:    'anilist',
+        prefill: {
+          title,
+          type,
+          status,
+          genres:             genres.slice(0, 5),
+          description:        desc,
+          author,
+          artist,
+          cover_url:          cover,
+          year_released:      item.startDate?.year ?? null,
+          chapter_count:      item.chapters ?? null,
+          alternative_titles: [item.title?.romaji, item.title?.native].filter(Boolean),
+          score:              item.averageScore ? item.averageScore / 10 : null,
+        },
       }
     })
   } catch {
@@ -172,98 +209,75 @@ async function searchAniList(query: string): Promise<MangaResult[]> {
 }
 
 // ── MangaUpdates ──────────────────────────────────────────────────
-async function searchMangaUpdates(query: string): Promise<MangaResult[]> {
+async function searchMangaUpdates(query: string): Promise<SearchResult[]> {
   try {
-    const res = await fetch(
-      'https://api.mangaupdates.com/v1/series/search',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          search: query,
-          perpage: 5,
-          type: 'series',
-        }),
-        next: { revalidate: 3600 },
-      }
-    )
+    const res = await fetch('https://api.mangaupdates.com/v1/series/search', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ search: query, perpage: 5 }),
+      next:    { revalidate: 3600 },
+    })
     if (!res.ok) return []
-    const data = await res.json()
+    const data  = await res.json()
     const items = data.results ?? []
 
-    return items.map((item: any) => {
-      const record = item.record ?? {}
+    return items.map((item: any): SearchResult => {
+      const record   = item.record ?? {}
+      const credits  = record.authors ?? []
+      const authors  = credits.filter((a: any) => a.type?.toLowerCase() === 'author').map((a: any) => a.name ?? '')
+      const artists  = credits.filter((a: any) => a.type?.toLowerCase() === 'artist').map((a: any) => a.name ?? '')
+      const first    = credits[0]?.name ?? ''
 
-      // Authors and artists — handle missing/inconsistent type casing
-      const allCredits = record.authors ?? record.author_info ?? []
+      const genres = [
+        ...(record.genres ?? []).map((g: any) => g.genre ?? g),
+        ...(record.categories ?? []).slice(0, 3).map((c: any) => c.category ?? c),
+      ]
 
-      const authors = allCredits
-        .filter((a: any) => a.type?.toLowerCase() === 'author')
-        .map((a: any) => a.name ?? a.author_name ?? '')
-        .filter(Boolean)
-
-      const artists = allCredits
-        .filter((a: any) => a.type?.toLowerCase() === 'artist')
-        .map((a: any) => a.name ?? a.author_name ?? '')
-        .filter(Boolean)
-
-      // Fallback: if no typed split, treat first entry as author
-      const firstCredit = allCredits[0]?.name ?? allCredits[0]?.author_name ?? ''
-
-      // Genres
-      const genres = (record.genres ?? []).map((g: any) => g.genre ?? g)
-
-      // Categories (used as additional genre hints)
-      const categories = (record.categories ?? [])
-        .slice(0, 3)
-        .map((c: any) => c.category ?? c)
-
-      // Type mapping
       const muType = record.type?.toLowerCase() ?? ''
       let type = 'manga'
-      if (muType.includes('manhwa') || muType.includes('korean')) type = 'manhwa'
+      if (muType.includes('manhwa') || muType.includes('korean'))  type = 'manhwa'
       else if (muType.includes('manhua') || muType.includes('chinese')) type = 'manhua'
       else if (muType.includes('webtoon')) type = 'webtoon'
-      else if (muType.includes('comic')) type = 'comic'
+      else if (muType.includes('comic'))   type = 'comic'
 
-      // Status
-      let status = 'ongoing'
       const muStatus = (record.status ?? '').toLowerCase()
-      if (muStatus.includes('complete')) status = 'completed'
-      else if (muStatus.includes('hiatus')) status = 'hiatus'
+      let status = 'ongoing'
+      if (muStatus.includes('complete'))                           status = 'completed'
+      else if (muStatus.includes('hiatus'))                        status = 'hiatus'
       else if (muStatus.includes('cancel') || muStatus.includes('discontinu')) status = 'cancelled'
 
-      // Cover image
-      const coverUrl = record.image?.url?.original ?? record.image?.url?.thumb ?? ''
+      const cover = record.image?.url?.original ?? record.image?.url?.thumb ?? ''
+      const desc  = (record.description ?? '').replace(/<[^>]*>/g, '').trim().slice(0, 2000)
+      const title = record.title ?? ''
+      const author = authors[0] ?? first
+      const artist = artists[0] ?? author
 
-      // Description — strip HTML tags
-      const rawDesc = record.description ?? ''
-      const description = rawDesc.replace(/<[^>]*>/g, '').trim().slice(0, 2000)
-
-      // Year from first published
-      const year = record.year ? parseInt(record.year) : null
-
-      // Alternative titles
-      const altTitles: string[] = []
-      ;(record.associated ?? []).forEach((a: any) => {
-        if (a.title) altTitles.push(a.title)
-      })
+      const altTitles = (record.associated ?? [])
+        .map((a: any) => a.title).filter(Boolean).slice(0, 5)
 
       return {
-        id: `mangaupdates-${record.series_id}`,
-        title: record.title ?? '',
-        alternativeTitles: altTitles.slice(0, 5),
-        author: authors[0] ?? firstCredit,
-        artist: artists[0] ?? authors[0] ?? firstCredit,
-        description,
-        genres: [...new Set([...genres, ...categories])].slice(0, 8),
+        id:        `mangaupdates-${record.series_id}`,
+        title,
         type,
+        cover_url: cover || null,
+        author:    author || null,
+        genres:    [...new Set(genres)].slice(0, 8),
         status,
-        coverUrl,
-        year,
-        chapters: record.latest_chapter ?? null,
-        score: record.bayesian_rating ? parseFloat(record.bayesian_rating) : null,
-        source: 'mangaupdates' as const,
+        source:    'mangaupdates',
+        prefill: {
+          title,
+          type,
+          status,
+          genres:             [...new Set(genres)].slice(0, 5),
+          description:        desc,
+          author,
+          artist,
+          cover_url:          cover,
+          year_released:      record.year ? parseInt(record.year) : null,
+          chapter_count:      record.latest_chapter ?? null,
+          alternative_titles: altTitles,
+          score:              record.bayesian_rating ? parseFloat(record.bayesian_rating) : null,
+        },
       }
     })
   } catch {
@@ -272,78 +286,68 @@ async function searchMangaUpdates(query: string): Promise<MangaResult[]> {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
-function mapType(type: string): string {
-  const map: Record<string, string> = {
+function mapType(t: string): string {
+  const m: Record<string, string> = {
     Manga: 'manga', Manhwa: 'manhwa', Manhua: 'manhua',
     Webtoon: 'webtoon', 'One-shot': 'manga', Novel: 'other',
   }
-  return map[type] ?? 'manga'
+  return m[t] ?? 'manga'
 }
 
-function mapStatus(status: string): string {
-  const s = status?.toLowerCase() ?? ''
-  if (s.includes('finish') || s.includes('complet')) return 'completed'
-  if (s.includes('hiatus') || s.includes('on_hiatus')) return 'hiatus'
-  if (s.includes('cancel') || s.includes('discontinu')) return 'cancelled'
+function mapStatus(s: string): string {
+  const l = (s ?? '').toLowerCase()
+  if (l.includes('finish') || l.includes('complet')) return 'completed'
+  if (l.includes('hiatus') || l.includes('on_hiatus')) return 'hiatus'
+  if (l.includes('cancel') || l.includes('discontinu')) return 'cancelled'
   return 'ongoing'
 }
 
-function mapAniListFormat(format: string): string {
-  const map: Record<string, string> = {
+function mapAniListFormat(f: string): string {
+  const m: Record<string, string> = {
     MANGA: 'manga', MANHWA: 'manhwa', MANHUA: 'manhua',
     ONE_SHOT: 'manga', NOVEL: 'other',
   }
-  return map[format] ?? 'manga'
+  return m[f] ?? 'manga'
 }
 
-function mapAniListStatus(status: string): string {
-  const map: Record<string, string> = {
+function mapAniListStatus(s: string): string {
+  const m: Record<string, string> = {
     FINISHED: 'completed', RELEASING: 'ongoing',
     NOT_YET_RELEASED: 'ongoing', CANCELLED: 'cancelled', HIATUS: 'hiatus',
   }
-  return map[status] ?? 'ongoing'
+  return m[s] ?? 'ongoing'
 }
 
-function deduplicateResults(results: MangaResult[]): MangaResult[] {
+function dedup(results: SearchResult[]): SearchResult[] {
   const seen = new Set<string>()
-  return results.filter((r) => {
-    const key = r.title.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '')
-    if (!key) return false
-    if (seen.has(key)) return false
+  return results.filter(r => {
+    const key = r.title.toLowerCase().replace(/[^a-z0-9]/g, '')
+    if (!key || seen.has(key)) return false
     seen.add(key)
     return true
   })
 }
 
-// ── Main handler ──────────────────────────────────────────────────
+// ── Handler ───────────────────────────────────────────────────────
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const query = searchParams.get('q')?.trim()
+  const q = searchParams.get('q')?.trim() ?? ''
 
-  if (!query || query.length < 2) {
-    return NextResponse.json({ results: [] })
-  }
+  if (q.length < 2) return NextResponse.json({ results: [] })
 
-  try {
-    // Run all four in parallel with individual fallbacks
-    const [jikan, mangadex, anilist, mangaupdates] = await Promise.allSettled([
-      searchJikan(query),
-      searchMangaDex(query),
-      searchAniList(query),
-      searchMangaUpdates(query),
-    ])
+  const [jikan, mangadex, anilist, mangaupdates] = await Promise.allSettled([
+    searchJikan(q),
+    searchMangaDex(q),
+    searchAniList(q),
+    searchMangaUpdates(q),
+  ])
 
-    const all: MangaResult[] = [
-      ...(jikan.status         === 'fulfilled' ? jikan.value         : []),
-      ...(mangadex.status      === 'fulfilled' ? mangadex.value      : []),
-      ...(anilist.status       === 'fulfilled' ? anilist.value       : []),
-      ...(mangaupdates.status  === 'fulfilled' ? mangaupdates.value  : []),
-    ]
+  const all: SearchResult[] = [
+    ...(jikan.status        === 'fulfilled' ? jikan.value        : []),
+    ...(mangadex.status     === 'fulfilled' ? mangadex.value     : []),
+    ...(anilist.status      === 'fulfilled' ? anilist.value      : []),
+    ...(mangaupdates.status === 'fulfilled' ? mangaupdates.value : []),
+  ]
 
-    const deduplicated = deduplicateResults(all)
-
-    return NextResponse.json({ results: deduplicated.slice(0, 12) })
-  } catch {
-    return NextResponse.json({ results: [] })
-  }
+  return NextResponse.json({ results: dedup(all).slice(0, 12) })
 }
