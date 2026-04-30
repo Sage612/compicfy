@@ -52,7 +52,7 @@ type FilterKey = typeof FILTER_TABS[number]['key']
 function getStatus(rec: Rec) {
   if (rec.is_approved)      return { label: 'Approved',       icon: CheckCircle, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500/20', key: 'approved' }
   if (rec.rejection_reason) return { label: 'Rejected',       icon: XCircle,     color: 'text-red-500',     bg: 'bg-red-500/10 border-red-500/20',           key: 'rejected' }
-  return                           { label: 'Pending Review', icon: Clock,       color: 'text-amber-500',   bg: 'bg-amber-500/10 border-amber-500/20',       key: 'pending'  }
+  return                         { label: 'Pending Review', icon: Clock,       color: 'text-amber-500',   bg: 'bg-amber-500/10 border-amber-500/20',       key: 'pending'  }
 }
 
 interface Props {
@@ -111,7 +111,7 @@ export default function ProRecommendationsClient({ initialRecs }: Props) {
             </div>
           </div>
         </div>
-        <Link href="/dashboard/recommendations/new" className="self-start sm:self-auto shrink-0">
+        <Link href="/pro/recommendations/new" className="self-start sm:self-auto shrink-0">
           <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
             <Plus size={15} />
             Add New
@@ -178,7 +178,7 @@ export default function ProRecommendationsClient({ initialRecs }: Props) {
             As a Pro member you have unlimited monthly submissions. Start sharing great comics.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Link href="/dashboard/recommendations/new">
+            <Link href="/pro/recommendations/new">
               <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
                 <BookOpen size={14} />Submit a Recommendation
               </Button>
@@ -255,14 +255,14 @@ export default function ProRecommendationsClient({ initialRecs }: Props) {
                   </div>
 
                   <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                    <span className="flex items-center gap-1"><ThumbsUp    size={11} className="text-emerald-500" />{rec.upvotes}</span>
-                    <span className="flex items-center gap-1"><ThumbsDown  size={11} className="text-red-400"     />{rec.downvotes}</span>
+                    <span className="flex items-center gap-1"><ThumbsUp     size={11} className="text-emerald-500" />{rec.upvotes}</span>
+                    <span className="flex items-center gap-1"><ThumbsDown   size={11} className="text-red-400"     />{rec.downvotes}</span>
                     <span className="flex items-center gap-1"><MessageSquare size={11} className="text-blue-400"  />{rec.review_count}</span>
-                    <span className="flex items-center gap-1"><Bookmark    size={11} className="text-violet-400"  />{rec.save_count}</span>
+                    <span className="flex items-center gap-1"><Bookmark     size={11} className="text-violet-400"  />{rec.save_count}</span>
                   </div>
 
                   <div className="flex items-center gap-2 pt-0.5 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                    <Link href={`/dashboard/recommendations/${rec.id}/edit`}>
+                    <Link href={`/pro/recommendations/${rec.id}/edit`}>
                       <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 hover:border-amber-500/40 hover:text-amber-600">
                         <Pencil size={11} />Edit
                       </Button>

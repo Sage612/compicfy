@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,9 +14,8 @@ import { CoverUpload } from './CoverUpload'
 import { GenreSelector } from './GenreSelector'
 import { PlatformSelector } from './PlatformSelector'
 import { toast } from 'sonner'
-import { Loader2, BookOpen, AlertTriangle, Tag, FileText, Globe, Save } from 'lucide-react'
+import { Loader2, BookOpen, Tag, FileText, Globe, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
 
 const formSchema = z.object({
   title:              z.string().min(1, 'Title is required').max(200),
@@ -44,8 +43,8 @@ type FormValues = z.infer<typeof formSchema>
 
 const TYPES = [
   { value: 'manga',   label: 'Manga',   desc: 'Japanese', activeClass: 'bg-rose-500   border-rose-500   text-white' },
-  { value: 'manhwa',  label: 'Manhwa',  desc: 'Korean',   activeClass: 'bg-violet-500 border-violet-500 text-white' },
-  { value: 'manhua',  label: 'Manhua',  desc: 'Chinese',  activeClass: 'bg-amber-500  border-amber-500  text-white' },
+  { value: 'manhwa',  label: 'Manhwa',   desc: 'Korean',   activeClass: 'bg-violet-500 border-violet-500 text-white' },
+  { value: 'manhua',  label: 'Manhua',   desc: 'Chinese',  activeClass: 'bg-amber-500  border-amber-500  text-white' },
   { value: 'webtoon', label: 'Webtoon', desc: 'Vertical', activeClass: 'bg-teal-500   border-teal-500   text-white' },
   { value: 'comic',   label: 'Comic',   desc: 'Western',  activeClass: 'bg-blue-500   border-blue-500   text-white' },
   { value: 'other',   label: 'Other',   desc: 'Misc',     activeClass: 'bg-zinc-500   border-zinc-500   text-white' },
@@ -91,56 +90,31 @@ interface Props {
 
 export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const isProPath = pathname.startsWith('/pro')
   const [submitting, setSubmitting] = useState(false)
-  const [isPro, setIsPro] = useState<boolean | null>(null)
-  const supabase = createClient()
 
-  const { register, handleSubmit, control, watch, setValue, formState: { errors, isDirty } } = useForm<FormValues>({
+  const { register, handleSubmit, control, watch, formState: { errors, isDirty } } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
-      title:              rec.title              ?? '',
-      description:        rec.description        ?? '',
-      type:               rec.type               ?? 'manga',
-      status:             rec.status             ?? 'ongoing',
-      genres:             rec.genres             ?? [],
+      title:               rec.title              ?? '',
+      description:         rec.description        ?? '',
+      type:                rec.type               ?? 'manga',
+      status:              rec.status             ?? 'ongoing',
+      genres:              rec.genres             ?? [],
       official_platforms: rec.official_platforms ?? [],
-      cover_url:          rec.cover_url          ?? '',
-      // normalise DB value → form enum
+      cover_url:           rec.cover_url          ?? '',
       content_rating:     (rec.content_rating === 'all' ? 'all_ages' : rec.content_rating) ?? 'all_ages',
-      why_recommend:      rec.why_recommend      ?? '',
-      author:             rec.author             ?? '',
-      artist:             rec.artist             ?? '',
-      year_released:      rec.year_released      ?? undefined,
-      chapter_count:      rec.chapter_count      ?? undefined,
+      why_recommend:       rec.why_recommend      ?? '',
+      author:              rec.author             ?? '',
+      artist:              rec.artist             ?? '',
+      year_released:       rec.year_released      ?? undefined,
+      chapter_count:       rec.chapter_count      ?? undefined,
     },
   })
 
   const descValue = watch('description') || ''
   const whyValue  = watch('why_recommend') || ''
-
-  // ── Fetch pro status ──
-  useEffect(() => {
-    const fetchProStatus = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const { data: profile } = await (supabase as any)
-        .from('profiles')
-        .select('is_pro, pro_expires_at, role')
-        .eq('id', user.id)
-        .single()
-
-      if (!profile) return
-
-      const proStatus =
-        profile.role === 'admin' ||
-        ['admin', 'moderator'].includes(profile.role) ||
-        (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-
-      setIsPro(proStatus)
-    }
-    fetchProStatus()
-  }, [])
 
   const onSubmit = async (data: FormValues) => {
     setSubmitting(true)
@@ -158,7 +132,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       }
 
       toast.success('Recommendation updated! It will be reviewed before going live.')
-      router.push(isPro ? '/pro/recommendations' : '/dashboard/recommendations')
+      router.push(isProPath ? '/pro/recommendations' : '/dashboard/recommendations')
       router.refresh()
     } catch {
       toast.error('Something went wrong')
@@ -373,7 +347,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
         <Button
           type="button"
           variant="ghost"
-          onClick={() => router.push(isPro ? '/pro/recommendations' : '/dashboard/recommendations')}
+          onClick={() => router.push(isProPath ? '/pro/recommendations' : '/dashboard/recommendations')}
           disabled={submitting}
         >
           Cancel
