@@ -1,10 +1,9 @@
 'use client'
 
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter, usePathname } from 'next/navigation' // <-- Added usePathname
-import { Search, BookOpen, X, ArrowRight, Loader2, Flame, Plus, CheckCircle2, ExternalLink } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Search, BookOpen, X, ArrowRight, Loader2, TrendingUp, Flame } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { SearchResult } from '@/app/api/search/route'
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10   text-rose-500',
@@ -15,40 +14,25 @@ const TYPE_COLORS: Record<string, string> = {
   other:   'bg-zinc-500/10   text-zinc-400',
 }
 
-const SOURCE_LABELS: Record<string, string> = {
-  local:        'Compicfy',
-  jikan:        'MAL',
-  anilist:      'AniList',
-  mangadex:     'MangaDex',
-  mangaupdates: 'MU',
+interface SearchResult {
+  id:        string
+  title:     string
+  type:      string
+  cover_url: string | null
+  author:    string | null
+  genres:    string[]
+  status:    string
 }
-
 const QUICK_LINKS = [
-  { label: '🔥 Trending',       href: '/browse?sort=trending' },
-  { label: '🆕 New this week', href: '/browse?sort=recent'   },
-  { label: '❤️ Top rated',     href: '/browse?sort=score'    },
-  { label: '⚔️ Action',        href: '/browse?genre=Action'  },
-  { label: '🌸 Romance',       href: '/browse?genre=Romance' },
-  { label: '✨ Fantasy',       href: '/browse?genre=Fantasy' },
+  { label: '🔥 Trending',        href: '/browse?sort=trending'        },
+  { label: '🆕 New this week',   href: '/browse?sort=recent'          },
+  { label: '❤️ Top rated',       href: '/browse?sort=score'           },
+  { label: '⚔️ Action',          href: '/browse?genre=Action'         },
+  { label: '🌸 Romance',         href: '/browse?genre=Romance'        },
+  { label: '✨ Fantasy',         href: '/browse?genre=Fantasy'        },
+  { label: '👻 Horror',          href: '/browse?genre=Horror'         },
+  { label: '🎭 Drama',           href: '/browse?genre=Drama'          },
 ]
-
-// Now accepts basePath
-function buildPrefillUrl(result: SearchResult, basePath: string): string {
-  if (!result.prefill) return `${basePath}/recommendations/new`
-  const p = result.prefill
-  const params = new URLSearchParams()
-  if (p.title)          params.set('title',       p.title)
-  if (p.type)           params.set('type',         p.type)
-  if (p.status)         params.set('status',       p.status)
-  if (p.description)    params.set('description', p.description.slice(0, 2000))
-  if (p.author)         params.set('author',       p.author)
-  if (p.artist)         params.set('artist',       p.artist)
-  if (p.cover_url)      params.set('cover_url',   p.cover_url)
-  if (p.year_released)  params.set('year',         String(p.year_released))
-  if (p.chapter_count)  params.set('chapters',     String(p.chapter_count))
-  if (p.genres?.length) params.set('genres',       p.genres.join(','))
-  return `${basePath}/recommendations/new?${params.toString()}`
-}
 
 export function GlobalSearch() {
   const [open,     setOpen]     = useState(false)
@@ -58,14 +42,8 @@ export function GlobalSearch() {
   const [selected, setSelected] = useState(0)
 
   const router      = useRouter()
-  const pathname    = usePathname() // <-- Added
   const inputRef    = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Determine if we are in /pro or /dashboard instantly
-  const basePath = pathname.startsWith('/pro') ? '/pro' : '/dashboard'
-  // Determine if full search should go to /pro/search or /dashboard/search or /search
-  const searchPath = pathname.startsWith('/pro') ? '/pro/search' : pathname.startsWith('/dashboard') ? '/dashboard/search' : '/search'
 
   const close = useCallback(() => {
     setOpen(false)
@@ -74,6 +52,7 @@ export function GlobalSearch() {
     setSelected(0)
   }, [])
 
+  // Cmd+K / Ctrl+K + Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -111,45 +90,29 @@ export function GlobalSearch() {
     debounceRef.current = setTimeout(() => search(value), 300)
   }
 
-  const goToLocal = (id: string) => {
+  const goTo = (id: string) => {
     router.push(`/comic/${id}`)
     close()
   }
 
-  const goToRecommend = (result: SearchResult) => {
-    router.push(buildPrefillUrl(result, basePath)) // <-- Pass basePath
-    close()
-  }
-
-  const goToSearchPage = () => {
+  const handleBrowseSearch = () => {
     if (!query.trim()) return
-    router.push(`${searchPath}?q=${encodeURIComponent(query.trim())}`) // <-- Use dynamic searchPath
+    router.push(`/browse?q=${encodeURIComponent(query.trim())}`)
     close()
   }
-
-  const local    = results.filter(r => r.source === 'local')
-  const external = results.filter(r => r.source !== 'local')
-  const allItems = [...local, ...external]
-  const totalNav = allItems.length + 1 
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setSelected(s => Math.min(s + 1, totalNav - 1))
+      setSelected(s => Math.min(s + 1, results.length))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setSelected(s => Math.max(s - 1, 0))
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (selected === allItems.length) {
-        goToSearchPage()
-      } else if (allItems[selected]) {
-        const item = allItems[selected]
-        if (item.source === 'local') goToLocal(item.id)
-        else goToRecommend(item)
-      } else if (query.trim()) {
-        goToSearchPage()
-      }
+      if (selected === results.length) handleBrowseSearch()
+      else if (results[selected]) goTo(results[selected].id)
+      else if (query.trim()) handleBrowseSearch()
     }
   }
 
@@ -191,7 +154,7 @@ export function GlobalSearch() {
               value={query}
               onChange={e => handleInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search comics, authors, genres…"
+              placeholder="Search by title, author, genre…"
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground text-foreground"
             />
             {loading ? (
@@ -215,130 +178,80 @@ export function GlobalSearch() {
 
           {/* Results */}
           {results.length > 0 && (
-            <ul className="py-1.5 max-h-[420px] overflow-y-auto">
-
-              {local.length > 0 && (
-                <>
-                  <li className="px-4 py-1.5 flex items-center gap-1.5">
-                    <CheckCircle2 size={10} className="text-primary" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">On Compicfy</span>
-                  </li>
-                  {local.map((r, i) => (
-                    <li key={r.id}>
-                      <button
-                        onClick={() => goToLocal(r.id)}
-                        onMouseEnter={() => setSelected(i)}
-                        className={cn(
-                          'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
-                          selected === i ? 'bg-primary/8' : 'hover:bg-muted/40'
+            <ul className="py-1.5 max-h-[360px] overflow-y-auto">
+              {results.map((r, i) => {
+                const typeColor = TYPE_COLORS[r.type] ?? TYPE_COLORS.other
+                return (
+                  <li key={r.id}>
+                    <button
+                      onClick={() => goTo(r.id)}
+                      onMouseEnter={() => setSelected(i)}
+                      className={cn(
+                        'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
+                        selected === i ? 'bg-primary/8' : 'hover:bg-muted/40'
+                      )}
+                    >
+                      <div className="w-8 h-11 rounded-lg overflow-hidden bg-muted shrink-0">
+                        {r.cover_url ? (
+                          <img src={r.cover_url} alt={r.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <BookOpen size={12} className="text-muted-foreground opacity-40" />
+                          </div>
                         )}
-                      >
-                        <div className="w-8 h-11 rounded-lg overflow-hidden bg-muted shrink-0">
-                          {r.cover_url
-                            ? <img src={r.cover_url} alt={r.title} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center"><BookOpen size={11} className="text-muted-foreground opacity-40" /></div>
-                          }
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{r.title}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize', TYPE_COLORS[r.type] ?? TYPE_COLORS.other)}>{r.type}</span>
-                            {r.author && <span className="text-[9px] text-muted-foreground truncate">{r.author}</span>}
-                          </div>
-                        </div>
-                        <ArrowRight size={12} className={cn('shrink-0 transition-opacity', selected === i ? 'opacity-100 text-primary' : 'opacity-0')} />
-                      </button>
-                    </li>
-                  ))}
-                </>
-              )}
-
-              {external.length > 0 && (
-                <>
-                  <li className="px-4 py-1.5 flex items-center gap-1.5 mt-1 border-t border-border">
-                    <ExternalLink size={10} className="text-muted-foreground" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Not on Compicfy yet</span>
-                  </li>
-                  {external.map((r, i) => {
-                    const globalIdx = local.length + i
-                    const srcLabel  = SOURCE_LABELS[r.source] ?? r.source
-                    return (
-                      <li key={r.id}>
-                        <button
-                          onClick={() => goToRecommend(r)}
-                          onMouseEnter={() => setSelected(globalIdx)}
-                          className={cn(
-                            'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors',
-                            selected === globalIdx ? 'bg-primary/8' : 'hover:bg-muted/40'
-                          )}
-                        >
-                          <div className="w-8 h-11 rounded-lg overflow-hidden bg-muted shrink-0">
-                            {r.cover_url
-                              ? <img src={r.cover_url} alt={r.title} className="w-full h-full object-cover" />
-                              : <div className="w-full h-full flex items-center justify-center"><BookOpen size={11} className="text-muted-foreground opacity-40" /></div>
-                            }
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate text-muted-foreground group-hover:text-foreground">{r.title}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize', TYPE_COLORS[r.type] ?? TYPE_COLORS.other)}>{r.type}</span>
-                              <span className="text-[9px] text-muted-foreground/60 font-semibold">{srcLabel}</span>
-                            </div>
-                          </div>
-                          <span className={cn(
-                            'shrink-0 flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-full border transition-all',
-                            selected === globalIdx
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-primary/10 text-primary border-primary/20'
-                          )}>
-                            <BookOpen size={9} />
-                            Recommend
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{r.title}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-full capitalize', typeColor)}>
+                            {r.type}
                           </span>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </>
-              )}
+                          {r.author && (
+                            <span className="text-[10px] text-muted-foreground truncate">{r.author}</span>
+                          )}
+                        </div>
+                      </div>
+                      <ArrowRight size={12} className={cn('shrink-0 transition-opacity', selected === i ? 'opacity-100 text-primary' : 'opacity-0')} />
+                    </button>
+                  </li>
+                )
+              })}
 
               {query.trim().length >= 2 && (
                 <li>
                   <button
-                    onClick={goToSearchPage}
-                    onMouseEnter={() => setSelected(allItems.length)}
+                    onClick={handleBrowseSearch}
+                    onMouseEnter={() => setSelected(results.length)}
                     className={cn(
                       'w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors border-t border-border mt-1',
-                      selected === allItems.length ? 'bg-primary/8' : 'hover:bg-muted/40'
+                      selected === results.length ? 'bg-primary/8' : 'hover:bg-muted/40'
                     )}
                   >
                     <div className="w-8 h-11 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <Search size={12} className="text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-primary">See all results for "{query}"</p>
-                      <p className="text-[9px] text-muted-foreground mt-0.5">Full search page with more results</p>
+                      <p className="text-sm font-semibold text-primary">
+                        See all results for "{query}"
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Browse with filters</p>
                     </div>
-                    <ArrowRight size={12} className={cn('shrink-0 text-primary transition-opacity', selected === allItems.length ? 'opacity-100' : 'opacity-0')} />
+                    <ArrowRight size={12} className={cn('shrink-0 text-primary transition-opacity', selected === results.length ? 'opacity-100' : 'opacity-0')} />
                   </button>
                 </li>
               )}
             </ul>
           )}
 
+          {/* Empty state */}
           {!loading && query.trim().length >= 2 && results.length === 0 && (
             <div className="px-4 py-8 text-center space-y-1">
               <p className="text-sm font-semibold">Nothing found for "{query}"</p>
-              <p className="text-xs text-muted-foreground">Try the full search page for more options</p>
-              <button
-                onClick={goToSearchPage}
-                className="mt-2 text-xs text-primary hover:underline flex items-center gap-1 mx-auto"
-              >
-                <Search size={11} />
-                Search full database
-              </button>
+              <p className="text-xs text-muted-foreground">Try the title, author name, or a genre</p>
             </div>
           )}
 
+          {/* Quick links — editorial picks, not generic genre chips */}
           {query.trim().length < 2 && (
             <div className="px-4 py-4 space-y-3">
               <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -359,11 +272,11 @@ export function GlobalSearch() {
             </div>
           )}
 
+          {/* Footer — hidden on mobile */}
           <div className="hidden sm:flex px-4 py-2 border-t border-border items-center gap-3 text-[10px] text-muted-foreground/60">
             <span><kbd className="font-mono">↑↓</kbd> navigate</span>
             <span><kbd className="font-mono">↵</kbd> select</span>
             <span><kbd className="font-mono">esc</kbd> close</span>
-            <span className="ml-auto">Results from Compicfy · MAL · AniList · MangaDex · MU</span>
           </div>
         </div>
       </div>
