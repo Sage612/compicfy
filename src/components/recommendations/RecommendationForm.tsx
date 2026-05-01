@@ -17,7 +17,7 @@ import { SubmissionGuidelineBanner } from '@/components/recommendations/Submissi
 import { toast } from 'sonner'
 import {
   Loader2, BookOpen, Info, AlertTriangle, Sparkles,
-  Tag, FileText, Globe, Crown, ExternalLink,
+  Tag, FileText, Globe, Crown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MangaSearch } from './MangaSearch'
@@ -25,29 +25,19 @@ import { createClient } from '@/lib/supabase/client'
 
 const FREE_REC_LIMIT = 50
 
-const VALID_GENRES = [
-  'Action','Adventure','Comedy','Drama','Fantasy','Horror','Mystery',
-  'Romance','Sci-Fi','Slice of Life','Sports','Supernatural','Thriller',
-  'Isekai','Martial Arts','School Life','Historical','Psychological',
-  'Shounen','Shoujo','Seinen','Josei','Yuri','Yaoi',
-]
-
-const VALID_TYPES    = ['manga','manhwa','manhua','webtoon','comic','other'] as const
-const VALID_STATUSES = ['ongoing','completed','hiatus','cancelled']          as const
-
 const formSchema = z.object({
-  title:               z.string().min(1, 'Title is required').max(200, 'Max 200 characters'),
-  description:         z.string().min(10, 'At least 10 characters').max(2000, 'Max 2000 characters'),
-  type:                z.enum(['manga', 'manhwa', 'manhua', 'webtoon', 'comic', 'other']),
-  status:              z.enum(['ongoing', 'completed', 'hiatus', 'cancelled']),
-  genres:              z.array(z.string()).min(1, 'Select at least one genre').max(5),
-  official_platforms:  z.array(z.string()).min(1, 'Select at least one platform'),
-  cover_url:           z.string().default(''),
-  content_rating:      z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
+  title: z.string().min(1, 'Title is required').max(200, 'Max 200 characters'),
+  description: z.string().min(10, 'At least 10 characters').max(2000, 'Max 2000 characters'),
+  type: z.enum(['manga', 'manhwa', 'manhua', 'webtoon', 'comic', 'other']),
+  status: z.enum(['ongoing', 'completed', 'hiatus', 'cancelled']),
+  genres: z.array(z.string()).min(1, 'Select at least one genre').max(5),
+  official_platforms: z.array(z.string()).min(1, 'Select at least one platform'),
+  cover_url: z.string().default(''),
+  content_rating: z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
   adult_content_confirmed: z.boolean().optional(),
-  why_recommend:       z.string().max(1000).default(''),
-  author:              z.string().max(100).default(''),
-  artist:              z.string().max(100).default(''),
+  why_recommend: z.string().max(1000).default(''),
+  author: z.string().max(100).default(''),
+  artist: z.string().max(100).default(''),
   year_released: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
     z.number().min(1900).max(new Date().getFullYear() + 1).optional()
@@ -107,72 +97,21 @@ interface Props {
 }
 
 export function RecommendationForm({ userId }: Props) {
-  const router       = useRouter()
+  const router = useRouter()
   const searchParams = useSearchParams()
-  const supabase     = createClient()
-
-  // ── Read ALL prefill params from URL ──────────────────────────────
-  // These are set by GlobalSearch / search page when user clicks
-  // "Recommend" on an external result (MAL, AniList, MangaDex, MU).
-  const prefill = {
-    title:       searchParams.get('title')       ?? '',
-    type:        searchParams.get('type')        ?? '',
-    status:      searchParams.get('status')      ?? '',
-    description: searchParams.get('description') ?? '',
-    author:      searchParams.get('author')      ?? '',
-    artist:      searchParams.get('artist')      ?? '',
-    cover_url:   searchParams.get('cover_url')   ?? '',
-    year:        searchParams.get('year')        ?? '',
-    chapters:    searchParams.get('chapters')    ?? '',
-    genres:      searchParams.get('genres')      ?? '',
-  }
-
-  const hasPrefill = !!prefill.title
-
-  const [submitting,        setSubmitting]        = useState(false)
-  const [duplicateWarning,  setDuplicateWarning]  = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
+  const prefillTitle = searchParams.get('title') ?? ''
+  const [submitting, setSubmitting] = useState(false)
+  const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
   const [checkingDuplicate, setCheckingDuplicate] = useState(false)
-  const [monthlyCount,      setMonthlyCount]      = useState<number | null>(null)
-  const [isPro,             setIsPro]             = useState<boolean | null>(null)
-
   const duplicateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── Build safe default values from prefill params ─────────────────
-  const safeType   = VALID_TYPES.includes(prefill.type as any)
-    ? (prefill.type as FormValues['type'])
-    : 'manga'
+  // Monthly usage tracking
+  const [monthlyCount, setMonthlyCount] = useState<number | null>(null)
+  const [isPro, setIsPro] = useState<boolean | null>(null)
 
-  const safeStatus = VALID_STATUSES.includes(prefill.status as any)
-    ? (prefill.status as FormValues['status'])
-    : 'ongoing'
+  const supabase = createClient()
 
-  const safeGenres = prefill.genres
-    ? prefill.genres.split(',').map(g => g.trim()).filter(g => VALID_GENRES.includes(g)).slice(0, 5)
-    : []
-
-  const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(formSchema) as any,
-    defaultValues: {
-      title:              prefill.title,
-      description:        prefill.description,
-      type:               safeType,
-      status:             safeStatus,
-      genres:             safeGenres,
-      official_platforms: [],
-      cover_url:          prefill.cover_url,
-      content_rating:     'all_ages',
-      why_recommend:      '',
-      author:             prefill.author,
-      artist:             prefill.artist,
-      year_released:      prefill.year    ? Number(prefill.year)    : undefined,
-      chapter_count:      prefill.chapters ? Number(prefill.chapters) : undefined,
-    },
-  })
-
-  const descValue = watch('description') || ''
-  const whyValue  = watch('why_recommend') || ''
-
-  // ── Fetch pro status + monthly count ─────────────────────────────
+  // ── Fetch pro status + this month's rec count ──
   useEffect(() => {
     const fetchUsage = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -193,38 +132,58 @@ export function RecommendationForm({ userId }: Props) {
 
       setIsPro(proStatus)
 
+      // Only count for free users
       if (!proStatus) {
         const startOfMonth = new Date()
         startOfMonth.setDate(1)
         startOfMonth.setHours(0, 0, 0, 0)
+
         const { count } = await supabase
           .from('recommendations')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
           .gte('created_at', startOfMonth.toISOString())
+
         setMonthlyCount(count ?? 0)
       }
     }
     fetchUsage()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [supabase])
 
-  // ── Duplicate check on mount if prefilled ─────────────────────────
+  const atRecLimit  = isPro === false && monthlyCount !== null && monthlyCount >= FREE_REC_LIMIT
+  const nearRecLimit = isPro === false && monthlyCount !== null && monthlyCount >= FREE_REC_LIMIT - 5
+  const usagePct    = monthlyCount !== null ? Math.min(100, Math.round((monthlyCount / FREE_REC_LIMIT) * 100)) : 0
+
+  const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = useForm<FormValues>({
+    resolver: zodResolver(formSchema) as any,
+    defaultValues: {
+      title: prefillTitle ?? '',
+      genres: [],
+      official_platforms: [],
+      cover_url: '',
+      content_rating: 'all_ages',
+      why_recommend: '',
+      author: '',
+      artist: '',
+    },
+  })
+
+  const descValue = watch('description') || ''
+  const whyValue  = watch('why_recommend') || ''
+
   useEffect(() => {
-    if (prefill.title) {
-      duplicateDebounceRef.current = setTimeout(() => checkDuplicate(prefill.title), 300)
+    if (prefillTitle) {
+      setValue('title', prefillTitle)
+      duplicateDebounceRef.current = setTimeout(() => checkDuplicate(prefillTitle), 300)
     }
     return () => { if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current) }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const atRecLimit   = isPro === false && monthlyCount !== null && monthlyCount >= FREE_REC_LIMIT
-  const nearRecLimit = isPro === false && monthlyCount !== null && monthlyCount >= FREE_REC_LIMIT - 5
-  const usagePct     = monthlyCount !== null ? Math.min(100, Math.round((monthlyCount / FREE_REC_LIMIT) * 100)) : 0
+  }, [prefillTitle])
 
   const checkDuplicate = async (title: string) => {
     if (title.trim().length < 2) { setDuplicateWarning(null); return }
     setCheckingDuplicate(true)
     try {
-      const res  = await fetch(`/api/recommendations/check-duplicate?title=${encodeURIComponent(title.trim())}`)
+      const res = await fetch(`/api/recommendations/check-duplicate?title=${encodeURIComponent(title.trim())}`)
       const data = await res.json()
       setDuplicateWarning(data.duplicate ?? null)
     } catch { /* silent */ } finally { setCheckingDuplicate(false) }
@@ -239,25 +198,22 @@ export function RecommendationForm({ userId }: Props) {
     setSubmitting(true)
     try {
       const response = await fetch('/api/recommendations', {
-        method:  'POST',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(data),
+        body: JSON.stringify(data),
       })
       const result = await response.json()
 
       if (response.status === 409 && result.error === 'duplicate') {
         toast.error(result.message, {
-          description: result.is_approved
-            ? 'View the existing recommendation instead.'
-            : 'This comic is already pending review.',
-          action: result.is_approved
-            ? { label: 'View Comic', onClick: () => router.push(`/comic/${result.existing_id}`) }
-            : undefined,
+          description: result.is_approved ? 'View the existing recommendation instead.' : 'This comic is already pending review.',
+          action: result.is_approved ? { label: 'View Comic', onClick: () => router.push(`/comic/${result.existing_id}`) } : undefined,
           duration: 6000,
         })
         return
       }
 
+      // API returned 403 = limit hit server-side (safety net)
       if (response.status === 403) {
         toast.error(
           <div className="flex flex-col gap-1.5">
@@ -274,12 +230,7 @@ export function RecommendationForm({ userId }: Props) {
       }
 
       if (!response.ok) { toast.error(result.error || 'Failed to submit'); return }
-
-      toast.success(
-        result.recommendation.is_approved
-          ? 'Recommendation published!'
-          : 'Recommendation submitted for review!'
-      )
+      toast.success(result.recommendation.is_approved ? 'Recommendation published!' : 'Recommendation submitted for review!')
       router.push(isPro ? '/pro/recommendations' : '/dashboard/recommendations')
       router.refresh()
     } catch (error) {
@@ -288,49 +239,33 @@ export function RecommendationForm({ userId }: Props) {
     } finally { setSubmitting(false) }
   }
 
-  // ── MangaSearch autofill (internal search widget) ─────────────────
   const handleMangaSelect = (result: any) => {
-    setValue('title',       result.title       || '')
-    setValue('author',      result.author      || '')
-    setValue('artist',      result.artist      || '')
+    setValue('title', result.title || '')
+    setValue('author', result.author || '')
+    setValue('artist', result.artist || '')
     setValue('description', result.description?.slice(0, 2000) || '')
-    setValue('type',        result.type        || 'manga')
-    setValue('status',      result.status      || 'ongoing')
-    if (result.year)     setValue('year_released', result.year)
+    setValue('type', result.type || 'manga')
+    setValue('status', result.status || 'ongoing')
+    if (result.year) setValue('year_released', result.year)
     if (result.chapters) setValue('chapter_count', result.chapters)
-    if (result.title)    checkDuplicate(result.title)
-    setValue('genres', result.genres?.filter((g: string) => VALID_GENRES.includes(g)).slice(0, 5) || [])
+    if (result.title) checkDuplicate(result.title)
+    const validGenres = ['Action','Adventure','Comedy','Drama','Fantasy','Horror','Mystery','Romance','Sci-Fi','Slice of Life','Sports','Supernatural','Thriller','Isekai','Martial Arts','School Life','Historical','Psychological','Shounen','Shoujo','Seinen','Josei','Yuri','Yaoi']
+    setValue('genres', result.genres?.filter((g: string) => validGenres.includes(g)).slice(0, 5) || [])
     if (result.coverUrl && !getValues('cover_url')) setValue('cover_url', result.coverUrl)
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-      {/* ── Prefill notice — shown when arriving from search ── */}
-      {hasPrefill && (
-        <div className="flex items-start gap-3 p-4 rounded-2xl border border-teal-500/30 bg-teal-500/5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shrink-0 mt-0.5">
-            <ExternalLink size={13} className="text-white" />
-          </div>
-          <div className="space-y-0.5">
-            <p className="text-sm font-black text-teal-700 dark:text-teal-400">
-              Pre-filled from external database
-            </p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              This form has been filled with data from MAL, AniList, MangaDex, or MangaUpdates.
-              Please review and correct any details before submitting, automated data isn't always perfect.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Monthly usage bar — free users only ── */}
+      {/* Monthly usage bar — free users only, shown once loaded */}
       {isPro === false && monthlyCount !== null && (
         <div className={cn(
           'rounded-2xl border p-4 space-y-3',
-          atRecLimit   ? 'border-red-500/30 bg-red-500/5'
-          : nearRecLimit ? 'border-amber-500/20 bg-amber-500/5'
-          : 'border-border bg-card'
+          atRecLimit
+            ? 'border-red-500/30 bg-red-500/5'
+            : nearRecLimit
+            ? 'border-amber-500/20 bg-amber-500/5'
+            : 'border-border bg-card'
         )}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -340,12 +275,16 @@ export function RecommendationForm({ userId }: Props) {
               </span>
             </div>
             {(atRecLimit || nearRecLimit) && (
-              <Link href="/pricing" className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline shrink-0">
+              <Link
+                href="/pricing"
+                className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline shrink-0"
+              >
                 <Crown size={10} className="fill-amber-500" />
                 Go unlimited
               </Link>
             )}
           </div>
+
           <div className="h-1.5 rounded-full bg-muted overflow-hidden">
             <div
               className={cn(
@@ -355,6 +294,7 @@ export function RecommendationForm({ userId }: Props) {
               style={{ width: `${usagePct}%` }}
             />
           </div>
+
           {atRecLimit && (
             <div className="flex items-start gap-2">
               <AlertTriangle size={13} className="text-red-500 shrink-0 mt-0.5" />
@@ -367,22 +307,20 @@ export function RecommendationForm({ userId }: Props) {
         </div>
       )}
 
-      {/* ── Auto-fill banner (internal MangaSearch widget) ── */}
-      {!hasPrefill && (
-        <div className="flex items-start gap-3 p-4 rounded-2xl border border-primary/20 bg-primary/5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shrink-0 mt-0.5">
-            <Sparkles size={13} className="text-white" />
-          </div>
-          <div className="flex-1 space-y-2">
-            <p className="text-sm font-bold text-primary">Auto-fill from database</p>
-            <MangaSearch onSelect={handleMangaSelect} />
-          </div>
+      {/* Auto-fill banner */}
+      <div className="flex items-start gap-3 p-4 rounded-2xl border border-primary/20 bg-primary/5">
+        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shrink-0 mt-0.5">
+          <Sparkles size={13} className="text-white" />
         </div>
-      )}
+        <div className="flex-1 space-y-2">
+          <p className="text-sm font-bold text-primary">Auto-fill from database</p>
+          <MangaSearch onSelect={handleMangaSelect} />
+        </div>
+      </div>
 
       <SubmissionGuidelineBanner />
 
-      {/* ── Basic Info ── */}
+      {/* Basic Info */}
       <FormSection icon={BookOpen} title="Basic Info">
         <div className="flex flex-col sm:flex-row gap-6">
           <div className="shrink-0">
@@ -396,9 +334,7 @@ export function RecommendationForm({ userId }: Props) {
           </div>
           <div className="flex-1 space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="title" className="text-sm font-semibold">
-                Title <span className="text-destructive">*</span>
-              </Label>
+              <Label htmlFor="title" className="text-sm font-semibold">Title <span className="text-destructive">*</span></Label>
               <Input
                 id="title"
                 {...register('title')}
@@ -431,7 +367,6 @@ export function RecommendationForm({ userId }: Props) {
               )}
               {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="author" className="text-sm font-semibold">Author</Label>
@@ -442,7 +377,6 @@ export function RecommendationForm({ userId }: Props) {
                 <Input id="artist" {...register('artist')} placeholder="Artist name" className="h-10" />
               </div>
             </div>
-
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="year_released" className="text-sm font-semibold">Year</Label>
@@ -457,7 +391,7 @@ export function RecommendationForm({ userId }: Props) {
         </div>
       </FormSection>
 
-      {/* ── Classification ── */}
+      {/* Classification */}
       <FormSection icon={Tag} title="Classification" accent="from-violet-500 to-purple-600">
         <div className="space-y-2">
           <Label className="text-sm font-semibold">Type <span className="text-destructive">*</span></Label>
@@ -479,9 +413,7 @@ export function RecommendationForm({ userId }: Props) {
                     )}
                   >
                     {label}
-                    <span className={cn('text-[10px] font-normal', field.value === value ? 'opacity-75' : 'opacity-60')}>
-                      {desc}
-                    </span>
+                    <span className={cn('text-[10px] font-normal', field.value === value ? 'opacity-75' : 'opacity-60')}>{desc}</span>
                   </button>
                 ))}
               </div>
@@ -552,19 +484,13 @@ export function RecommendationForm({ userId }: Props) {
                       </p>
                       <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside leading-relaxed">
                         <li>Must link to a verified official platform</li>
-                        <li>Cover must be official promotional art, no explicit imagery</li>
+                        <li>Cover must be official promotional art — no explicit imagery</li>
                         <li>Requires manual admin approval</li>
                         <li>Violations result in removal &amp; account suspension</li>
                       </ul>
                       <label className="flex items-start gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          className="mt-0.5 accent-destructive"
-                          onChange={(e) => setValue('adult_content_confirmed', e.target.checked)}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          I confirm this submission follows all adult content rules
-                        </span>
+                        <input type="checkbox" className="mt-0.5 accent-destructive" onChange={(e) => setValue('adult_content_confirmed', e.target.checked)} />
+                        <span className="text-xs text-muted-foreground">I confirm this submission follows all adult content rules</span>
                       </label>
                     </div>
                   )}
@@ -575,7 +501,7 @@ export function RecommendationForm({ userId }: Props) {
         </div>
       </FormSection>
 
-      {/* ── Genres ── */}
+      {/* Genres */}
       <FormSection icon={Tag} title="Genres" accent="from-rose-500 to-pink-600">
         <Controller
           name="genres"
@@ -586,22 +512,14 @@ export function RecommendationForm({ userId }: Props) {
         />
       </FormSection>
 
-      {/* ── Description ── */}
+      {/* Description */}
       <FormSection icon={FileText} title="Description" accent="from-amber-500 to-orange-500">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="description" className="text-sm font-semibold">
-              Description <span className="text-destructive">*</span>
-            </Label>
+            <Label htmlFor="description" className="text-sm font-semibold">Description <span className="text-destructive">*</span></Label>
             <span className="text-xs text-muted-foreground">{descValue.length}/2000</span>
           </div>
-          <Textarea
-            id="description"
-            {...register('description')}
-            placeholder="What is this comic about?"
-            rows={4}
-            className="resize-none"
-          />
+          <Textarea id="description" {...register('description')} placeholder="What is this comic about?" rows={4} className="resize-none" />
           {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
         </div>
         <div className="space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-4">
@@ -611,7 +529,7 @@ export function RecommendationForm({ userId }: Props) {
                 Why do you recommend it?
               </Label>
               <p className="text-[11px] text-muted-foreground leading-snug">
-                Optional, but recs with a personal reason get far more votes.
+                Optional, but recs with a personal reason get far more votes. What hooked you? Who is it for?
               </p>
             </div>
             <span className="text-xs text-muted-foreground shrink-0 mt-0.5">{whyValue.length}/1000</span>
@@ -619,14 +537,14 @@ export function RecommendationForm({ userId }: Props) {
           <Textarea
             id="why_recommend"
             {...register('why_recommend')}
-            placeholder='e.g. "If you loved Tower of God, this hits the same notes but with better art."'
+            placeholder="e.g. &quot;If you loved Tower of God, this hits the same notes but with better art. The first 20 chapters are slow but chapter 21 changes everything.&quot;"
             rows={3}
             className="resize-none border-primary/20 focus:border-primary bg-background"
           />
         </div>
       </FormSection>
 
-      {/* ── Platforms ── */}
+      {/* Platforms */}
       <FormSection icon={Globe} title="Official Platforms" accent="from-teal-500 to-cyan-600">
         <Controller
           name="official_platforms"
@@ -637,15 +555,15 @@ export function RecommendationForm({ userId }: Props) {
         />
       </FormSection>
 
-      {/* ── Info notice ── */}
+      {/* Info notice */}
       <div className="flex gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/15">
         <Info size={15} className="text-primary shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Your recommendation will be reviewed by our team before being published.
+          Your recommendation will be reviewed by our team before being published to the community.
         </p>
       </div>
 
-      {/* ── Submit row ── */}
+      {/* Submit row */}
       <div className="flex items-center justify-between pt-1">
         <Button type="button" variant="ghost" onClick={() => router.back()} disabled={submitting}>
           Cancel
@@ -666,7 +584,7 @@ export function RecommendationForm({ userId }: Props) {
           )}
         >
           {atRecLimit ? (
-            <><Crown size={15} /> Limit Reached, Upgrade</>
+            <><Crown size={15} /> Limit Reached — Upgrade</>
           ) : submitting ? (
             <><Loader2 size={15} className="animate-spin" /> Submitting…</>
           ) : (
