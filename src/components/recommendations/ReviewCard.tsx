@@ -9,6 +9,7 @@ import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { toast } from 'sonner'
 import {
   AlertTriangle, Eye, EyeOff, Pencil, Trash2, ThumbsUp, Flag,
+  X, Loader2,
 } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -21,6 +22,133 @@ interface Props {
   onDelete:         (id: string) => void
 }
 
+const REPORT_REASONS = [
+  { value: 'spam',           label: 'Spam'            },
+  { value: 'inappropriate',  label: 'Inappropriate'   },
+  { value: 'misinformation', label: 'Misinformation'  },
+  { value: 'piracy',         label: 'Piracy'          },
+  { value: 'harassment',     label: 'Harassment'      },
+  { value: 'other',          label: 'Other'           },
+]
+
+// ── Inline report modal ───────────────────────────────────────────
+function ReportModal({
+  onClose,
+  onSubmit,
+  submitting,
+}: {
+  onClose:    () => void
+  onSubmit:   (reason: string, details: string) => Promise<void>
+  submitting: boolean
+}) {
+  const [reason,  setReason]  = useState('')
+  const [details, setDetails] = useState('')
+
+  const handleSubmit = async () => {
+    if (!reason) { toast.error('Please select a reason'); return }
+    await onSubmit(reason, details)
+  }
+
+  return (
+    // Backdrop
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl p-5 space-y-4"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center">
+              <Flag size={13} className="text-destructive" />
+            </div>
+            <h3 className="text-sm font-black">Report Review</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* Reason selector */}
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Reason <span className="text-destructive">*</span>
+          </label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {REPORT_REASONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setReason(value)}
+                className={cn(
+                  'px-3 py-2 rounded-xl border text-xs font-semibold text-left transition-all',
+                  reason === value
+                    ? 'bg-destructive/10 border-destructive/50 text-destructive'
+                    : 'border-border text-muted-foreground hover:border-destructive/30 hover:text-foreground'
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Details field */}
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Additional details
+            <span className="text-muted-foreground/60 font-normal ml-1">(optional)</span>
+          </label>
+          <textarea
+            value={details}
+            onChange={e => setDetails(e.target.value)}
+            placeholder="Explain why you're reporting this review…"
+            rows={3}
+            maxLength={500}
+            className={cn(
+              'w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5',
+              'text-sm placeholder:text-muted-foreground outline-none',
+              'focus:border-primary transition-colors'
+            )}
+          />
+          <p className="text-[10px] text-muted-foreground text-right">{details.length}/500</p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-1">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className="flex-1 gap-1.5 bg-destructive hover:bg-destructive/90 border-0 text-white"
+            onClick={handleSubmit}
+            disabled={submitting || !reason}
+          >
+            {submitting
+              ? <><Loader2 size={12} className="animate-spin" /> Submitting…</>
+              : <><Flag size={12} /> Submit Report</>
+            }
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── ReviewCard ────────────────────────────────────────────────────
 export function ReviewCard({
   review,
   currentUserId,
@@ -33,11 +161,12 @@ export function ReviewCard({
   const [deleting,         setDeleting]          = useState(false)
   const [helpful,          setHelpful]           = useState(0)
   const [hasMarkedHelpful, setHasMarkedHelpful]  = useState(false)
-  const [reporting,        setReporting]         = useState(false)
+  const [showReportModal,  setShowReportModal]   = useState(false)
+  const [reportSubmitting, setReportSubmitting]  = useState(false)
 
   // Auth modal state
-  const [showAuth,    setShowAuth]    = useState(false)
-  const [authAction,  setAuthAction]  = useState<'helpful' | 'report'>('helpful')
+  const [showAuth,   setShowAuth]   = useState(false)
+  const [authAction, setAuthAction] = useState<'helpful' | 'report'>('helpful')
 
   const isOwner  = currentUserId === review.user_id
   const profile  = review.profiles
@@ -82,43 +211,43 @@ export function ReviewCard({
     })
   }
 
-  const handleReport = async () => {
-    requireAuth('report', async () => {
-      if (reporting) return
-      setReporting(true)
-      try {
-        const res = await fetch('/api/reports', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({
-            entity_type: 'review',
-            entity_id:   review.id,
-            reason:      'Reported by user',
-          }),
-        })
-        if (res.status === 409) {
-          toast.info('You\'ve already reported this review')
-          return
-        }
-        if (!res.ok) throw new Error()
-        toast.success('Report submitted, thank you')
-      } catch {
-        toast.error('Failed to submit report')
-      } finally {
-        setReporting(false)
+  const handleReportClick = () => {
+    requireAuth('report', () => setShowReportModal(true))
+  }
+
+  const handleReportSubmit = async (reason: string, details: string) => {
+    setReportSubmitting(true)
+    try {
+      const res = await fetch('/api/reports', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          entity_type: 'review',
+          entity_id:   review.id,
+          reason,
+          details:     details.trim() || null,
+        }),
+      })
+
+      if (res.status === 409) {
+        toast.info('You\'ve already reported this review')
+        setShowReportModal(false)
+        return
       }
-    })
+      if (!res.ok) throw new Error()
+
+      toast.success('Report submitted — thank you')
+      setShowReportModal(false)
+    } catch {
+      toast.error('Failed to submit report')
+    } finally {
+      setReportSubmitting(false)
+    }
   }
 
   const authConfig = authAction === 'helpful'
-    ? {
-        action: 'mark reviews as helpful',
-        icon: <ThumbsUp size={24} className="text-primary" />,
-      }
-    : {
-        action: 'report content',
-        icon: <Flag size={24} className="text-destructive" />,
-      }
+    ? { action: 'mark reviews as helpful', icon: <ThumbsUp size={24} className="text-primary" /> }
+    : { action: 'report content',          icon: <Flag     size={24} className="text-destructive" /> }
 
   if (isEditing) {
     return (
@@ -240,17 +369,26 @@ export function ReviewCard({
 
           {!isOwner && (
             <button
-              onClick={handleReport}
-              disabled={reporting}
-              className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:border-destructive/50 hover:text-destructive transition-colors disabled:opacity-50"
+              onClick={handleReportClick}
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-border text-muted-foreground hover:border-destructive/50 hover:text-destructive transition-colors"
             >
               <Flag size={11} />
-              {reporting ? 'Reporting…' : 'Report'}
+              Report
             </button>
           )}
         </div>
       </div>
 
+      {/* Report modal */}
+      {showReportModal && (
+        <ReportModal
+          onClose={() => setShowReportModal(false)}
+          onSubmit={handleReportSubmit}
+          submitting={reportSubmitting}
+        />
+      )}
+
+      {/* Auth prompt */}
       <AuthPromptModal
         open={showAuth}
         onClose={() => setShowAuth(false)}
