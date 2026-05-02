@@ -27,28 +27,28 @@ interface Props {
 }
 
 const FREE_FEATURES = [
-  { icon: BookOpen,   text: '50 recommendations per month'  },
-  { icon: Bookmark,   text: '100 saved comics'              },
-  { icon: BookMarked, text: '5 reading lists'               },
-  { icon: Star,       text: 'Reviews & voting'              },
-  { icon: Users,      text: 'Follow other readers'          },
-  { icon: Bell,       text: 'Basic notifications'           },
+  { icon: BookOpen,   text: '50 recommendations per month' },
+  { icon: Bookmark,   text: '100 saved comics'             },
+  { icon: BookMarked, text: '5 reading lists'              },
+  { icon: Star,       text: 'Reviews & voting'             },
+  { icon: Users,      text: 'Follow other readers'         },
+  { icon: Bell,       text: 'Basic notifications'          },
 ]
 
 const PRO_STATUS = [
-  { icon: Crown,      text: 'Exclusive 👑 Pro badge on profile', highlight: true  },
-  { icon: BadgeCheck, text: 'Eligible for Verified Recommender badge', highlight: true  },
-  { icon: TrendingUp, text: 'Priority placement in Community Picks',   highlight: true  },
-  { icon: Flame,      text: 'Early access to new features',            highlight: true  },
+  { icon: Crown,      text: 'Exclusive 👑 Pro badge on profile',          highlight: true },
+  { icon: BadgeCheck, text: 'Eligible for Verified Recommender badge',    highlight: true },
+  { icon: TrendingUp, text: 'Priority placement in Community Picks',      highlight: true },
+  { icon: Flame,      text: 'Early access to new features',               highlight: true },
 ]
 
 const PRO_POWER = [
-  { icon: BookOpen,   text: 'Unlimited recommendations',        highlight: false },
-  { icon: Bookmark,   text: 'Unlimited saves',                  highlight: false },
-  { icon: BarChart2,  text: 'Recommendation analytics',          highlight: false },
-  { icon: Eye,        text: 'See who viewed your profile',      highlight: false },
-  { icon: Download,   text: 'Export reading lists (CSV/PDF)',   highlight: false },
-  { icon: Zap,        text: 'Ad-free experience',               highlight: false },
+  { icon: BookOpen,  text: 'Unlimited recommendations'      },
+  { icon: Bookmark,  text: 'Unlimited saves'                },
+  { icon: BarChart2, text: 'Recommendation analytics'       },
+  { icon: Eye,       text: 'See who viewed your profile'    },
+  { icon: Download,  text: 'Export reading lists (CSV/PDF)' },
+  { icon: Zap,       text: 'Ad-free experience'             },
 ]
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -58,16 +58,21 @@ const ERROR_MESSAGES: Record<string, string> = {
   verification_failed: 'We could not verify your payment.',
 }
 
+// ── Pricing constants — single source of truth ─────────────────────
+const PRICES = {
+  monthly: { display: '$4.99',  label: '/month',  badge: null       },
+  yearly:  { display: '$2.49',  label: '/month',  badge: '-50%'     },
+} as const
+
+const YEARLY_BILLED = '$29.99'   // what actually gets charged annually
+
 export function PricingClient({ user, profile }: Props) {
   const [billing, setBilling] = useState<'monthly' | 'yearly'>('yearly')
   const [loading, setLoading] = useState(false)
   const searchParams = useSearchParams()
 
   const isAdmin = profile?.role === 'admin'
-  const isMod   = profile?.role === 'moderator'
-  
-  // Cleaned up Pro Logic
-  const isPro = isAdmin || (profile?.is_pro && 
+  const isPro   = isAdmin || (profile?.is_pro &&
     (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
 
   useEffect(() => {
@@ -100,8 +105,11 @@ export function PricingClient({ user, profile }: Props) {
     }
   }
 
+  const price = PRICES[billing]
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-12 space-y-14">
+
       {/* ── Header ── */}
       <div className="text-center space-y-4">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm font-semibold">
@@ -115,51 +123,62 @@ export function PricingClient({ user, profile }: Props) {
           </span>
         </h1>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">
-          Pro isn't just about removing limits, it's about the recognition, 
+          Pro isn't just about removing limits, it's about the recognition,
           visibility, and tools that serious collectors deserve.
         </p>
       </div>
 
-      {/* ── State: Admin or Existing Pro ── */}
-      {(isAdmin || (isPro && !isAdmin)) && (
+      {/* ── Already Pro / Admin state ── */}
+      {(isAdmin || isPro) && (
         <div className={cn(
-          "max-w-md mx-auto p-6 rounded-2xl border text-center space-y-3 shadow-sm",
-          isAdmin ? "border-primary/30 bg-primary/5" : "border-amber-500/30 bg-amber-500/5"
+          'max-w-md mx-auto p-6 rounded-2xl border text-center space-y-3 shadow-sm',
+          isAdmin
+            ? 'border-primary/30 bg-primary/5'
+            : 'border-amber-500/30 bg-amber-500/5'
         )}>
           <div className={cn(
-            "w-12 h-12 rounded-xl flex items-center justify-center mx-auto",
-            isAdmin ? "bg-primary/10" : "bg-amber-500/10"
+            'w-12 h-12 rounded-xl flex items-center justify-center mx-auto',
+            isAdmin ? 'bg-primary/10' : 'bg-amber-500/10'
           )}>
-            {isAdmin ? <Shield size={22} className="text-primary" /> : <Crown size={22} className="text-amber-500 fill-amber-500" />}
+            {isAdmin
+              ? <Shield size={22} className="text-primary" />
+              : <Crown  size={22} className="text-amber-500 fill-amber-500" />
+            }
           </div>
-          <p className="font-black text-lg">{isAdmin ? "Admin Access Active" : "You're already on Pro! 👑"}</p>
+          <p className="font-black text-lg">
+            {isAdmin ? 'Admin Access Active' : "You're already on Pro! 👑"}
+          </p>
           <p className="text-sm text-muted-foreground">
-            {isAdmin 
-              ? "You have full access to all features. Manage the platform from your dashboard."
-              : profile?.pro_expires_at 
+            {isAdmin
+              ? 'You have full access to all features. Manage the platform from your dashboard.'
+              : profile?.pro_expires_at
                 ? `Active until ${new Date(profile.pro_expires_at).toLocaleDateString(undefined, { dateStyle: 'long' })}.`
-                : "Your Pro access is active."
+                : 'Your Pro access is active.'
             }
           </p>
           <div className="flex gap-2 justify-center pt-2">
-             <Link href={isAdmin ? "/admin" : "/pro/dashboard"}>
-               <Button className="gap-2">
-                 Go to Dashboard <ArrowRight size={14} />
-               </Button>
-             </Link>
+            <Link href={isAdmin ? '/admin' : '/pro/dashboard'}>
+              <Button className="gap-2">
+                Go to Dashboard <ArrowRight size={14} />
+              </Button>
+            </Link>
           </div>
         </div>
       )}
 
-      {/* ── Pricing Section ── */}
+      {/* ── Pricing section ── */}
       {!isAdmin && !isPro && (
         <div className="space-y-10">
+
+          {/* Billing toggle */}
           <div className="flex items-center justify-center gap-3">
             <button
               onClick={() => setBilling('monthly')}
               className={cn(
                 'px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
-                billing === 'monthly' ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border'
+                billing === 'monthly'
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'bg-card text-muted-foreground border-border'
               )}
             >
               Monthly
@@ -168,18 +187,23 @@ export function PricingClient({ user, profile }: Props) {
               onClick={() => setBilling('yearly')}
               className={cn(
                 'relative px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
-                billing === 'yearly' ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border'
+                billing === 'yearly'
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'bg-card text-muted-foreground border-border'
               )}
             >
               Yearly
+              {/* -50% badge — only shows on yearly */}
               <span className="absolute -top-2.5 -right-2.5 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-black">
-                -33%
+                -50%
               </span>
             </button>
           </div>
 
+          {/* Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-            {/* Free Card */}
+
+            {/* Free card */}
             <div className="p-6 rounded-2xl border border-border bg-card flex flex-col">
               <div className="mb-6">
                 <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">Free</p>
@@ -191,67 +215,99 @@ export function PricingClient({ user, profile }: Props) {
               <div className="space-y-3 mb-8 flex-grow">
                 {FREE_FEATURES.map((f) => (
                   <div key={f.text} className="flex items-center gap-2.5 text-sm text-muted-foreground">
-                    <Check size={14} className="text-muted-foreground/50" />
+                    <Check size={14} className="text-muted-foreground/50 shrink-0" />
                     {f.text}
                   </div>
                 ))}
               </div>
               <Button asChild variant="outline" className="w-full">
-                <Link href={user ? "/browse" : "/signup"}>{user ? 'Continue Free' : 'Get Started'}</Link>
+                <Link href={user ? '/browse' : '/signup'}>
+                  {user ? 'Continue Free' : 'Get Started'}
+                </Link>
               </Button>
             </div>
 
-            {/* Pro Card */}
-            <div className="relative p-6 rounded-2xl border-2 border-amber-500/50 bg-gradient-to-b from-amber-500/5 to-card space-y-6 shadow-xl shadow-amber-500/5">
+            {/* Pro card */}
+            <div className="relative p-6 rounded-2xl border-2 border-amber-500/50 bg-gradient-to-b from-amber-500/5 to-card space-y-6 shadow-xl shadow-amber-500/5 flex flex-col">
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
                 <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-black shadow-md">
                   ✨ RECOMMENDED
                 </span>
               </div>
+
+              {/* Price block */}
               <div>
                 <p className="text-xs font-black uppercase tracking-widest text-amber-600">Pro 👑</p>
-                <div className="flex items-end gap-1">
-                  <span className="text-4xl font-black">{billing === 'monthly' ? '$4.99' : '$3.33'}</span>
-                  <span className="text-muted-foreground text-sm mb-1.5">/month</span>
+                <div className="flex items-end gap-1 mt-1">
+                  <span className="text-4xl font-black">{price.display}</span>
+                  <span className="text-muted-foreground text-sm mb-1.5">{price.label}</span>
                 </div>
-                {billing === 'yearly' && <p className="text-xs text-emerald-600 font-bold mt-1">Billed $39.99 yearly</p>}
+                {billing === 'yearly' && (
+                  <p className="text-xs text-emerald-600 font-bold mt-1">
+                    Billed {YEARLY_BILLED}/year · save 50% vs monthly
+                  </p>
+                )}
+                {billing === 'monthly' && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Or{' '}
+                    <button
+                      onClick={() => setBilling('yearly')}
+                      className="text-emerald-600 font-bold hover:underline"
+                    >
+                      save 50% with yearly ({YEARLY_BILLED}/yr)
+                    </button>
+                  </p>
+                )}
               </div>
 
-              <div className="space-y-4">
+              {/* Features */}
+              <div className="space-y-4 flex-grow">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Recognition</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">
+                    Recognition
+                  </p>
                   {PRO_STATUS.map((f) => (
                     <div key={f.text} className="flex items-start gap-2.5 text-sm font-medium">
-                      <Check size={14} className="text-amber-500 mt-0.5" />
+                      <Check size={14} className="text-amber-500 mt-0.5 shrink-0" />
                       {f.text}
                     </div>
                   ))}
                 </div>
                 <div className="h-px bg-border" />
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Power Tools</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    Power Tools
+                  </p>
                   {PRO_POWER.map((f) => (
                     <div key={f.text} className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <Check size={14} className="text-emerald-500 mt-0.5" />
+                      <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                       {f.text}
                     </div>
                   ))}
                 </div>
               </div>
 
-              <Button 
-                onClick={handleUpgrade} 
+              <Button
+                onClick={handleUpgrade}
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-amber-400 to-orange-500 hover:opacity-90 border-0 text-white font-bold h-11"
               >
-                {loading ? "Processing..." : "Upgrade Now"}
+                {loading
+                  ? 'Processing…'
+                  : billing === 'yearly'
+                  ? `Upgrade — ${YEARLY_BILLED}/year`
+                  : 'Upgrade — $4.99/month'
+                }
               </Button>
+
+              {/* Trust line */}
+              <p className="text-center text-[10px] text-muted-foreground">
+                Cancel anytime · Secure payment via Paystack
+              </p>
             </div>
           </div>
         </div>
       )}
-
-      {/* ── Social Proof & FAQ remain largely as before, but ensure visual consistency ── */}
     </div>
   )
 }

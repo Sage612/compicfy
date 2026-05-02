@@ -8,7 +8,7 @@ export const PAYSTACK_PLANS = {
     interval: 'monthly',
   },
   yearly: {
-    amount: 3999, // $39.99 in cents (3999 * 100) OR ₦39,999 in kobo
+    amount: 2999, // $29.99 in cents (2999 * 100) OR ₦29,999 in kobo
     label: 'Pro Yearly',
     interval: 'annually',
   },

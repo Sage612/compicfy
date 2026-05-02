@@ -99,7 +99,17 @@ interface Props {
 export function RecommendationForm({ userId }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const prefillTitle = searchParams.get('title') ?? ''
+  const prefillTitle       = searchParams.get('title')       ?? ''
+  const prefillAuthor      = searchParams.get('author')      ?? ''
+  const prefillArtist      = searchParams.get('artist')      ?? ''
+  const prefillDescription = searchParams.get('description') ?? ''
+  const prefillType        = searchParams.get('type')        ?? ''
+  const prefillStatus      = searchParams.get('status')      ?? ''
+  const prefillCover       = searchParams.get('cover_url')   ?? ''
+  const prefillYear        = searchParams.get('year_released') ?? ''
+  const prefillChapters    = searchParams.get('chapter_count') ?? ''
+  const prefillGenres      = searchParams.get('genres')?.split(',').filter(Boolean) ?? []
+  
   const [submitting, setSubmitting] = useState(false)
   const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
   const [checkingDuplicate, setCheckingDuplicate] = useState(false)
@@ -157,14 +167,19 @@ export function RecommendationForm({ userId }: Props) {
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
-      title: prefillTitle ?? '',
-      genres: [],
+      title:              prefillTitle,
+      author:             prefillAuthor,
+      artist:             prefillArtist,
+      description:        prefillDescription,
+      type:               (prefillType as any) || undefined,
+      status:             (prefillStatus as any) || undefined,
+      cover_url:          prefillCover,
+      genres:             prefillGenres,
       official_platforms: [],
-      cover_url: '',
-      content_rating: 'all_ages',
-      why_recommend: '',
-      author: '',
-      artist: '',
+      content_rating:     'all_ages',
+      why_recommend:      '',
+      ...(prefillYear     ? { year_released:  Number(prefillYear)    } : {}),
+      ...(prefillChapters ? { chapter_count:  Number(prefillChapters) } : {}),
     },
   })
 
@@ -173,7 +188,6 @@ export function RecommendationForm({ userId }: Props) {
 
   useEffect(() => {
     if (prefillTitle) {
-      setValue('title', prefillTitle)
       duplicateDebounceRef.current = setTimeout(() => checkDuplicate(prefillTitle), 300)
     }
     return () => { if (duplicateDebounceRef.current) clearTimeout(duplicateDebounceRef.current) }
@@ -484,7 +498,7 @@ export function RecommendationForm({ userId }: Props) {
                       </p>
                       <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside leading-relaxed">
                         <li>Must link to a verified official platform</li>
-                        <li>Cover must be official promotional art — no explicit imagery</li>
+                        <li>Cover must be official promotional art, no explicit imagery</li>
                         <li>Requires manual admin approval</li>
                         <li>Violations result in removal &amp; account suspension</li>
                       </ul>
@@ -559,7 +573,7 @@ export function RecommendationForm({ userId }: Props) {
       <div className="flex gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/15">
         <Info size={15} className="text-primary shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Your recommendation will be reviewed by our team before being published to the community.
+          Your recommendation will be reviewed by our team before being published.
         </p>
       </div>
 
@@ -584,7 +598,7 @@ export function RecommendationForm({ userId }: Props) {
           )}
         >
           {atRecLimit ? (
-            <><Crown size={15} /> Limit Reached — Upgrade</>
+            <><Crown size={15} /> Limit Reached, Upgrade</>
           ) : submitting ? (
             <><Loader2 size={15} className="animate-spin" /> Submitting…</>
           ) : (

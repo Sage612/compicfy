@@ -236,7 +236,7 @@ export function ReviewCard({
       }
       if (!res.ok) throw new Error()
 
-      toast.success('Report submitted — thank you')
+      toast.success('Report submitted, thank you')
       setShowReportModal(false)
     } catch {
       toast.error('Failed to submit report')

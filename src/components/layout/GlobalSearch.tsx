@@ -97,7 +97,7 @@ export function GlobalSearch() {
 
   const handleBrowseSearch = () => {
     if (!query.trim()) return
-    router.push(`/browse?q=${encodeURIComponent(query.trim())}`)
+    router.push(`/search?q=${encodeURIComponent(query.trim())}`)
     close()
   }
 
@@ -232,9 +232,9 @@ export function GlobalSearch() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-primary">
-                        See all results for "{query}"
+                        Search all sources for "{query}"
                       </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Browse with filters</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">MAL · MangaDex · AniList · MangaUpdates</p>
                     </div>
                     <ArrowRight size={12} className={cn('shrink-0 text-primary transition-opacity', selected === results.length ? 'opacity-100' : 'opacity-0')} />
                   </button>
