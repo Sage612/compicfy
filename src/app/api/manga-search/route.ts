@@ -179,11 +179,7 @@ async function searchMangaUpdates(query: string): Promise<MangaResult[]> {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          search: query,
-          perpage: 5,
-          type: 'series',
-        }),
+        body: JSON.stringify({ search: query, perpage: 5, type: 'series' }),
         next: { revalidate: 3600 },
       }
     )
@@ -191,81 +187,104 @@ async function searchMangaUpdates(query: string): Promise<MangaResult[]> {
     const data = await res.json()
     const items = data.results ?? []
 
-    return items.map((item: any) => {
-      const record = item.record ?? {}
+    // Fetch full series detail for each result in parallel (author/artist only in detail)
+    const detailedItems = await Promise.allSettled(
+      items.map(async (item: any) => {
+        const record = item.record ?? {}
+        const seriesId = record.series_id
+        if (!seriesId) return { record, detail: null }
 
-      // Authors and artists — handle missing/inconsistent type casing
-      const allCredits = record.authors ?? record.author_info ?? []
-
-      const authors = allCredits
-        .filter((a: any) => a.type?.toLowerCase() === 'author')
-        .map((a: any) => a.name ?? a.author_name ?? '')
-        .filter(Boolean)
-
-      const artists = allCredits
-        .filter((a: any) => a.type?.toLowerCase() === 'artist')
-        .map((a: any) => a.name ?? a.author_name ?? '')
-        .filter(Boolean)
-
-      // Fallback: if no typed split, treat first entry as author
-      const firstCredit = allCredits[0]?.name ?? allCredits[0]?.author_name ?? ''
-
-      // Genres
-      const genres = (record.genres ?? []).map((g: any) => g.genre ?? g)
-
-      // Categories (used as additional genre hints)
-      const categories = (record.categories ?? [])
-        .slice(0, 3)
-        .map((c: any) => c.category ?? c)
-
-      // Type mapping
-      const muType = record.type?.toLowerCase() ?? ''
-      let type = 'manga'
-      if (muType.includes('manhwa') || muType.includes('korean')) type = 'manhwa'
-      else if (muType.includes('manhua') || muType.includes('chinese')) type = 'manhua'
-      else if (muType.includes('webtoon')) type = 'webtoon'
-      else if (muType.includes('comic')) type = 'comic'
-
-      // Status
-      let status = 'ongoing'
-      const muStatus = (record.status ?? '').toLowerCase()
-      if (muStatus.includes('complete')) status = 'completed'
-      else if (muStatus.includes('hiatus')) status = 'hiatus'
-      else if (muStatus.includes('cancel') || muStatus.includes('discontinu')) status = 'cancelled'
-
-      // Cover image
-      const coverUrl = record.image?.url?.original ?? record.image?.url?.thumb ?? ''
-
-      // Description — strip HTML tags
-      const rawDesc = record.description ?? ''
-      const description = rawDesc.replace(/<[^>]*>/g, '').trim().slice(0, 2000)
-
-      // Year from first published
-      const year = record.year ? parseInt(record.year) : null
-
-      // Alternative titles
-      const altTitles: string[] = []
-      ;(record.associated ?? []).forEach((a: any) => {
-        if (a.title) altTitles.push(a.title)
+        try {
+          const detailRes = await fetch(
+            `https://api.mangaupdates.com/v1/series/${seriesId}`,
+            { next: { revalidate: 3600 } }
+          )
+          const detail = detailRes.ok ? await detailRes.json() : null
+          return { record, detail }
+        } catch {
+          return { record, detail: null }
+        }
       })
+    )
 
-      return {
-        id: `mangaupdates-${record.series_id}`,
-        title: record.title ?? '',
-        alternativeTitles: altTitles.slice(0, 5),
-        author: authors[0] ?? firstCredit,
-        artist: artists[0] ?? authors[0] ?? firstCredit,
-        description,
-        genres: [...new Set([...genres, ...categories])].slice(0, 8),
-        type,
-        status,
-        coverUrl,
-        year,
-        chapters: record.latest_chapter ?? null,
-        score: record.bayesian_rating ? parseFloat(record.bayesian_rating) : null,
-        source: 'mangaupdates' as const,
-      }
-    })
+    return detailedItems
+      .filter((r) => r.status === 'fulfilled')
+      .map((r) => {
+        const { record, detail } = (r as PromiseFulfilledResult<any>).value
+
+        // Authors/artists come from detail endpoint
+        const allCredits = detail?.authors ?? record.authors ?? []
+
+        const authors = allCredits
+          .filter((a: any) => a.type?.toLowerCase() === 'author')
+          .map((a: any) => a.name ?? '')
+          .filter(Boolean)
+
+        const artists = allCredits
+          .filter((a: any) => a.type?.toLowerCase() === 'artist')
+          .map((a: any) => a.name ?? '')
+          .filter(Boolean)
+
+        const firstCredit = allCredits[0]?.name ?? ''
+
+        // Genres
+        const genres = (detail?.genres ?? record.genres ?? []).map((g: any) => g.genre ?? g)
+        const categories = (detail?.categories ?? record.categories ?? [])
+          .slice(0, 3)
+          .map((c: any) => c.category ?? c)
+
+        // Type
+        const muType = (detail?.type ?? record.type ?? '').toLowerCase()
+        let type = 'manga'
+        if (muType.includes('manhwa') || muType.includes('korean'))  type = 'manhwa'
+        else if (muType.includes('manhua') || muType.includes('chinese')) type = 'manhua'
+        else if (muType.includes('webtoon')) type = 'webtoon'
+        else if (muType.includes('comic'))   type = 'comic'
+
+        // Status
+        let status = 'ongoing'
+        const muStatus = (detail?.status ?? record.status ?? '').toLowerCase()
+        if (muStatus.includes('complete'))                              status = 'completed'
+        else if (muStatus.includes('hiatus'))                          status = 'hiatus'
+        else if (muStatus.includes('cancel') || muStatus.includes('discontinu')) status = 'cancelled'
+
+        // Cover
+        const coverUrl =
+          detail?.image?.url?.original ??
+          detail?.image?.url?.thumb ??
+          record.image?.url?.original ??
+          record.image?.url?.thumb ?? ''
+
+        // Description
+        const rawDesc = detail?.description ?? record.description ?? ''
+        const description = rawDesc.replace(/<[^>]*>/g, '').trim().slice(0, 2000)
+
+        // Year
+        const year = detail?.year ? parseInt(detail.year) : record.year ? parseInt(record.year) : null
+
+        // Alt titles
+        const altTitles: string[] = []
+        ;(detail?.associated ?? record.associated ?? []).forEach((a: any) => {
+          if (a.title) altTitles.push(a.title)
+        })
+
+        return {
+          id: `mangaupdates-${record.series_id}`,
+          title: detail?.title ?? record.title ?? '',
+          alternativeTitles: altTitles.slice(0, 5),
+          author: authors[0] ?? firstCredit,
+          artist: artists[0] ?? authors[0] ?? firstCredit,
+          description,
+          genres: [...new Set([...genres, ...categories])].slice(0, 8),
+          type,
+          status,
+          coverUrl,
+          year,
+          chapters: detail?.latest_chapter ?? record.latest_chapter ?? null,
+          score: detail?.bayesian_rating ? parseFloat(detail.bayesian_rating) : null,
+          source: 'mangaupdates' as const,
+        }
+      })
   } catch {
     return []
   }
