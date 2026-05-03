@@ -5,11 +5,11 @@ import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import {
-  Crown, Check, Sparkles, Zap, BookOpen,
+  Crown, Check, Zap, BookOpen,
   Bookmark, BookMarked, Star, BarChart2,
   Download, Bell, Eye, ArrowRight,
   Shield, Users, TrendingUp,
-  BadgeCheck, Flame,
+  BadgeCheck, Flame, CreditCard, AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -36,10 +36,10 @@ const FREE_FEATURES = [
 ]
 
 const PRO_STATUS = [
-  { icon: Crown,      text: 'Exclusive 👑 Pro badge on profile',          highlight: true },
-  { icon: BadgeCheck, text: 'Eligible for Verified Recommender badge',    highlight: true },
-  { icon: TrendingUp, text: 'Priority placement in Community Picks',      highlight: true },
-  { icon: Flame,      text: 'Early access to new features',               highlight: true },
+  { icon: Crown,      text: 'Exclusive 👑 Pro badge on profile'       },
+  { icon: BadgeCheck, text: 'Eligible for Verified Recommender badge' },
+  { icon: TrendingUp, text: 'Priority placement in Community Picks'   },
+  { icon: Flame,      text: 'Early access to new features'            },
 ]
 
 const PRO_POWER = [
@@ -58,17 +58,12 @@ const ERROR_MESSAGES: Record<string, string> = {
   verification_failed: 'We could not verify your payment.',
 }
 
-// ── Pricing constants — single source of truth ─────────────────────
-const PRICES = {
-  monthly: { display: '$4.99',  label: '/month',  badge: null       },
-  yearly:  { display: '$2.49',  label: '/month',  badge: '-50%'     },
-} as const
-
-const YEARLY_BILLED = '$29.99'   // what actually gets charged annually
+const YEARLY_BILLED = '$29.99'
 
 export function PricingClient({ user, profile }: Props) {
-  const [billing, setBilling] = useState<'monthly' | 'yearly'>('yearly')
-  const [loading, setLoading] = useState(false)
+  const [billing,  setBilling]  = useState<'monthly' | 'yearly'>('yearly')
+  const [provider, setProvider] = useState<'paystack' | 'flutterwave'>('paystack')
+  const [loading,  setLoading]  = useState(false)
   const searchParams = useSearchParams()
 
   const isAdmin = profile?.role === 'admin'
@@ -90,7 +85,11 @@ export function PricingClient({ user, profile }: Props) {
     }
     setLoading(true)
     try {
-      const res = await fetch('/api/paystack/initialize', {
+      const endpoint = provider === 'paystack'
+        ? '/api/paystack/initialize'
+        : '/api/flutterwave/initialize'
+
+      const res  = await fetch(endpoint, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ plan: billing }),
@@ -105,7 +104,7 @@ export function PricingClient({ user, profile }: Props) {
     }
   }
 
-  const price = PRICES[billing]
+  const monthlyDisplay = billing === 'monthly' ? '$4.99' : '$2.49'
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12 space-y-14">
@@ -128,13 +127,11 @@ export function PricingClient({ user, profile }: Props) {
         </p>
       </div>
 
-      {/* ── Already Pro / Admin state ── */}
+      {/* ── Already Pro / Admin ── */}
       {(isAdmin || isPro) && (
         <div className={cn(
           'max-w-md mx-auto p-6 rounded-2xl border text-center space-y-3 shadow-sm',
-          isAdmin
-            ? 'border-primary/30 bg-primary/5'
-            : 'border-amber-500/30 bg-amber-500/5'
+          isAdmin ? 'border-primary/30 bg-primary/5' : 'border-amber-500/30 bg-amber-500/5'
         )}>
           <div className={cn(
             'w-12 h-12 rounded-xl flex items-center justify-center mx-auto',
@@ -145,24 +142,20 @@ export function PricingClient({ user, profile }: Props) {
               : <Crown  size={22} className="text-amber-500 fill-amber-500" />
             }
           </div>
-          <p className="font-black text-lg">
-            {isAdmin ? 'Admin Access Active' : "You're already on Pro! 👑"}
-          </p>
+          <p className="font-black text-lg">{isAdmin ? 'Admin Access Active' : "You're already on Pro! 👑"}</p>
           <p className="text-sm text-muted-foreground">
             {isAdmin
-              ? 'You have full access to all features. Manage the platform from your dashboard.'
+              ? 'You have full access to all features.'
               : profile?.pro_expires_at
                 ? `Active until ${new Date(profile.pro_expires_at).toLocaleDateString(undefined, { dateStyle: 'long' })}.`
                 : 'Your Pro access is active.'
             }
           </p>
-          <div className="flex gap-2 justify-center pt-2">
-            <Link href={isAdmin ? '/admin' : '/pro/dashboard'}>
-              <Button className="gap-2">
-                Go to Dashboard <ArrowRight size={14} />
-              </Button>
-            </Link>
-          </div>
+          <Link href={isAdmin ? '/admin' : '/pro/dashboard'}>
+            <Button className="gap-2 mt-2">
+              Go to Dashboard <ArrowRight size={14} />
+            </Button>
+          </Link>
         </div>
       )}
 
@@ -193,7 +186,6 @@ export function PricingClient({ user, profile }: Props) {
               )}
             >
               Yearly
-              {/* -50% badge — only shows on yearly */}
               <span className="absolute -top-2.5 -right-2.5 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-black">
                 -50%
               </span>
@@ -213,7 +205,7 @@ export function PricingClient({ user, profile }: Props) {
                 </div>
               </div>
               <div className="space-y-3 mb-8 flex-grow">
-                {FREE_FEATURES.map((f) => (
+                {FREE_FEATURES.map(f => (
                   <div key={f.text} className="flex items-center gap-2.5 text-sm text-muted-foreground">
                     <Check size={14} className="text-muted-foreground/50 shrink-0" />
                     {f.text}
@@ -235,12 +227,12 @@ export function PricingClient({ user, profile }: Props) {
                 </span>
               </div>
 
-              {/* Price block */}
+              {/* Price */}
               <div>
                 <p className="text-xs font-black uppercase tracking-widest text-amber-600">Pro 👑</p>
                 <div className="flex items-end gap-1 mt-1">
-                  <span className="text-4xl font-black">{price.display}</span>
-                  <span className="text-muted-foreground text-sm mb-1.5">{price.label}</span>
+                  <span className="text-4xl font-black">{monthlyDisplay}</span>
+                  <span className="text-muted-foreground text-sm mb-1.5">/month</span>
                 </div>
                 {billing === 'yearly' && (
                   <p className="text-xs text-emerald-600 font-bold mt-1">
@@ -250,10 +242,7 @@ export function PricingClient({ user, profile }: Props) {
                 {billing === 'monthly' && (
                   <p className="text-xs text-muted-foreground mt-1">
                     Or{' '}
-                    <button
-                      onClick={() => setBilling('yearly')}
-                      className="text-emerald-600 font-bold hover:underline"
-                    >
+                    <button onClick={() => setBilling('yearly')} className="text-emerald-600 font-bold hover:underline">
                       save 50% with yearly ({YEARLY_BILLED}/yr)
                     </button>
                   </p>
@@ -263,10 +252,8 @@ export function PricingClient({ user, profile }: Props) {
               {/* Features */}
               <div className="space-y-4 flex-grow">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">
-                    Recognition
-                  </p>
-                  {PRO_STATUS.map((f) => (
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Recognition</p>
+                  {PRO_STATUS.map(f => (
                     <div key={f.text} className="flex items-start gap-2.5 text-sm font-medium">
                       <Check size={14} className="text-amber-500 mt-0.5 shrink-0" />
                       {f.text}
@@ -275,16 +262,53 @@ export function PricingClient({ user, profile }: Props) {
                 </div>
                 <div className="h-px bg-border" />
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    Power Tools
-                  </p>
-                  {PRO_POWER.map((f) => (
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Power Tools</p>
+                  {PRO_POWER.map(f => (
                     <div key={f.text} className="flex items-start gap-2.5 text-sm text-muted-foreground">
                       <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
                       {f.text}
                     </div>
                   ))}
                 </div>
+              </div>
+
+              {/* ── Payment provider selector ── */}
+              <div className="space-y-2">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                  Pay with
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setProvider('paystack')}
+                    className={cn(
+                      'flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all',
+                      provider === 'paystack'
+                        ? 'bg-primary/10 border-primary/50 text-primary shadow-sm'
+                        : 'border-border text-muted-foreground hover:border-primary/30'
+                    )}
+                  >
+                    <CreditCard size={13} />
+                    Paystack
+                  </button>
+                  <button
+                    onClick={() => setProvider('flutterwave')}
+                    className={cn(
+                      'flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all',
+                      provider === 'flutterwave'
+                        ? 'bg-orange-500/10 border-orange-500/50 text-orange-600 shadow-sm'
+                        : 'border-border text-muted-foreground hover:border-orange-500/30'
+                    )}
+                  >
+                    <CreditCard size={13} />
+                    Flutterwave
+                  </button>
+                </div>
+                {provider === 'flutterwave' && (
+                  <div className="flex items-start gap-1.5 text-[10px] text-muted-foreground">
+                    <AlertCircle size={10} className="shrink-0 mt-0.5" />
+                    Alternative if Paystack is unavailable in your region
+                  </div>
+                )}
               </div>
 
               <Button
@@ -300,9 +324,8 @@ export function PricingClient({ user, profile }: Props) {
                 }
               </Button>
 
-              {/* Trust line */}
               <p className="text-center text-[10px] text-muted-foreground">
-                Cancel anytime · Secure payment via Paystack
+                Cancel anytime · Secure payment via {provider === 'paystack' ? 'Paystack' : 'Flutterwave'}
               </p>
             </div>
           </div>

@@ -1,11 +1,10 @@
-import { Suspense } from 'react'
-import { SearchPageClient } from '@/components/layout/SearchPageClient'
 import { createClient } from '@/lib/supabase/server'
+import { SearchPageClient } from '@/components/layout/SearchPageClient'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Search Comics Compicfy',
-  description: 'Search manga, manhwa, manhua and webtoons across Compicfy, MyAnimeList, MangaDex, AniList and MangaUpdates.',
+  title: 'Search · Compicfy',
+  description: 'Search manga, manhwa, manhua and webtoons across Compicfy and external databases.',
 }
 
 interface Props {
@@ -13,28 +12,32 @@ interface Props {
 }
 
 export default async function SearchPage({ searchParams }: Props) {
-  const { q } = await searchParams
+  const { q }    = await searchParams
   const supabase = await createClient()
+
   const { data: { user } } = await supabase.auth.getUser()
 
-  let isPro = false
-  if (user) {
-    const { data: profile } = await (supabase as any)
-      .from('profiles')
-      .select('role, is_pro, pro_expires_at')
-      .eq('id', user.id)
-      .single()
+  let isPro      = false
+  let isLoggedIn = !!user
 
-    isPro = profile
-      ? ['admin', 'moderator'].includes(profile.role) ||
-        (profile.is_pro &&
-          (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-      : false
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_pro, pro_expires_at, role')
+      .eq('id', user.id)
+      .single() as { data: any }
+
+    isPro =
+      profile?.role === 'admin' ||
+      (profile?.is_pro &&
+        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
   }
 
   return (
-    <Suspense fallback={null}>
-      <SearchPageClient initialQuery={q ?? ''} isPro={isPro} />
-    </Suspense>
+    <SearchPageClient
+      initialQuery={q ?? ''}
+      isPro={isPro}
+      isLoggedIn={isLoggedIn}
+    />
   )
 }
