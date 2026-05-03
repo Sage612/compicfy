@@ -1,168 +1,148 @@
 'use client'
 
 import Link from 'next/link'
-import { BookOpen, ThumbsUp, MessageSquare, Star } from 'lucide-react'
+import { ThumbsUp, MessageSquare, Bookmark, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
-import { ShareButton } from './ShareButton'
 
 interface ComicCardProps {
   recommendation: Recommendation
   className?:     string
 }
 
-const statusConfig = {
-  ongoing:   { color: 'bg-emerald-500', label: 'Ongoing' },
-  completed: { color: 'bg-sky-500',     label: 'Done'    },
-  hiatus:    { color: 'bg-amber-500',   label: 'Hiatus'  },
-  cancelled: { color: 'bg-rose-500',    label: 'Dropped' },
+// ── Type accent system ────────────────────────────────────────────
+const TYPE_ACCENTS: Record<string, {
+  bar:    string  // left border bar colour
+  badge:  string  // type pill
+  glow:   string  // hover glow
+  dot:    string  // inline dot
+}> = {
+  manga:   { bar: 'bg-rose-500',   badge: 'text-rose-400   bg-rose-500/10   border-rose-500/20',   glow: 'hover:shadow-rose-500/10',   dot: 'bg-rose-500'   },
+  manhwa:  { bar: 'bg-violet-500', badge: 'text-violet-400 bg-violet-500/10 border-violet-500/20', glow: 'hover:shadow-violet-500/10', dot: 'bg-violet-500' },
+  manhua:  { bar: 'bg-amber-500',  badge: 'text-amber-400  bg-amber-500/10  border-amber-500/20',  glow: 'hover:shadow-amber-500/10',  dot: 'bg-amber-500'  },
+  webtoon: { bar: 'bg-teal-500',   badge: 'text-teal-400   bg-teal-500/10   border-teal-500/20',   glow: 'hover:shadow-teal-500/10',   dot: 'bg-teal-500'   },
+  comic:   { bar: 'bg-blue-500',   badge: 'text-blue-400   bg-blue-500/10   border-blue-500/20',   glow: 'hover:shadow-blue-500/10',   dot: 'bg-blue-500'   },
+  other:   { bar: 'bg-zinc-500',   badge: 'text-zinc-400   bg-zinc-500/10   border-zinc-500/20',   glow: 'hover:shadow-zinc-500/10',   dot: 'bg-zinc-500'   },
 }
 
-const typeColors: Record<string, string> = {
-  manga:   'from-rose-500 to-pink-600',
-  manhwa:  'from-violet-500 to-purple-600',
-  manhua:  'from-amber-500 to-orange-600',
-  webtoon: 'from-teal-500 to-cyan-600',
-  comic:   'from-blue-500 to-indigo-600',
-  other:   'from-slate-500 to-zinc-600',
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  ongoing:   { label: 'Ongoing',   color: 'text-emerald-400' },
+  completed: { label: 'Complete',  color: 'text-sky-400'     },
+  hiatus:    { label: 'Hiatus',    color: 'text-amber-400'   },
+  cancelled: { label: 'Dropped',   color: 'text-rose-400'    },
 }
 
-function getScoreTier(score: number) {
-  if (score >= 100) return { label: formatNumber(score), color: 'text-amber-300',   bg: 'bg-amber-500/25'   }
-  if (score >= 50)  return { label: formatNumber(score), color: 'text-emerald-300', bg: 'bg-emerald-500/25' }
-  if (score >= 10)  return { label: formatNumber(score), color: 'text-sky-300',     bg: 'bg-sky-500/25'     }
-  if (score > 0)    return { label: formatNumber(score), color: 'text-white/70',    bg: 'bg-white/10'       }
-  return { label: '0', color: 'text-white/40', bg: 'bg-white/5' }
-}
-
-/** True when the comic was added within the last 7 days */
 function isNewThisWeek(createdAt: string): boolean {
-  const diff = Date.now() - new Date(createdAt).getTime()
-  return diff < 7 * 24 * 60 * 60 * 1000
+  return Date.now() - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
 }
 
 export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
-  const status       = statusConfig[rec.status as keyof typeof statusConfig]
-  const typeGradient = typeColors[rec.type] ?? typeColors.other
-  const comicUrl     = `${process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'}/comic/${rec.id}`
-  const score        = rec.score ?? (rec.upvotes - rec.downvotes)
-  const scoreTier    = getScoreTier(score)
-  const isNew        = isNewThisWeek(rec.created_at)
+  const accent  = TYPE_ACCENTS[rec.type]  ?? TYPE_ACCENTS.other
+  const status  = STATUS_META[rec.status] ?? { label: rec.status, color: 'text-muted-foreground' }
+  const score   = rec.score ?? (rec.upvotes - rec.downvotes)
+  const isNew   = isNewThisWeek(rec.created_at)
 
   return (
-    <div className={cn('group relative flex flex-col', className)}>
+    <Link
+      href={`/comic/${rec.id}`}
+      className={cn(
+        // Base — portrait card
+        'group relative flex flex-col rounded-xl overflow-hidden',
+        'border border-border bg-card',
+        'hover:border-transparent hover:shadow-xl',
+        accent.glow,
+        'transition-all duration-300',
+        className
+      )}
+    >
+      {/* ── Accent bar — left edge ── */}
+      <div className={cn('absolute left-0 top-0 bottom-0 w-[3px] z-10 transition-all duration-300 group-hover:w-1', accent.bar)} />
 
-      {/* ── Card ── */}
-      <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-zinc-900 shadow-md group-hover:shadow-2xl group-hover:shadow-black/40 transition-all duration-300 group-hover:-translate-y-1">
+      {/* ── Cover ── */}
+      <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+        {rec.cover_url ? (
+          <img
+            src={rec.cover_url}
+            alt={rec.title}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-muted">
+            <span className="text-3xl opacity-20">📖</span>
+          </div>
+        )}
 
-        {/* Cover */}
-        <Link href={`/comic/${rec.id}`} className="absolute inset-0">
-          {rec.cover_url ? (
-            <img
-              src={rec.cover_url}
-              alt={rec.title}
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              loading="lazy"
-            />
-          ) : (
-            <div className={cn('absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br', typeGradient)}>
-              <BookOpen size={28} className="text-white/60" />
-              <span className="text-[10px] text-white/50 text-center px-3 leading-snug">{rec.title}</span>
-            </div>
-          )}
-        </Link>
+        {/* Scrim — only bottom */}
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
 
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/20 pointer-events-none" />
-
-        {/* Type pill — top left */}
-        <div className="absolute top-2.5 left-2.5 pointer-events-none">
-          <span className={cn('inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider text-white bg-gradient-to-r shadow-lg', typeGradient)}>
+        {/* ── Top-left: type badge ── */}
+        <div className="absolute top-2 left-3.5 z-10">
+          <span className={cn(
+            'inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border',
+            accent.badge
+          )}>
             {rec.type}
           </span>
         </div>
 
-        {/* ── NEW badge — top right, only for recent comics ── */}
-        {isNew && (
-          <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none z-10">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black bg-emerald-500 text-white shadow-lg">
+        {/* ── Top-right: NEW or score ── */}
+        <div className="absolute top-2 right-2 z-10">
+          {isNew ? (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-500 text-white">
               NEW
             </span>
-          </div>
-        )}
-
-        {/* Score badge — top right, only when not new */}
-        {!isNew && score > 0 && (
-          <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none z-10">
-            <span className={cn('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black backdrop-blur-sm', scoreTier.bg, scoreTier.color)}>
-              <ThumbsUp size={8} />
-              {scoreTier.label}
+          ) : score > 0 ? (
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-black/60 backdrop-blur-sm text-white/90">
+              <TrendingUp size={7} />
+              {formatNumber(score)}
             </span>
-          </div>
-        )}
+          ) : null}
+        </div>
 
-        {/* Age rating — only when no score and not new */}
-        {!isNew && (rec.content_rating === 'adult' || rec.content_rating === 'mature') && score <= 0 && (
-          <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none">
-            <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-black text-white', rec.content_rating === 'adult' ? 'bg-red-600' : 'bg-orange-500')}>
-              {rec.content_rating === 'adult' ? '18+' : '17+'}
-            </span>
-          </div>
-        )}
-
-        {/* Featured star — only when no score and not new */}
-        {!isNew && rec.is_featured && score <= 0 && (
-          <div className="absolute top-2.5 right-2.5 group-hover:opacity-0 transition-opacity pointer-events-none">
-            <Star size={14} className="text-amber-400 fill-amber-400 drop-shadow-lg" />
-          </div>
-        )}
-
-        {/* Bottom info */}
-        <Link href={`/comic/${rec.id}`} className="absolute bottom-0 left-0 right-0 p-3 space-y-1.5">
-          <h3 className="text-white font-bold text-xs leading-snug line-clamp-2 drop-shadow-sm">
+        {/* ── Bottom title ── */}
+        <div className="absolute inset-x-0 bottom-0 px-3 pt-4 pb-2.5 z-10">
+          <h3 className="text-white font-black text-[11px] leading-snug line-clamp-2 drop-shadow-sm">
             {rec.title}
           </h3>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex items-center gap-0.5 text-[10px] text-white/70">
-                <ThumbsUp size={9} />
-                {formatNumber(rec.upvotes)}
-              </span>
-              <span className="flex items-center gap-0.5 text-[10px] text-white/70">
-                <MessageSquare size={9} />
-                {formatNumber(rec.review_count)}
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status?.color ?? 'bg-zinc-500')} />
-              <span className="text-[9px] text-white/60 capitalize">{status?.label ?? rec.status}</span>
-            </div>
-          </div>
-        </Link>
-
-        {/* Hover shine */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-white/5 via-transparent to-transparent pointer-events-none" />
+        </div>
       </div>
 
-      {/* Share button — outside overflow-hidden */}
-      <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-        <ShareButton title={rec.title} url={comicUrl} compact />
-      </div>
+      {/* ── Meta strip — below cover ── */}
+      <div className="px-3 pt-2 pb-2.5 space-y-1.5 pl-4">
 
-      {/* Genre pills */}
-      {rec.genres?.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2 px-0.5">
-          {rec.genres.slice(0, 2).map((genre) => (
-            <span key={genre} className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border font-medium">
-              {genre}
+        {/* Status + genre row */}
+        <div className="flex items-center justify-between gap-1 min-w-0">
+          <span className={cn('text-[9px] font-bold', status.color)}>
+            {status.label}
+          </span>
+          {rec.genres?.length > 0 && (
+            <span className="text-[9px] text-muted-foreground/60 truncate max-w-[80px] text-right">
+              {rec.genres.slice(0, 2).join(' · ')}
             </span>
-          ))}
-          {rec.genres.length > 2 && (
-            <span className="text-[9px] text-muted-foreground/60">+{rec.genres.length - 2}</span>
           )}
         </div>
-      )}
-    </div>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-2.5 text-[9px] text-muted-foreground">
+          <span className="flex items-center gap-0.5">
+            <ThumbsUp size={8} className="text-emerald-500/70" />
+            {formatNumber(rec.upvotes)}
+          </span>
+          <span className="flex items-center gap-0.5">
+            <MessageSquare size={8} className="text-amber-500/70" />
+            {formatNumber(rec.review_count)}
+          </span>
+          <span className="flex items-center gap-0.5">
+            <Bookmark size={8} className="text-blue-500/70" />
+            {formatNumber(rec.save_count)}
+          </span>
+        </div>
+      </div>
+
+      {/* ── Hover shimmer ── */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none bg-gradient-to-br from-white/[0.03] to-transparent" />
+    </Link>
   )
 }
