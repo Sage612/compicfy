@@ -375,7 +375,7 @@ export function SearchPageClient({ initialQuery, isPro }: Props) {
           <div className="space-y-2">
            
             <h1 className="text-4xl sm:text-5xl font-black tracking-tight">
-              Search any Manhwa, Manhua or Webtoon.
+              Find your next obsession...
             </h1>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto">
               Search across Compicfy, MyAnimeList, MangaDex, AniList and MangaUpdates in one go.
