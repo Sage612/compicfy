@@ -1,6 +1,6 @@
 import React from 'react'
 import { Header } from '@/components/layout/Header'
-import { Footer } from '@/components/layout/Footer'
+import { ConditionalFooter } from '@/components/layout/ConditionalFooter'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
 import { createClient } from '@/lib/supabase/server'
@@ -26,7 +26,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
       <main className="flex-1 pt-14 pb-16 md:pb-0 overflow-x-hidden">
         {children}
       </main>
-      <Footer />
+      <ConditionalFooter />
       <MobileNav />
       {isAdmin && <AdminFloatingButton />}
     </div>

@@ -22,7 +22,7 @@ export async function ContextualOffers({ comicId, comicTitle, genre, maxOffers =
         <p className="text-sm text-muted-foreground mt-1">
           Search for{' '}
           <span className="text-foreground font-semibold">{comicTitle}</span>{' '}
-          merchandise across platforms. Links open search results — availability varies.
+          merchandise across platforms. Links open search results, availability varies.
         </p>
       </div>
 

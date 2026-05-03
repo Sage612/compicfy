@@ -242,9 +242,10 @@ function ExternalCard({
 
 interface Props {
   initialQuery: string
+  isPro:        boolean
 }
 
-export function SearchPageClient({ initialQuery }: Props) {
+export function SearchPageClient({ initialQuery, isPro }: Props) {
   const router = useRouter()
 
   const [query,           setQuery]           = useState(initialQuery)
@@ -256,21 +257,12 @@ export function SearchPageClient({ initialQuery }: Props) {
   const [hasSearched,     setHasSearched]     = useState(!!initialQuery)
   const [suggestions,     setSuggestions]     = useState<DBResult[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [isPro,           setIsPro]           = useState(false)
   const [activeTab,       setActiveTab]       = useState<'all' | 'compicfy' | 'web'>('all')
 
   const inputRef        = useRef<HTMLInputElement>(null)
   const debounceRef     = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suggDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef    = useRef<HTMLDivElement>(null)
-
-  // Check pro status
-  useEffect(() => {
-    fetch('/api/me/status')
-      .then(r => r.json())
-      .then(d => setIsPro(d.hasProAccess ?? false))
-      .catch(() => {})
-  }, [])
 
   // Close suggestions on outside click
   useEffect(() => {
@@ -381,12 +373,9 @@ export function SearchPageClient({ initialQuery }: Props) {
       {!hasSearched && (
         <div className="flex flex-col items-center justify-center pt-24 pb-12 px-4 text-center space-y-4">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest mb-2">
-              <Sparkles size={10} />
-              Comic Search Engine
-            </div>
+           
             <h1 className="text-4xl sm:text-5xl font-black tracking-tight">
-              Find any comic.
+              Search any Manhwa, Manhua or Webtoon.
             </h1>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto">
               Search across Compicfy, MyAnimeList, MangaDex, AniList and MangaUpdates in one go.
@@ -397,16 +386,16 @@ export function SearchPageClient({ initialQuery }: Props) {
 
       {/* ── Search bar ── */}
       <div className={cn(
-        'sticky top-14 z-30 px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border transition-all',
+        'sticky top-14 z-30 px-3 sm:px-4 py-3 bg-background/95 backdrop-blur-sm border-b border-border transition-all',
         !hasSearched && 'static border-0 bg-transparent backdrop-blur-none pb-8'
       )}>
-        <div className="max-w-2xl mx-auto" ref={containerRef}>
-          <div className="relative">
+        <div className="max-w-2xl mx-auto w-full" ref={containerRef}>
+          <div className="relative w-full">
             <div className={cn(
-              'flex items-center gap-3 rounded-2xl border bg-card transition-all',
+              'flex items-center gap-2 sm:gap-3 rounded-2xl border bg-card transition-all w-full min-w-0',
               hasSearched
-                ? 'px-4 py-2.5 border-border shadow-sm'
-                : 'px-5 py-4 border-primary/20 shadow-xl shadow-primary/10'
+                ? 'px-3 sm:px-4 py-2.5 border-border shadow-sm'
+                : 'px-4 sm:px-5 py-4 border-primary/20 shadow-xl shadow-primary/10'
             )}>
               <Search
                 size={hasSearched ? 15 : 18}
@@ -418,9 +407,9 @@ export function SearchPageClient({ initialQuery }: Props) {
                 onChange={e => handleInputChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                placeholder="Search manga, manhwa, manhua, webtoons…"
+                placeholder="Search manga, manhwa…"
                 className={cn(
-                  'flex-1 bg-transparent outline-none placeholder:text-muted-foreground text-foreground',
+                  'flex-1 bg-transparent outline-none placeholder:text-muted-foreground text-foreground min-w-0 w-0',
                   hasSearched ? 'text-sm' : 'text-base'
                 )}
                 autoFocus={!initialQuery}

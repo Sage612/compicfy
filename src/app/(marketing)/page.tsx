@@ -19,17 +19,17 @@ import type { Metadata } from 'next'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
 
 export const metadata: Metadata = {
-  title: 'Compicfy — Find your next obsession.',
+  title: 'Compicfy  Find your next obsession.',
   description:
     'A warm community for manga, manhwa, manhua, and webtoon fans. Discover, recommend, and vote for the best comics.',
   openGraph: {
-    title:       'Compicfy — Find your next obsession.',
+    title:       'Compicfy  Find your next obsession.',
     description: 'Community-powered comic discovery. Browse, recommend, and vote.',
     images: [{ url: `${SITE_URL}/api/og`, width: 1200, height: 630, alt: 'Compicfy — Find your next obsession.' }],
   },
   twitter: {
     card:        'summary_large_image',
-    title:       'Compicfy — Find your next obsession.',
+    title:       'Compicfy  Find your next obsession.',
     description: 'Community-powered comic discovery. Browse, recommend, and vote.',
     images:      [`${SITE_URL}/api/og`],
   },
