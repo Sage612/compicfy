@@ -37,29 +37,29 @@ export default async function MyReviewsPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
       {/* Header */}
-      <div className="flex items-end justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <Star size={16} className="text-white" />
-            </div>
-            <h1 className="text-2xl font-black tracking-tight">My Reviews</h1>
-          </div>
-          <p className="text-muted-foreground text-sm pl-0.5">
-            {reviews.length} review{reviews.length !== 1 ? 's' : ''} written
-          </p>
-        </div>
-        <Link href="/browse">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 shrink-0 border-border hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all duration-200"
-          >
-            <Radar size={14} />
-            Browse Comics
-          </Button>
-        </Link>
-      </div>
+<div className="flex items-center justify-between gap-3">
+  <div className="flex items-center gap-2.5 min-w-0">
+    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
+      <Star size={16} className="text-white" />
+    </div>
+    <div className="min-w-0">
+      <h1 className="text-xl font-black tracking-tight leading-tight truncate">My Reviews</h1>
+      <p className="text-muted-foreground text-xs mt-0.5">
+        {reviews.length} review{reviews.length !== 1 ? 's' : ''} written
+      </p>
+    </div>
+  </div>
+  <Link href="/browse" className="shrink-0">
+    <Button
+      variant="outline"
+      size="sm"
+      className="gap-2 border-border hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all duration-200"
+    >
+      <Radar size={14} />
+      Browse Comics
+    </Button>
+  </Link>
+</div>
 
       {/* Empty state */}
       {!reviews.length ? (

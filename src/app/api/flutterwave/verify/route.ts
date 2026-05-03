@@ -7,24 +7,24 @@ const FLW_SECRET = process.env.FLUTTERWAVE_SECRET_KEY!
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
-    const status    = searchParams.get('status')
-    const txRef     = searchParams.get('tx_ref')
-    const txId      = searchParams.get('transaction_id')
+    const status = searchParams.get('status')
+    const txRef  = searchParams.get('tx_ref')
+    const txId   = searchParams.get('transaction_id')
 
     if (status !== 'successful' || !txRef || !txId) {
       return NextResponse.redirect(`${APP_URL}/pricing?error=payment_failed`)
     }
 
     // Verify with Flutterwave
-    const res = await fetch(`https://api.flutterwave.com/v3/transactions/${txId}/verify`, {
-      headers: { 'Authorization': `Bearer ${FLW_SECRET}` },
+    const res  = await fetch(`https://api.flutterwave.com/v3/transactions/${txId}/verify`, {
+      headers: { Authorization: `Bearer ${FLW_SECRET}` },
     })
     const data = await res.json()
 
     if (
-      data.status !== 'success' ||
-      data.data.status !== 'successful' ||
-      data.data.tx_ref !== txRef
+      data.status        !== 'success'     ||
+      data.data.status   !== 'successful'  ||
+      data.data.tx_ref   !== txRef
     ) {
       return NextResponse.redirect(`${APP_URL}/pricing?error=verification_failed`)
     }
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
     const supabase = await createClient()
 
-    // Guard: prevent double activation
+    // Guard: prevent double activation using flutterwave_reference column
     const { data: existing } = await supabase
       .from('subscriptions')
       .select('id')
@@ -48,22 +48,23 @@ export async function GET(req: NextRequest) {
 
     if (!existing) {
       await (supabase as any).rpc('activate_pro', {
-        p_user_id:                   userId,
-        p_plan:                      plan,
-        p_paystack_reference:        txRef,         // reuse same column — it's just a reference string
-        p_paystack_customer_code:    null,
+        p_user_id:                 userId,
+        p_plan:                    plan,
+        p_paystack_reference:      txRef,   // needs a value due to NOT NULL — using txRef
+        p_gateway:                 'flutterwave',
+        p_flutterwave_reference:   txRef,
       })
     }
 
     // Discord webhook
     if (process.env.DISCORD_PRO_WEBHOOK_URL) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username, display_name')
-        .eq('id', userId)
-        .single() as { data: any }
-
       try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username, display_name')
+          .eq('id', userId)
+          .single() as { data: any }
+
         await fetch(process.env.DISCORD_PRO_WEBHOOK_URL, {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },

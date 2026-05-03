@@ -20,6 +20,7 @@ interface Props {
     status: string
     amount: number
     currency: string
+    gateway: string
     started_at: string
     expires_at: string
     cancelled_at: string | null
@@ -29,24 +30,24 @@ interface Props {
 
 export function BillingClient({ profile, subscription, email }: Props) {
   const [cancelling, setCancelling] = useState(false)
-  const [cancelled, setCancelled] = useState(false)
+  const [cancelled,  setCancelled]  = useState(false)
 
   const isAdmin = profile?.role === 'admin'
   const isMod   = profile?.role === 'moderator'
 
-  // Admin always counts as Pro — no expiry check needed
   const isPro = isAdmin ||
     (profile?.is_pro &&
       (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
 
   const isCancelled = subscription?.status === 'cancelled' || cancelled
 
+  // Always hit paystack/cancel — it now routes internally based on gateway
   const handleCancel = async () => {
     if (!confirm('Are you sure you want to cancel your Pro subscription? You will keep access until the end of your billing period.')) return
 
     setCancelling(true)
     try {
-      const res = await fetch('/api/paystack/cancel', { method: 'POST' })
+      const res  = await fetch('/api/paystack/cancel', { method: 'POST' })
       const data = await res.json()
 
       if (!res.ok) {
@@ -62,6 +63,10 @@ export function BillingClient({ profile, subscription, email }: Props) {
       setCancelling(false)
     }
   }
+
+  // Correct price display based on plan
+  const priceDisplay = subscription?.plan === 'yearly' ? '$29.99' : '$4.99'
+  const perLabel     = subscription?.plan === 'yearly' ? 'year'   : 'month'
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -119,16 +124,17 @@ export function BillingClient({ profile, subscription, email }: Props) {
                 )}
               </div>
               <p className="text-sm text-muted-foreground">{email}</p>
+              {subscription?.gateway && (
+                <p className="text-xs text-muted-foreground capitalize">
+                  via {subscription.gateway}
+                </p>
+              )}
             </div>
 
             {isPro && !isAdmin && (
               <div className="text-right shrink-0">
-                <p className="font-black text-lg">
-                  {subscription?.plan === 'yearly' ? '$39.99' : '$4.99'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  per {subscription?.plan === 'yearly' ? 'year' : 'month'}
-                </p>
+                <p className="font-black text-lg">{priceDisplay}</p>
+                <p className="text-xs text-muted-foreground">per {perLabel}</p>
               </div>
             )}
           </div>
@@ -181,7 +187,7 @@ export function BillingClient({ profile, subscription, email }: Props) {
             </div>
           )}
 
-          {/* Upgrade button — only for genuinely free users */}
+          {/* Upgrade button */}
           {!isPro && !isAdmin && (
             <Link href="/pricing">
               <Button className="gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:opacity-90 border-0 text-white w-full">
@@ -202,7 +208,7 @@ export function BillingClient({ profile, subscription, email }: Props) {
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
             You already have most Pro features for free as a moderator.
-            Upgrading unlocks custom themes, recommendation analytics, and profile view tracking.
+            Upgrading unlocks recommendation analytics, and profile view tracking.
           </p>
         </div>
       )}

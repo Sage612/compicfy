@@ -98,26 +98,26 @@ export default function ProRecommendationsClient({ initialRecs }: Props) {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20 shrink-0">
-            <BookOpen size={16} className="text-white" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-black tracking-tight leading-tight">My Recommendations</h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Crown size={11} className="text-amber-500 fill-amber-500" />
-              <span className="text-xs text-amber-600 font-semibold">Unlimited submissions · Pro</span>
-            </div>
-          </div>
-        </div>
-        <Link href="/pro/recommendations/new" className="self-start sm:self-auto shrink-0">
-          <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
-            <Plus size={15} />
-            Add New
-          </Button>
-        </Link>
+<div className="flex items-center justify-between gap-3">
+  <div className="flex items-center gap-3 min-w-0">
+    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20 shrink-0">
+      <BookOpen size={16} className="text-white" />
+    </div>
+    <div className="min-w-0">
+      <h1 className="text-xl font-black tracking-tight leading-tight truncate">My Recommendations</h1>
+      <div className="flex items-center gap-1.5 mt-0.5">
+        <Crown size={11} className="text-amber-500 fill-amber-500" />
+        <span className="text-xs text-amber-600 font-semibold">Unlimited · Pro</span>
       </div>
+    </div>
+  </div>
+  <Link href="/pro/recommendations/new" className="shrink-0">
+    <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
+      <Plus size={15} />
+      Add New
+    </Button>
+  </Link>
+</div>
 
       {/* Search + filter */}
       {recs.length > 0 && (

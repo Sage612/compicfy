@@ -64,30 +64,30 @@ export default async function SavedPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
       {/* Header */}
-      <div className="flex items-end justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg shadow-rose-500/20">
-              <Bookmark size={16} className="text-white" />
-            </div>
-            <h1 className="text-2xl font-black tracking-tight">Saved Comics</h1>
-          </div>
-          <p className="text-muted-foreground text-sm pl-0.5">
-            {saveCount} comic{saveCount !== 1 ? 's' : ''} saved
-            {!isPro && (
-              <span className="text-muted-foreground/60 ml-1">
-                · {Math.max(0, FREE_SAVE_LIMIT - saveCount)} free slot{FREE_SAVE_LIMIT - saveCount !== 1 ? 's' : ''} remaining
-              </span>
-            )}
-          </p>
-        </div>
-        <Link href="/browse">
-          <Button variant="outline" size="sm" className="gap-2 shrink-0 hover:border-primary/40 hover:text-primary transition-colors">
-            <Radar size={14} />
-            Browse More
-          </Button>
-        </Link>
-      </div>
+<div className="flex items-center justify-between gap-3">
+  <div className="flex items-center gap-2.5 min-w-0">
+    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg shadow-rose-500/20 shrink-0">
+      <Bookmark size={16} className="text-white" />
+    </div>
+    <div className="min-w-0">
+      <h1 className="text-xl font-black tracking-tight leading-tight truncate">Saved Comics</h1>
+      <p className="text-muted-foreground text-xs mt-0.5">
+        {saveCount} saved
+        {!isPro && (
+          <span className="text-muted-foreground/60 ml-1">
+            · {Math.max(0, FREE_SAVE_LIMIT - saveCount)} slots left
+          </span>
+        )}
+      </p>
+    </div>
+  </div>
+  <Link href="/browse" className="shrink-0">
+    <Button variant="outline" size="sm" className="gap-2 hover:border-primary/40 hover:text-primary transition-colors">
+      <Radar size={14} />
+      Browse More
+    </Button>
+  </Link>
+</div>
 
       {/* Free user usage bar — shown when near or at limit */}
       {!isPro && saveCount > 0 && (

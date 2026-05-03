@@ -36,30 +36,34 @@ export default async function ProReviewsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
-      <div className="flex items-end justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <Star size={16} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black tracking-tight">My Reviews</h1>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <Crown size={11} className="text-amber-500 fill-amber-500" />
-                <span className="text-xs text-amber-600 font-semibold">Pro</span>
-              </div>
-            </div>
-          </div>
-          <p className="text-muted-foreground text-sm pl-0.5">
-            {reviews.length} review{reviews.length !== 1 ? 's' : ''} written
-          </p>
-        </div>
-        <Link href="/browse">
-          <Button variant="outline" size="sm" className="gap-2 shrink-0 border-border hover:border-amber-500/40 hover:text-amber-600 hover:bg-amber-500/5 transition-all duration-200">
-            <Radar size={14} />Browse Comics
-          </Button>
-        </Link>
+      {/* Header */}
+<div className="flex items-center justify-between gap-3">
+  <div className="flex items-center gap-2.5 min-w-0">
+    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
+      <Star size={16} className="text-white" />
+    </div>
+    <div className="min-w-0">
+      <h1 className="text-xl font-black tracking-tight leading-tight truncate">My Reviews</h1>
+      <div className="flex items-center gap-1.5 mt-0.5">
+        <Crown size={11} className="text-amber-500 fill-amber-500" />
+        <span className="text-xs text-amber-600 font-semibold">Pro</span>
       </div>
+      <p className="text-muted-foreground text-xs">
+        {reviews.length} review{reviews.length !== 1 ? 's' : ''} written
+      </p>
+    </div>
+  </div>
+  <Link href="/browse" className="shrink-0">
+    <Button
+      variant="outline"
+      size="sm"
+      className="gap-2 border-border hover:border-amber-500/40 hover:text-amber-600 hover:bg-amber-500/5 transition-all duration-200"
+    >
+      <Radar size={14} />
+      Browse Comics
+    </Button>
+  </Link>
+</div>
 
       {!reviews.length ? (
         <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
@@ -81,7 +85,7 @@ export default async function ProReviewsPage() {
           <div className="flex flex-wrap justify-center gap-3">
             <Link href="/browse">
               <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
-                <BookOpen size={14} />Browse Comics
+                <Radar size={14} />Browse Comics
               </Button>
             </Link>
             <Link href="/browse?sort=score">

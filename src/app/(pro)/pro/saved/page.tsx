@@ -47,37 +47,34 @@ export default async function ProSavedPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
-      {/* Pro header */}
-      <div className="flex items-end justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg shadow-rose-500/20">
-              <Bookmark size={16} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black tracking-tight">Saved Comics</h1>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <Crown size={11} className="text-amber-500 fill-amber-500" />
-                <span className="text-xs text-amber-600 font-semibold">Unlimited saves · Pro</span>
-              </div>
-            </div>
-          </div>
-          <p className="text-muted-foreground text-sm pl-0.5">
-            {saveCount} comic{saveCount !== 1 ? 's' : ''} saved
-          </p>
-        </div>
-        <Link href="/browse">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 shrink-0 border-border hover:border-amber-500/40 hover:text-amber-600 hover:bg-amber-500/5 transition-all duration-200"
-          >
-            <Radar size={14} />
-            Browse More
-          </Button>
-        </Link>
+      {/* Header */}
+<div className="flex items-center justify-between gap-3">
+  <div className="flex items-center gap-2.5 min-w-0">
+    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg shadow-rose-500/20 shrink-0">
+      <Bookmark size={16} className="text-white" />
+    </div>
+    <div className="min-w-0">
+      <h1 className="text-xl font-black tracking-tight leading-tight truncate">Saved Comics</h1>
+      <div className="flex items-center gap-1.5 mt-0.5">
+        <Crown size={11} className="text-amber-500 fill-amber-500" />
+        <span className="text-xs text-amber-600 font-semibold">Unlimited saves · Pro</span>
       </div>
-
+      <p className="text-muted-foreground text-xs">
+        {saveCount} comic{saveCount !== 1 ? 's' : ''} saved
+      </p>
+    </div>
+  </div>
+  <Link href="/browse" className="shrink-0">
+    <Button
+      variant="outline"
+      size="sm"
+      className="gap-2 border-border hover:border-amber-500/40 hover:text-amber-600 hover:bg-amber-500/5 transition-all duration-200"
+    >
+      <Radar size={14} />
+      Browse More
+    </Button>
+  </Link>
+</div>
       {/* Empty state */}
       {savedComics.length === 0 ? (
         <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">

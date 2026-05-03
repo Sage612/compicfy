@@ -119,25 +119,25 @@ export default function MyRecommendationsPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20 shrink-0">
-            <BookOpen size={16} className="text-white" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-2xl font-black tracking-tight leading-tight">My Recommendations</h1>
-            <p className="text-muted-foreground text-sm mt-0.5">
-              {recs.length} total submission{recs.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </div>
-        <Link href="/dashboard/recommendations/new" className="self-start sm:self-auto shrink-0">
-          <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
-            <Plus size={15} />
-            Add New
-          </Button>
-        </Link>
-      </div>
+<div className="flex items-center justify-between gap-3">
+  <div className="flex items-center gap-3 min-w-0">
+    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20 shrink-0">
+      <BookOpen size={16} className="text-white" />
+    </div>
+    <div className="min-w-0">
+      <h1 className="text-xl font-black tracking-tight leading-tight truncate">My Recommendations</h1>
+      <p className="text-muted-foreground text-xs mt-0.5">
+        {recs.length} total submission{recs.length !== 1 ? 's' : ''}
+      </p>
+    </div>
+  </div>
+  <Link href="/dashboard/recommendations/new" className="shrink-0">
+    <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
+      <Plus size={15} />
+      Add New
+    </Button>
+  </Link>
+</div>
 
       {/* Search + Filter bar */}
       {recs.length > 0 && (
