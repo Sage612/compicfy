@@ -428,10 +428,7 @@ export default async function HomePage() {
         </div>
         <div className="relative max-w-7xl mx-auto px-4 py-16 space-y-12">
           <div className="text-center space-y-3">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest">
-              <Sparkles size={11} />
-              How it works
-            </div>
+            
             {/* Replaced AI tagline with something direct and specific */}
             <h2 className="text-3xl font-black tracking-tight">Three steps, zero gatekeeping</h2>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto">
