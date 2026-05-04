@@ -28,8 +28,6 @@ interface Props {
 const PAGE_SIZE     = 24
 const ADULT_RATINGS = ['adult', 'mature'] as const
 
-// ── Section fetchers ─────────────────────────────────────────────────────────
-
 async function getFeatured(s: SupabaseClient) {
   const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ADULT_RATINGS).order('daily_votes', { ascending: false }).limit(8)
   return (data as Recommendation[]) ?? []
@@ -45,7 +43,6 @@ async function getRecent(s: SupabaseClient) {
   return (data as Recommendation[]) ?? []
 }
 
-// New this week, approved in the last 7 days, ordered by score
 async function getNewThisWeek(s: SupabaseClient) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const { data } = await s
@@ -108,7 +105,6 @@ async function getInitialGrid(s: SupabaseClient, params: SearchParams) {
   }
 }
 
-// ── Fetch interaction count (votes + saves) ───────────────────────────────────
 async function getInteractionCount(s: SupabaseClient, userId: string): Promise<number> {
   const [votesRes, savesRes] = await Promise.all([
     s.from('votes').select('*', { count: 'exact', head: true }).eq('user_id', userId),
@@ -152,8 +148,14 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         description="You must be logged in with adult content enabled to access this section."
         actions={
           <>
-            <Link href="/browse"><Button variant="outline">Back to Browse</Button></Link>
-            <Link href="/login"><Button className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">Log In</Button></Link>
+            <Link href="/browse">
+              <Button variant="outline">Back to Browse</Button>
+            </Link>
+            <Link href="/login">
+              <Button className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">
+                Log In
+              </Button>
+            </Link>
           </>
         }
       />
@@ -162,9 +164,19 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('adult_content_enabled')
+    .select('adult_content_enabled, is_pro, pro_expires_at, role')
     .eq('id', user.id)
     .single()
+
+  const isPro =
+    (profile as any)?.role === 'admin' ||
+    (profile as any)?.role === 'moderator' ||
+    ((profile as any)?.is_pro && (
+      !(profile as any)?.pro_expires_at ||
+      new Date((profile as any).pro_expires_at) > new Date()
+    ))
+
+  const settingsUrl = isPro ? '/pro/settings' : '/dashboard/settings'
 
   if (!(profile as any)?.adult_content_enabled) {
     return (
@@ -173,15 +185,20 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         description="Enable adult content in your profile settings to access this section."
         actions={
           <>
-            <Link href="/browse"><Button variant="outline">Back to Browse</Button></Link>
-            <Link href="/dashboard/settings"><Button className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">Go to Settings</Button></Link>
+            <Link href="/browse">
+              <Button variant="outline">Back to Browse</Button>
+            </Link>
+            <Link href={settingsUrl}>
+              <Button className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">
+                Go to Settings
+              </Button>
+            </Link>
           </>
         }
       />
     )
   }
 
-  // Fetch interaction count in parallel with sections
   const [
     featured,
     trending,
@@ -214,38 +231,42 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
   if (params.sort)   clientParams.sort   = params.sort
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-destructive to-rose-600 flex items-center justify-center shadow-lg shadow-destructive/20 shrink-0">
-            <ShieldAlert size={17} className="text-white" />
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center shadow-lg shadow-rose-500/20 shrink-0">
+            <ShieldAlert size={16} className="text-white" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-3xl font-black tracking-tight leading-tight">18+ Comics</h1>
-            <p className="text-muted-foreground text-xs sm:text-sm leading-snug mt-0.5">
-              Adult &amp; mature content · opted-in users only
+            <h1 className="text-xl font-black tracking-tight leading-tight">18+ Comics</h1>
+            <p className="text-muted-foreground text-xs mt-0.5 truncate">
+              Adult &amp; mature · opted-in only
             </p>
           </div>
         </div>
         <Link href="/browse" className="shrink-0">
-          <Button variant="outline" size="sm" className="gap-1.5 whitespace-nowrap">
-            <ArrowLeft size={13} />
-            All Ages Browse
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 h-8 px-3 text-xs border-border hover:border-primary/40 hover:text-primary transition-colors"
+          >
+            <ArrowLeft size={12} />
+            <span className="hidden sm:inline">All Ages</span>
+            <span className="sm:hidden">Back</span>
           </Button>
         </Link>
       </div>
 
       {/* ── Warning banner ── */}
-      <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-destructive/5 border border-destructive/20">
-        <span className="text-base shrink-0 mt-0.5">🔞</span>
+      <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-rose-500/5 border border-rose-500/15">
+        <span className="text-sm shrink-0">🔞</span>
         <p className="text-xs text-muted-foreground leading-relaxed">
-          This section contains adult (18+) and mature (17+) rated content, manually approved by admins.
-          To disable, go to{' '}
-          <Link href="/dashboard/settings" className="underline hover:text-foreground transition-colors">
-            Settings
-          </Link>.
+          Adult &amp; mature content approved by admins.{' '}
+          <Link href={settingsUrl} className="text-primary hover:underline font-medium">
+            Disable in Settings
+          </Link>
         </p>
       </div>
 
@@ -259,15 +280,13 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
       {/* ── Horizontal Sections ── */}
       {!isFiltering && (
         <div className="space-y-8">
-          {trending.length > 0 && <HorizontalSection title="Trending Today" emoji="🔥" recommendations={trending} viewAllHref="/browse/adult?sort=trending" />}
-           {newThisWeek.length > 0 && (
-                      <HorizontalSection title="New This Week" emoji="🆕" recommendations={newThisWeek}  viewAllHref="/browse/adult?sort=recent"   />
-                    )}
-          {recent.length > 0        && <HorizontalSection title="Recently Added"       emoji="✨" recommendations={recent}        viewAllHref="/browse/adult?sort=recent"   />}
-          {adminPicks.length > 0    && <HorizontalSection title="Admin Picks"          emoji="👑" recommendations={adminPicks}                                               />}
-          {communityFavs.length > 0 && <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse/adult?sort=score"    />}
-          {hiddenGems.length > 0    && <HorizontalSection title="Hidden Gems"          emoji="💎" recommendations={hiddenGems}                                               />}
-          {youMightLike.length > 0  && <HorizontalSection title="You Might Like"       emoji="🎯" recommendations={youMightLike}                                             />}
+          {trending.length > 0      && <HorizontalSection title="Trending Today"        emoji="🔥" recommendations={trending}     viewAllHref="/browse/adult?sort=trending" />}
+          {newThisWeek.length > 0   && <HorizontalSection title="New This Week"         emoji="🆕" recommendations={newThisWeek}  viewAllHref="/browse/adult?sort=recent"   />}
+          {recent.length > 0        && <HorizontalSection title="Recently Added"        emoji="✨" recommendations={recent}       viewAllHref="/browse/adult?sort=recent"   />}
+          {adminPicks.length > 0    && <HorizontalSection title="Admin Picks"           emoji="👑" recommendations={adminPicks}                                              />}
+          {communityFavs.length > 0 && <HorizontalSection title="Community Favourites"  emoji="❤️" recommendations={communityFavs} viewAllHref="/browse/adult?sort=score"   />}
+          {hiddenGems.length > 0    && <HorizontalSection title="Hidden Gems"           emoji="💎" recommendations={hiddenGems}                                              />}
+          {youMightLike.length > 0  && <HorizontalSection title="You Might Like"        emoji="🎯" recommendations={youMightLike}                                            />}
         </div>
       )}
 
@@ -288,7 +307,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         <FilterBar adult={true} />
       </Suspense>
 
-      {/* ── Comic Grid — with For You tab ── */}
+      {/* ── Comic Grid ── */}
       <ComicGridClient
         initialItems={items}
         initialTotal={total}
@@ -297,6 +316,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         userId={user.id}
         interactionCount={interactionCount}
       />
+
     </div>
   )
 }
