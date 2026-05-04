@@ -125,7 +125,7 @@ export function AdminRecommendations() {
         const data = await res.json()
         throw new Error(data.error ?? `Failed to ${action}`)
       }
-      toast.success(`✅ ${action} successful`)
+      toast.success(`${action} successful`)
       setRecs(prev => prev.filter(r => r.id !== id))
       setExpandedId(null)
       setRejectReason('')

@@ -31,7 +31,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <Header />
       <div className="flex flex-1 pt-14">
         
-        <aside className="hidden md:flex touch-land:hidden flex-col w-56 shrink-0 border-r border-border p-3 gap-3">
+        <aside className="dashboard-sidebar flex-col w-56 shrink-0 border-r border-border p-3 gap-3">
           <DashboardNav />
 
           {!isPrivileged && (
@@ -52,7 +52,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           )}
         </aside>
 
-        <main className="flex-1 min-w-0 overflow-auto pb-20 md:pb-0 touch-land:pb-20">
+        <main className="dashboard-main flex-1 min-w-0 overflow-auto">
           {!isPrivileged && recCount >= 20 && (
             <div className="px-4 pt-4">
               <UpgradeBanner

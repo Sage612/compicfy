@@ -10,7 +10,8 @@ const STORAGE_KEY = 'compicfy_guidelines_dismissed'
 const RULES = [
   { ok: true,  text: 'Real titles only, no made up or placeholder names'                },
   { ok: true,  text: 'Add a cover image and at least one genre'                          },
-  { ok: true,  text: 'Write why YOU recommend it, not just a synopsis'                  },
+  { ok: true, text: 'Write why YOU recommend it, not just a synopsis' },
+  { ok: true, text: 'Whenever the auto-fill form is used double check the information before submitting' },
   { ok: false, text: 'No duplicate submissions, search before posting'                  },
   { ok: false, text: 'No adult content without the correct content rating set'           },
   { ok: false, text: 'No spam, self-promotion, or AI-generated descriptions'             },
