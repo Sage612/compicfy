@@ -375,10 +375,10 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
 
           <div className="relative w-full" ref={containerRef}>
             <div className={cn(
-              'flex items-center gap-2 sm:gap-3 rounded-2xl border bg-card transition-all w-full min-w-0',
+              'flex items-center gap-2 sm:gap-3 transition-all w-full min-w-0',
               hasSearched
-                ? 'px-3 sm:px-4 py-2.5 border-border shadow-sm'
-                : 'px-4 sm:px-5 py-4 border-primary/20 shadow-xl shadow-primary/10'
+                ? 'px-3 sm:px-4 py-2.5 rounded-full bg-muted/50 shadow-sm'
+                : 'px-4 sm:px-5 py-4 rounded-full bg-muted/40 shadow-xl shadow-primary/10'
             )}>
               <Search size={hasSearched ? 15 : 18} className="text-muted-foreground shrink-0 transition-all" />
               <input
