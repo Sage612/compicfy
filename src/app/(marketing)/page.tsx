@@ -359,23 +359,48 @@ export default async function HomePage() {
       )}
 
       {/* ── TOP CONTRIBUTORS ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-        {contributors.map((contributor: any, i: number) => {
-          const rankStyle = RANK_STYLES[i] ?? { bg: 'bg-muted', text: 'text-muted-foreground' }
-          return (
-            <ContributorLink
-              key={contributor.id}
-              username={contributor.username}
-              displayName={contributor.display_name || contributor.username}
-              avatarUrl={contributor.avatar_url}
-              totalRecs={contributor.total_recommendations}
-              rank={i}
-              isLoggedIn={!!user}
-              rankStyle={rankStyle}
-            />
-          )
-        })}
-      </div>
+            {contributors.length > 0 && (
+              <section className="border-y border-border bg-muted/10">
+                <div className="max-w-7xl mx-auto px-4 py-14 space-y-8">
+                  <div className="text-center space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold uppercase tracking-widest">
+                      <Trophy size={11} />
+                      Top Contributors
+                    </div>
+                    <h2 className="text-2xl font-black tracking-tight">The people behind the picks</h2>
+                    <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+                      Real readers sharing what they love. Follow them to never miss a great rec.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                    {contributors.map((contributor: any, i: number) => {
+                      const rankStyle = RANK_STYLES[i] ?? { bg: 'bg-muted', text: 'text-muted-foreground' }
+                      return (
+                        <ContributorLink
+                          key={contributor.id}
+                          username={contributor.username}
+                          displayName={contributor.display_name || contributor.username}
+                          avatarUrl={contributor.avatar_url}
+                          totalRecs={contributor.total_recommendations}
+                          rank={i}
+                          isLoggedIn={!!user}
+                          rankStyle={rankStyle}
+                        />
+                      )
+                    })}
+                  </div>
+
+                  <div className="text-center">
+                    <Link href="/browse">
+                      <Button variant="outline" size="sm" className="gap-1.5 hover:border-primary/40">
+                        Browse their recommendations <ChevronRight size={13} />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </section>
+            )}
 
       {/* ── HOW IT WORKS ── */}
       <section className="relative overflow-hidden border-y border-border bg-muted/20">
