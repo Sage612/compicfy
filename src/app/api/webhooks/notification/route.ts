@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: Request) {
   try {
@@ -19,22 +19,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ skipped: true })
     }
 
-    const supabase = await createClient()
+    // Use service role to bypass RLS — no user session in webhook context
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
     // Check subscriptions exist
-    const { count } = await supabase
+    const { data: subCheck } = await supabase
       .from('push_subscriptions')
-      .select('id', { count: 'exact', head: true })
+      .select('id')
       .eq('user_id', notif.user_id)
+      .limit(1)
 
-    console.log('Push sub count:', count)
+    console.log('Sub check:', subCheck, 'user_id:', notif.user_id)
 
-    if (!count || count === 0) {
+    if (!subCheck || subCheck.length === 0) {
+      console.log('No subscriptions found — skipping')
       return NextResponse.json({ skipped: true, reason: 'no_subscriptions' })
     }
 
-    // Fetch profile — need role/pro for routing + notification prefs
-    const { data: profile } = await (supabase as any)
+    // Fetch profile
+    const { data: profile } = await supabase
       .from('profiles')
       .select('email_notifications, is_banned, is_suspended, role, is_pro, pro_expires_at')
       .eq('id', notif.user_id)
@@ -54,7 +60,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ skipped: true, reason: 'notifications_disabled' })
     }
 
-    // Determine if user is pro — affects notification URLs
+    // Determine pro status for URL routing
     const isPro =
       profile.role === 'admin' ||
       profile.role === 'moderator' ||
@@ -63,10 +69,10 @@ export async function POST(req: Request) {
         new Date(profile.pro_expires_at) > new Date()
       ))
 
-    const notifBase     = isPro ? '/pro'       : '/dashboard'
-    const dashboardBase = isPro ? '/pro'       : '/dashboard'
+    const notifBase     = isPro ? '/pro' : '/dashboard'
+    const dashboardBase = isPro ? '/pro' : '/dashboard'
 
-    // Build URL based on notification type and data
+    // Build URL based on notification type
     const data = notif.data ?? {}
     let url = `${notifBase}/notifications`
 
@@ -96,6 +102,7 @@ export async function POST(req: Request) {
 
     // Send push
     console.log('Sending push to:', notif.user_id, 'url:', url)
+
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_SITE_URL}/api/push/send`,
       {
@@ -114,6 +121,7 @@ export async function POST(req: Request) {
     )
 
     const result = await res.json()
+    console.log('Push send result:', JSON.stringify(result))
     return NextResponse.json({ success: true, ...result })
   } catch (err: any) {
     console.error('Webhook error:', err)
