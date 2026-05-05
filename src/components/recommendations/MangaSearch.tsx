@@ -106,7 +106,7 @@ export function MangaSearch({ onSelect }: Props) {
         <Badge variant="secondary" className="text-xs">Optional</Badge>
       </div>
       <p className="text-xs text-muted-foreground">
-        Search across MyAnimeList, MangaDex, AniList and MangaUpdates to auto-fill the form.
+        Search across 4 external databases to auto-fill the form.
       </p>
 
       {/* Search input */}

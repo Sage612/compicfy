@@ -396,7 +396,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                 placeholder="Search manga, manhwa…"
                 className={cn(
-                  'flex-1 bg-transparent outline-none placeholder:text-muted-foreground text-foreground min-w-0 w-0',
+                  'flex-1 bg-transparent outline-none focus:outline-none focus:ring-0 border-none placeholder:text-muted-foreground text-foreground min-w-0 w-0',
                   hasSearched ? 'text-sm' : 'text-base'
                 )}
                 autoFocus={!initialQuery}

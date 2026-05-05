@@ -22,9 +22,6 @@ export function GoogleButton({ mode }: { mode: 'signin' | 'signup' }) {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        // Always use SITE_URL — never window.location.origin
-        // because on dev.compicfy.cloud, origin is correct but
-        // Supabase's allowed redirect list must match exactly
         redirectTo: callbackUrl,
       },
     })
