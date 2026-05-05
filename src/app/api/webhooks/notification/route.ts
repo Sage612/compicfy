@@ -27,6 +27,8 @@ export async function POST(req: Request) {
       .select('id', { count: 'exact', head: true })
       .eq('user_id', notif.user_id)
 
+    console.log('Push sub count:', count)
+
     if (!count || count === 0) {
       return NextResponse.json({ skipped: true, reason: 'no_subscriptions' })
     }
@@ -37,6 +39,8 @@ export async function POST(req: Request) {
       .select('email_notifications, is_banned, is_suspended, role, is_pro, pro_expires_at')
       .eq('id', notif.user_id)
       .single()
+
+    console.log('Profile:', JSON.stringify(profile))
 
     if (!profile) {
       return NextResponse.json({ skipped: true, reason: 'no_profile' })
@@ -91,6 +95,7 @@ export async function POST(req: Request) {
     }
 
     // Send push
+    console.log('Sending push to:', notif.user_id, 'url:', url)
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_SITE_URL}/api/push/send`,
       {
