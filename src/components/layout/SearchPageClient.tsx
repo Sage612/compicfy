@@ -112,7 +112,8 @@ function DBCard({ result }: { result: DBResult }) {
       </div>
       <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
         <div className="flex items-start justify-between gap-2">
-          <p className="font-black text-sm line-clamp-1 group-hover:text-primary transition-colors">{result.title}</p>
+          {/* Fix 1: line-clamp-2 instead of line-clamp-1 so titles don't cut too early */}
+          <p className="font-black text-sm line-clamp-2 leading-snug group-hover:text-primary transition-colors">{result.title}</p>
           <ArrowRight size={13} className="text-muted-foreground/30 group-hover:text-primary shrink-0 mt-0.5 transition-colors" />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -164,7 +165,6 @@ function ExternalCard({
       e.preventDefault()
       onAuthRequired(prefillUrl, result.title)
     }
-    // If logged in, Link navigation proceeds normally
   }
 
   return (
@@ -176,7 +176,8 @@ function ExternalCard({
         }
       </div>
       <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
-        <p className="font-black text-sm line-clamp-1">{result.title}</p>
+        {/* Fix 1: line-clamp-2 so titles don't cut too early */}
+        <p className="font-black text-sm line-clamp-2 leading-snug">{result.title}</p>
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border', sourceMeta.color)}>
             <Globe size={8} />
@@ -221,7 +222,7 @@ function ExternalCard({
 interface Props {
   initialQuery: string
   isPro:        boolean
-  isLoggedIn:   boolean   // ← new prop
+  isLoggedIn:   boolean
 }
 
 export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
@@ -238,7 +239,6 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [activeTab,       setActiveTab]       = useState<'all' | 'compicfy' | 'web'>('all')
 
-  // Auth prompt state
   const [showAuthModal,   setShowAuthModal]   = useState(false)
   const [authPrefillUrl,  setAuthPrefillUrl]  = useState('')
   const [authComicTitle,  setAuthComicTitle]  = useState('')
@@ -247,13 +247,12 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
   const suggDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef    = useRef<HTMLDivElement>(null)
 
-  const isLoading      = loadingDB || loadingExternal
+  const isLoading        = loadingDB || loadingExternal
   const filteredExternal = externalResults.filter(r =>
     !dbResults.some(d => d.title.toLowerCase() === r.title.toLowerCase())
   )
   const totalResults = dbResults.length + filteredExternal.length
 
-  // Close suggestions on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -264,7 +263,6 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  // Run search on initial query
   useEffect(() => {
     if (initialQuery.trim().length >= 2) runSearch(initialQuery)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -288,6 +286,8 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
     setShowSuggestions(false)
     setHasSearched(true)
     setQuery(trimmed)
+    // Reset to all tab on new search
+    setActiveTab('all')
 
     const url = new URL(window.location.href)
     url.searchParams.set('q', trimmed)
@@ -342,12 +342,18 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
     router.push(`/comic/${s.id}`)
   }
 
-  // Called by ExternalCard when user is not logged in
   const handleAuthRequired = (prefillUrl: string, title: string) => {
     setAuthPrefillUrl(prefillUrl)
     setAuthComicTitle(title)
     setShowAuthModal(true)
   }
+
+  // Fix 2: Only show tabs that have results
+  const visibleTabs = [
+    { key: 'all',      label: 'All',      count: totalResults            },
+    ...(dbResults.length > 0       ? [{ key: 'compicfy', label: 'Compicfy', count: dbResults.length        }] : []),
+    ...(filteredExternal.length > 0 ? [{ key: 'web',      label: 'Web',      count: filteredExternal.length }] : []),
+  ]
 
   return (
     <div className="min-h-screen">
@@ -374,13 +380,14 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
           )}
 
           <div className="relative w-full" ref={containerRef}>
+            {/* Fix 3: fully borderless pill — no border class at all */}
             <div className={cn(
               'flex items-center gap-2 sm:gap-3 transition-all w-full min-w-0',
               hasSearched
-                ? 'px-3 sm:px-4 py-2.5 rounded-full bg-muted/50 shadow-sm'
-                : 'px-4 sm:px-5 py-4 rounded-full bg-muted/40 shadow-xl shadow-primary/10'
+                ? 'px-3 sm:px-4 py-2 rounded-full bg-muted/60'
+                : 'px-4 sm:px-5 py-3.5 rounded-full bg-muted/50 shadow-lg shadow-primary/5'
             )}>
-              <Search size={hasSearched ? 15 : 18} className="text-muted-foreground shrink-0 transition-all" />
+              <Search size={hasSearched ? 14 : 17} className="text-muted-foreground shrink-0 transition-all" />
               <input
                 ref={inputRef}
                 value={inputValue}
@@ -396,7 +403,10 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
               />
               {isLoading && <Loader2 size={14} className="animate-spin text-muted-foreground shrink-0" />}
               {inputValue && !isLoading && (
-                <button onClick={handleClear} className="text-muted-foreground hover:text-foreground transition-colors p-1 shrink-0">
+                <button
+                  onClick={handleClear}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1 shrink-0"
+                >
                   <X size={14} />
                 </button>
               )}
@@ -404,7 +414,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
                 onClick={handleSearch}
                 disabled={inputValue.trim().length < 2}
                 size="sm"
-                className="shrink-0 h-8 px-4 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 font-bold"
+                className="shrink-0 h-8 px-4 rounded-full bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 font-bold"
               >
                 Search
               </Button>
@@ -453,15 +463,18 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
             )}
           </div>
 
+          {/* Fix 4: Quick browse as horizontal scroll on mobile */}
           {!hasSearched && (
             <div className="mt-6 space-y-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">Quick browse</p>
-              <div className="flex flex-wrap gap-2 justify-center">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
+                Quick browse
+              </p>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 justify-start sm:justify-center sm:flex-wrap">
                 {QUICK_LINKS.map(link => (
                   <Link
                     key={link.href}
                     href={link.href}
-                    className="px-3 py-1.5 rounded-full border border-border bg-card text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all"
+                    className="px-3 py-1.5 rounded-full border border-border bg-card text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all whitespace-nowrap shrink-0"
                   >
                     {link.label}
                   </Link>
@@ -476,6 +489,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
       {hasSearched && (
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
 
+          {/* Fix 2: Only show tabs with results, hide Compicfy tab when 0 */}
           {!isLoading && totalResults > 0 && (
             <div className="flex items-center justify-between flex-wrap gap-3">
               <p className="text-sm text-muted-foreground">
@@ -483,11 +497,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
                 <span className="font-semibold">"{query}"</span>
               </p>
               <div className="flex gap-1">
-                {[
-                  { key: 'all',      label: 'All',      count: totalResults             },
-                  { key: 'compicfy', label: 'Compicfy', count: dbResults.length         },
-                  { key: 'web',      label: 'Web',      count: filteredExternal.length  },
-                ].map(tab => (
+                {visibleTabs.map(tab => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key as typeof activeTab)}
@@ -543,7 +553,9 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
                   <div className="w-5 h-5 rounded-md bg-violet-500/10 flex items-center justify-center">
                     <Globe size={10} className="text-violet-500" />
                   </div>
-                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">From the web</p>
+                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                    From MAL · MangaDex · AniList · MangaUpdates
+                  </p>
                   <div className="flex-1 h-px bg-border" />
                   {loadingExternal && <Loader2 size={11} className="animate-spin text-muted-foreground" />}
                 </div>
@@ -577,8 +589,12 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
           {/* Zero results */}
           {!isLoading && totalResults === 0 && (
             <div className="text-center py-20 space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto">
-                <Search size={24} className="text-muted-foreground opacity-30" />
+              <div className="relative w-28 h-28 mx-auto mb-2">
+                <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
+                <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
+                <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-primary/20 bg-card flex items-center justify-center shadow-lg">
+                  <Search size={18} className="text-muted-foreground opacity-40" />
+                </div>
               </div>
               <div>
                 <p className="font-black text-lg">Nothing found for "{query}"</p>
@@ -603,7 +619,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
         </div>
       )}
 
-      {/* ── Auth prompt modal for unauthenticated recommend clicks ── */}
+      {/* ── Auth prompt modal ── */}
       <AuthPromptModal
         open={showAuthModal}
         onClose={() => setShowAuthModal(false)}
@@ -611,7 +627,6 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
           action:     `recommend "${authComicTitle}" to Compicfy`,
           comicTitle: authComicTitle,
           icon:       <Plus size={24} className="text-violet-500" />,
-          // Pass the prefill URL so after login/signup they land on the pre-filled form
           nextPath:   authPrefillUrl,
         }}
       />
