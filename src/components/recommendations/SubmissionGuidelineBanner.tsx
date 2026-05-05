@@ -12,6 +12,7 @@ const RULES = [
   { ok: true,  text: 'Add a cover image and at least one genre'                          },
   { ok: true, text: 'Write why YOU recommend it, not just a synopsis' },
   { ok: true, text: 'Whenever the auto-fill form is used double check the information before submitting' },
+  { ok: true, text: 'Make sure your submission is in english title, available on official english platforms' },
   { ok: false, text: 'No duplicate submissions, search before posting'                  },
   { ok: false, text: 'No adult content without the correct content rating set'           },
   { ok: false, text: 'No spam, self-promotion, or AI-generated descriptions'             },

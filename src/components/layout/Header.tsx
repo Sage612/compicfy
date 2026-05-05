@@ -286,7 +286,7 @@ export function Header() {
             FIX: GlobalSearch and theme toggle are now INSIDE the same
             flex row as the auth area so they are never isolated on
             mobile — they all move together as one group.             */}
-        <div className="flex items-center gap-1 ml-auto">
+        <div className="flex items-center gap-0.5 sm:gap-1 ml-auto">
 
           <GlobalSearch />
 
