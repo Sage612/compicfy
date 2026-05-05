@@ -19,9 +19,9 @@ import type { Recommendation } from '@/types/database.types'
 import { Button } from '@/components/ui/button'
 import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
-import { UserBadges } from '@/components/pro/UserBadges'
 import { ReadingProgressButton } from '@/components/recommendations/ReadingProgressButton'
 import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnButton'
+import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { headers } from 'next/headers'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
@@ -542,34 +542,20 @@ export default async function ComicDetailPage({ params }: Props) {
                 </div>
               )}
 
-              {/* ── Recommender attribution — only change from original ── */}
+              {/* ── Recommender attribution ── */}
               <div className="flex items-center justify-between py-3 border-t border-border text-xs text-muted-foreground">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span>Recommended by</span>
-                  {isGhostRec ? (
-                    <Link
-                      href="/profile/their_shadow"
-                      className="inline-flex items-center gap-1.5 text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
-                    >
-                      👻 @their_shadow
-                      <span className="text-[10px] text-indigo-400/60 italic font-normal">archived</span>
-                    </Link>
-                  ) : (
-                    <Link
-                      href={`/profile/${profile?.username}`}
-                      className="text-foreground hover:text-primary font-semibold transition-colors"
-                    >
-                      @{recommenderName}
-                    </Link>
-                  )}
-                  {!isGhostRec && (
-                    <UserBadges
-                      role={profile?.role}
-                      isPro={recommenderIsPro}
-                      isVerified={recommenderIsVerified}
-                      size="sm"
-                    />
-                  )}
+                  <RecommenderLink
+                    username={profile?.username ?? ''}
+                    displayName={recommenderName}
+                    isLoggedIn={!!user}
+                    isGhost={isGhostRec}
+                    role={profile?.role}
+                    isPro={recommenderIsPro}
+                    isVerified={recommenderIsVerified}
+                    comicTitle={rec.title}
+                  />
                 </div>
                 <span className="shrink-0">{formatDate(rec.created_at)}</span>
               </div>

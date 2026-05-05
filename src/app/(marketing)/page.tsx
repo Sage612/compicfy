@@ -6,7 +6,7 @@ import { NewsCard } from '@/components/news/NewsCard'
 import { ParticleCanvas } from '@/components/layout/ParticleCanvas'
 import { AnimatedCounter } from '@/components/ui/AnimatedCounter'
 import { LiveTicker } from '@/components/layout/LiveTicker'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { ContributorLink } from '@/components/user/ContributorLink'
 import {
   ArrowRight, Radar, BookOpen, Users, TrendingUp,
   Star, Sparkles, ChevronRight, Heart, Zap,
@@ -19,17 +19,17 @@ import type { Metadata } from 'next'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
 
 export const metadata: Metadata = {
-  title: 'Compicfy  Find your next obsession.',
+  title: 'Compicfy - Find your next obsession.',
   description:
     'A warm community for manga, manhwa, manhua, and webtoon fans. Discover, recommend, and vote for the best comics.',
   openGraph: {
-    title:       'Compicfy  Find your next obsession.',
+    title:       'Compicfy - Find your next obsession.',
     description: 'Community-powered comic discovery. Browse, recommend, and vote.',
-    images: [{ url: `${SITE_URL}/api/og`, width: 1200, height: 630, alt: 'Compicfy — Find your next obsession.' }],
+    images: [{ url: `${SITE_URL}/api/og`, width: 1200, height: 630, alt: 'Compicfy - Find your next obsession.' }],
   },
   twitter: {
     card:        'summary_large_image',
-    title:       'Compicfy  Find your next obsession.',
+    title:       'Compicfy - Find your next obsession.',
     description: 'Community-powered comic discovery. Browse, recommend, and vote.',
     images:      [`${SITE_URL}/api/og`],
   },
@@ -359,66 +359,23 @@ export default async function HomePage() {
       )}
 
       {/* ── TOP CONTRIBUTORS ── */}
-      {contributors.length > 0 && (
-        <section className="border-y border-border bg-muted/10">
-          <div className="max-w-7xl mx-auto px-4 py-14 space-y-8">
-            <div className="text-center space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold uppercase tracking-widest">
-                <Trophy size={11} />
-                Top Contributors
-              </div>
-              <h2 className="text-2xl font-black tracking-tight">The people behind the picks</h2>
-              <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                Real readers sharing what they love. Follow them to never miss a great rec.
-              </p>
-            </div>
-
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-              {contributors.map((contributor: any, i: number) => {
-                const initials  = (contributor.display_name || contributor.username || 'U').slice(0, 2).toUpperCase()
-                const rankStyle = RANK_STYLES[i] ?? { bg: 'bg-muted', text: 'text-muted-foreground' }
-                return (
-                  <Link
-                    key={contributor.id}
-                    href={`/profile/${contributor.username}`}
-                    className="group flex flex-col items-center gap-2.5 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 text-center"
-                  >
-                    <div className="relative">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={contributor.avatar_url ?? undefined} />
-                        <AvatarFallback className="text-sm bg-gradient-to-br from-primary to-violet-500 text-white font-bold">
-                          {initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      {i < 3 && (
-                        <div className={`absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black border-2 border-card ${rankStyle.bg} ${rankStyle.text}`}>
-                          {i + 1}
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 w-full">
-                      <p className="text-xs font-black truncate group-hover:text-primary transition-colors">
-                        {contributor.display_name || contributor.username}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {contributor.total_recommendations} recs
-                      </p>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-
-            <div className="text-center">
-              <Link href="/browse">
-                <Button variant="outline" size="sm" className="gap-1.5 hover:border-primary/40">
-                  Browse their recommendations <ChevronRight size={13} />
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
+        {contributors.map((contributor: any, i: number) => {
+          const rankStyle = RANK_STYLES[i] ?? { bg: 'bg-muted', text: 'text-muted-foreground' }
+          return (
+            <ContributorLink
+              key={contributor.id}
+              username={contributor.username}
+              displayName={contributor.display_name || contributor.username}
+              avatarUrl={contributor.avatar_url}
+              totalRecs={contributor.total_recommendations}
+              rank={i}
+              isLoggedIn={!!user}
+              rankStyle={rankStyle}
+            />
+          )
+        })}
+      </div>
 
       {/* ── HOW IT WORKS ── */}
       <section className="relative overflow-hidden border-y border-border bg-muted/20">
