@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       // amount is already in smallest currency unit (kobo for NGN, cents for USD)
       // DO NOT multiply by 100 again
       amount: selectedPlan.amount,
-      currency: 'USD',
+      currency: 'NGN',
       callback_url: callbackUrl,
       metadata: {
         user_id: user.id,
