@@ -1,25 +1,8 @@
 import { NextResponse } from 'next/server'
-
-// POST /api/webhooks/notification
-// Called by Supabase Database Webhook when a row is inserted into notifications
-// Set up in Supabase Dashboard:
-//   Table: notifications
-//   Event: INSERT
-//   URL: https://compicfy.cloud/api/webhooks/notification
-//   HTTP Headers: { "x-webhook-secret": "<your WEBHOOK_SECRET>" }
-
-const NOTIFICATION_URLS: Record<string, (data: Record<string, any>) => string> = {
-  vote:    (d) => d.recommendation_id ? `/comic/${d.recommendation_id}` : '/dashboard',
-  review:  (d) => d.recommendation_id ? `/comic/${d.recommendation_id}` : '/dashboard',
-  feature: (d) => d.recommendation_id ? `/comic/${d.recommendation_id}` : '/browse',
-  follow:  (d) => d.follower_id       ? `/profile/${d.follower_id}`      : '/dashboard',
-  system:  ()  => '/dashboard/notifications',
-  achievement: () => '/dashboard/notifications',
-}
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: Request) {
   try {
-    // Verify webhook secret
     const secret = req.headers.get('x-webhook-secret')
     if (process.env.WEBHOOK_SECRET && secret !== process.env.WEBHOOK_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -27,7 +10,6 @@ export async function POST(req: Request) {
 
     const payload = await req.json()
 
-    // Supabase webhook sends { type: 'INSERT', record: {...}, ... }
     if (payload.type !== 'INSERT') {
       return NextResponse.json({ skipped: true })
     }
@@ -37,11 +19,78 @@ export async function POST(req: Request) {
       return NextResponse.json({ skipped: true })
     }
 
-    // Build notification URL based on type and data
-    const urlFn  = NOTIFICATION_URLS[notif.type] ?? (() => '/dashboard/notifications')
-    const url    = urlFn(notif.data ?? {})
+    const supabase = await createClient()
 
-    // Call our push send endpoint
+    // Check subscriptions exist
+    const { count } = await supabase
+      .from('push_subscriptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', notif.user_id)
+
+    if (!count || count === 0) {
+      return NextResponse.json({ skipped: true, reason: 'no_subscriptions' })
+    }
+
+    // Fetch profile — need role/pro for routing + notification prefs
+    const { data: profile } = await (supabase as any)
+      .from('profiles')
+      .select('email_notifications, is_banned, is_suspended, role, is_pro, pro_expires_at')
+      .eq('id', notif.user_id)
+      .single()
+
+    if (!profile) {
+      return NextResponse.json({ skipped: true, reason: 'no_profile' })
+    }
+
+    if (profile.is_banned || profile.is_suspended) {
+      return NextResponse.json({ skipped: true, reason: 'user_restricted' })
+    }
+
+    if (profile.email_notifications === false) {
+      return NextResponse.json({ skipped: true, reason: 'notifications_disabled' })
+    }
+
+    // Determine if user is pro — affects notification URLs
+    const isPro =
+      profile.role === 'admin' ||
+      profile.role === 'moderator' ||
+      (profile.is_pro && (
+        !profile.pro_expires_at ||
+        new Date(profile.pro_expires_at) > new Date()
+      ))
+
+    const notifBase     = isPro ? '/pro'       : '/dashboard'
+    const dashboardBase = isPro ? '/pro'       : '/dashboard'
+
+    // Build URL based on notification type and data
+    const data = notif.data ?? {}
+    let url = `${notifBase}/notifications`
+
+    switch (notif.type) {
+      case 'vote':
+      case 'review':
+        url = data.recommendation_id
+          ? `/comic/${data.recommendation_id}`
+          : `${dashboardBase}/recommendations`
+        break
+      case 'feature':
+        url = data.recommendation_id
+          ? `/comic/${data.recommendation_id}`
+          : '/browse'
+        break
+      case 'follow':
+        url = data.follower_id
+          ? `/profile/${data.follower_id}`
+          : `${dashboardBase}/notifications`
+        break
+      case 'system':
+      case 'achievement':
+      default:
+        url = `${notifBase}/notifications`
+        break
+    }
+
+    // Send push
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_SITE_URL}/api/push/send`,
       {
