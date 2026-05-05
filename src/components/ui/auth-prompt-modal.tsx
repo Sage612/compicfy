@@ -20,15 +20,10 @@ import {
 import { Button } from '@/components/ui/button'
 
 export interface AuthPromptConfig {
-  action:      string           // e.g. "upvote", "save", "recommend X to Compicfy"
-  comicTitle?: string           // e.g. "Solo Leveling"
+  action:      string
+  comicTitle?: string
   icon?:       React.ReactNode
-  /**
-   * Where to redirect after login/signup.
-   * Defaults to the current pathname.
-   * Pass a prefill URL (e.g. /dashboard/recommendations/new?title=...) to land
-   * the user on the recommendation form after they authenticate.
-   */
+  /** Override redirect path — defaults to current pathname */
   nextPath?:   string
 }
 
@@ -48,7 +43,6 @@ function PromptContent({ config, onClose, resolvedNextPath }: {
 
   return (
     <div className="flex flex-col items-center text-center gap-6 py-2">
-      {/* Icon blob */}
       <div className="relative">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-violet-500/10 border border-primary/20 flex items-center justify-center">
           {config.icon ?? <LogIn size={24} className="text-primary" />}
@@ -58,7 +52,6 @@ function PromptContent({ config, onClose, resolvedNextPath }: {
         </div>
       </div>
 
-      {/* Copy */}
       <div className="space-y-2 max-w-xs">
         <p className="text-lg font-black tracking-tight leading-snug">
           Sign in to {config.action}
@@ -66,9 +59,7 @@ function PromptContent({ config, onClose, resolvedNextPath }: {
         {config.comicTitle ? (
           <p className="text-sm text-muted-foreground leading-relaxed">
             Join the community to {config.action}{' '}
-            <span className="font-semibold text-foreground">
-              "{config.comicTitle}"
-            </span>{' '}
+            <span className="font-semibold text-foreground">"{config.comicTitle}"</span>{' '}
             and thousands of other comics.
           </p>
         ) : (
@@ -78,12 +69,8 @@ function PromptContent({ config, onClose, resolvedNextPath }: {
         )}
       </div>
 
-      {/* Actions */}
       <div className="w-full space-y-2.5 max-w-xs">
-        <Button
-          asChild
-          className="w-full gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20 h-11"
-        >
+        <Button asChild className="w-full gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20 h-11">
           <a href={loginHref}>
             <LogIn size={15} />
             Sign In
@@ -99,20 +86,16 @@ function PromptContent({ config, onClose, resolvedNextPath }: {
 
       <p className="text-[11px] text-muted-foreground/60 max-w-[220px] leading-relaxed">
         By signing up, you agree to our{' '}
-        <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
-          Terms of Service
-        </a>
+        <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">Terms of Service</a>
         {' '}and{' '}
-        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">
-          Privacy Policy
-        </a>
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:no-underline">Privacy Policy</a>
       </p>
     </div>
   )
 }
 
 export function AuthPromptModal({ open, onClose, config }: Props) {
-  const pathname = usePathname()
+  const pathname  = usePathname()
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -123,8 +106,7 @@ export function AuthPromptModal({ open, onClose, config }: Props) {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  // Use config.nextPath if provided (e.g. prefilled recommendation form),
-  // otherwise fall back to the current page path
+  // Use config.nextPath if provided, else current pathname
   const resolvedNextPath = config.nextPath ?? pathname
 
   if (isMobile) {
