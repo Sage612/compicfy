@@ -23,69 +23,36 @@ interface Notification {
   data?:      Record<string, any>
 }
 
-function urlBase64ToUint8Array(base64String: string): ArrayBuffer {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
-  const rawData = window.atob(base64)
-  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0))).buffer as ArrayBuffer
-}
 
-async function getOrRegisterSW(): Promise<ServiceWorkerRegistration> {
-  // If already registered and active, return it
-  const existing = await navigator.serviceWorker.getRegistration('/sw.js')
-  if (existing) return existing
-
-  // Register fresh
-  const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
-
-  // Wait for it to become active (handles installing/waiting states)
-  await new Promise<void>((resolve, reject) => {
-    if (reg.active) { resolve(); return }
-
-    const sw = reg.installing ?? reg.waiting
-    if (!sw) { reject(new Error('SW not installing')); return }
-
-    sw.addEventListener('statechange', function handler() {
-      if (sw.state === 'activated') {
-        sw.removeEventListener('statechange', handler)
-        resolve()
-      }
-      if (sw.state === 'redundant') {
-        sw.removeEventListener('statechange', handler)
-        reject(new Error('SW became redundant'))
-      }
-    })
-  })
-
-  return reg
-}
 
 async function subscribeToPush(): Promise<boolean> {
   try {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false
+    if (!('serviceWorker' in navigator)) return false
 
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') return false
 
-    const reg = await getOrRegisterSW()
+    // Register Firebase messaging service worker
+    const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
+    await navigator.serviceWorker.ready
 
-    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-    if (!vapidKey) { console.warn('No VAPID public key set'); return false }
+    const { getFirebaseMessaging } = await import('@/lib/firebase/client')
+    const { getToken } = await import('firebase/messaging')
 
-    // Unsubscribe any stale subscription first to avoid conflicts
-    const existing = await reg.pushManager.getSubscription()
-    if (existing) await existing.unsubscribe()
+    const messaging = await getFirebaseMessaging()
+    if (!messaging) return false
 
-    const subscription = await reg.pushManager.subscribe({
-      userVisibleOnly:      true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey),
+    const token = await getToken(messaging, {
+      vapidKey:            process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: reg,
     })
 
-    const sub = subscription.toJSON()
+    if (!token) return false
+
     const res = await fetch('/api/push/subscribe', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ endpoint: sub.endpoint, keys: sub.keys }),
+      body:    JSON.stringify({ token }),
     })
 
     return res.ok
@@ -97,21 +64,25 @@ async function subscribeToPush(): Promise<boolean> {
 
 async function unsubscribeFromPush(): Promise<boolean> {
   try {
-    if (!('serviceWorker' in navigator)) return false
+    const { getFirebaseMessaging } = await import('@/lib/firebase/client')
+    const { getToken, deleteToken } = await import('firebase/messaging')
 
-    const reg = await navigator.serviceWorker.getRegistration('/sw.js')
-    if (!reg) return false
+    const messaging = await getFirebaseMessaging()
+    if (!messaging) return false
 
-    const subscription = await reg.pushManager.getSubscription()
-    if (!subscription) return false
-
-    await fetch('/api/push/subscribe', {
-      method:  'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ endpoint: subscription.endpoint }),
+    const token = await getToken(messaging, {
+      vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
     })
 
-    await subscription.unsubscribe()
+    if (token) {
+      await fetch('/api/push/subscribe', {
+        method:  'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ token }),
+      })
+      await deleteToken(messaging)
+    }
+
     return true
   } catch {
     return false
@@ -148,12 +119,21 @@ export function NotificationBell({ userId }: { userId: string }) {
     const checkPush = async () => {
       if (!('Notification' in window) || !('serviceWorker' in navigator)) return
       if (Notification.permission === 'denied') { setPushEnabled(false); return }
+      if (Notification.permission !== 'granted') { setPushEnabled(false); return }
 
-      const reg = await navigator.serviceWorker.getRegistration('/sw.js')
-      if (!reg) { setPushEnabled(false); return }
+      try {
+        const { getFirebaseMessaging } = await import('@/lib/firebase/client')
+        const { getToken } = await import('firebase/messaging')
+        const messaging = await getFirebaseMessaging()
+        if (!messaging) { setPushEnabled(false); return }
 
-      const sub = await reg.pushManager.getSubscription()
-      setPushEnabled(!!sub)
+        const token = await getToken(messaging, {
+          vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+        })
+        setPushEnabled(!!token)
+      } catch {
+        setPushEnabled(false)
+      }
     }
     checkPush()
   }, [])

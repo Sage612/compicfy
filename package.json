@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "embla-carousel-autoplay": "^8.6.0",
     "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.12.1",
     "framer-motion": "^12.34.3",
     "geist": "^1.7.0",
     "install": "^0.13.0",
