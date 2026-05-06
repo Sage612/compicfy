@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { timeAgo } from '@/lib/utils/format'
 import { createClient } from '@/lib/supabase/client'
+import { useUserStore } from '@/store/userStore'
 import { toast } from 'sonner'
 
 interface Notification {
@@ -124,6 +125,18 @@ export function NotificationBell({ userId }: { userId: string }) {
   const [pushLoading,   setPushLoading]   = useState(false)
   const supabase = createClient()
 
+  const profile = useUserStore(state => state.profile)
+
+  const isPro =
+    profile?.role === 'admin' ||
+    profile?.role === 'moderator' ||
+    (profile?.is_pro && (
+      !profile?.pro_expires_at ||
+      new Date(profile.pro_expires_at) > new Date()
+    ))
+
+  const notifHref = isPro ? '/pro/notifications' : '/dashboard/notifications'
+
   const fetchNotifications = useCallback(async () => {
     const res  = await fetch('/api/notifications')
     const data = await res.json()
@@ -200,7 +213,7 @@ export function NotificationBell({ userId }: { userId: string }) {
         }
       } else {
         if (Notification.permission === 'denied') {
-          toast.error('Notifications blocked — enable them in your browser settings')
+          toast.error('Notifications blocked, enable them in your browser settings')
           return
         }
         const ok = await subscribeToPush()
@@ -292,7 +305,7 @@ export function NotificationBell({ userId }: { userId: string }) {
         <div className="max-h-80 overflow-y-auto">
           {preview.length === 0 ? (
             <div className="py-8 text-center text-muted-foreground text-sm">
-              <Bell size={24} className="mx-auto mb-2 opacity-30" />
+              <BellOff size={24} className="mx-auto mb-2 opacity-30" />
               No notifications yet
             </div>
           ) : (
@@ -301,7 +314,7 @@ export function NotificationBell({ userId }: { userId: string }) {
                 ? `/comic/${notif.data.recommendation_id}`
                 : notif.data?.follower_id
                 ? `/profile/${notif.data.follower_id}`
-                : '/dashboard/notifications'
+                : notifHref
 
               return (
                 <Link
@@ -340,7 +353,7 @@ export function NotificationBell({ userId }: { userId: string }) {
         {notifications.length > 0 && (
           <div className="px-4 py-2 border-t border-border">
             <Link
-              href="/dashboard/notifications"
+              href={notifHref}
               onClick={() => setOpen(false)}
               className="text-xs text-primary hover:underline"
             >
