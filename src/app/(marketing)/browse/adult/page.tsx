@@ -315,6 +315,8 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         apiPath="/api/recommendations"
         userId={user.id}
         interactionCount={interactionCount}
+        contentRatings={['mature', 'adult']}
+        isPro={isPro}
       />
 
     </div>

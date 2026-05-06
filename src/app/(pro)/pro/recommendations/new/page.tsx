@@ -33,7 +33,7 @@ export default async function ProNewRecommendationPage() {
         <div>
           <h1 className="text-xl font-black tracking-tight leading-tight">Submit a Recommendation</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Unlimited submissions · Priority review
+            Unlimited submissions · Pro
           </p>
         </div>
       </div>

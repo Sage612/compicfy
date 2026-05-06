@@ -114,6 +114,12 @@ export function RecommendationForm({ userId }: Props) {
   const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
   const [checkingDuplicate, setCheckingDuplicate] = useState(false)
   const duplicateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [externalIds, setExternalIds] = useState<{
+    mangaupdates_id?: string
+    anilist_id?:      string
+    mal_id?:          string
+    mangadex_id?:     string
+  }>({})
 
   // Monthly usage tracking
   const [monthlyCount, setMonthlyCount] = useState<number | null>(null)
@@ -214,7 +220,7 @@ export function RecommendationForm({ userId }: Props) {
       const response = await fetch('/api/recommendations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, ...externalIds }),
       })
       const result = await response.json()
 
@@ -266,6 +272,13 @@ export function RecommendationForm({ userId }: Props) {
     const validGenres = ['Action','Adventure','Comedy','Drama','Fantasy','Horror','Mystery','Romance','Sci-Fi','Slice of Life','Sports','Supernatural','Thriller','Isekai','Martial Arts','School Life','Historical','Psychological','Shounen','Shoujo','Seinen','Josei','Yuri','Yaoi']
     setValue('genres', result.genres?.filter((g: string) => validGenres.includes(g)).slice(0, 5) || [])
     if (result.coverUrl && !getValues('cover_url')) setValue('cover_url', result.coverUrl)
+
+    // Extract and store external IDs
+    const id: string = result.id ?? ''
+    if (id.startsWith('mangaupdates-')) setExternalIds(prev => ({ ...prev, mangaupdates_id: id.replace('mangaupdates-', '') }))
+    else if (id.startsWith('anilist-'))   setExternalIds(prev => ({ ...prev, anilist_id:     id.replace('anilist-', '')     }))
+    else if (id.startsWith('jikan-'))     setExternalIds(prev => ({ ...prev, mal_id:          id.replace('jikan-', '')       }))
+    else if (id.startsWith('mangadex-'))  setExternalIds(prev => ({ ...prev, mangadex_id:     id.replace('mangadex-', '')    }))
   }
 
   return (

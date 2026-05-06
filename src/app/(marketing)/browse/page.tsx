@@ -115,14 +115,23 @@ export default async function BrowsePage({ searchParams }: Props) {
 
   let adultEnabled     = false
   let interactionCount = 0
+  let isPro            = false
 
   if (user) {
     const [profileRes, interactions] = await Promise.all([
-      supabase.from('profiles').select('adult_content_enabled').eq('id', user.id).single(),
+      supabase.from('profiles').select('adult_content_enabled, is_pro, pro_expires_at, role').eq('id', user.id).single(),
       getInteractionCount(supabase, user.id),
     ])
     adultEnabled     = (profileRes.data as any)?.adult_content_enabled === true
     interactionCount = interactions
+    
+    const profile = profileRes.data as any
+    isPro = profile?.role === 'admin' ||
+            profile?.role === 'moderator' ||
+            (profile?.is_pro && (
+              !profile?.pro_expires_at ||
+              new Date(profile.pro_expires_at) > new Date()
+            ))
   }
 
   const [
@@ -240,6 +249,7 @@ export default async function BrowsePage({ searchParams }: Props) {
         apiPath="/api/recommendations"
         userId={user?.id ?? null}
         interactionCount={interactionCount}
+        isPro={isPro}
       />
     </div>
   )

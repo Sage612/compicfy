@@ -10,12 +10,14 @@ import type { Recommendation } from '@/types/database.types'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  initialItems:      Recommendation[]
-  initialTotal:      number
-  searchParams:      Record<string, string>
-  apiPath?:          string
-  userId?:           string | null
-  interactionCount?: number
+  initialItems:       Recommendation[]
+  initialTotal:       number
+  searchParams:       Record<string, string>
+  apiPath?:           string
+  userId?:            string | null
+  interactionCount?:  number
+  contentRatings?:    string[]
+  isPro?:             boolean
 }
 
 const PAGE_SIZE        = 24
@@ -37,6 +39,8 @@ export function ComicGridClient({
   apiPath = '/api/recommendations',
   userId  = null,
   interactionCount = 0,
+  contentRatings = ['all_ages', 'teen'],
+  isPro = false,
 }: Props) {
   const sessionKey = getSessionKey(searchParams)
   const scrollKey  = `${sessionKey}_y`
@@ -107,7 +111,11 @@ export function ComicGridClient({
     forYouFetched.current = true
     setForYouLoading(true)
     try {
-      const res  = await fetch('/api/recommendations/personalized?limit=48')
+      const params = new URLSearchParams({
+        limit: '48',
+        content_ratings: contentRatings.join(','),
+      })
+      const res  = await fetch(`/api/recommendations/personalized?${params}`)
       const data = await res.json()
       setForYouItems(data.recommendations ?? [])
     } catch {
@@ -115,7 +123,7 @@ export function ComicGridClient({
     } finally {
       setForYouLoading(false)
     }
-  }, [userId])
+  }, [userId, contentRatings])
 
   const handleTabChange = (tab: GridTab) => {
     setActiveTab(tab)
@@ -217,7 +225,7 @@ export function ComicGridClient({
               </div>
               <p className="text-sm font-black">Nothing to show yet</p>
               <p className="text-xs text-muted-foreground mt-1 text-center max-w-xs px-4">
-                Vote and save comics in the <strong>All Comics</strong> tab — your personalised feed builds up as you go.
+                Vote and save comics in the <strong>All Comics</strong> tab, your personalised feed builds up as you go.
               </p>
               <button
                 onClick={() => handleTabChange('all')}
@@ -274,7 +282,7 @@ export function ComicGridClient({
                   </div>
                   <p className="text-sm font-black">No comics yet</p>
                   <p className="text-xs text-muted-foreground mt-1">Be the first to add a recommendation</p>
-                  <Link href="/dashboard/recommendations/new" className="mt-5">
+                  <Link href={isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'} className="mt-5">
                     <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
                       <BookOpen size={14} />
                       Submit one now

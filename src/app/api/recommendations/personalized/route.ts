@@ -14,18 +14,10 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
 
     // Determine allowed content ratings
-    let contentRatings = ['all_ages', 'teen']
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('adult_content_enabled')
-        .eq('id', user.id)
-        .single()
-
-      if ((profile as any)?.adult_content_enabled) {
-        contentRatings = ['all_ages', 'teen', 'mature', 'adult']
-      }
-    }
+    const ratingsParam = searchParams.get('content_ratings')
+    const contentRatings = ratingsParam
+      ? ratingsParam.split(',')
+      : ['all_ages', 'teen']
 
     if (mode === 'similar' && comicId) {
       // Similar comics for detail page
