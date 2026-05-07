@@ -9,7 +9,7 @@ import {
   Bookmark, BookMarked, Star, BarChart2,
   Download, Bell, Eye, ArrowRight,
   Shield, Users, TrendingUp,
-  BadgeCheck, Flame, CreditCard, AlertCircle,
+  BadgeCheck, Flame,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -62,7 +62,6 @@ const YEARLY_BILLED = '$29.99'
 
 export function PricingClient({ user, profile }: Props) {
   const [billing,  setBilling]  = useState<'monthly' | 'yearly'>('yearly')
-  const [provider, setProvider] = useState<'paystack' | 'flutterwave'>('paystack')
   const [loading,  setLoading]  = useState(false)
   const searchParams = useSearchParams()
 
@@ -85,11 +84,7 @@ export function PricingClient({ user, profile }: Props) {
     }
     setLoading(true)
     try {
-      const endpoint = provider === 'paystack'
-        ? '/api/paystack/initialize'
-        : '/api/flutterwave/initialize'
-
-      const res  = await fetch(endpoint, {
+      const res  = await fetch('/api/flutterwave/initialize', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ plan: billing }),
@@ -272,44 +267,7 @@ export function PricingClient({ user, profile }: Props) {
                 </div>
               </div>
 
-              {/* ── Payment provider selector ── */}
-              <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Pay with
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setProvider('paystack')}
-                    className={cn(
-                      'flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all',
-                      provider === 'paystack'
-                        ? 'bg-primary/10 border-primary/50 text-primary shadow-sm'
-                        : 'border-border text-muted-foreground hover:border-primary/30'
-                    )}
-                  >
-                    <CreditCard size={13} />
-                    Paystack
-                  </button>
-                  <button
-                    onClick={() => setProvider('flutterwave')}
-                    className={cn(
-                      'flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all',
-                      provider === 'flutterwave'
-                        ? 'bg-orange-500/10 border-orange-500/50 text-orange-600 shadow-sm'
-                        : 'border-border text-muted-foreground hover:border-orange-500/30'
-                    )}
-                  >
-                    <CreditCard size={13} />
-                    Flutterwave
-                  </button>
-                </div>
-                {provider === 'flutterwave' && (
-                  <div className="flex items-start gap-1.5 text-[10px] text-muted-foreground">
-                    <AlertCircle size={10} className="shrink-0 mt-0.5" />
-                    Alternative if Paystack is unavailable in your region
-                  </div>
-                )}
-              </div>
+
 
               <Button
                 onClick={handleUpgrade}
@@ -325,7 +283,7 @@ export function PricingClient({ user, profile }: Props) {
               </Button>
 
               <p className="text-center text-[10px] text-muted-foreground">
-                Cancel anytime · Secure payment via {provider === 'paystack' ? 'Paystack' : 'Flutterwave'}
+                Cancel anytime · Secure payment via Flutterwave
               </p>
             </div>
           </div>

@@ -41,13 +41,12 @@ export function BillingClient({ profile, subscription, email }: Props) {
 
   const isCancelled = subscription?.status === 'cancelled' || cancelled
 
-  // Always hit paystack/cancel — it now routes internally based on gateway
   const handleCancel = async () => {
     if (!confirm('Are you sure you want to cancel your Pro subscription? You will keep access until the end of your billing period.')) return
 
     setCancelling(true)
     try {
-      const res  = await fetch('/api/paystack/cancel', { method: 'POST' })
+      const res  = await fetch('/api/flutterwave/cancel', { method: 'POST' })
       const data = await res.json()
 
       if (!res.ok) {

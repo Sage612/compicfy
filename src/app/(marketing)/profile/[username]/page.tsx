@@ -240,8 +240,8 @@ export default async function ProfilePage({ params }: Props) {
         </div>
 
         <div className="px-6 pb-6 -mt-12 space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+          <div className="flex flex-row items-start justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4 flex-1 min-w-0">
               <ProAvatar
                 src={profile.avatar_url}
                 fallback={initials}
