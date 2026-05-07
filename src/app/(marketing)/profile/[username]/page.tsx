@@ -168,7 +168,6 @@ export default async function ProfilePage({ params }: Props) {
   ] = await Promise.all([
     recQuery,
     totalRecsQuery,
-    // Ghost doesn't have reading lists
     isGhost
       ? Promise.resolve({ data: [] })
       : supabase
@@ -240,8 +239,12 @@ export default async function ProfilePage({ params }: Props) {
         </div>
 
         <div className="px-6 pb-6 -mt-12 space-y-5">
-          <div className="flex flex-row items-start justify-between gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4 flex-1 min-w-0">
+
+          {/* ── Avatar row + follow button ── */}
+          <div className="flex flex-row items-end justify-between gap-4">
+
+            {/* Avatar + name */}
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3 flex-1 min-w-0">
               <ProAvatar
                 src={profile.avatar_url}
                 fallback={initials}
@@ -250,7 +253,8 @@ export default async function ProfilePage({ params }: Props) {
                 isAdmin={isAdmin}
                 className="border-4 border-card shadow-lg shrink-0"
               />
-              <div className="space-y-1">
+              {/* Name sits below avatar on mobile, beside it on desktop */}
+              <div className="space-y-1 pb-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl font-black truncate">
                     {profile.display_name || profile.username}
@@ -262,9 +266,9 @@ export default async function ProfilePage({ params }: Props) {
               </div>
             </div>
 
-            {/* Follow button — hidden for ghost and for self */}
+            {/* Follow button — always on the right, aligned to bottom of avatar */}
             {!isOwner && !isGhost && viewer && (
-              <div className="shrink-0 sm:pb-1">
+              <div className="shrink-0 pb-1">
                 <FollowButton
                   profileId={profile.id}
                   initialFollowing={isFollowing}
@@ -273,9 +277,9 @@ export default async function ProfilePage({ params }: Props) {
               </div>
             )}
 
-            {/* Ghost — show lore pill instead of follow button */}
+            {/* Ghost pill */}
             {isGhost && (
-              <div className="shrink-0 sm:pb-1">
+              <div className="shrink-0 pb-1">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
                   The Archivist
@@ -289,7 +293,6 @@ export default async function ProfilePage({ params }: Props) {
           )}
 
           <div className="flex flex-wrap gap-4">
-            {/* Ghost doesn't show followers/following count */}
             {!isGhost && (
               <>
                 <Link
