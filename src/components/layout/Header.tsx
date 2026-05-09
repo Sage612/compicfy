@@ -31,12 +31,12 @@ import { NotificationBell } from '@/components/user/NotificationBell'
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
-      <rect x="3"   y="18"   width="22" height="5.5" rx="1.5" className="fill-primary-foreground/25" />
-      <rect x="3"   y="18"   width="10" height="5.5" rx="1.5" className="fill-primary-foreground/55" />
-      <rect x="4.5" y="11.5" width="19" height="5.5" rx="1.5" className="fill-primary-foreground/45" />
-      <rect x="4.5" y="11.5" width="9"  height="5.5" rx="1.5" className="fill-primary-foreground/75" />
-      <rect x="6"   y="5"    width="16" height="5.5" rx="1.5" className="fill-primary-foreground"    />
-      <rect x="6"   y="5"    width="7.5"height="5.5" rx="1.5" className="fill-primary-foreground/65" />
+      <rect x="3"   y="18"   width="22" height="5.5" rx="1" fill="white" fillOpacity="0.25" />
+      <rect x="3"   y="18"   width="10" height="5.5" rx="1" fill="white" fillOpacity="0.55" />
+      <rect x="4.5" y="11.5" width="19" height="5.5" rx="1" fill="white" fillOpacity="0.45" />
+      <rect x="4.5" y="11.5" width="9"  height="5.5" rx="1" fill="white" fillOpacity="0.75" />
+      <rect x="6"   y="5"    width="16" height="5.5" rx="1" fill="white" fillOpacity="1"    />
+      <rect x="6"   y="5"    width="7.5"height="5.5" rx="1" fill="white" fillOpacity="0.65" />
     </svg>
   )
 }
@@ -51,7 +51,6 @@ export function Header() {
   const [avatarUrl, setAvatarUrl]     = useState<string | null>(null)
   const [displayName, setDisplayName] = useState<string | null>(null)
   const [username, setUsername]       = useState<string | null>(null)
-  const [scrolled, setScrolled]       = useState(false)
   const [visible, setVisible]         = useState(true)
   const [isPro, setIsPro]             = useState(false)
   const [role, setRole]               = useState<string>('user')
@@ -66,7 +65,6 @@ export function Header() {
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY
-      setScrolled(currentY > 8)
       if (currentY < 60) {
         setVisible(true)
       } else if (currentY > lastScrollY.current + 4) {
@@ -80,7 +78,6 @@ export function Header() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Cmd+K → go to search page
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -117,15 +114,11 @@ export function Header() {
               (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
 
           setIsPro(proActive)
-
-          // Resolve Pro link visibility — never flips again after this
           setShowPro(proActive || profile.role === 'admin' ? false : true)
         } else {
-          // Profile not found yet — logged in but show Pro link
           setShowPro(true)
         }
       } else {
-        // Logged out — show Pro link
         setShowPro(true)
       }
 
@@ -156,15 +149,15 @@ export function Header() {
     router.refresh()
   }
 
-  const dashboardHref     = isPro ? '/pro/dashboard'     : '/dashboard'
-  const listsHref         = isPro ? '/pro/lists'         : '/dashboard/lists'
-  const billingHref       = isPro ? '/pro/billing'       : '/dashboard/billing'
-  const settingsHref      = isPro ? '/pro/settings'      : '/dashboard/settings'
-  const notificationsHref = isPro ? '/pro/notifications' : '/dashboard/notifications'
-  const recommendHref     = isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'
-  const dashboardLabel    = isPro ? 'Pro Dashboard'      : 'Dashboard'
-  const billingLabel      = isPro ? 'Pro Billing'        : 'Billing'
-  const listsLabel        = isPro ? 'Pro Lists'          : 'Lists'
+  const dashboardHref     = isPro ? '/pro/dashboard'          : '/dashboard'
+  const listsHref         = isPro ? '/pro/lists'              : '/dashboard/lists'
+  const billingHref       = isPro ? '/pro/billing'            : '/dashboard/billing'
+  const settingsHref      = isPro ? '/pro/settings'           : '/dashboard/settings'
+  const notificationsHref = isPro ? '/pro/notifications'      : '/dashboard/notifications'
+  const recommendHref     = isPro ? '/pro/recommendations/new': '/dashboard/recommendations/new'
+  const dashboardLabel    = isPro ? 'Pro Dashboard'           : 'Dashboard'
+  const billingLabel      = isPro ? 'Pro Billing'             : 'Billing'
+  const listsLabel        = isPro ? 'Pro Lists'               : 'Lists'
 
   const publicNavLinks = [
     { href: '/browse',    label: 'Browse', icon: Radar       },
@@ -190,30 +183,24 @@ export function Header() {
   return (
     <header className={cn(
       'fixed top-0 left-0 right-0 z-50 h-14',
-      'bg-background/90 backdrop-blur-lg border-b border-border',
-      'transition-all duration-300',
-      scrolled && 'shadow-sm shadow-black/5 border-border/80',
+      'bg-background border-b border-border',
+      'transition-transform duration-300',
       !visible && '-translate-y-full'
     )}>
       <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between gap-4">
 
-        {/* Logo */}
+        {/* ── Logo ── */}
         <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-          <div className={cn(
-            'w-8 h-8 rounded-xl flex items-center justify-center',
-            'bg-gradient-to-br from-primary to-violet-500',
-            'shadow-md shadow-primary/20',
-            'group-hover:shadow-lg group-hover:shadow-primary/30 group-hover:scale-105',
-            'transition-all duration-200'
-          )}>
-            <LogoMark className="w-[18px] h-[18px]" />
+          {/* Flat red square — no gradient, no shadow, no rounded-xl */}
+          <div className="w-7 h-7 rounded bg-primary flex items-center justify-center shrink-0">
+            <LogoMark className="w-4 h-4" />
           </div>
           <span className="hidden sm:inline font-black text-[15px] tracking-tight leading-none">
             Compic<span className="text-primary">fy</span>
           </span>
         </Link>
 
-        {/* Desktop nav */}
+        {/* ── Desktop nav ── */}
         <nav className="hidden lg:flex items-center gap-0.5">
           {publicNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
@@ -222,19 +209,24 @@ export function Header() {
                 key={href}
                 href={href}
                 className={cn(
-                  'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium transition-all duration-150',
+                  'relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors duration-150',
                   isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <Icon size={14} />
+                {isActive && (
+                  <span className="absolute bottom-0 left-3 right-3 h-px bg-primary rounded-full" />
+                )}
+                <Icon size={13} strokeWidth={isActive ? 2.5 : 1.75} />
                 {label}
               </Link>
             )
           })}
 
-          {authReady && user && <div className="w-px h-4 bg-border mx-1" />}
+          {authReady && user && (
+            <span className="w-px h-4 bg-border mx-1.5" />
+          )}
 
           {authReady && user && authNavLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href || pathname.startsWith(href + '/')
@@ -243,26 +235,24 @@ export function Header() {
                 key={href}
                 href={href}
                 className={cn(
-                  'flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium transition-all duration-150',
+                  'relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors duration-150',
                   isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <Icon size={14} />
+                {isActive && (
+                  <span className="absolute bottom-0 left-3 right-3 h-px bg-primary rounded-full" />
+                )}
+                <Icon size={13} strokeWidth={isActive ? 2.5 : 1.75} />
                 {label}
               </Link>
             )
           })}
 
-          {/*
-            Pro link — three states:
-            null  → invisible placeholder (auth still resolving, no flash)
-            true  → show amber Pro button
-            false → render nothing (admin / pro user)
-          */}
+          {/* Pro link */}
           {showPro === null ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 ml-1 opacity-0 pointer-events-none select-none text-sm font-semibold border border-transparent">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 ml-1 opacity-0 pointer-events-none select-none text-sm font-semibold">
               <Crown size={13} />
               Pro
             </span>
@@ -270,10 +260,10 @@ export function Header() {
             <Link
               href="/pricing"
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all duration-150 ml-1 border',
+                'flex items-center gap-1.5 px-3 py-1.5 ml-1 text-sm font-semibold transition-colors duration-150 border rounded',
                 pathname === '/pricing'
-                  ? 'bg-amber-500/15 text-amber-600 border-amber-500/30'
-                  : 'text-amber-500 border-amber-500/25 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/40'
+                  ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+                  : 'text-amber-500 border-amber-500/20 hover:bg-amber-500/10 hover:border-amber-500/30'
               )}
             >
               <Crown size={13} className="fill-amber-500 shrink-0" />
@@ -282,11 +272,8 @@ export function Header() {
           ) : null}
         </nav>
 
-        {/* ── Right side ───────────────────────────────────────────────
-            FIX: GlobalSearch and theme toggle are now INSIDE the same
-            flex row as the auth area so they are never isolated on
-            mobile — they all move together as one group.             */}
-        <div className="flex items-center gap-0.5 sm:gap-1 ml-auto">
+        {/* ── Right side ── */}
+        <div className="flex items-center gap-1 ml-auto">
 
           <GlobalSearch />
 
@@ -295,28 +282,34 @@ export function Header() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant="ghost" size="icon"
+                  variant="ghost"
+                  size="icon"
                   className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
                   aria-label="Toggle theme"
                 >
                   {theme === 'light'
-                    ? <Sun size={15} />
+                    ? <Sun size={14} />
                     : theme === 'dark'
-                    ? <Moon size={15} />
-                    : <Monitor size={15} />
+                    ? <Moon size={14} />
+                    : <Monitor size={14} />
                   }
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuContent align="end" className="w-32 rounded-md p-1">
                 {themeOptions.map(({ value, label, icon: Icon }) => (
                   <DropdownMenuItem
                     key={value}
                     onClick={() => setTheme(value)}
-                    className={cn('gap-2 cursor-pointer', theme === value && 'text-primary font-medium')}
+                    className={cn(
+                      'gap-2 cursor-pointer rounded-sm text-sm',
+                      theme === value && 'text-primary font-medium'
+                    )}
                   >
                     <Icon size={13} />
                     {label}
-                    {theme === value && <span className="ml-auto text-primary">&#10003;</span>}
+                    {theme === value && (
+                      <span className="ml-auto text-primary text-xs">✓</span>
+                    )}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
@@ -326,32 +319,40 @@ export function Header() {
           {/* Auth area */}
           {!authReady ? (
             <div className="flex items-center gap-1.5">
-              <div className="h-8 w-14 rounded-xl bg-muted/50 animate-pulse hidden sm:block" />
-              <div className="h-8 w-16 rounded-xl bg-muted/50 animate-pulse" />
+              <div className="h-7 w-14 rounded bg-muted/50 animate-pulse hidden sm:block" />
+              <div className="h-7 w-16 rounded bg-muted/50 animate-pulse" />
             </div>
           ) : !user ? (
             <div className="flex items-center gap-1.5 ml-1">
               <Link href="/login">
-                <Button variant="ghost" size="sm"className="h-8 text-sm font-medium">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
                   Log in
                 </Button>
               </Link>
               <Link href="/signup">
-                <Button size="sm" className="h-8 text-sm font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
+                <Button
+                  size="sm"
+                  className="h-8 text-sm font-semibold bg-primary hover:bg-primary/90 border-0 rounded"
+                >
                   Sign up
                 </Button>
               </Link>
             </div>
           ) : (
-            <div className="flex items-center gap-1 ml-0.5">
-              {/* Recommend button — lg only */}
+            <div className="flex items-center gap-1 ml-1">
+
+              {/* Recommend button — desktop only */}
               <Link href={recommendHref} className="hidden lg:flex">
                 <Button
                   size="sm"
-                  className="h-8 px-3 gap-1.5 font-semibold bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20"
+                  className="h-8 px-3 gap-1.5 text-sm font-semibold bg-primary hover:bg-primary/90 border-0 rounded"
                 >
-                  <BookOpen size={14} strokeWidth={2.5} />
-                  <span className="text-sm">Recommend</span>
+                  <BookOpen size={13} strokeWidth={2.5} />
+                  Recommend
                 </Button>
               </Link>
 
@@ -360,47 +361,45 @@ export function Header() {
               {/* Avatar dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/40 focus-visible:ring-primary/40 transition-all outline-none">
+                  <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/30 focus-visible:ring-primary/30 transition-all outline-none">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={avatarUrl ?? undefined} alt={displayName ?? 'User'} />
-                      <AvatarFallback className="text-xs font-black bg-gradient-to-br from-primary to-violet-500 text-white">
+                      <AvatarFallback className="text-xs font-black bg-primary text-primary-foreground">
                         {initials}
                       </AvatarFallback>
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
 
-                <DropdownMenuContent align="end" className="w-56 rounded-2xl p-1.5">
-                  <DropdownMenuLabel className="font-normal px-2 py-2 mb-0.5">
-                    <div className="flex items-center gap-2.5">
-                      <Avatar className="h-9 w-9 shrink-0">
-                        <AvatarImage src={avatarUrl ?? undefined} />
-                        <AvatarFallback className="text-xs font-black bg-gradient-to-br from-primary to-violet-500 text-white">
-                          {initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <p className="font-black text-sm truncate leading-tight">{displayName ?? 'User'}</p>
-                        <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">{user.email}</p>
-                      </div>
-                    </div>
-                  </DropdownMenuLabel>
+                {/* ── Dropdown — flat, sharp, no card header ── */}
+                <DropdownMenuContent align="end" className="w-52 rounded-md p-1">
 
-                  <DropdownMenuSeparator className="my-1" />
+                  {/* Name + email — plain text, no avatar repeated */}
+                  <div className="px-2 py-2 border-b border-border mb-1">
+                    <p className="font-bold text-sm truncate leading-tight">
+                      {displayName ?? 'User'}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                      {user.email}
+                    </p>
+                  </div>
 
                   {username && (
-                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
                       <Link href={`/profile/${username}`}>
-                        <UserIcon size={13} className="text-muted-foreground" />
+                        <UserIcon size={13} className="text-muted-foreground shrink-0" />
                         View Profile
                       </Link>
                     </DropdownMenuItem>
                   )}
 
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                    <Link href={dashboardHref} className={cn(isPro && 'text-amber-600 font-semibold')}>
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
+                    <Link
+                      href={dashboardHref}
+                      className={cn(isPro && 'text-amber-600 font-semibold')}
+                    >
                       {isPro
-                        ? <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
+                        ? <Crown size={13} className="text-amber-500 shrink-0" />
                         : <LayoutDashboard size={13} className="text-muted-foreground shrink-0" />
                       }
                       {dashboardLabel}
@@ -409,37 +408,39 @@ export function Header() {
 
                   <DropdownMenuSeparator className="my-1" />
 
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
                     <Link href={notificationsHref}>
-                      <Bell size={13} className="text-muted-foreground" />
+                      <Bell size={13} className="text-muted-foreground shrink-0" />
                       Notifications
                     </Link>
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
                     <Link href={settingsHref}>
-                      <Settings size={13} className={cn(isPro ? 'text-amber-500' : 'text-muted-foreground')} />
+                      <Settings size={13} className="text-muted-foreground shrink-0" />
                       Settings
                     </Link>
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg">
-                    <Link href={billingHref} className={cn(isPro && 'text-amber-600 font-semibold')}>
+                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
+                    <Link
+                      href={billingHref}
+                      className={cn(isPro && 'text-amber-600 font-semibold')}
+                    >
                       {isPro
-                        ? <Crown size={13} className="text-amber-500 fill-amber-500/20 shrink-0" />
+                        ? <Crown size={13} className="text-amber-500 shrink-0" />
                         : <CreditCard size={13} className="text-muted-foreground shrink-0" />
                       }
                       {billingLabel}
                     </Link>
                   </DropdownMenuItem>
 
-                  {/* Upgrade to Pro — only rendered once showPro is resolved to true */}
                   {showPro === true && (
                     <>
                       <DropdownMenuSeparator className="my-1" />
-                      <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg bg-amber-500/5 hover:bg-amber-500/10 focus:bg-amber-500/10">
+                      <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
                         <Link href="/pricing">
-                          <Sparkles size={13} className="text-amber-500" />
+                          <Sparkles size={13} className="text-amber-500 shrink-0" />
                           <span className="text-amber-600 font-semibold">Upgrade to Pro</span>
                         </Link>
                       </DropdownMenuItem>
@@ -448,8 +449,13 @@ export function Header() {
 
                   <DropdownMenuSeparator className="my-1" />
 
-                  <DropdownMenuItem asChild className="rounded-lg">
-                    <a href="https://discord.gg/7WPGMb696N" target="_blank" rel="noopener noreferrer" className="gap-2 cursor-pointer">
+                  <DropdownMenuItem asChild className="rounded-sm text-sm">
+                    
+                      href="https://discord.gg/7WPGMb696N"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="gap-2 cursor-pointer"
+                    >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-[#5865F2] shrink-0">
                         <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.102 18.08.114 18.1.141 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
                       </svg>
@@ -461,11 +467,12 @@ export function Header() {
 
                   <DropdownMenuItem
                     onClick={handleSignOut}
-                    className="cursor-pointer gap-2 rounded-lg text-destructive focus:text-destructive"
+                    className="cursor-pointer gap-2 rounded-sm text-sm text-destructive focus:text-destructive"
                   >
-                    <LogOut size={13} />
+                    <LogOut size={13} className="shrink-0" />
                     Sign out
                   </DropdownMenuItem>
+
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
