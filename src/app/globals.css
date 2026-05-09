@@ -345,3 +345,12 @@
 [data-radix-popper-content-wrapper] [role="menu"] {
   border-color: var(--border) !important;
 }
+
+/* Remove focus ring from dropdown items — they use bg highlight instead */
+[data-slot="dropdown-menu-item"]:focus-visible,
+[data-slot="dropdown-menu-sub-trigger"]:focus-visible,
+[data-slot="dropdown-menu-checkbox-item"]:focus-visible,
+[data-slot="dropdown-menu-radio-item"]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
