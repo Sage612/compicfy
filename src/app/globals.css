@@ -340,3 +340,8 @@
 @media (pointer: coarse) and (orientation: landscape) and (max-width: 1024px) {
   .dashboard-main { padding-bottom: 5rem !important; }
 }
+
+/* ── DROPDOWN BORDERS ── */
+[data-radix-popper-content-wrapper] [role="menu"] {
+  border-color: var(--border) !important;
+}
