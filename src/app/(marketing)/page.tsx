@@ -414,7 +414,7 @@ export default async function HomePage() {
                 step:  '02',
                 icon:  TrendingUp,
                 title: 'The community votes',
-                desc:  'Other readers upvote or downvote. High-scoring recs hit the featured carousel daily — no hand-picking, just community signal.',
+                desc:  'Other readers upvote or downvote. High-scoring recs hit the featured carousel daily, no hand-picking, just community signal.',
                 color: 'text-sky-500',
                 bg:    'bg-sky-500/10',
               },

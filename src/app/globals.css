@@ -354,3 +354,9 @@
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* Remove focus ring from icon buttons in header */
+[aria-label="Toggle theme"]:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
