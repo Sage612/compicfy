@@ -71,7 +71,7 @@ export default function ResetPasswordPage() {
 
   if (!validSession) return (
     <div className="w-full max-w-md space-y-6 text-center">
-      <div className="inline-flex w-16 h-16 rounded-2xl bg-destructive/10 items-center justify-center">
+      <div className="inline-flex w-16 h-16 rounded-2xl bg-destructive/10 border border-destructive/20 items-center justify-center">
         <ShieldAlert size={28} className="text-destructive" />
       </div>
       <div className="space-y-2">
@@ -88,8 +88,8 @@ export default function ResetPasswordPage() {
 
   if (done) return (
     <div className="w-full max-w-md space-y-6 text-center">
-      <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 items-center justify-center shadow-xl shadow-emerald-500/20">
-        <CheckCircle size={28} className="text-white" />
+      <div className="inline-flex w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 items-center justify-center shadow-xl shadow-emerald-500/10">
+        <CheckCircle size={28} className="text-emerald-500" />
       </div>
       <div className="space-y-2">
         <h1 className="text-3xl font-black tracking-tight">Password updated!</h1>
@@ -101,8 +101,8 @@ export default function ResetPasswordPage() {
   return (
     <div className="w-full max-w-md space-y-6">
       <div className="text-center space-y-2">
-        <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-violet-500 items-center justify-center shadow-xl shadow-primary/20 mb-2">
-          <KeyRound size={22} className="text-white" />
+        <div className="inline-flex w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center shadow-xl shadow-primary/10 mb-2">
+          <KeyRound size={22} className="text-primary" />
         </div>
         <h1 className="text-3xl font-black tracking-tight">New password</h1>
         <p className="text-muted-foreground text-sm">Choose a strong password for your account</p>
@@ -112,20 +112,37 @@ export default function ResetPasswordPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="password" className="text-sm font-semibold">New Password</Label>
-            <Input id="password" type="password" placeholder="At least 8 characters" autoComplete="new-password"
-              className="h-11 bg-background border-border focus:border-primary transition-colors" {...register('password')} />
+            <Input
+              id="password"
+              type="password"
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+              className="h-11 bg-background border-border focus:border-primary transition-colors"
+              {...register('password')}
+            />
             {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="confirmPassword" className="text-sm font-semibold">Confirm Password</Label>
-            <Input id="confirmPassword" type="password" placeholder="Repeat your password" autoComplete="new-password"
-              className="h-11 bg-background border-border focus:border-primary transition-colors" {...register('confirmPassword')} />
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="Repeat your password"
+              autoComplete="new-password"
+              className="h-11 bg-background border-border focus:border-primary transition-colors"
+              {...register('confirmPassword')}
+            />
             {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
           </div>
-          <Button type="submit"
-            className="w-full h-11 font-bold gap-2 bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 border-0 shadow-lg shadow-primary/20"
-            disabled={loading}>
-            {loading ? <><Loader2 size={16} className="animate-spin" /> Updating…</> : <>Update password <ArrowRight size={15} /></>}
+          <Button
+            type="submit"
+            className="w-full h-11 font-bold gap-2"
+            disabled={loading}
+          >
+            {loading
+              ? <><Loader2 size={16} className="animate-spin" /> Updating…</>
+              : <>Update password <ArrowRight size={15} /></>
+            }
           </Button>
         </form>
       </div>

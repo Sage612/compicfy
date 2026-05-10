@@ -71,8 +71,8 @@ function LoginForm() {
     <div className="w-full max-w-md space-y-6">
 
       <div className="text-center space-y-2">
-        <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-violet-500 items-center justify-center shadow-xl shadow-primary/20 mb-2">
-          <BookOpen size={24} className="text-white" />
+        <div className="inline-flex w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center shadow-xl shadow-primary/10 mb-2">
+          <BookOpen size={24} className="text-primary" />
         </div>
         <h1 className="text-3xl font-black tracking-tight">Welcome back</h1>
         <p className="text-muted-foreground text-sm">Sign in to your Compicfy account</p>
@@ -132,7 +132,7 @@ function LoginForm() {
 
           <Button
             type="submit"
-            className="w-full h-11 font-bold gap-2 bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 border-0 shadow-lg shadow-primary/20"
+            className="w-full h-11 font-bold gap-2"
             disabled={loading}
           >
             {loading ? (

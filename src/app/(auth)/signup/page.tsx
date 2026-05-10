@@ -105,8 +105,8 @@ function SignupForm() {
     <div className="w-full max-w-md space-y-6">
 
       <div className="text-center space-y-2">
-        <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-violet-500 items-center justify-center shadow-xl shadow-rose-500/20 mb-2">
-          <Users size={24} className="text-white" />
+        <div className="inline-flex w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center shadow-xl shadow-primary/10 mb-2">
+          <Users size={24} className="text-primary" />
         </div>
         <h1 className="text-3xl font-black tracking-tight">Join Compicfy</h1>
         <p className="text-muted-foreground text-sm">Find your next obsession</p>
@@ -204,7 +204,7 @@ function SignupForm() {
 
           <Button
             type="submit"
-            className="w-full h-11 font-bold gap-2 bg-gradient-to-r from-rose-500 to-violet-500 hover:from-rose-400 hover:to-violet-400 border-0 shadow-lg shadow-rose-500/20 text-white"
+            className="w-full h-11 font-bold gap-2"
             disabled={loading}
           >
             {loading ? (

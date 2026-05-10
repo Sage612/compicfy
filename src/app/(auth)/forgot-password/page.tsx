@@ -44,8 +44,8 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <div className="w-full max-w-md space-y-6 text-center">
-        <div className="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 items-center justify-center shadow-xl shadow-emerald-500/20">
-          <MailCheck size={28} className="text-white" />
+        <div className="inline-flex w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 items-center justify-center shadow-xl shadow-emerald-500/10">
+          <MailCheck size={28} className="text-emerald-500" />
         </div>
         <div className="space-y-2">
           <h1 className="text-3xl font-black tracking-tight">Check your inbox</h1>
@@ -70,8 +70,8 @@ export default function ForgotPasswordPage() {
   return (
     <div className="w-full max-w-md space-y-6">
       <div className="text-center space-y-2">
-        <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 items-center justify-center shadow-xl shadow-amber-500/20 mb-2">
-          <KeyRound size={22} className="text-white" />
+        <div className="inline-flex w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 items-center justify-center shadow-xl shadow-primary/10 mb-2">
+          <KeyRound size={22} className="text-primary" />
         </div>
         <h1 className="text-3xl font-black tracking-tight">Reset password</h1>
         <p className="text-muted-foreground text-sm">We'll send a reset link to your email</p>
@@ -93,10 +93,13 @@ export default function ForgotPasswordPage() {
           </div>
           <Button
             type="submit"
-            className="w-full h-11 font-bold gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 border-0 shadow-lg shadow-amber-500/20 text-white"
+            className="w-full h-11 font-bold gap-2"
             disabled={loading}
           >
-            {loading ? <><Loader2 size={16} className="animate-spin" /> Sending…</> : <>Send reset link <ArrowRight size={15} /></>}
+            {loading
+              ? <><Loader2 size={16} className="animate-spin" /> Sending…</>
+              : <>Send reset link <ArrowRight size={15} /></>
+            }
           </Button>
         </form>
         <Link href="/login">
