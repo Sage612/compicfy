@@ -204,7 +204,7 @@ export function FilterBar({ adult = false }: Props) {
               key={value}
               onClick={() => updateParam('sort', value)}
               className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all duration-150',
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-semibold border transition-all duration-150',
                 currentSort === value
                   ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
                   : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
@@ -229,7 +229,7 @@ export function FilterBar({ adult = false }: Props) {
               data-active={currentType === value}
               onClick={() => updateParam('type', value)}
               className={cn(
-                'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
+                'px-3 py-1 rounded-md text-xs font-semibold border transition-all duration-150',
                 TYPE_COLORS[value] ?? TYPE_COLORS[''],
                 currentType !== value && 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
               )}
@@ -250,7 +250,7 @@ export function FilterBar({ adult = false }: Props) {
               key={value}
               onClick={() => updateParam('status', value)}
               className={cn(
-                'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
+                'px-3 py-1 rounded-md text-xs font-semibold border transition-all duration-150',
                 currentStatus === value
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'

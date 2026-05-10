@@ -14,7 +14,8 @@ interface Props {
   recommendations: Recommendation[]
 }
 
-const typeColors: Record<string, string> = {
+// Type accent colors — same system as ComicCard
+const TYPE_COLORS: Record<string, string> = {
   manga:   '#f43f5e',
   manhwa:  '#8b5cf6',
   manhua:  '#f59e0b',
@@ -23,7 +24,7 @@ const typeColors: Record<string, string> = {
   other:   '#6b7280',
 }
 
-const statusConfig = {
+const STATUS_CONFIG = {
   ongoing:   { color: 'bg-emerald-500', label: 'Ongoing'   },
   completed: { color: 'bg-sky-500',     label: 'Completed' },
   hiatus:    { color: 'bg-amber-500',   label: 'Hiatus'    },
@@ -60,25 +61,23 @@ export function FeaturedCarousel({ recommendations }: Props) {
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi])
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi])
-  const scrollTo   = useCallback((index: number) => emblaApi?.scrollTo(index), [emblaApi])
+  const scrollTo   = useCallback((i: number) => emblaApi?.scrollTo(i), [emblaApi])
 
   if (!recommendations.length) return null
 
   return (
-    <div className="relative rounded-3xl overflow-hidden group shadow-2xl">
+    <div className="relative rounded-lg overflow-hidden group">
       <div ref={emblaRef} className="overflow-hidden">
         <div className="flex">
           {recommendations.map((rec, i) => {
-            const accentColor = typeColors[rec.type] || typeColors.other
-            const status      = statusConfig[rec.status as keyof typeof statusConfig]
+            const accentColor = TYPE_COLORS[rec.type] ?? TYPE_COLORS.other
+            const status      = STATUS_CONFIG[rec.status as keyof typeof STATUS_CONFIG]
 
             return (
               <div key={rec.id} className="relative flex-none w-full min-w-0">
 
-                {/* ── MOBILE CARD (portrait, cover-dominant) ── */}
-                <div className="sm:hidden relative overflow-hidden bg-zinc-950" style={{ height: '480px' }}>
-
-                  {/* Full bleed portrait cover */}
+                {/* ── MOBILE ── */}
+                <div className="sm:hidden relative overflow-hidden bg-zinc-950" style={{ height: '460px' }}>
                   {rec.cover_url ? (
                     <img
                       src={rec.cover_url}
@@ -91,207 +90,190 @@ export function FeaturedCarousel({ recommendations }: Props) {
                     </div>
                   )}
 
-                  {/* Gradient overlay — darkens bottom for text */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-transparent" />
 
-                  {/* Colour tint */}
+                  {/* Left accent bar — type color */}
                   <div
-                    className="absolute inset-0 opacity-20"
-                    style={{ background: `radial-gradient(ellipse at 50% 80%, ${accentColor}66, transparent 70%)` }}
-                  />
-
-                  {/* Accent left bar */}
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-1 opacity-90"
-                    style={{ background: `linear-gradient(to bottom, transparent, ${accentColor}, transparent)` }}
+                    className="absolute left-0 top-0 bottom-0 w-[3px]"
+                    style={{ background: accentColor }}
                   />
 
                   {/* Slide counter */}
-                  <div className="absolute top-4 right-4 text-xs text-white/30 font-mono tabular-nums">
+                  <div className="absolute top-4 right-4 text-[10px] text-white/30 font-mono tabular-nums">
                     {String(i + 1).padStart(2, '0')} / {String(recommendations.length).padStart(2, '0')}
                   </div>
 
-                  {/* Text content — pinned to bottom */}
-                  <div className="absolute bottom-0 left-0 right-0 px-5 pb-10 pt-8 flex flex-col gap-2.5">
-
-                    {/* Type + featured badges */}
+                  {/* Content */}
+                  <div className="absolute bottom-0 left-0 right-0 px-5 pb-10 pt-8 space-y-3">
                     <div className="flex items-center gap-2">
                       <span
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-widest"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider"
                         style={{
-                          background: `${accentColor}33`,
-                          border: `1px solid ${accentColor}55`,
+                          background: `${accentColor}25`,
+                          border: `1px solid ${accentColor}40`,
                           color: accentColor,
                         }}
                       >
-                        <Zap size={10} />
+                        <Zap size={9} />
                         {rec.type}
                       </span>
-                      <span className="flex items-center gap-1 text-xs font-bold text-amber-400 uppercase tracking-widest">
-                        <Star size={10} className="fill-amber-400" />
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                        <Star size={9} className="fill-amber-400" />
                         Featured
                       </span>
                     </div>
 
-                    {/* Title */}
                     <h2 className="text-2xl font-black leading-tight text-white tracking-tight line-clamp-2">
                       {rec.title}
                     </h2>
 
-                    {/* Status + genres */}
-                    <div className="flex flex-wrap items-center gap-1.5 overflow-hidden" style={{ maxHeight: '28px' }}>
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 border border-white/10 shrink-0">
-                        <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status?.color)} />
-                        <span className="text-xs text-white/80 capitalize whitespace-nowrap">{status?.label ?? rec.status}</span>
-                      </div>
-                      {rec.genres?.slice(0, 2).map(genre => (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {status && (
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/10 border border-white/10">
+                          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status.color)} />
+                          <span className="text-[10px] text-white/70 capitalize">{status.label}</span>
+                        </div>
+                      )}
+                      {rec.genres?.slice(0, 2).map(g => (
                         <span
-                          key={genre}
-                          className="px-2 py-0.5 rounded-full text-xs text-white/70 bg-white/10 border border-white/10 whitespace-nowrap shrink-0"
+                          key={g}
+                          className="px-2 py-0.5 rounded text-[10px] text-white/60 bg-white/10 border border-white/10"
                         >
-                          {genre}
+                          {g}
                         </span>
                       ))}
                     </div>
 
-                    {/* CTA row */}
                     <div className="flex items-center gap-3 pt-1">
                       <Link href={`/comic/${rec.id}`} className="flex-1">
                         <Button
                           size="sm"
-                          className="w-full gap-2 font-bold text-zinc-950 border-0 shadow-lg h-11 text-sm"
-                          style={{ background: accentColor }}
+                          className="w-full gap-2 font-bold border-0 h-10 text-sm rounded"
+                          style={{ background: accentColor, color: '#fff' }}
                         >
-                          <BookOpen size={14} />
+                          <BookOpen size={13} />
                           Read More
                         </Button>
                       </Link>
-                      <div className="flex items-center gap-1 text-sm text-white/50 shrink-0">
-                        <ThumbsUp size={13} />
+                      <div className="flex items-center gap-1 text-sm text-white/40 shrink-0">
+                        <ThumbsUp size={12} />
                         {formatNumber(rec.upvotes)}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* ── DESKTOP CARD (landscape, unchanged) ── */}
-                <div className="hidden sm:block relative h-[380px] md:h-[460px] overflow-hidden bg-zinc-950">
+                {/* ── DESKTOP ── */}
+                <div className="hidden sm:block relative h-[360px] md:h-[440px] overflow-hidden bg-zinc-950">
 
-                  {/* Full bleed background cover */}
+                  {/* Blurred background */}
                   {rec.cover_url && (
                     <img
                       src={rec.cover_url}
                       alt=""
                       aria-hidden
-                      className="absolute inset-0 w-full h-full object-cover scale-105 blur-xl opacity-30"
+                      className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-20"
                     />
                   )}
 
+                  {/* Overlays */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/98 via-zinc-950/80 to-zinc-950/30" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/40 via-transparent to-transparent" />
+
+                  {/* Left accent bar */}
                   <div
-                    className="absolute inset-0 opacity-15"
-                    style={{ background: `radial-gradient(ellipse at 70% 50%, ${accentColor}55, transparent 70%)` }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/98 via-zinc-950/75 to-zinc-950/20" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/60 via-transparent to-transparent" />
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-1 opacity-80"
-                    style={{ background: `linear-gradient(to bottom, transparent, ${accentColor}, transparent)` }}
+                    className="absolute left-0 top-0 bottom-0 w-[3px]"
+                    style={{ background: accentColor }}
                   />
 
-                  <div className="relative h-full flex items-center px-6 md:px-12 gap-8 py-8">
+                  <div className="relative h-full flex items-center px-8 md:px-12 gap-8 py-8">
 
-                    {/* Cover art */}
+                    {/* Cover */}
                     <div className="shrink-0">
-                      <div className="relative">
-                        <div
-                          className="absolute -inset-3 rounded-2xl blur-xl opacity-40"
-                          style={{ background: accentColor }}
-                        />
-                        <div className="relative w-32 md:w-44 aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-                          {rec.cover_url ? (
-                            <img
-                              src={rec.cover_url}
-                              alt={rec.title}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-white/5">
-                              <BookOpen size={32} className="text-white/30" />
-                            </div>
-                          )}
-                        </div>
+                      <div className="w-32 md:w-40 aspect-[3/4] rounded-lg overflow-hidden border border-white/10 shadow-2xl">
+                        {rec.cover_url ? (
+                          <img
+                            src={rec.cover_url}
+                            alt={rec.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-white/5">
+                            <BookOpen size={32} className="text-white/30" />
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Text content */}
-                    <div className="flex-1 min-w-0 min-h-0 flex flex-col justify-center gap-2.5 overflow-hidden">
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Text */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-center gap-3">
+                      <div className="flex items-center gap-2">
                         <span
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-widest text-white"
-                          style={{ background: `${accentColor}33`, border: `1px solid ${accentColor}55` }}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider"
+                          style={{
+                            background: `${accentColor}25`,
+                            border: `1px solid ${accentColor}40`,
+                            color: accentColor,
+                          }}
                         >
-                          <Zap size={10} style={{ color: accentColor }} />
-                          <span style={{ color: accentColor }}>{rec.type}</span>
+                          <Zap size={9} />
+                          {rec.type}
                         </span>
-                        <span className="flex items-center gap-1 text-xs font-bold text-amber-400 uppercase tracking-widest">
-                          <Star size={10} className="fill-amber-400" />
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                          <Star size={9} className="fill-amber-400" />
                           Featured
                         </span>
                       </div>
 
-                      <h2 className="text-3xl md:text-4xl font-black leading-[1.05] text-white tracking-tight line-clamp-2 flex-shrink-0">
+                      <h2 className="text-3xl md:text-4xl font-black leading-tight text-white tracking-tight line-clamp-2">
                         {rec.title}
                       </h2>
 
-                      <div className="flex flex-wrap items-center gap-1.5 flex-shrink-0 overflow-hidden" style={{ maxHeight: '28px' }}>
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 shrink-0">
-                          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status?.color)} />
-                          <span className="text-xs text-white/70 capitalize whitespace-nowrap">{status?.label ?? rec.status}</span>
-                        </div>
-                        {rec.genres?.slice(0, 3).map(genre => (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {status && (
+                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 border border-white/10">
+                            <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status.color)} />
+                            <span className="text-[10px] text-white/60 capitalize">{status.label}</span>
+                          </div>
+                        )}
+                        {rec.genres?.slice(0, 3).map(g => (
                           <span
-                            key={genre}
-                            className="px-2 py-0.5 rounded-full text-xs text-white/60 bg-white/5 border border-white/10 whitespace-nowrap shrink-0"
+                            key={g}
+                            className="px-2 py-0.5 rounded text-[10px] text-white/50 bg-white/5 border border-white/10"
                           >
-                            {genre}
+                            {g}
                           </span>
                         ))}
                       </div>
 
-                      <p
-                        className="text-sm text-white/50 leading-relaxed hidden sm:block max-w-md overflow-hidden"
-                        style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {rec.description}
-                      </p>
+                      {rec.description && (
+                        <p className="text-sm text-white/40 leading-relaxed line-clamp-2 max-w-md">
+                          {rec.description}
+                        </p>
+                      )}
 
-                      <div className="flex items-center gap-4 flex-shrink-0 mt-auto pt-1">
+                      <div className="flex items-center gap-4 pt-1">
                         <Link href={`/comic/${rec.id}`}>
                           <Button
                             size="sm"
-                            className="gap-2 font-bold text-zinc-950 border-0 shadow-lg hover:scale-105 transition-transform"
-                            style={{ background: accentColor }}
+                            className="gap-2 font-bold border-0 rounded"
+                            style={{ background: accentColor, color: '#fff' }}
                           >
                             <BookOpen size={13} />
                             Read More
                           </Button>
                         </Link>
-                        <div className="flex items-center gap-3 text-sm text-white/40">
-                          <span className="flex items-center gap-1">
-                            <ThumbsUp size={12} />
-                            {formatNumber(rec.upvotes)}
-                          </span>
+                        <div className="flex items-center gap-1.5 text-sm text-white/30">
+                          <ThumbsUp size={12} />
+                          {formatNumber(rec.upvotes)}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="absolute top-4 right-4 text-xs text-white/20 font-mono tabular-nums">
+                  {/* Slide counter */}
+                  <div className="absolute top-4 right-4 text-[10px] text-white/20 font-mono tabular-nums">
                     {String(i + 1).padStart(2, '0')} / {String(recommendations.length).padStart(2, '0')}
                   </div>
                 </div>
@@ -302,39 +284,39 @@ export function FeaturedCarousel({ recommendations }: Props) {
         </div>
       </div>
 
-      {/* Nav arrows — desktop only */}
+      {/* Nav arrows */}
       <button
         onClick={scrollPrev}
         className={cn(
-          'hidden sm:flex absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full',
-          'bg-white/5 backdrop-blur-md border border-white/10',
+          'hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded',
+          'bg-black/40 border border-white/10',
           'items-center justify-center text-white',
           'opacity-0 group-hover:opacity-100 transition-all duration-200',
-          'hover:bg-white/15 hover:scale-110 hover:border-white/20',
+          'hover:bg-black/60',
           !canScrollPrev && 'cursor-not-allowed opacity-20'
         )}
         aria-label="Previous"
       >
-        <ChevronLeft size={18} />
+        <ChevronLeft size={16} />
       </button>
 
       <button
         onClick={scrollNext}
         className={cn(
-          'hidden sm:flex absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full',
-          'bg-white/5 backdrop-blur-md border border-white/10',
+          'hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded',
+          'bg-black/40 border border-white/10',
           'items-center justify-center text-white',
           'opacity-0 group-hover:opacity-100 transition-all duration-200',
-          'hover:bg-white/15 hover:scale-110 hover:border-white/20',
+          'hover:bg-black/60',
           !canScrollNext && 'cursor-not-allowed opacity-20'
         )}
         aria-label="Next"
       >
-        <ChevronRight size={18} />
+        <ChevronRight size={16} />
       </button>
 
       {/* Dot indicators */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
         {recommendations.map((_, index) => (
           <button
             key={index}
@@ -342,8 +324,8 @@ export function FeaturedCarousel({ recommendations }: Props) {
             className={cn(
               'rounded-full transition-all duration-300',
               selectedIndex === index
-                ? 'w-6 h-1.5 bg-white'
-                : 'w-1.5 h-1.5 bg-white/20 hover:bg-white/40'
+                ? 'w-5 h-1 bg-white'
+                : 'w-1 h-1 bg-white/25 hover:bg-white/40'
             )}
             aria-label={`Go to slide ${index + 1}`}
           />

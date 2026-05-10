@@ -169,8 +169,8 @@ export default async function BrowsePage({ searchParams }: Props) {
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20 shrink-0">
-            <Radar size={17} className="text-white" />
+          <div className="w-8 h-8 rounded bg-primary flex items-center justify-center shrink-0">
+            <Radar size={16} className="text-primary-foreground" />
           </div>
           <div className="min-w-0">
             <h1 className="text-xl sm:text-3xl font-black tracking-tight leading-tight">Browse Comics</h1>
@@ -186,7 +186,7 @@ export default async function BrowsePage({ searchParams }: Props) {
             </Link>
           )}
           <Link href="/dashboard/recommendations/new">
-            <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 h-8 px-3">
+            <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary/90 border-0 h-8 px-3">
               <BookOpen size={14} />
               <span className="hidden sm:inline">Recommend</span>
               <span className="sm:hidden text-xs font-semibold">Rec</span>
