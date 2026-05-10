@@ -13,13 +13,12 @@ export function ParticleCanvas() {
     let animId: number
 
     const resize = () => {
-      canvas.width = canvas.offsetWidth
+      canvas.width  = canvas.offsetWidth
       canvas.height = canvas.offsetHeight
     }
     resize()
     window.addEventListener('resize', resize)
 
-    // Detect light mode
     const isLight = () => !document.documentElement.classList.contains('dark')
 
     type Particle = {
@@ -32,42 +31,42 @@ export function ParticleCanvas() {
       rotation: number; rotSpeed: number
     }
 
-    const PARTICLE_COUNT = 45
+    const PARTICLE_COUNT = 40
     const particles: Particle[] = Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      r: Math.random() * 2.2 + 0.5,
-      speed: Math.random() * 0.35 + 0.08,
-      drift: (Math.random() - 0.5) * 0.25,
-      opacity: Math.random() * 0.5 + 0.15,
-      opacityDir: Math.random() > 0.5 ? 1 : -1,
-      opacitySpeed: Math.random() * 0.007 + 0.002,
-      hue: Math.random() * 30 + 22,
-      type: i < 7 ? 'panel' : 'ember',
-      panelW: Math.random() * 9 + 5,
-      panelH: Math.random() * 7 + 4,
-      rotation: Math.random() * Math.PI * 2,
-      rotSpeed: (Math.random() - 0.5) * 0.008,
+      x:            Math.random() * canvas.width,
+      y:            Math.random() * canvas.height,
+      r:            Math.random() * 2 + 0.5,
+      speed:        Math.random() * 0.3 + 0.08,
+      drift:        (Math.random() - 0.5) * 0.2,
+      opacity:      Math.random() * 0.4 + 0.1,
+      opacityDir:   Math.random() > 0.5 ? 1 : -1,
+      opacitySpeed: Math.random() * 0.006 + 0.002,
+      // Red hue range — 0-15 covers red/crimson
+      hue:          Math.random() * 15,
+      type:         i < 6 ? 'panel' : 'ember',
+      panelW:       Math.random() * 9 + 5,
+      panelH:       Math.random() * 7 + 4,
+      rotation:     Math.random() * Math.PI * 2,
+      rotSpeed:     (Math.random() - 0.5) * 0.007,
     }))
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      // In light mode: use darker, more saturated colours and higher opacity
-      const light = isLight()
-      const opacityMultiplier = light ? 2.2 : 1
-      const lightness = light ? 35 : 68      // darker hue in light mode
-      const coreLightness = light ? 25 : 82  // darker core in light mode
+      const light             = isLight()
+      const opacityMultiplier = light ? 1.8 : 1
+      const lightness         = light ? 35 : 60
+      const coreLightness     = light ? 25 : 70
 
       for (const p of particles) {
         p.y -= p.speed
         p.x += p.drift
         p.opacity += p.opacityDir * p.opacitySpeed
-        if (p.opacity > 0.75 || p.opacity < 0.08) p.opacityDir *= -1
+        if (p.opacity > 0.65 || p.opacity < 0.06) p.opacityDir *= -1
         p.rotation += p.rotSpeed
 
-        if (p.y < -20) { p.y = canvas.height + 10; p.x = Math.random() * canvas.width }
-        if (p.x < -20) p.x = canvas.width + 10
+        if (p.y < -20)              { p.y = canvas.height + 10; p.x = Math.random() * canvas.width }
+        if (p.x < -20)              p.x = canvas.width + 10
         if (p.x > canvas.width + 20) p.x = -10
 
         ctx.save()
@@ -76,28 +75,28 @@ export function ParticleCanvas() {
         if (p.type === 'panel') {
           ctx.translate(p.x, p.y)
           ctx.rotate(p.rotation)
-          ctx.strokeStyle = `hsla(${p.hue}, 80%, ${lightness}%, 1)`
-          ctx.lineWidth = light ? 1 : 0.7
-          ctx.shadowColor = `hsla(${p.hue}, 80%, ${lightness}%, 0.9)`
-          ctx.shadowBlur = light ? 3 : 5
+          ctx.strokeStyle  = `hsla(${p.hue}, 85%, ${lightness}%, 1)`
+          ctx.lineWidth    = light ? 0.8 : 0.6
+          ctx.shadowColor  = `hsla(${p.hue}, 85%, ${lightness}%, 0.8)`
+          ctx.shadowBlur   = light ? 2 : 4
           ctx.strokeRect(-p.panelW / 2, -p.panelH / 2, p.panelW, p.panelH)
-          ctx.lineWidth = light ? 0.6 : 0.35
+          ctx.lineWidth = 0.3
           ctx.beginPath()
           ctx.moveTo(-p.panelW / 2 + 1, 0)
           ctx.lineTo(p.panelW / 2 - 1, 0)
           ctx.stroke()
         } else {
-          const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3.5)
-          grad.addColorStop(0, `hsla(${p.hue}, 90%, ${coreLightness + 10}%, 1)`)
-          grad.addColorStop(0.5, `hsla(${p.hue}, 75%, ${lightness}%, 0.5)`)
-          grad.addColorStop(1, `hsla(${p.hue}, 65%, ${lightness - 10}%, 0)`)
-          ctx.fillStyle = grad
+          const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * 3)
+          grad.addColorStop(0,   `hsla(${p.hue}, 90%, ${coreLightness + 10}%, 1)`)
+          grad.addColorStop(0.5, `hsla(${p.hue}, 75%, ${lightness}%, 0.4)`)
+          grad.addColorStop(1,   `hsla(${p.hue}, 65%, ${lightness - 10}%, 0)`)
+          ctx.fillStyle   = grad
           ctx.beginPath()
-          ctx.arc(p.x, p.y, p.r * 3.5, 0, Math.PI * 2)
+          ctx.arc(p.x, p.y, p.r * 3, 0, Math.PI * 2)
           ctx.fill()
-          ctx.fillStyle = `hsla(${p.hue + 20}, 95%, ${coreLightness}%, 1)`
+          ctx.fillStyle  = `hsla(${p.hue + 10}, 95%, ${coreLightness}%, 1)`
           ctx.shadowColor = `hsla(${p.hue}, 90%, ${lightness}%, 1)`
-          ctx.shadowBlur = light ? 3 : 4
+          ctx.shadowBlur  = light ? 2 : 3
           ctx.beginPath()
           ctx.arc(p.x, p.y, p.r * 0.5, 0, Math.PI * 2)
           ctx.fill()

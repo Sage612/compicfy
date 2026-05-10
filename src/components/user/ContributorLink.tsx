@@ -29,11 +29,11 @@ export function ContributorLink({
   const initials = (displayName || username || 'U').slice(0, 2).toUpperCase()
 
   const inner = (
-    <div className="group flex flex-col items-center gap-2.5 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 text-center cursor-pointer">
+    <div className="group flex flex-col items-center gap-2.5 p-4 rounded-lg border border-border bg-card hover:border-primary/40 transition-all duration-200 text-center cursor-pointer">
       <div className="relative">
         <Avatar className="h-12 w-12">
           <AvatarImage src={avatarUrl ?? undefined} />
-          <AvatarFallback className="text-sm bg-gradient-to-br from-primary to-violet-500 text-white font-bold">
+          <AvatarFallback className="text-sm bg-primary text-primary-foreground font-bold">
             {initials}
           </AvatarFallback>
         </Avatar>

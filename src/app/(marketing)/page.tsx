@@ -9,7 +9,7 @@ import { LiveTicker } from '@/components/layout/LiveTicker'
 import { ContributorLink } from '@/components/user/ContributorLink'
 import {
   ArrowRight, Radar, BookOpen, Users, TrendingUp,
-  Star, Sparkles, ChevronRight, Heart, Zap,
+  Star, ChevronRight, Heart,
   ThumbsUp, MessageSquare, Bookmark, Trophy,
 } from 'lucide-react'
 import type { Recommendation } from '@/types/database.types'
@@ -20,12 +20,11 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
 
 export const metadata: Metadata = {
   title: 'Compicfy - Find your next obsession.',
-  description:
-    'A warm community for manga, manhwa, manhua, and webtoon fans. Discover, recommend, and vote for the best comics.',
+  description: 'A warm community for manga, manhwa, manhua, and webtoon fans. Discover, recommend, and vote for the best comics.',
   openGraph: {
     title:       'Compicfy - Find your next obsession.',
     description: 'Community-powered comic discovery. Browse, recommend, and vote.',
-    images: [{ url: `${SITE_URL}/api/og`, width: 1200, height: 630, alt: 'Compicfy - Find your next obsession.' }],
+    images: [{ url: `${SITE_URL}/api/og`, width: 1200, height: 630, alt: 'Compicfy' }],
   },
   twitter: {
     card:        'summary_large_image',
@@ -54,7 +53,7 @@ const PLATFORMS = [
   { name: 'MangaPlus',   color: '#e40026' },
   { name: 'Viz Media',   color: '#f6821f' },
   { name: 'Crunchyroll', color: '#f47521' },
-  { name: 'Lezhin',      color: '#1a1a1a' },
+  { name: 'Lezhin',      color: '#888'    },
   { name: 'Manta',       color: '#6c5ce7' },
   { name: 'Tappytoon',   color: '#ff4081' },
 ]
@@ -99,9 +98,8 @@ export default async function HomePage() {
     supabase.from('profiles').select('id, username, display_name, avatar_url, total_recommendations').eq('is_banned', false).not('role', 'eq', 'admin').gt('total_recommendations', 0).order('total_recommendations', { ascending: false }).limit(6),
   ])
 
- const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
 
-  // Determine correct submission route for current user
   let submitRoute = '/dashboard/recommendations/new'
   if (user) {
     const { data: currentProfile } = await supabase
@@ -113,9 +111,7 @@ export default async function HomePage() {
     const isPro = (currentProfile as any)?.is_pro &&
       (!(currentProfile as any)?.pro_expires_at ||
         new Date((currentProfile as any).pro_expires_at) > new Date())
-    if (isAdminOrMod || isPro) {
-      submitRoute = '/pro/recommendations/new'
-    }
+    if (isAdminOrMod || isPro) submitRoute = '/pro/recommendations/new'
   }
 
   const topComics    = (trending        as Recommendation[]) ?? []
@@ -143,22 +139,21 @@ export default async function HomePage() {
       <section className="relative overflow-hidden min-h-[92vh] flex flex-col items-center justify-center">
         <div className="absolute inset-0 bg-background" />
 
+        {/* Single subtle red glow — not three overlapping blobs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full bg-violet-500/8 dark:bg-violet-500/12 blur-[140px]" />
-          <div className="absolute top-1/3 -left-32 w-[400px] h-[400px] rounded-full bg-rose-500/6 dark:bg-rose-500/10 blur-[100px]" />
-          <div className="absolute bottom-0 right-0 w-[500px] h-[400px] rounded-full bg-primary/5 dark:bg-primary/8 blur-[120px]" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full bg-primary/6 dark:bg-primary/8 blur-[120px]" />
         </div>
 
-        <div className="absolute inset-0 opacity-50 dark:opacity-90">
+        <div className="absolute inset-0 opacity-40 dark:opacity-80">
           <ParticleCanvas />
         </div>
 
-        {/* Decorative panels — no 読む watermark, replaced with subtle comic panel lines */}
+        {/* Decorative comic panel outlines */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
-          <div className="absolute top-16 right-20 w-32 h-44 rounded-2xl border border-primary/10 dark:border-primary/15 rotate-6 bg-primary/[0.02]" />
-          <div className="absolute top-8  right-40 w-24 h-32 rounded-2xl border border-violet-500/10 dark:border-violet-500/15 -rotate-3 bg-violet-500/[0.02]" />
-          <div className="absolute top-40 right-12 w-16 h-24 rounded-xl border border-rose-500/8 dark:border-rose-500/12 rotate-12" />
-          <div className="absolute bottom-20 right-52 w-28 h-36 rounded-2xl border border-primary/8 dark:border-primary/12 -rotate-6 bg-primary/[0.01]" />
+          <div className="absolute top-16 right-20 w-32 h-44 rounded border border-border/40 rotate-6" />
+          <div className="absolute top-8  right-40 w-24 h-32 rounded border border-border/30 -rotate-3" />
+          <div className="absolute top-40 right-12 w-16 h-24 rounded border border-border/20 rotate-12" />
+          <div className="absolute bottom-20 right-52 w-28 h-36 rounded border border-border/30 -rotate-6" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 py-16 md:py-24 w-full">
@@ -172,18 +167,11 @@ export default async function HomePage() {
                 <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black leading-[0.95] tracking-tight">
                   next{' '}
                   <span className="relative inline-block">
-                    <span className="bg-gradient-to-r from-primary via-violet-500 to-rose-500 bg-clip-text text-transparent">
+                    <span className="text-primary">
                       obsession.
                     </span>
-                    <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" preserveAspectRatio="none">
-                      <path d="M2,9 Q75,2 150,6 Q225,10 298,4" stroke="url(#heroGrad)" strokeWidth="3" fill="none" strokeLinecap="round" />
-                      <defs>
-                        <linearGradient id="heroGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                          <stop offset="0%"   stopColor="#8b5cf6" stopOpacity="0.6" />
-                          <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.6" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
+                    {/* Simple underline — no gradient SVG */}
+                    <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary/40 rounded-full" />
                   </span>
                 </h1>
               </div>
@@ -194,7 +182,7 @@ export default async function HomePage() {
 
               <div className="flex flex-wrap gap-3 justify-center md:justify-start">
                 <Link href="/browse">
-                  <Button size="lg" className="gap-2 h-12 px-6 font-bold shadow-xl shadow-primary/20 border-0 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 text-white">
+                  <Button size="lg" className="gap-2 h-12 px-6 font-bold bg-primary hover:bg-primary/90 border-0 text-primary-foreground">
                     <Radar size={17} />
                     Browse Comics
                     <ArrowRight size={15} />
@@ -202,14 +190,14 @@ export default async function HomePage() {
                 </Link>
                 {!user ? (
                   <Link href="/signup">
-                    <Button size="lg" variant="outline" className="gap-2 h-12 px-6 font-semibold hover:border-primary/50">
+                    <Button size="lg" variant="outline" className="gap-2 h-12 px-6 font-semibold">
                       <Users size={17} />
                       Join Free
                     </Button>
                   </Link>
                 ) : (
-                <Link href={submitRoute}>
-                    <Button size="lg" variant="outline" className="gap-2 h-12 px-6 font-semibold hover:border-primary/50">
+                  <Link href={submitRoute}>
+                    <Button size="lg" variant="outline" className="gap-2 h-12 px-6 font-semibold">
                       <BookOpen size={17} />
                       Share a Rec?
                     </Button>
@@ -217,17 +205,17 @@ export default async function HomePage() {
                 )}
               </div>
 
-              {/* Stats — show real numbers when available, nothing when zero */}
+              {/* Stats */}
               <div className="flex flex-wrap gap-5 pt-2 justify-center md:justify-start">
                 {[
-                  { label: 'Members',       value: totalMembers, icon: Users,         color: 'text-violet-500', bg: 'bg-violet-500/10' },
-                  { label: 'Comics Shared', value: totalComics,  icon: BookOpen,      color: 'text-rose-500',   bg: 'bg-rose-500/10'   },
-                  { label: 'Reviews',       value: totalReviews, icon: MessageSquare, color: 'text-amber-500',  bg: 'bg-amber-500/10'  },
+                  { label: 'Members',       value: totalMembers, icon: Users,         color: 'text-primary',      bg: 'bg-primary/10'      },
+                  { label: 'Comics Shared', value: totalComics,  icon: BookOpen,      color: 'text-rose-500',     bg: 'bg-rose-500/10'     },
+                  { label: 'Reviews',       value: totalReviews, icon: MessageSquare, color: 'text-amber-500',    bg: 'bg-amber-500/10'    },
                 ]
                   .filter(({ value }) => value > 0)
                   .map(({ label, value, icon: Icon, color, bg }) => (
                     <div key={label} className="flex items-center gap-2 text-sm">
-                      <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center ${color}`}>
+                      <div className={`w-8 h-8 rounded ${bg} flex items-center justify-center ${color}`}>
                         <Icon size={14} />
                       </div>
                       <div>
@@ -241,11 +229,12 @@ export default async function HomePage() {
               </div>
             </div>
 
+            {/* Spotlight comic */}
             {spotlight && (
               <div className="hidden md:flex justify-center items-center">
                 <Link href={`/comic/${spotlight.id}`} className="group relative">
-                  <div className="absolute -inset-4 rounded-3xl bg-gradient-to-br from-primary/20 to-violet-500/20 blur-2xl opacity-60 group-hover:opacity-80 transition-opacity" />
-                  <div className="relative w-64 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+                  <div className="absolute -inset-3 rounded-xl bg-primary/10 blur-xl opacity-50 group-hover:opacity-70 transition-opacity" />
+                  <div className="relative w-60 rounded-lg overflow-hidden border border-border shadow-2xl">
                     {spotlight.cover_url ? (
                       <img
                         src={spotlight.cover_url}
@@ -258,9 +247,9 @@ export default async function HomePage() {
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-5 space-y-2">
+                    <div className="absolute bottom-0 left-0 right-0 p-4 space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${spotlightTypeStyle}`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${spotlightTypeStyle}`}>
                           {spotlight.type}
                         </span>
                         {spotlightIsFeatured && (
@@ -270,15 +259,15 @@ export default async function HomePage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-white font-black text-lg leading-tight line-clamp-2">
+                      <p className="text-white font-black text-base leading-tight line-clamp-2">
                         {spotlight.title}
                       </p>
-                      <div className="flex items-center gap-3 text-white/60 text-xs">
+                      <div className="flex items-center gap-3 text-white/50 text-xs">
                         <span className="flex items-center gap-1"><ThumbsUp size={10} />{spotlight.upvotes}</span>
                         <span className="flex items-center gap-1"><Bookmark size={10} />{spotlight.save_count}</span>
                       </div>
                     </div>
-                    <div className="absolute top-3 right-3 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-[10px] font-black text-white border border-white/10">
+                    <div className="absolute top-3 right-3 px-2 py-0.5 rounded bg-black/60 text-[10px] font-black text-white border border-white/10">
                       {spotlightIsFeatured ? '✨ Top Pick' : '🏆 Top Rated'}
                     </div>
                   </div>
@@ -298,15 +287,15 @@ export default async function HomePage() {
       <LiveTicker items={tickerItems} />
 
       {/* ── PLATFORM TRUST BAR ── */}
-      <section className="border-b border-border bg-muted/10">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <p className="text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-4">
+      <section className="border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 py-5">
+          <p className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-4">
             Comics from official platforms including
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 md:gap-6">
+          <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4">
             {PLATFORMS.map((p) => (
-              <div key={p.name} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border bg-card text-xs font-bold text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+              <div key={p.name} className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border bg-card text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
                 {p.name}
               </div>
             ))}
@@ -315,15 +304,15 @@ export default async function HomePage() {
       </section>
 
       {/* ── GENRE MOOD PILLS ── */}
-      <section className="border-b border-border bg-muted/20">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <p className="text-center text-xs font-bold uppercase tracking-widest text-muted-foreground mb-5">
+      <section className="border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 py-7">
+          <p className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-5">
             Browse by mood
           </p>
           <div className="flex flex-wrap gap-2 justify-center">
             {GENRES.map((g) => (
               <Link key={g.label} href={g.href}>
-                <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-border bg-background hover:bg-primary/8 hover:border-primary/40 hover:text-primary hover:scale-105 text-sm text-muted-foreground transition-all duration-150 cursor-pointer select-none font-medium">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all duration-150 cursor-pointer select-none font-medium">
                   <span className="text-base leading-none">{g.emoji}</span>
                   {g.label}
                 </span>
@@ -335,22 +324,22 @@ export default async function HomePage() {
 
       {/* ── TRENDING COMICS ── */}
       {topComics.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 py-16 space-y-6 w-full">
+        <section className="max-w-7xl mx-auto px-4 py-14 space-y-6 w-full">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-3xl">🔥</span>
+              <span className="text-2xl">🔥</span>
               <div>
                 <h2 className="text-2xl font-black tracking-tight">Trending Now</h2>
-                <div className="h-0.5 w-10 rounded-full bg-rose-500 mt-1" />
+                <div className="h-px w-8 bg-primary mt-1" />
               </div>
             </div>
             <Link href="/browse?sort=score">
-              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground">
-                View all <ChevronRight size={14} />
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground text-xs">
+                View all <ChevronRight size={13} />
               </Button>
             </Link>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
             {topComics.map((rec) => (
               <ComicCard key={rec.id} recommendation={rec} />
             ))}
@@ -359,98 +348,89 @@ export default async function HomePage() {
       )}
 
       {/* ── TOP CONTRIBUTORS ── */}
-            {contributors.length > 0 && (
-              <section className="border-y border-border bg-muted/10">
-                <div className="max-w-7xl mx-auto px-4 py-14 space-y-8">
-                  <div className="text-center space-y-2">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-xs font-bold uppercase tracking-widest">
-                      <Trophy size={11} />
-                      Top Contributors
-                    </div>
-                    <h2 className="text-2xl font-black tracking-tight">The people behind the picks</h2>
-                    <p className="text-muted-foreground text-sm max-w-sm mx-auto">
-                      Real readers sharing what they love. Follow them to never miss a great rec.
-                    </p>
-                  </div>
+      {contributors.length > 0 && (
+        <section className="border-y border-border">
+          <div className="max-w-7xl mx-auto px-4 py-12 space-y-8">
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-amber-500/20 bg-amber-500/5 text-amber-600 text-xs font-bold uppercase tracking-widest">
+                <Trophy size={11} />
+                Top Contributors
+              </div>
+              <h2 className="text-2xl font-black tracking-tight">The people behind the picks</h2>
+              <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+                Real readers sharing what they love.
+              </p>
+            </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                    {contributors.map((contributor: any, i: number) => {
-                      const rankStyle = RANK_STYLES[i] ?? { bg: 'bg-muted', text: 'text-muted-foreground' }
-                      return (
-                        <ContributorLink
-                          key={contributor.id}
-                          username={contributor.username}
-                          displayName={contributor.display_name || contributor.username}
-                          avatarUrl={contributor.avatar_url}
-                          totalRecs={contributor.total_recommendations}
-                          rank={i}
-                          isLoggedIn={!!user}
-                          rankStyle={rankStyle}
-                        />
-                      )
-                    })}
-                  </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+              {contributors.map((contributor: any, i: number) => {
+                const rankStyle = RANK_STYLES[i] ?? { bg: 'bg-muted', text: 'text-muted-foreground' }
+                return (
+                  <ContributorLink
+                    key={contributor.id}
+                    username={contributor.username}
+                    displayName={contributor.display_name || contributor.username}
+                    avatarUrl={contributor.avatar_url}
+                    totalRecs={contributor.total_recommendations}
+                    rank={i}
+                    isLoggedIn={!!user}
+                    rankStyle={rankStyle}
+                  />
+                )
+              })}
+            </div>
 
-                  <div className="text-center">
-                    <Link href="/browse">
-                      <Button variant="outline" size="sm" className="gap-1.5 hover:border-primary/40">
-                        Browse their recommendations <ChevronRight size={13} />
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              </section>
-            )}
+            <div className="text-center">
+              <Link href="/browse">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                  Browse their recommendations <ChevronRight size={12} />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── HOW IT WORKS ── */}
-      <section className="relative overflow-hidden border-y border-border bg-muted/20">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-64 h-64 rounded-full bg-violet-500/5 blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-64 h-64 rounded-full bg-rose-500/5 blur-3xl" />
-        </div>
-        <div className="relative max-w-7xl mx-auto px-4 py-16 space-y-12">
-          <div className="text-center space-y-3">
-            
-            {/* Replaced AI tagline with something direct and specific */}
+      <section className="border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 py-14 space-y-10">
+          <div className="text-center space-y-2">
             <h2 className="text-3xl font-black tracking-tight">Three steps, zero gatekeeping</h2>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto">
               Anyone can rec. The community decides what rises.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
               {
-                step:     '01',
-                icon:     BookOpen,
-                title:    'Drop your rec',
-                // Specific, active, sounds like a real person wrote it
-                desc:     'Found something worth reading? Post it. Add a cover, pick genres, and write one honest reason why people should give it a shot.',
-                gradient: 'from-violet-500 to-purple-600',
-                glow:     'group-hover:shadow-violet-500/20',
+                step:  '01',
+                icon:  BookOpen,
+                title: 'Drop your rec',
+                desc:  'Found something worth reading? Post it. Add a cover, pick genres, and write one honest reason why people should give it a shot.',
+                color: 'text-primary',
+                bg:    'bg-primary/10',
               },
               {
-                step:     '02',
-                icon:     TrendingUp,
-                title:    'The community votes',
-                // Explains the actual mechanic, not vague "great picks rise"
-                desc:     'Other readers upvote or downvote. High-scoring recs hit the featured carousel daily, no admin hand-picking, just community signal.',
-                gradient: 'from-primary to-blue-600',
-                glow:     'group-hover:shadow-primary/20',
+                step:  '02',
+                icon:  TrendingUp,
+                title: 'The community votes',
+                desc:  'Other readers upvote or downvote. High-scoring recs hit the featured carousel daily — no hand-picking, just community signal.',
+                color: 'text-sky-500',
+                bg:    'bg-sky-500/10',
               },
               {
-                step:     '03',
-                icon:     Heart,
-                title:    'Read, review, repeat',
-                // Concrete actions, not fluff
-                desc:     'Save anything that catches your eye, leave a short review when you finish, and build a reading list that actually reflects what you liked.',
-                gradient: 'from-rose-500 to-pink-600',
-                glow:     'group-hover:shadow-rose-500/20',
+                step:  '03',
+                icon:  Heart,
+                title: 'Read, review, repeat',
+                desc:  'Save anything that catches your eye, leave a short review when you finish, and build a reading list that reflects what you liked.',
+                color: 'text-amber-500',
+                bg:    'bg-amber-500/10',
               },
-            ].map(({ step, icon: Icon, title, desc, gradient, glow }) => (
-              <div key={step} className={`group relative p-7 rounded-3xl bg-card border border-border space-y-4 hover:border-transparent hover:shadow-2xl ${glow} transition-all duration-300`}>
-                <span className="absolute top-5 right-6 text-5xl font-black text-muted-foreground/8 group-hover:text-muted-foreground/12 transition-colors select-none">{step}</span>
-                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
-                  <Icon size={21} className="text-white" />
+            ].map(({ step, icon: Icon, title, desc, color, bg }) => (
+              <div key={step} className="relative p-6 rounded-lg bg-card border border-border space-y-4 hover:border-primary/30 transition-colors duration-200">
+                <span className="absolute top-4 right-5 text-4xl font-black text-muted-foreground/6 select-none">{step}</span>
+                <div className={`w-10 h-10 rounded ${bg} flex items-center justify-center ${color}`}>
+                  <Icon size={19} />
                 </div>
                 <h3 className="font-black text-lg leading-snug">{title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{desc}</p>
@@ -462,18 +442,18 @@ export default async function HomePage() {
 
       {/* ── LATEST NEWS ── */}
       {latestNews.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 py-16 space-y-6 w-full">
+        <section className="max-w-7xl mx-auto px-4 py-14 space-y-6 w-full">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <span className="text-3xl">📰</span>
+              <span className="text-2xl">📰</span>
               <div>
                 <h2 className="text-2xl font-black tracking-tight">Latest News</h2>
-                <div className="h-0.5 w-10 rounded-full bg-primary mt-1" />
+                <div className="h-px w-8 bg-primary mt-1" />
               </div>
             </div>
             <Link href="/news">
-              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground">
-                All news <ChevronRight size={14} />
+              <Button variant="ghost" size="sm" className="gap-1 text-muted-foreground hover:text-foreground text-xs">
+                All news <ChevronRight size={13} />
               </Button>
             </Link>
           </div>
@@ -486,34 +466,33 @@ export default async function HomePage() {
       )}
 
       {/* ── CTA BANNER ── */}
-      <section className="max-w-7xl mx-auto px-4 py-16 w-full">
-        <div className="relative overflow-hidden rounded-3xl p-8 md:p-14 bg-zinc-950 dark:bg-zinc-900 border border-white/5">
-          <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-violet-500/20 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -left-10 w-80 h-80 rounded-full bg-rose-500/15 blur-3xl pointer-events-none" />
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
-          <div className="relative max-w-2xl space-y-6">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 text-white text-sm font-semibold border border-white/10">
-              <Star size={13} className="fill-amber-400 text-amber-400" />
+      <section className="max-w-7xl mx-auto px-4 py-14 w-full">
+        <div className="relative overflow-hidden rounded-lg p-8 md:p-12 bg-card border border-border">
+          {/* Single subtle red glow — not three blobs */}
+          <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-primary/8 blur-3xl pointer-events-none" />
+          <div className="absolute top-0 left-0 right-0 h-px bg-primary/20 pointer-events-none" />
+          <div className="relative max-w-2xl space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-border text-muted-foreground text-xs font-semibold">
+              <Star size={12} className="fill-amber-400 text-amber-400" />
               Got a hidden gem?
             </div>
-            {/* Replaced generic AI copy with something punchy and specific */}
-            <h2 className="text-3xl md:text-4xl font-black text-white leading-tight tracking-tight">
-              Someone out there needs to<br className="hidden md:block" />
-              <span className="bg-gradient-to-r from-violet-400 to-rose-400 bg-clip-text text-transparent"> read what you just finished.</span>
+            <h2 className="text-3xl md:text-4xl font-black leading-tight tracking-tight">
+              Someone out there needs to read<br className="hidden md:block" />
+              <span className="text-primary"> what you just finished.</span>
             </h2>
-            <p className="text-white/60 leading-relaxed text-base max-w-lg">
+            <p className="text-muted-foreground leading-relaxed text-sm max-w-lg">
               Post the manga, manhwa, or webtoon you can't stop thinking about.
               Takes two minutes. Might make someone's whole week.
             </p>
             <div className="flex flex-wrap gap-3 pt-1">
-             <Link href={user ? submitRoute : '/signup'}>
-                <Button size="lg" className="gap-2 h-12 bg-gradient-to-r from-violet-500 to-rose-500 hover:from-violet-400 hover:to-rose-400 text-white font-bold shadow-xl border-0">
+              <Link href={user ? submitRoute : '/signup'}>
+                <Button size="lg" className="gap-2 h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-bold border-0">
                   <BookOpen size={15} />
                   {user ? 'Submit a Recommendation' : "Join Compicfy — it's free"}
                 </Button>
               </Link>
               <Link href="/browse">
-                <Button size="lg" className="gap-2 h-12 bg-white/8 text-white hover:bg-white/15 border border-white/15 font-semibold">
+                <Button size="lg" variant="outline" className="gap-2 h-11 font-semibold">
                   Browse First
                   <ArrowRight size={15} />
                 </Button>
