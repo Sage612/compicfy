@@ -361,10 +361,10 @@ export default async function ComicDetailPage({ params }: Props) {
   }
 
   const typeStyle = TYPE_STYLES[rec.type] ?? {
-    gradient: 'from-primary to-violet-500',
+    gradient: 'from-primary to-rose-600',
     badge:    'bg-primary/15 text-primary border-primary/25',
-    glow:     'bg-primary/20',
-    border:   'border-primary/30',
+    glow:     'bg-primary/15',
+    border:   'border-primary/20',
   }
 
   return (
@@ -388,7 +388,7 @@ export default async function ComicDetailPage({ params }: Props) {
           <div className="absolute top-4 left-4 z-10">
             <Link
               href="/browse"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-background/80 border border-border text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft size={13} />
               Browse
@@ -404,8 +404,8 @@ export default async function ComicDetailPage({ params }: Props) {
             <div className="flex flex-col gap-3 md:w-52 shrink-0">
 
               <div className="relative">
-                <div className={`absolute -inset-3 rounded-3xl ${typeStyle.glow} blur-2xl opacity-60`} />
-                <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-muted border border-border shadow-2xl">
+                <div className={`absolute -inset-3 rounded-lg ${typeStyle.glow} blur-2xl opacity-40`} />
+                <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-muted border border-border shadow-xl">
                   {rec.cover_url ? (
                     <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
                   ) : (
@@ -414,7 +414,7 @@ export default async function ComicDetailPage({ params }: Props) {
                     </div>
                   )}
                   <div className="absolute top-2 left-2">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize backdrop-blur-sm ${typeStyle.badge}`}>
+                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${typeStyle.badge}`}>
                       {rec.type}
                     </span>
                   </div>
@@ -465,7 +465,7 @@ export default async function ComicDetailPage({ params }: Props) {
                 <div className="space-y-1.5 pt-1">
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Read On</p>
                   {rec.official_platforms.map((platform: string, i: number) => (
-                    <div key={platform} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card text-xs hover:border-primary/40 transition-colors">
+                    <div key={platform} className="flex items-center gap-2 px-3 py-2 rounded border border-border bg-card text-xs hover:border-primary/40 transition-colors">
                       <Globe size={11} className="text-muted-foreground shrink-0" />
                       <span className="truncate flex-1">{platform}</span>
                       {rec.official_links?.[i] && (
@@ -484,10 +484,10 @@ export default async function ComicDetailPage({ params }: Props) {
 
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
                     {rec.status}
                   </span>
-                  <span className="text-xs text-muted-foreground border border-border rounded-full px-2.5 py-1 capitalize">
+                  <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5 capitalize">
                     {rec.content_rating?.replace('_', ' ')}
                   </span>
                 </div>
@@ -504,7 +504,7 @@ export default async function ComicDetailPage({ params }: Props) {
                 <div className="flex flex-wrap gap-1.5">
                   {rec.genres?.map((genre: string) => (
                     <Link key={genre} href={`/browse?genre=${genre}`}>
-                      <span className="inline-flex px-2.5 py-1 rounded-full text-xs font-semibold bg-muted border border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-colors cursor-pointer">
+                      <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-muted border border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-colors cursor-pointer">
                         {genre}
                       </span>
                     </Link>
@@ -519,7 +519,7 @@ export default async function ComicDetailPage({ params }: Props) {
                   { icon: Bookmark,      label: 'Saves',   value: rec.save_count,   color: 'text-blue-500',    bg: 'bg-blue-500/8'   },
                   { icon: MessageSquare, label: 'Score',   value: rec.score,        color: 'text-violet-500',  bg: 'bg-violet-500/8' },
                 ].map(({ icon: Icon, label, value, color, bg }) => (
-                  <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-2xl ${bg} border border-border`}>
+                  <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-lg ${bg} border border-border`}>
                     <Icon size={14} className={color} />
                     <p className="text-lg font-black tabular-nums leading-none">{value ?? 0}</p>
                     <p className="text-[10px] text-muted-foreground font-medium">{label}</p>
@@ -535,7 +535,7 @@ export default async function ComicDetailPage({ params }: Props) {
               {rec.why_recommend && (
                 <div className="space-y-2">
                   <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Why Read This?</h2>
-                  <div className={`relative pl-5 pr-4 py-4 rounded-2xl border ${typeStyle.border} bg-card`}>
+                  <div className={`relative pl-5 pr-4 py-4 rounded-lg border ${typeStyle.border} bg-card`}>
                     <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-full bg-gradient-to-b ${typeStyle.gradient}`} />
                     <p className="text-sm leading-relaxed italic text-muted-foreground">"{rec.why_recommend}"</p>
                   </div>
