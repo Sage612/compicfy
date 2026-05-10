@@ -488,7 +488,7 @@ export default async function HomePage() {
               <Link href={user ? submitRoute : '/signup'}>
                 <Button size="lg" className="gap-2 h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-bold border-0">
                   <BookOpen size={15} />
-                  {user ? 'Submit a Recommendation' : "Join Compicfy — it's free"}
+                  {user ? 'Submit a Recommendation' : "Join Compicfy, it's free"}
                 </Button>
               </Link>
               <Link href="/browse">
