@@ -20,17 +20,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .eq('id', user.id)
     .single() as { data: any }
 
-  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
-  const isPro = profile?.is_pro &&
+  const isAdmin      = ['admin', 'moderator'].includes(profile?.role ?? '')
+  const isPro        = profile?.is_pro &&
     (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
   const isPrivileged = isAdmin || isPro
-  const recCount = profile?.recommendation_count_this_month ?? 0
+  const recCount     = profile?.recommendation_count_this_month ?? 0
 
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex flex-1 pt-14">
-        
+      <div className="flex flex-1 pt-20">
+
         <aside className="dashboard-sidebar flex-col w-56 shrink-0 border-r border-border p-3 gap-3">
           <DashboardNav />
 
@@ -64,9 +64,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
               />
             </div>
           )}
-        <div className="px-4 pt-4">
-  <IncompleteRecNudge />
-</div>
+          <div className="px-4 pt-4">
+            <IncompleteRecNudge />
+          </div>
           {children}
         </main>
       </div>

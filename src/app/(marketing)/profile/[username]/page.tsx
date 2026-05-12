@@ -58,11 +58,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const THEME_GRADIENTS: Record<string, string> = {
-  default:  'from-primary/20 via-violet-500/10 to-transparent',
+  default:  'from-primary/20 via-primary/5 to-transparent',
   gold:     'from-amber-400/30 via-orange-500/15 to-transparent',
   rose:     'from-rose-500/25 via-pink-500/10 to-transparent',
   teal:     'from-teal-500/25 via-cyan-500/10 to-transparent',
-  violet:   'from-violet-600/25 via-purple-500/10 to-transparent',
+  violet:   'from-primary/25 via-primary/10 to-transparent',
   amber:    'from-amber-500/25 via-yellow-500/10 to-transparent',
   midnight: 'from-slate-700/25 via-blue-900/10 to-transparent',
 }
@@ -101,7 +101,6 @@ export default async function ProfilePage({ params }: Props) {
     favorite_genres:          (profileData as any).favorite_genres ?? [],
   }
 
-  // Ghost profile — the archivist
   const isGhost  = profile.id === GHOST_ID
   const isOwner  = viewer?.id === profile.id && !isGhost
 
@@ -109,7 +108,6 @@ export default async function ProfilePage({ params }: Props) {
   const isAdmin  = profile.role === 'admin'
   const showGold = isPro && !isAdmin
 
-  // Ghost always uses midnight theme
   const profileTheme   = isGhost ? 'midnight' : (profile.profile_theme ?? 'default')
   const bannerGradient = isGhost
     ? 'from-indigo-900/40 via-slate-800/20 to-transparent'
@@ -117,7 +115,6 @@ export default async function ProfilePage({ params }: Props) {
     ? (THEME_GRADIENTS[profileTheme] ?? THEME_GRADIENTS.default)
     : THEME_GRADIENTS.default
 
-  // Track profile view — skip for ghost and self
   if (viewer?.id && viewer.id !== profile.id && !isGhost) {
     try {
       await (supabase as any).rpc('track_profile_view', {
@@ -216,7 +213,7 @@ export default async function ProfilePage({ params }: Props) {
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-10">
 
-      {/* ── Profile card ── */}
+      {/* Profile card */}
       <div className={`rounded-2xl border overflow-hidden ${
         isGhost   ? 'border-indigo-500/30' :
         showGold  ? 'border-amber-500/30'  :
@@ -240,10 +237,8 @@ export default async function ProfilePage({ params }: Props) {
 
         <div className="px-6 pb-6 -mt-12 space-y-5">
 
-          {/* ── Avatar row + follow button ── */}
+          {/* Avatar row + follow button */}
           <div className="flex flex-row items-end justify-between gap-4">
-
-            {/* Avatar + name */}
             <div className="flex flex-col sm:flex-row sm:items-end gap-3 flex-1 min-w-0">
               <ProAvatar
                 src={profile.avatar_url}
@@ -253,7 +248,6 @@ export default async function ProfilePage({ params }: Props) {
                 isAdmin={isAdmin}
                 className="border-4 border-card shadow-lg shrink-0"
               />
-              {/* Name sits below avatar on mobile, beside it on desktop */}
               <div className="space-y-1 pb-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-2xl font-black truncate">
@@ -266,7 +260,6 @@ export default async function ProfilePage({ params }: Props) {
               </div>
             </div>
 
-            {/* Follow button — always on the right, aligned to bottom of avatar */}
             {!isOwner && !isGhost && viewer && (
               <div className="shrink-0 pb-1">
                 <FollowButton
@@ -277,7 +270,6 @@ export default async function ProfilePage({ params }: Props) {
               </div>
             )}
 
-            {/* Ghost pill */}
             {isGhost && (
               <div className="shrink-0 pb-1">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
@@ -338,20 +330,81 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       </div>
 
-      {/* ── Pinned Recommendation ── */}
+      {/* Pinned Recommendation */}
       {pinnedRec && (
         <section className="space-y-3">
           <div className="flex items-center gap-2">
             <Pin size={14} className="text-amber-500" />
             <h2 className="text-sm font-black text-amber-600 uppercase tracking-wider">Pinned</h2>
           </div>
-          <div className={`rounded-2xl border ${showGold ? 'border-amber-500/30 bg-amber-500/5' : 'border-border'}`}>
-            <ComicCard recommendation={pinnedRec} />
+          {/* Fixed: constrained layout so cover doesn't blow up on desktop */}
+          <div className={`rounded-2xl border ${showGold ? 'border-amber-500/30 bg-amber-500/5' : 'border-border'} overflow-hidden`}>
+            <div className="flex gap-4 p-4">
+              {/* Cover — fixed size, not full-width */}
+              <div className="w-20 h-28 sm:w-24 sm:h-32 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
+                {pinnedRec.cover_url ? (
+                  <img
+                    src={pinnedRec.cover_url}
+                    alt={pinnedRec.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <BookOpen size={20} className="text-muted-foreground opacity-40" />
+                  </div>
+                )}
+              </div>
+              {/* Info */}
+              <div className="flex-1 min-w-0 space-y-2 py-1">
+                <div>
+                  <Link
+                    href={`/comic/${pinnedRec.id}`}
+                    className="font-black text-base hover:text-primary transition-colors line-clamp-2 leading-tight"
+                  >
+                    {pinnedRec.title}
+                  </Link>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-primary/10 text-primary border-primary/20 capitalize">
+                      {pinnedRec.type}
+                    </span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${
+                      pinnedRec.status === 'ongoing'   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
+                      pinnedRec.status === 'completed' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
+                      pinnedRec.status === 'hiatus'    ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
+                      'bg-muted text-muted-foreground border-border'
+                    }`}>
+                      {pinnedRec.status}
+                    </span>
+                  </div>
+                </div>
+                {pinnedRec.description && (
+                  <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                    {pinnedRec.description}
+                  </p>
+                )}
+                <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <ThumbsUp size={10} className="text-emerald-500" />
+                    {pinnedRec.upvotes ?? 0}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Star size={10} className="text-amber-500" />
+                    {pinnedRec.review_count ?? 0}
+                  </span>
+                </div>
+                <Link
+                  href={`/comic/${pinnedRec.id}`}
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                >
+                  View comic <ArrowRight size={11} />
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
       )}
 
-      {/* ── Recommendations ── */}
+      {/* Recommendations */}
       {recommendations.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
@@ -391,7 +444,7 @@ export default async function ProfilePage({ params }: Props) {
       ) : (
         <div className="relative flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-border overflow-hidden">
           <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-32 w-96 h-96 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
           <div className="relative mb-6 w-36 h-36 mx-auto">
             <div className="absolute top-0 left-0 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" />
             <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
@@ -415,7 +468,7 @@ export default async function ProfilePage({ params }: Props) {
           </p>
           {isOwner && !isGhost && (
             <Link href="/dashboard/recommendations/new" className="mt-5">
-              <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 hover:opacity-90 shadow-md shadow-primary/20">
+              <Button size="sm" className="gap-2">
                 <PenLine size={13} />
                 Submit your first rec
               </Button>
@@ -424,12 +477,12 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       )}
 
-      {/* ── Public Reading Lists — hidden for ghost ── */}
+      {/* Public Reading Lists */}
       {!isGhost && lists.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-black">Reading Lists</h2>
-            <div className="h-0.5 flex-1 bg-gradient-to-r from-teal-500/40 to-transparent" />
+            <div className="h-0.5 flex-1 bg-gradient-to-r from-primary/40 to-transparent" />
             <span className="text-xs text-muted-foreground shrink-0">{lists.length} public</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -437,15 +490,15 @@ export default async function ProfilePage({ params }: Props) {
               <Link
                 key={list.id}
                 href={`/lists/${list.id}`}
-                className="group relative p-4 rounded-2xl border border-border bg-card hover:border-teal-500/40 hover:shadow-md transition-all duration-200 space-y-3"
+                className="group relative p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 space-y-3"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-teal-500/20 to-cyan-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
-                      <BookMarked size={14} className="text-teal-600" />
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                      <BookMarked size={14} className="text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-black truncate group-hover:text-teal-600 transition-colors">
+                      <p className="text-sm font-black truncate group-hover:text-primary transition-colors">
                         {list.name}
                       </p>
                       {list.description && (
@@ -459,13 +512,13 @@ export default async function ProfilePage({ params }: Props) {
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
-                    <BookOpen size={11} className="text-teal-500/60" />
+                    <BookOpen size={11} className="text-primary/60" />
                     <span>
                       <strong className="text-foreground font-black">{list.item_count}</strong>{' '}
                       comic{list.item_count !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <span className="text-[10px] font-bold text-teal-600 group-hover:translate-x-0.5 transition-transform">
+                  <span className="text-[10px] font-bold text-primary group-hover:translate-x-0.5 transition-transform">
                     View →
                   </span>
                 </div>
