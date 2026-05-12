@@ -6,7 +6,6 @@ import { ReviewCard } from './ReviewCard'
 import { Button } from '@/components/ui/button'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { Loader2, MessageSquare, LogIn, Plus, Star } from 'lucide-react'
-import Link from 'next/link'
 import { StarRating } from './StarRating'
 import { cn } from '@/lib/utils'
 
@@ -85,12 +84,12 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
   return (
     <div className="space-y-6">
 
-      {/* ── Section header ── */}
+      {/* Section header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20 flex items-center justify-center">
-              <MessageSquare size={14} className="text-amber-600" />
+            <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <MessageSquare size={14} className="text-primary" />
             </div>
             <h2 className="text-lg font-black tracking-tight">
               Reviews
@@ -111,7 +110,7 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
           <Button
             size="sm"
             onClick={() => setShowForm(true)}
-            className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20 shrink-0"
+            className="gap-1.5 shrink-0"
           >
             <Plus size={13} />
             <span className="hidden sm:inline">Write Review</span>
@@ -120,13 +119,12 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
         )}
       </div>
 
-      {/* ── Rating summary bar ── */}
+      {/* Rating summary bar */}
       {ratingsOnly.length >= 3 && (
         <div className="p-4 rounded-2xl border border-border bg-card space-y-2.5">
           <div className="flex items-center gap-4">
             <div className="text-center shrink-0">
               <p className="text-4xl font-black text-foreground leading-none">{avgRating.toFixed(1)}</p>
-              {/* FIXED: Moved className to a wrapper div because StarRating doesn't accept it */}
               <div className="mt-1.5 flex justify-center">
                 <StarRating value={Math.round(avgRating)} readonly size={13} />
               </div>
@@ -154,12 +152,12 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
         </div>
       )}
 
-      {/* ── Write a review ── */}
+      {/* Write a review */}
       {isLoggedIn ? (
         <>
           {showForm && !userReview && (
             <div className="rounded-2xl border border-border bg-card overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-gradient-to-r from-primary/10 to-violet-500/5">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-primary/5">
                 <p className="text-xs font-black uppercase tracking-widest text-primary">Write a Review</p>
                 <button
                   onClick={() => setShowForm(false)}
@@ -211,7 +209,7 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
         </>
       )}
 
-      {/* ── Reviews list ── */}
+      {/* Reviews list */}
       {loading ? (
         <div className="flex justify-center py-10">
           <Loader2 size={22} className="animate-spin text-muted-foreground" />
