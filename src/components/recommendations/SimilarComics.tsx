@@ -8,8 +8,6 @@ import type { Recommendation } from '@/types/database.types'
 interface Props {
   comicId:       string
   contentRating: string
-  // true  → this comic is adult/mature, show only adult/mature similar
-  // false → safe browse context, never show adult/mature
   showAdult?:    boolean
 }
 
@@ -21,9 +19,10 @@ export function SimilarComics({ comicId, contentRating, showAdult = false }: Pro
     const fetchSimilar = async () => {
       try {
         const params = new URLSearchParams({
-          mode:          'similar',
-          comic_id:      comicId,
-          limit:         '8',
+          mode:     'similar',
+          comic_id: comicId,
+          limit:    '8',
+          // pass as string 'true'/'false' — API reads it as query param
           exclude_adult: showAdult ? 'false' : 'true',
         })
         const res  = await fetch(`/api/recommendations/personalized?${params}`)
@@ -31,16 +30,26 @@ export function SimilarComics({ comicId, contentRating, showAdult = false }: Pro
 
         const recs = (data.recommendations ?? []) as Recommendation[]
 
-        // Client-side safety net — always match the context
-        const filtered = showAdult
-          // Adult context: only show adult/mature
-          ? recs.filter(r => r.content_rating === 'adult' || r.content_rating === 'mature')
+        // Client-side safety filter
+        let filtered: Recommendation[]
+        if (showAdult) {
+          // Adult context: show adult + mature + anything returned
+          // Don't over-filter — the API already scoped the results
+          filtered = recs
+        } else {
           // Safe context: never show adult/mature
-          : recs.filter(r => r.content_rating !== 'adult' && r.content_rating !== 'mature')
+          filtered = recs.filter(
+            r => r.content_rating !== 'adult' && r.content_rating !== 'mature'
+          )
+        }
+
+        // Always exclude the current comic from similar results
+        filtered = filtered.filter(r => r.id !== comicId)
 
         setComics(filtered)
       } catch {
         console.error('Failed to fetch similar comics')
+        setComics([])
       } finally {
         setLoading(false)
       }

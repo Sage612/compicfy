@@ -152,9 +152,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
               <Button variant="outline">Back to Browse</Button>
             </Link>
             <Link href="/login">
-              <Button className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">
-                Log In
-              </Button>
+              <Button>Log In</Button>
             </Link>
           </>
         }
@@ -189,9 +187,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
               <Button variant="outline">Back to Browse</Button>
             </Link>
             <Link href={settingsUrl}>
-              <Button className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">
-                Go to Settings
-              </Button>
+              <Button>Go to Settings</Button>
             </Link>
           </>
         }
@@ -233,11 +229,11 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center shadow-lg shadow-rose-500/20 shrink-0">
-            <ShieldAlert size={16} className="text-white" />
+          <div className="w-9 h-9 rounded-xl bg-destructive/10 border border-destructive/20 flex items-center justify-center shrink-0">
+            <ShieldAlert size={16} className="text-destructive" />
           </div>
           <div className="min-w-0">
             <h1 className="text-xl font-black tracking-tight leading-tight">18+ Comics</h1>
@@ -259,8 +255,8 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         </Link>
       </div>
 
-      {/* ── Warning banner ── */}
-      <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-rose-500/5 border border-rose-500/15">
+      {/* Warning banner */}
+      <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-destructive/5 border border-destructive/15">
         <span className="text-sm shrink-0">🔞</span>
         <p className="text-xs text-muted-foreground leading-relaxed">
           Adult &amp; mature content approved by admins.{' '}
@@ -270,14 +266,14 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         </p>
       </div>
 
-      {/* ── Featured Carousel ── */}
+      {/* Featured Carousel */}
       {!isFiltering && featured.length > 0 && (
         <Suspense fallback={<div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />}>
           <FeaturedCarousel recommendations={featured} />
         </Suspense>
       )}
 
-      {/* ── Horizontal Sections ── */}
+      {/* Horizontal Sections */}
       {!isFiltering && (
         <div className="space-y-8">
           {trending.length > 0      && <HorizontalSection title="Trending Today"        emoji="🔥" recommendations={trending}     viewAllHref="/browse/adult?sort=trending" />}
@@ -290,7 +286,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* ── All 18+ divider ── */}
+      {/* All 18+ divider */}
       {!isFiltering && (
         <div className="relative flex items-center gap-4 py-2">
           <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
@@ -302,12 +298,12 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* ── Filter Bar ── */}
+      {/* Filter Bar */}
       <Suspense fallback={<div className="h-24 bg-muted/30 rounded-xl animate-pulse" />}>
         <FilterBar adult={true} />
       </Suspense>
 
-      {/* ── Comic Grid ── */}
+      {/* Comic Grid */}
       <ComicGridClient
         initialItems={items}
         initialTotal={total}

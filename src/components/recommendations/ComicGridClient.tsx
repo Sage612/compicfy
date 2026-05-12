@@ -218,7 +218,6 @@ export function ComicGridClient({
               {Array.from({ length: 12 }).map((_, i) => <ComicCardSkeleton key={i} />)}
             </div>
           ) : forYouItems.length === 0 ? (
-            /* ── For You empty state — telescope, not stacked panels ── */
             <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border">
               <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
                 <Telescope size={28} className="text-primary opacity-70" />
@@ -251,7 +250,6 @@ export function ComicGridClient({
       {activeTab === 'all' && (
         <>
           {!items.length ? (
-            /* ── All Comics empty state — varies by context ── */
             <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border">
               {activeQuery ? (
                 <>
@@ -283,7 +281,7 @@ export function ComicGridClient({
                   <p className="text-sm font-black">No comics yet</p>
                   <p className="text-xs text-muted-foreground mt-1">Be the first to add a recommendation</p>
                   <Link href={isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'} className="mt-5">
-                    <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20">
+                    <Button size="sm" className="gap-2">
                       <BookOpen size={14} />
                       Submit one now
                     </Button>
