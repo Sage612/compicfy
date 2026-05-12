@@ -1,44 +1,66 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
-  House, BookOpen, ScrollText, BookMarked, Radar, Crown, LayoutList
+  House, BookOpen, ScrollText, Radar, Crown,
+  LayoutList, User as UserIcon, Settings, LogOut,
+  LayoutDashboard, Bell, CreditCard, Sparkles,
+  BookMarked, X, ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState, useRef } from 'react'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { toast } from 'sonner'
+import type { User } from '@supabase/supabase-js'
 
 export function MobileNav() {
   const pathname                            = usePathname()
-  const [isLoggedIn, setIsLoggedIn]         = useState(false)
+  const router                              = useRouter()
+  const [user, setUser]                     = useState<User | null>(null)
   const [isPro, setIsPro]                   = useState(false)
   const [authReady, setAuthReady]           = useState(false)
   const [visible, setVisible]               = useState(true)
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
+  const [profileOpen, setProfileOpen]       = useState(false)
+  const [avatarUrl, setAvatarUrl]           = useState<string | null>(null)
+  const [displayName, setDisplayName]       = useState<string | null>(null)
+  const [username, setUsername]             = useState<string | null>(null)
+  const [showPro, setShowPro]               = useState<null | boolean>(null)
   const lastScrollY                         = useRef(0)
   const supabase                            = createClient()
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setIsLoggedIn(!!user)
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      setUser(currentUser)
 
-      if (user) {
+      if (currentUser) {
         const { data: profile } = await (supabase as any)
           .from('profiles')
-          .select('is_pro, pro_expires_at, role')
-          .eq('id', user.id)
+          .select('is_pro, pro_expires_at, role, avatar_url, display_name, username')
+          .eq('id', currentUser.id)
           .single()
 
         if (profile) {
-          setIsPro(
+          setAvatarUrl(profile.avatar_url)
+          setDisplayName(profile.display_name || profile.username)
+          setUsername(profile.username)
+
+          const proActive =
             profile.role === 'admin' ||
             (profile.is_pro &&
               (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-          )
+
+          setIsPro(proActive)
+          setShowPro(proActive || profile.role === 'admin' ? false : true)
+        } else {
+          setShowPro(true)
         }
+      } else {
+        setShowPro(true)
       }
       setAuthReady(true)
     }
@@ -46,10 +68,14 @@ export function MobileNav() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
-        setIsLoggedIn(false)
+        setUser(null)
         setIsPro(false)
+        setAvatarUrl(null)
+        setDisplayName(null)
+        setUsername(null)
+        setShowPro(true)
       } else {
-        setIsLoggedIn(true)
+        setUser(session.user)
       }
       setAuthReady(true)
     })
@@ -73,44 +99,56 @@ export function MobileNav() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  const firstSlot = !isLoggedIn
-    ? { href: '/',     label: 'Home',   icon: House,      exact: true,  isRec: false, isProItem: false }
-    : { href: '/feed', label: 'Feed',   icon: LayoutList, exact: false, isRec: false, isProItem: false }
-
-  const recSlot = {
-    href:      isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new',
-    label:     'Rec',
-    icon:      BookOpen,
-    isRec:     true,
-    isProItem: false,
-    exact:     false,
+  const handleSignOut = async () => {
+    setProfileOpen(false)
+    await supabase.auth.signOut()
+    toast.success('Signed out')
+    router.push('/')
+    router.refresh()
   }
 
-  const lastSlot = !isLoggedIn
-    ? { href: '/pricing',                                 label: 'Go Pro', icon: Crown,      isProItem: true,  isRec: false, exact: false }
-    : { href: isPro ? '/pro/lists' : '/dashboard/lists',  label: 'Lists',  icon: BookMarked, isProItem: false, isRec: false, exact: false }
+  const dashboardHref     = isPro ? '/pro/dashboard'           : '/dashboard'
+  const listsHref         = isPro ? '/pro/lists'               : '/dashboard/lists'
+  const billingHref       = isPro ? '/pro/billing'             : '/dashboard/billing'
+  const settingsHref      = isPro ? '/pro/settings'            : '/dashboard/settings'
+  const notificationsHref = isPro ? '/pro/notifications'       : '/dashboard/notifications'
+  const recommendHref     = isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'
+  const dashboardLabel    = isPro ? 'Pro Dashboard'            : 'Dashboard'
+  const billingLabel      = isPro ? 'Pro Billing'              : 'Billing'
 
-  const navItems = [
-    firstSlot,
-    { href: '/browse', label: 'Browse', icon: Radar,      isRec: false, isProItem: false, exact: false },
-    recSlot,
-    { href: '/news',   label: 'News',   icon: ScrollText, isRec: false, isProItem: false, exact: false },
-    lastSlot,
-  ]
+  const initials = displayName
+    ? displayName.slice(0, 2).toUpperCase()
+    : user?.email?.slice(0, 2).toUpperCase() ?? 'U'
+
+  // Nav items change based on auth state
+  const navItems = authReady ? (
+    user ? [
+      { key: 'feed',    href: '/feed',    label: 'Feed',   icon: LayoutList, exact: false, isRec: false, isProfile: false },
+      { key: 'browse',  href: '/browse',  label: 'Browse', icon: Radar,      exact: false, isRec: false, isProfile: false },
+      { key: 'rec',     href: recommendHref, label: 'Rec', icon: BookOpen,   exact: false, isRec: true,  isProfile: false },
+      { key: 'news',    href: '/news',    label: 'News',   icon: ScrollText, exact: false, isRec: false, isProfile: false },
+      { key: 'profile', href: '#',        label: 'Profile', icon: UserIcon,  exact: false, isRec: false, isProfile: true  },
+    ] : [
+      { key: 'home',   href: '/',        label: 'Home',   icon: House,      exact: true,  isRec: false, isProfile: false },
+      { key: 'browse', href: '/browse',  label: 'Browse', icon: Radar,      exact: false, isRec: false, isProfile: false },
+      { key: 'rec',    href: '#',        label: 'Rec',    icon: BookOpen,   exact: false, isRec: true,  isProfile: false },
+      { key: 'news',   href: '/news',    label: 'News',   icon: ScrollText, exact: false, isRec: false, isProfile: false },
+      { key: 'pro',    href: '/pricing', label: 'Go Pro', icon: Crown,      exact: false, isRec: false, isProfile: false },
+    ]
+  ) : []
 
   if (!authReady) {
     return (
-      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden">
-        <div className="absolute inset-0 bg-background border-t border-border" />
-        <div className="relative flex items-center justify-around px-1 h-16">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden px-4 pb-4">
+        <div className="flex items-center justify-around h-14 bg-background/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg shadow-black/10 px-2">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex flex-col items-center justify-center gap-1.5 px-2 py-2 min-w-[44px]">
-              <div className="w-6 h-6 rounded bg-muted/50 animate-pulse" />
-              <div className="w-8 h-2 rounded bg-muted/40 animate-pulse" />
+            <div key={i} className="flex flex-col items-center gap-1 px-2 py-2">
+              <div className="w-5 h-5 rounded bg-muted/50 animate-pulse" />
+              <div className="w-7 h-2 rounded bg-muted/40 animate-pulse" />
             </div>
           ))}
         </div>
-        <div className="bg-background" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
+        <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
       </nav>
     )
   }
@@ -126,44 +164,185 @@ export function MobileNav() {
         }}
       />
 
+      {/* ── Profile bottom sheet backdrop ── */}
+      {profileOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 lg:hidden"
+          onClick={() => setProfileOpen(false)}
+        />
+      )}
+
+      {/* ── Profile bottom sheet ── */}
+      <div className={cn(
+        'fixed bottom-0 left-0 right-0 z-[60] lg:hidden',
+        'bg-background border-t border-border rounded-t-2xl',
+        'transition-transform duration-300 ease-in-out',
+        profileOpen ? 'translate-y-0' : 'translate-y-full'
+      )}>
+        {/* Drag handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-8 h-1 rounded-full bg-muted-foreground/20" />
+        </div>
+
+        {user ? (
+          <div className="px-4 pb-6 space-y-1" style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom, 0px))' }}>
+
+            {/* User info */}
+            <div className="flex items-center gap-3 px-3 py-3 mb-2">
+              <Avatar className="h-10 w-10 shrink-0">
+                <AvatarImage src={avatarUrl ?? undefined} />
+                <AvatarFallback className="text-sm font-black bg-primary text-primary-foreground">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-sm truncate">{displayName ?? 'User'}</p>
+                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              </div>
+              <button
+                onClick={() => setProfileOpen(false)}
+                className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0"
+                aria-label="Close"
+              >
+                <X size={13} className="text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Sheet nav items */}
+            {[
+              username ? { href: `/profile/${username}`, label: 'View Profile',   icon: UserIcon,       accent: false } : null,
+              { href: dashboardHref,     label: dashboardLabel,    icon: isPro ? Crown : LayoutDashboard, accent: isPro  },
+              { href: notificationsHref, label: 'Notifications',    icon: Bell,           accent: false },
+              { href: settingsHref,      label: 'Settings',         icon: Settings,       accent: false },
+              { href: billingHref,       label: billingLabel,        icon: isPro ? Crown : CreditCard, accent: isPro },
+            ].filter(Boolean).map((item) => {
+              if (!item) return null
+              const { href, label, icon: Icon, accent } = item
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setProfileOpen(false)}
+                  className={cn(
+                    'flex items-center gap-3 px-3 py-3 rounded-xl transition-colors',
+                    'hover:bg-muted/60 active:bg-muted',
+                    accent && 'text-amber-600'
+                  )}
+                >
+                  <Icon size={16} className={cn('shrink-0', accent ? 'text-amber-500' : 'text-muted-foreground')} />
+                  <span className={cn('text-sm font-medium flex-1', accent && 'font-semibold')}>{label}</span>
+                  <ChevronRight size={13} className="text-muted-foreground/40" />
+                </Link>
+              )
+            })}
+
+            {/* Upgrade to Pro */}
+            {showPro === true && (
+              <>
+                <div className="h-px bg-border mx-3 my-1" />
+                <Link
+                  href="/pricing"
+                  onClick={() => setProfileOpen(false)}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-amber-500/5 active:bg-amber-500/10 transition-colors"
+                >
+                  <Sparkles size={16} className="text-amber-500 shrink-0" />
+                  <span className="text-sm font-semibold text-amber-600 flex-1">Upgrade to Pro</span>
+                  <ChevronRight size={13} className="text-amber-500/40" />
+                </Link>
+              </>
+            )}
+
+            <div className="h-px bg-border mx-3 my-1" />
+
+            {/* Discord */}
+            <Link
+              href="https://discord.gg/7WPGMb696N"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setProfileOpen(false)}
+              className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted/60 active:bg-muted transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="text-[#5865F2] shrink-0">
+                <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.102 18.08.114 18.1.141 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
+              </svg>
+              <span className="text-sm font-medium flex-1">Join Discord</span>
+              <ChevronRight size={13} className="text-muted-foreground/40" />
+            </Link>
+
+            <div className="h-px bg-border mx-3 my-1" />
+
+            {/* Sign out */}
+            <button
+              onClick={handleSignOut}
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-destructive/5 active:bg-destructive/10 transition-colors text-destructive"
+            >
+              <LogOut size={16} className="shrink-0" />
+              <span className="text-sm font-medium flex-1 text-left">Sign out</span>
+            </button>
+          </div>
+        ) : (
+          /* Logged out sheet — shouldn't be reachable but just in case */
+          <div className="px-4 pb-8 pt-2 flex flex-col gap-3">
+            <Link href="/login" onClick={() => setProfileOpen(false)}>
+              <button className="w-full h-11 rounded-xl border border-border text-sm font-semibold hover:bg-muted transition-colors">
+                Log in
+              </button>
+            </Link>
+            <Link href="/signup" onClick={() => setProfileOpen(false)}>
+              <button className="w-full h-11 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors">
+                Sign up
+              </button>
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* ── Floating pill bottom nav ── */}
       <nav className={cn(
-        'fixed bottom-0 left-0 right-0 z-50 lg:hidden',
+        'fixed bottom-0 left-0 right-0 z-50 lg:hidden px-4 pb-4',
         'transition-transform duration-300 ease-in-out',
         !visible && 'translate-y-full'
       )}>
-        {/* Solid background — no blur */}
-        <div className="absolute inset-0 bg-background border-t border-border" />
-
-        <div className="relative flex items-center justify-around px-1 h-16">
+        <div className={cn(
+          'flex items-center justify-around h-14',
+          'bg-background/90 backdrop-blur-md',
+          'border border-border/60',
+          'rounded-full shadow-lg shadow-black/10',
+          'px-2'
+        )}>
           {navItems.map((item) => {
-            const { href, label, icon: Icon, exact, isRec, isProItem } = item
-            const isActive = exact ? pathname === href : pathname.startsWith(href)
+            const { key, href, label, icon: Icon, exact, isRec, isProfile } = item
+            const isActive = isProfile
+              ? profileOpen
+              : exact
+              ? pathname === href
+              : href !== '#' && pathname.startsWith(href)
 
-            /* ── Centre Recommend button ── */
+            const isGoPro = key === 'pro'
+
+            /* ── Centre Rec button ── */
             if (isRec) {
-              if (!isLoggedIn) {
+              if (!user) {
                 return (
                   <button
                     key="rec-guest"
                     onClick={() => setShowAuthPrompt(true)}
-                    className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
+                    className="flex flex-col items-center justify-center gap-1 px-3 py-2 active:scale-95 transition-transform duration-100"
                   >
-                    {/* Flat red square — no gradient */}
-                    <div className="w-10 h-10 rounded bg-primary flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md shadow-primary/30">
                       <Icon size={18} className="text-primary-foreground" strokeWidth={2.5} />
                     </div>
                     <span className="text-[10px] font-bold text-primary leading-none">{label}</span>
                   </button>
                 )
               }
-
               return (
                 <Link
-                  key={href}
+                  key={key}
                   href={href}
-                  className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
+                  className="flex flex-col items-center justify-center gap-1 px-3 py-2 active:scale-95 transition-transform duration-100"
                 >
-                  <div className="w-10 h-10 rounded bg-primary flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md shadow-primary/30">
                     <Icon size={18} className="text-primary-foreground" strokeWidth={2.5} />
                   </div>
                   <span className="text-[10px] font-bold text-primary leading-none">{label}</span>
@@ -171,17 +350,40 @@ export function MobileNav() {
               )
             }
 
-            /* ── Go Pro item ── */
-            if (isProItem) {
+            /* ── Profile tab ── */
+            if (isProfile) {
+              return (
+                <button
+                  key="profile-tab"
+                  onClick={() => setProfileOpen(true)}
+                  className="flex flex-col items-center justify-center gap-1 px-3 py-2 active:scale-95 transition-transform duration-100"
+                >
+                  <Icon
+                    size={19}
+                    strokeWidth={profileOpen ? 2.5 : 1.75}
+                    className={cn(
+                      'transition-colors duration-150',
+                      profileOpen ? 'text-primary' : 'text-muted-foreground'
+                    )}
+                  />
+                  <span className={cn(
+                    'text-[10px] font-semibold leading-none transition-colors duration-150',
+                    profileOpen ? 'text-primary' : 'text-muted-foreground'
+                  )}>
+                    {label}
+                  </span>
+                </button>
+              )
+            }
+
+            /* ── Go Pro tab ── */
+            if (isGoPro) {
               return (
                 <Link
-                  key={href}
+                  key={key}
                   href={href}
-                  className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
+                  className="flex flex-col items-center justify-center gap-1 px-3 py-2 active:scale-95 transition-transform duration-100"
                 >
-                  {isActive && (
-                    <span className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-px bg-amber-500" />
-                  )}
                   <Icon
                     size={19}
                     strokeWidth={isActive ? 2.5 : 1.75}
@@ -200,17 +402,13 @@ export function MobileNav() {
               )
             }
 
-            /* ── Regular nav items ── */
+            /* ── Regular items ── */
             return (
               <Link
-                key={href}
+                key={key}
                 href={href}
-                className="relative flex flex-col items-center justify-center gap-1 px-2 py-2 min-w-[44px] active:scale-95 transition-transform duration-100"
+                className="flex flex-col items-center justify-center gap-1 px-3 py-2 active:scale-95 transition-transform duration-100"
               >
-                {/* Top border active indicator */}
-                {isActive && (
-                  <span className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-px bg-primary" />
-                )}
                 <Icon
                   size={19}
                   strokeWidth={isActive ? 2.5 : 1.75}
@@ -229,8 +427,7 @@ export function MobileNav() {
             )
           })}
         </div>
-
-        <div className="bg-background" style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
+        <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
       </nav>
     </>
   )

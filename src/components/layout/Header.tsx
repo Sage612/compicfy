@@ -31,12 +31,12 @@ import { NotificationBell } from '@/components/user/NotificationBell'
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
-      <rect x="3"   y="18"   width="22" height="5.5" rx="1" fill="white" fillOpacity="0.25" />
-      <rect x="3"   y="18"   width="10" height="5.5" rx="1" fill="white" fillOpacity="0.55" />
-      <rect x="4.5" y="11.5" width="19" height="5.5" rx="1" fill="white" fillOpacity="0.45" />
-      <rect x="4.5" y="11.5" width="9"  height="5.5" rx="1" fill="white" fillOpacity="0.75" />
-      <rect x="6"   y="5"    width="16" height="5.5" rx="1" fill="white" fillOpacity="1"    />
-      <rect x="6"   y="5"    width="7.5"height="5.5" rx="1" fill="white" fillOpacity="0.65" />
+      <rect x="3"    y="18"   width="22"  height="5.5" rx="1" fill="white" fillOpacity="0.25" />
+      <rect x="3"    y="18"   width="10"  height="5.5" rx="1" fill="white" fillOpacity="0.55" />
+      <rect x="4.5"  y="11.5" width="19"  height="5.5" rx="1" fill="white" fillOpacity="0.45" />
+      <rect x="4.5"  y="11.5" width="9"   height="5.5" rx="1" fill="white" fillOpacity="0.75" />
+      <rect x="6"    y="5"    width="16"  height="5.5" rx="1" fill="white" fillOpacity="1"    />
+      <rect x="6"    y="5"    width="7.5" height="5.5" rx="1" fill="white" fillOpacity="0.65" />
     </svg>
   )
 }
@@ -57,8 +57,7 @@ export function Header() {
   const [authReady, setAuthReady]     = useState(false)
   const lastScrollY                   = useRef(0)
   const supabase                      = createClient()
-
-  const [showPro, setShowPro] = useState<null | boolean>(null)
+  const [showPro, setShowPro]         = useState<null | boolean>(null)
 
   useEffect(() => setMounted(true), [])
 
@@ -149,15 +148,15 @@ export function Header() {
     router.refresh()
   }
 
-  const dashboardHref     = isPro ? '/pro/dashboard'          : '/dashboard'
-  const listsHref         = isPro ? '/pro/lists'              : '/dashboard/lists'
-  const billingHref       = isPro ? '/pro/billing'            : '/dashboard/billing'
-  const settingsHref      = isPro ? '/pro/settings'           : '/dashboard/settings'
-  const notificationsHref = isPro ? '/pro/notifications'      : '/dashboard/notifications'
-  const recommendHref     = isPro ? '/pro/recommendations/new': '/dashboard/recommendations/new'
-  const dashboardLabel    = isPro ? 'Pro Dashboard'           : 'Dashboard'
-  const billingLabel      = isPro ? 'Pro Billing'             : 'Billing'
-  const listsLabel        = isPro ? 'Pro Lists'               : 'Lists'
+  const dashboardHref     = isPro ? '/pro/dashboard'           : '/dashboard'
+  const listsHref         = isPro ? '/pro/lists'               : '/dashboard/lists'
+  const billingHref       = isPro ? '/pro/billing'             : '/dashboard/billing'
+  const settingsHref      = isPro ? '/pro/settings'            : '/dashboard/settings'
+  const notificationsHref = isPro ? '/pro/notifications'       : '/dashboard/notifications'
+  const recommendHref     = isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'
+  const dashboardLabel    = isPro ? 'Pro Dashboard'            : 'Dashboard'
+  const billingLabel      = isPro ? 'Pro Billing'              : 'Billing'
+  const listsLabel        = isPro ? 'Pro Lists'                : 'Lists'
 
   const publicNavLinks = [
     { href: '/browse',    label: 'Browse', icon: Radar       },
@@ -166,8 +165,8 @@ export function Header() {
   ]
 
   const authNavLinks = [
-    { href: '/feed',   label: 'Feed',    icon: LayoutList },
-    { href: listsHref, label: listsLabel, icon: BookMarked },
+    { href: '/feed',    label: 'Feed',    icon: LayoutList },
+    { href: listsHref,  label: listsLabel, icon: BookMarked },
   ]
 
   const themeOptions = [
@@ -180,305 +179,344 @@ export function Header() {
     ? displayName.slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() ?? 'U'
 
+  const allNavLinks = [
+    ...publicNavLinks,
+    ...(authReady && user ? authNavLinks : []),
+  ]
+
   return (
-    <header className={cn(
-      'fixed top-0 left-0 right-0 z-50 h-14',
-      'bg-background border-b border-border',
-      'transition-transform duration-300',
-      !visible && '-translate-y-full'
-    )}>
-      <div className="max-w-7xl mx-auto h-full px-4 flex items-center justify-between gap-4">
+    <>
+      {/* ── MOBILE HEADER — floating pill, hidden on lg+ ── */}
+      <header className={cn(
+        'fixed top-0 left-0 right-0 z-50 lg:hidden px-3 pt-3',
+        'transition-transform duration-300',
+        !visible && '-translate-y-full'
+      )}>
+        <div className={cn(
+          'flex items-center justify-between gap-3 h-12 px-4',
+          'bg-background/90 backdrop-blur-md',
+          'border border-border/60',
+          'rounded-full shadow-lg shadow-black/10',
+        )}>
 
-        {/* ── Logo ── */}
-        <Link href="/" className="flex items-center gap-2.5 shrink-0 group">
-          {/* Flat red square — no gradient, no shadow, no rounded-xl */}
-          <div className="w-7 h-7 rounded bg-primary flex items-center justify-center shrink-0">
-            <LogoMark className="w-4 h-4" />
-          </div>
-          <span className="hidden sm:inline font-black text-[15px] tracking-tight leading-none">
-            Compic<span className="text-primary">fy</span>
-          </span>
-        </Link>
-
-        {/* ── Desktop nav ── */}
-        <nav className="hidden lg:flex items-center gap-0.5">
-          {publicNavLinks.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href || pathname.startsWith(href + '/')
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  'relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors duration-150',
-                  isActive
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {isActive && (
-                  <span className="absolute bottom-0 left-3 right-3 h-px bg-primary rounded-full" />
-                )}
-                <Icon size={13} strokeWidth={isActive ? 2.5 : 1.75} />
-                {label}
-              </Link>
-            )
-          })}
-
-          {authReady && user && (
-            <span className="w-px h-4 bg-border mx-1.5" />
-          )}
-
-          {authReady && user && authNavLinks.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href || pathname.startsWith(href + '/')
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  'relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-colors duration-150',
-                  isActive
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {isActive && (
-                  <span className="absolute bottom-0 left-3 right-3 h-px bg-primary rounded-full" />
-                )}
-                <Icon size={13} strokeWidth={isActive ? 2.5 : 1.75} />
-                {label}
-              </Link>
-            )
-          })}
-
-          {/* Pro link */}
-          {showPro === null ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 ml-1 opacity-0 pointer-events-none select-none text-sm font-semibold">
-              <Crown size={13} />
-              Pro
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 shrink-0">
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shrink-0">
+              <LogoMark className="w-3.5 h-3.5" />
+            </div>
+            <span className="font-black text-[13px] tracking-tight leading-none">
+              Compic<span className="text-primary">fy</span>
             </span>
-          ) : showPro === true ? (
-            <Link
-              href="/pricing"
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 ml-1 text-sm font-semibold transition-colors duration-150 border rounded',
-                pathname === '/pricing'
-                  ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
-                  : 'text-amber-500 border-amber-500/20 hover:bg-amber-500/10 hover:border-amber-500/30'
-              )}
-            >
-              <Crown size={13} className="fill-amber-500 shrink-0" />
-              Pro
-            </Link>
-          ) : null}
-        </nav>
+          </Link>
 
-        {/* ── Right side ── */}
-        <div className="flex items-center gap-1 ml-auto">
+          {/* Right side */}
+          <div className="flex items-center gap-1">
+            <GlobalSearch />
 
-          <GlobalSearch />
-
-          {/* Theme toggle */}
-          {mounted && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-                  aria-label="Toggle theme"
-                >
-                  {theme === 'light'
-                    ? <Sun size={14} />
-                    : theme === 'dark'
-                    ? <Moon size={14} />
-                    : <Monitor size={14} />
-                  }
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-32 rounded-md p-1">
-                {themeOptions.map(({ value, label, icon: Icon }) => (
-                  <DropdownMenuItem
-                    key={value}
-                    onClick={() => setTheme(value)}
-                    className={cn(
-                      'gap-2 cursor-pointer rounded-sm text-sm',
-                      theme === value && 'text-primary font-medium'
-                    )}
+            {!authReady ? (
+              <div className="flex items-center gap-1">
+                <div className="h-6 w-10 rounded-full bg-muted/50 animate-pulse" />
+                <div className="h-6 w-12 rounded-full bg-muted/50 animate-pulse" />
+              </div>
+            ) : !user ? (
+              <div className="flex items-center gap-1">
+                <Link href="/login">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-3 text-xs font-medium text-muted-foreground hover:text-foreground rounded-full"
                   >
-                    <Icon size={13} />
-                    {label}
-                    {theme === value && (
-                      <span className="ml-auto text-primary text-xs">✓</span>
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-
-          {/* Auth area */}
-          {!authReady ? (
-            <div className="flex items-center gap-1.5">
-              <div className="h-7 w-14 rounded bg-muted/50 animate-pulse hidden sm:block" />
-              <div className="h-7 w-16 rounded bg-muted/50 animate-pulse" />
-            </div>
-          ) : !user ? (
-            <div className="flex items-center gap-1.5 ml-1">
-              <Link href="/login">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-sm font-medium text-muted-foreground hover:text-foreground"
-                >
-                  Log in
-                </Button>
-              </Link>
-              <Link href="/signup">
-                <Button
-                  size="sm"
-                  className="h-8 text-sm font-semibold bg-primary hover:bg-primary/90 border-0 rounded"
-                >
-                  Sign up
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 ml-1">
-
-              {/* Recommend button — desktop only */}
-              <Link href={recommendHref} className="hidden lg:flex">
-                <Button
-                  size="sm"
-                  className="h-8 px-3 gap-1.5 text-sm font-semibold bg-primary hover:bg-primary/90 border-0 rounded"
-                >
-                  <BookOpen size={13} strokeWidth={2.5} />
-                  Recommend
-                </Button>
-              </Link>
-
+                    Log in
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button
+                    size="sm"
+                    className="h-7 px-3 text-xs font-semibold bg-primary hover:bg-primary/90 border-0 rounded-full"
+                  >
+                    Sign up
+                  </Button>
+                </Link>
+              </div>
+            ) : (
               <NotificationBell userId={user.id} />
+            )}
+          </div>
+        </div>
+      </header>
 
-              {/* Avatar dropdown */}
+      {/* ── DESKTOP HEADER — floating pill, visible on lg+ ── */}
+      <header className={cn(
+        'fixed top-0 left-0 right-0 z-50 hidden lg:flex px-6 pt-3',
+        'transition-transform duration-300',
+        !visible && '-translate-y-full'
+      )}>
+        <div className={cn(
+          'w-full max-w-6xl mx-auto',
+          'flex items-center justify-between gap-4 h-12 px-4',
+          'bg-background/90 backdrop-blur-md',
+          'border border-border/60',
+          'rounded-full shadow-lg shadow-black/10',
+        )}>
+
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2 shrink-0 group">
+            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shrink-0">
+              <LogoMark className="w-3.5 h-3.5" />
+            </div>
+            <span className="font-black text-[14px] tracking-tight leading-none">
+              Compic<span className="text-primary">fy</span>
+            </span>
+          </Link>
+
+          {/* Center nav */}
+          <nav className="flex items-center gap-0.5">
+            {allNavLinks.map(({ href, label, icon: Icon }) => {
+              const isActive = pathname === href || pathname.startsWith(href + '/')
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    'relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-150',
+                    isActive
+                      ? 'text-foreground bg-primary/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                  )}
+                >
+                  {isActive && (
+                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-3 h-px bg-primary rounded-full" />
+                  )}
+                  <Icon size={13} strokeWidth={isActive ? 2.5 : 1.75} />
+                  {label}
+                </Link>
+              )
+            })}
+
+            {/* Pro link */}
+            {showPro === null ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 opacity-0 pointer-events-none select-none text-sm font-semibold">
+                <Crown size={13} />Pro
+              </span>
+            ) : showPro === true ? (
+              <Link
+                href="/pricing"
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-full transition-all duration-150',
+                  pathname === '/pricing'
+                    ? 'bg-amber-500/15 text-amber-600'
+                    : 'text-amber-500 hover:bg-amber-500/10'
+                )}
+              >
+                <Crown size={13} className="fill-amber-500 shrink-0" />
+                Pro
+              </Link>
+            ) : null}
+          </nav>
+
+          {/* Right side */}
+          <div className="flex items-center gap-1">
+            <GlobalSearch />
+
+            {/* Theme toggle */}
+            {mounted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/30 focus-visible:ring-primary/30 transition-all outline-none">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={avatarUrl ?? undefined} alt={displayName ?? 'User'} />
-                      <AvatarFallback className="text-xs font-black bg-primary text-primary-foreground">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground rounded-full"
+                    aria-label="Toggle theme"
+                  >
+                    {theme === 'light'
+                      ? <Sun size={14} />
+                      : theme === 'dark'
+                      ? <Moon size={14} />
+                      : <Monitor size={14} />
+                    }
+                  </Button>
                 </DropdownMenuTrigger>
-
-                {/* ── Dropdown — flat, sharp, no card header ── */}
-                <DropdownMenuContent align="end" className="w-52 rounded-md p-1">
-
-                  {/* Name + email — plain text, no avatar repeated */}
-                  <div className="px-2 py-2 border-b border-border mb-1">
-                    <p className="font-bold text-sm truncate leading-tight">
-                      {displayName ?? 'User'}
-                    </p>
-                    <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-                      {user.email}
-                    </p>
-                  </div>
-
-                  {username && (
-                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
-                      <Link href={`/profile/${username}`}>
-                        <UserIcon size={13} className="text-muted-foreground shrink-0" />
-                        View Profile
-                      </Link>
+                <DropdownMenuContent align="end" className="w-32 rounded-xl p-1">
+                  {themeOptions.map(({ value, label, icon: Icon }) => (
+                    <DropdownMenuItem
+                      key={value}
+                      onClick={() => setTheme(value)}
+                      className={cn(
+                        'gap-2 cursor-pointer rounded-lg text-sm',
+                        theme === value && 'text-primary font-medium'
+                      )}
+                    >
+                      <Icon size={13} />
+                      {label}
+                      {theme === value && (
+                        <span className="ml-auto text-primary text-xs">✓</span>
+                      )}
                     </DropdownMenuItem>
-                  )}
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
-                    <Link
-                      href={dashboardHref}
-                      className={cn(isPro && 'text-amber-600 font-semibold')}
-                    >
-                      {isPro
-                        ? <Crown size={13} className="text-amber-500 shrink-0" />
-                        : <LayoutDashboard size={13} className="text-muted-foreground shrink-0" />
-                      }
-                      {dashboardLabel}
-                    </Link>
-                  </DropdownMenuItem>
+            {/* Auth area */}
+            {!authReady ? (
+              <div className="flex items-center gap-1.5">
+                <div className="h-7 w-14 rounded-full bg-muted/50 animate-pulse hidden sm:block" />
+                <div className="h-7 w-16 rounded-full bg-muted/50 animate-pulse" />
+              </div>
+            ) : !user ? (
+              <div className="flex items-center gap-1.5 ml-1">
+                <Link href="/login">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-sm font-medium text-muted-foreground hover:text-foreground rounded-full"
+                  >
+                    Log in
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button
+                    size="sm"
+                    className="h-8 px-4 text-sm font-semibold bg-primary hover:bg-primary/90 border-0 rounded-full"
+                  >
+                    Sign up
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 ml-1">
 
-                  <DropdownMenuSeparator className="my-1" />
+                {/* Rec a comic button */}
+                <Link href={recommendHref}>
+                  <Button
+                    size="sm"
+                    className="h-8 px-3 gap-1.5 text-sm font-semibold bg-primary hover:bg-primary/90 border-0 rounded-full"
+                  >
+                    <BookOpen size={13} strokeWidth={2.5} />
+                    Rec a comic
+                  </Button>
+                </Link>
 
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
-                    <Link href={notificationsHref}>
-                      <Bell size={13} className="text-muted-foreground shrink-0" />
-                      Notifications
-                    </Link>
-                  </DropdownMenuItem>
+                <NotificationBell userId={user.id} />
 
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
-                    <Link href={settingsHref}>
-                      <Settings size={13} className="text-muted-foreground shrink-0" />
-                      Settings
-                    </Link>
-                  </DropdownMenuItem>
+                {/* Avatar dropdown — all items preserved */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/30 focus-visible:ring-primary/30 transition-all outline-none">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={avatarUrl ?? undefined} alt={displayName ?? 'User'} />
+                        <AvatarFallback className="text-xs font-black bg-primary text-primary-foreground">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                    </button>
+                  </DropdownMenuTrigger>
 
-                  <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
-                    <Link
-                      href={billingHref}
-                      className={cn(isPro && 'text-amber-600 font-semibold')}
-                    >
-                      {isPro
-                        ? <Crown size={13} className="text-amber-500 shrink-0" />
-                        : <CreditCard size={13} className="text-muted-foreground shrink-0" />
-                      }
-                      {billingLabel}
-                    </Link>
-                  </DropdownMenuItem>
+                  <DropdownMenuContent align="end" className="w-52 rounded-xl p-1">
+                    <div className="px-2 py-2 border-b border-border mb-1">
+                      <p className="font-bold text-sm truncate leading-tight">
+                        {displayName ?? 'User'}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
+                        {user.email}
+                      </p>
+                    </div>
 
-                  {showPro === true && (
-                    <>
-                      <DropdownMenuSeparator className="my-1" />
-                      <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-sm text-sm">
-                        <Link href="/pricing">
-                          <Sparkles size={13} className="text-amber-500 shrink-0" />
-                          <span className="text-amber-600 font-semibold">Upgrade to Pro</span>
+                    {username && (
+                      <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
+                        <Link href={`/profile/${username}`}>
+                          <UserIcon size={13} className="text-muted-foreground shrink-0" />
+                          View Profile
                         </Link>
                       </DropdownMenuItem>
-                    </>
-                  )}
+                    )}
 
-                  <DropdownMenuSeparator className="my-1" />
+                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
+                      <Link
+                        href={dashboardHref}
+                        className={cn(isPro && 'text-amber-600 font-semibold')}
+                      >
+                        {isPro
+                          ? <Crown size={13} className="text-amber-500 shrink-0" />
+                          : <LayoutDashboard size={13} className="text-muted-foreground shrink-0" />
+                        }
+                        {dashboardLabel}
+                      </Link>
+                    </DropdownMenuItem>
 
-                  <DropdownMenuItem asChild className="rounded-sm text-sm">
+                    <DropdownMenuSeparator className="my-1" />
+
+                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
+                      <Link href={notificationsHref}>
+                        <Bell size={13} className="text-muted-foreground shrink-0" />
+                        Notifications
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
+                      <Link href={settingsHref}>
+                        <Settings size={13} className="text-muted-foreground shrink-0" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
+                      <Link
+                        href={billingHref}
+                        className={cn(isPro && 'text-amber-600 font-semibold')}
+                      >
+                        {isPro
+                          ? <Crown size={13} className="text-amber-500 shrink-0" />
+                          : <CreditCard size={13} className="text-muted-foreground shrink-0" />
+                        }
+                        {billingLabel}
+                      </Link>
+                    </DropdownMenuItem>
+
+                    {showPro === true && (
+                      <>
+                        <DropdownMenuSeparator className="my-1" />
+                        <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
+                          <Link href="/pricing">
+                            <Sparkles size={13} className="text-amber-500 shrink-0" />
+                            <span className="text-amber-600 font-semibold">Upgrade to Pro</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
+                    <DropdownMenuSeparator className="my-1" />
+
+                    <DropdownMenuItem asChild className="rounded-lg text-sm">
                       <Link
                         href="https://discord.gg/7WPGMb696N"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="gap-2 cursor-pointer"
                       >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-[#5865F2] shrink-0">
-                        <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.102 18.08.114 18.1.141 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
-                      </svg>
-                      Join Discord
-                    </Link>
-                  </DropdownMenuItem>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-[#5865F2] shrink-0">
+                          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.102 18.08.114 18.1.141 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
+                        </svg>
+                        Join Discord
+                      </Link>
+                    </DropdownMenuItem>
 
-                  <DropdownMenuSeparator className="my-1" />
+                    <DropdownMenuSeparator className="my-1" />
 
-                  <DropdownMenuItem
-                    onClick={handleSignOut}
-                    className="cursor-pointer gap-2 rounded-sm text-sm text-destructive focus:text-destructive"
-                  >
-                    <LogOut size={13} className="shrink-0" />
-                    Sign out
-                  </DropdownMenuItem>
-
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )}
+                    <DropdownMenuItem
+                      onClick={handleSignOut}
+                      className="cursor-pointer gap-2 rounded-lg text-sm text-destructive focus:text-destructive"
+                    >
+                      <LogOut size={13} className="shrink-0" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   )
 }
