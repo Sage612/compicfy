@@ -68,12 +68,15 @@ const TYPE_COLORS: Record<string, string> = {
   other:   'bg-zinc-500/10   text-zinc-400   border-zinc-500/20',
 }
 
-const SOURCE_META: Record<string, { label: string; color: string }> = {
-  compicfy:     { label: 'Compicfy',     color: 'bg-primary/10    text-primary    border-primary/20'    },
-  jikan:        { label: 'MAL',          color: 'bg-blue-500/10   text-blue-600   border-blue-500/20'   },
-  mangadex:     { label: 'MangaDex',     color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
-  anilist:      { label: 'AniList',      color: 'bg-purple-500/10 text-purple-600 border-purple-500/20' },
-  mangaupdates: { label: 'MangaUpdates', color: 'bg-teal-500/10   text-teal-600   border-teal-500/20'   },
+// Single source label and color for all external sources
+const EXTERNAL_SOURCE = {
+  label: 'External Database',
+  color: 'bg-primary/10 text-primary border-primary/20',
+}
+
+const COMPICFY_SOURCE = {
+  label: 'Compicfy',
+  color: 'bg-primary/10 text-primary border-primary/20',
 }
 
 // ── Pre-fill URL builder ───────────────────────────────────────────
@@ -112,12 +115,11 @@ function DBCard({ result }: { result: DBResult }) {
       </div>
       <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
         <div className="flex items-start justify-between gap-2">
-          {/* Fix 1: line-clamp-2 instead of line-clamp-1 so titles don't cut too early */}
           <p className="font-black text-sm line-clamp-2 leading-snug group-hover:text-primary transition-colors">{result.title}</p>
           <ArrowRight size={13} className="text-muted-foreground/30 group-hover:text-primary shrink-0 mt-0.5 transition-colors" />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border', SOURCE_META.compicfy.color)}>
+          <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border', COMPICFY_SOURCE.color)}>
             <Database size={8} />
             Compicfy
           </span>
@@ -151,13 +153,12 @@ function ExternalCard({
   isLoggedIn,
   onAuthRequired,
 }: {
-  result:          ExternalResult
-  isPro:           boolean
-  isLoggedIn:      boolean
-  onAuthRequired:  (prefillUrl: string, title: string) => void
+  result:         ExternalResult
+  isPro:          boolean
+  isLoggedIn:     boolean
+  onAuthRequired: (prefillUrl: string, title: string) => void
 }) {
-  const typeColor  = TYPE_COLORS[result.type]   ?? TYPE_COLORS.other
-  const sourceMeta = SOURCE_META[result.source] ?? { label: result.source, color: 'bg-muted text-muted-foreground border-border' }
+  const typeColor  = TYPE_COLORS[result.type] ?? TYPE_COLORS.other
   const prefillUrl = buildPrefillUrl(result, isPro)
 
   const handleRecommendClick = (e: React.MouseEvent) => {
@@ -168,7 +169,7 @@ function ExternalCard({
   }
 
   return (
-    <div className="group flex gap-4 p-4 rounded-2xl border border-border bg-card/60 hover:border-violet-500/30 hover:shadow-md transition-all duration-200">
+    <div className="group flex gap-4 p-4 rounded-2xl border border-border bg-card/60 hover:border-primary/30 hover:shadow-md transition-all duration-200">
       <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
         {result.coverUrl
           ? <img src={result.coverUrl} alt={result.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -176,12 +177,11 @@ function ExternalCard({
         }
       </div>
       <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
-        {/* Fix 1: line-clamp-2 so titles don't cut too early */}
         <p className="font-black text-sm line-clamp-2 leading-snug">{result.title}</p>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border', sourceMeta.color)}>
+          <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border', EXTERNAL_SOURCE.color)}>
             <Globe size={8} />
-            {sourceMeta.label}
+            {EXTERNAL_SOURCE.label}
           </span>
           <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize', typeColor)}>
             {result.type}
@@ -205,7 +205,7 @@ function ExternalCard({
             <Button
               size="sm"
               variant="outline"
-              className="h-7 gap-1.5 text-[11px] border-violet-500/30 text-violet-600 hover:bg-violet-500/10 hover:border-violet-500/50 transition-all"
+              className="h-7 gap-1.5 text-[11px] border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all"
             >
               <Plus size={10} />
               Recommend this to Compicfy
@@ -239,9 +239,9 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [activeTab,       setActiveTab]       = useState<'all' | 'compicfy' | 'web'>('all')
 
-  const [showAuthModal,   setShowAuthModal]   = useState(false)
-  const [authPrefillUrl,  setAuthPrefillUrl]  = useState('')
-  const [authComicTitle,  setAuthComicTitle]  = useState('')
+  const [showAuthModal,  setShowAuthModal]  = useState(false)
+  const [authPrefillUrl, setAuthPrefillUrl] = useState('')
+  const [authComicTitle, setAuthComicTitle] = useState('')
 
   const inputRef        = useRef<HTMLInputElement>(null)
   const suggDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -286,7 +286,6 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
     setShowSuggestions(false)
     setHasSearched(true)
     setQuery(trimmed)
-    // Reset to all tab on new search
     setActiveTab('all')
 
     const url = new URL(window.location.href)
@@ -348,16 +347,16 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
     setShowAuthModal(true)
   }
 
-  // Fix 2: Only show tabs that have results
   const visibleTabs = [
-    { key: 'all',      label: 'All',      count: totalResults            },
-    ...(dbResults.length > 0       ? [{ key: 'compicfy', label: 'Compicfy', count: dbResults.length        }] : []),
-    ...(filteredExternal.length > 0 ? [{ key: 'web',      label: 'Web',      count: filteredExternal.length }] : []),
+    { key: 'all',      label: 'All',               count: totalResults            },
+    ...(dbResults.length > 0        ? [{ key: 'compicfy', label: 'Compicfy',          count: dbResults.length        }] : []),
+    ...(filteredExternal.length > 0 ? [{ key: 'web',      label: 'External Database', count: filteredExternal.length }] : []),
   ]
 
   return (
     <div className="min-h-screen">
-      {/* ── Search hero ── */}
+
+      {/* Search hero */}
       <div className={cn(
         'sticky top-14 z-30 transition-all duration-300',
         hasSearched
@@ -369,18 +368,15 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
             <div className="mb-8 space-y-3">
               <h1 className="text-4xl font-black tracking-tight">
                 Find your next{' '}
-                <span className="bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
-                  obsession
-                </span>
+                <span className="text-primary">obsession</span>
               </h1>
               <p className="text-muted-foreground">
-                Search Compicfy and 4 external databases instantly
+                Search Compicfy and external databases instantly
               </p>
             </div>
           )}
 
           <div className="relative w-full" ref={containerRef}>
-            {/* Fix 3: fully borderless pill — no border class at all */}
             <div className={cn(
               'flex items-center gap-2 sm:gap-3 transition-all w-full min-w-0',
               hasSearched
@@ -414,7 +410,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
                 onClick={handleSearch}
                 disabled={inputValue.trim().length < 2}
                 size="sm"
-                className="shrink-0 h-8 px-4 rounded-full bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 font-bold"
+                className="shrink-0 h-8 px-4 rounded-full font-bold"
               >
                 Search
               </Button>
@@ -463,7 +459,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
             )}
           </div>
 
-          {/* Fix 4: Quick browse as horizontal scroll on mobile */}
+          {/* Quick browse */}
           {!hasSearched && (
             <div className="mt-6 space-y-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
@@ -485,11 +481,10 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
         </div>
       </div>
 
-      {/* ── Results ── */}
+      {/* Results */}
       {hasSearched && (
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
 
-          {/* Fix 2: Only show tabs with results, hide Compicfy tab when 0 */}
           {!isLoading && totalResults > 0 && (
             <div className="flex items-center justify-between flex-wrap gap-3">
               <p className="text-sm text-muted-foreground">
@@ -539,7 +534,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
                 <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
                   <Database size={24} className="text-muted-foreground/30 mx-auto" />
                   <p className="text-sm font-semibold">Not in Compicfy yet</p>
-                  <p className="text-xs text-muted-foreground">Check the Web tab to find it and add it</p>
+                  <p className="text-xs text-muted-foreground">Check the External Database tab to find it and add it</p>
                 </div>
               ) : null}
             </div>
@@ -550,11 +545,11 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
             <div className="space-y-3">
               {filteredExternal.length > 0 && (
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-md bg-violet-500/10 flex items-center justify-center">
-                    <Globe size={10} className="text-violet-500" />
+                  <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
+                    <Globe size={10} className="text-primary" />
                   </div>
                   <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                    From MAL · MangaDex · AniList · MangaUpdates
+                    From External Databases
                   </p>
                   <div className="flex-1 h-px bg-border" />
                   {loadingExternal && <Loader2 size={11} className="animate-spin text-muted-foreground" />}
@@ -579,7 +574,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
               ) : !loadingExternal && activeTab === 'web' ? (
                 <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
                   <Globe size={24} className="text-muted-foreground/30 mx-auto" />
-                  <p className="text-sm font-semibold">Nothing found on the web either</p>
+                  <p className="text-sm font-semibold">Nothing found in external databases either</p>
                   <p className="text-xs text-muted-foreground">Try a different title or spelling</p>
                 </div>
               ) : null}
@@ -608,7 +603,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
                   </Button>
                 </Link>
                 <Link href={isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'}>
-                  <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 border-0 hover:opacity-90">
+                  <Button size="sm" className="gap-1.5">
                     <BookOpen size={13} />
                     Add it yourself
                   </Button>
@@ -619,14 +614,14 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
         </div>
       )}
 
-      {/* ── Auth prompt modal ── */}
+      {/* Auth prompt modal */}
       <AuthPromptModal
         open={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         config={{
           action:     `recommend "${authComicTitle}" to Compicfy`,
           comicTitle: authComicTitle,
-          icon:       <Plus size={24} className="text-violet-500" />,
+          icon:       <Plus size={24} className="text-primary" />,
           nextPath:   authPrefillUrl,
         }}
       />

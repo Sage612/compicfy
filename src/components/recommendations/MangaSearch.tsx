@@ -27,27 +27,17 @@ interface Props {
   onSelect: (result: MangaResult) => void
 }
 
-const sourceColors: Record<string, string> = {
-  jikan:        'bg-blue-500/10   text-blue-600   border-blue-500/20',
-  mangadex:     'bg-orange-500/10 text-orange-600 border-orange-500/20',
-  anilist:      'bg-purple-500/10 text-purple-600 border-purple-500/20',
-  mangaupdates: 'bg-teal-500/10   text-teal-600   border-teal-500/20',
-}
-
-const sourceLabels: Record<string, string> = {
-  jikan:        'MAL',
-  mangadex:     'MangaDex',
-  anilist:      'AniList',
-  mangaupdates: 'MangaUpdates',
-}
+// All external sources use the same label and color
+const EXTERNAL_SOURCE_COLOR = 'bg-primary/10 text-primary border-primary/20'
+const EXTERNAL_SOURCE_LABEL = 'External Database'
 
 export function MangaSearch({ onSelect }: Props) {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<MangaResult[]>([])
-  const [loading, setLoading] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [query,    setQuery]    = useState('')
+  const [results,  setResults]  = useState<MangaResult[]>([])
+  const [loading,  setLoading]  = useState(false)
+  const [open,     setOpen]     = useState(false)
   const [selected, setSelected] = useState<MangaResult | null>(null)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -64,7 +54,7 @@ export function MangaSearch({ onSelect }: Props) {
     if (q.length < 2) { setResults([]); setOpen(false); return }
     setLoading(true)
     try {
-      const res = await fetch(`/api/manga-search?q=${encodeURIComponent(q)}`)
+      const res  = await fetch(`/api/manga-search?q=${encodeURIComponent(q)}`)
       const data = await res.json()
       setResults(data.results ?? [])
       setOpen(true)
@@ -102,11 +92,11 @@ export function MangaSearch({ onSelect }: Props) {
       {/* Label */}
       <div className="flex items-center gap-2">
         <Sparkles size={15} className="text-primary" />
-        <p className="text-sm font-semibold">Auto-fill from Database</p>
+        <p className="text-sm font-semibold">Auto-fill from External Database</p>
         <Badge variant="secondary" className="text-xs">Optional</Badge>
       </div>
       <p className="text-xs text-muted-foreground">
-        Search across 4 external databases to auto-fill the form.
+        Search across external databases to auto-fill the form.
       </p>
 
       {/* Search input */}
@@ -138,100 +128,81 @@ export function MangaSearch({ onSelect }: Props) {
         {open && results.length > 0 && (
           <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-xl border border-border bg-card shadow-xl overflow-hidden">
             <div className="max-h-80 overflow-y-auto">
-              {results.map((result) => {
-                const sourceColor = sourceColors[result.source] ?? 'bg-muted text-muted-foreground border-border'
-                const sourceLabel = sourceLabels[result.source] ?? result.source
-
-                return (
-                  <button
-                    key={result.id}
-                    onClick={() => handleSelect(result)}
-                    className="w-full flex items-start gap-3 p-3 hover:bg-accent transition-colors text-left border-b border-border last:border-0"
-                  >
-                    {/* Cover */}
-                    <div className="w-10 h-14 rounded-md overflow-hidden bg-muted shrink-0">
-                      {result.coverUrl ? (
-                        <img
-                          src={result.coverUrl}
-                          alt={result.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <BookOpen size={14} className="text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      {/* Title */}
-                      <p className="text-sm font-semibold line-clamp-1">
-                        {result.title || 'Untitled'}
-                      </p>
-
-                      {/* Badges */}
-                      <div className="flex flex-wrap gap-1">
-                        <Badge
-                          variant="outline"
-                          className={cn('text-xs border', sourceColor)}
-                        >
-                          {sourceLabel}
-                        </Badge>
-                        {result.type && (
-                          <Badge variant="secondary" className="text-xs capitalize">
-                            {result.type}
-                          </Badge>
-                        )}
-                        {result.status && (
-                          <Badge variant="secondary" className="text-xs capitalize">
-                            {result.status}
-                          </Badge>
-                        )}
-                        {result.score != null && result.score > 0 && (
-                          <Badge variant="secondary" className="text-xs">
-                            ⭐ {result.score.toFixed(1)}
-                          </Badge>
-                        )}
+              {results.map((result) => (
+                <button
+                  key={result.id}
+                  onClick={() => handleSelect(result)}
+                  className="w-full flex items-start gap-3 p-3 hover:bg-accent transition-colors text-left border-b border-border last:border-0"
+                >
+                  {/* Cover */}
+                  <div className="w-10 h-14 rounded-md overflow-hidden bg-muted shrink-0">
+                    {result.coverUrl ? (
+                      <img
+                        src={result.coverUrl}
+                        alt={result.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={14} className="text-muted-foreground" />
                       </div>
+                    )}
+                  </div>
 
-                      {/* Author + year */}
-                      <p className="text-xs text-muted-foreground truncate">
-                        {result.author
-                          ? `by ${result.author}${result.artist && result.artist !== result.author ? ` · art by ${result.artist}` : ''}${result.year ? ` · ${result.year}` : ''}`
-                          : result.year
-                            ? `${result.year}`
-                            : ''}
-                      </p>
-
-                      {/* Genres preview */}
-                      {result.genres && result.genres.length > 0 && (
-                        <p className="text-[10px] text-muted-foreground/70 truncate">
-                          {result.genres.slice(0, 4).join(' · ')}
-                        </p>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <p className="text-sm font-semibold line-clamp-1">
+                      {result.title || 'Untitled'}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      <Badge
+                        variant="outline"
+                        className={cn('text-xs border', EXTERNAL_SOURCE_COLOR)}
+                      >
+                        {EXTERNAL_SOURCE_LABEL}
+                      </Badge>
+                      {result.type && (
+                        <Badge variant="secondary" className="text-xs capitalize">
+                          {result.type}
+                        </Badge>
+                      )}
+                      {result.status && (
+                        <Badge variant="secondary" className="text-xs capitalize">
+                          {result.status}
+                        </Badge>
+                      )}
+                      {result.score != null && result.score > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          ⭐ {result.score.toFixed(1)}
+                        </Badge>
                       )}
                     </div>
-                  </button>
-                )
-              })}
+                    <p className="text-xs text-muted-foreground truncate">
+                      {result.author
+                        ? `by ${result.author}${result.artist && result.artist !== result.author ? ` · art by ${result.artist}` : ''}${result.year ? ` · ${result.year}` : ''}`
+                        : result.year
+                          ? `${result.year}`
+                          : ''}
+                    </p>
+                    {result.genres && result.genres.length > 0 && (
+                      <p className="text-[10px] text-muted-foreground/70 truncate">
+                        {result.genres.slice(0, 4).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
 
             {/* Footer */}
-<div className="px-3 py-2 bg-muted/50 border-t border-border flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
-  <p className="text-xs text-muted-foreground">
-    {results.length} result{results.length !== 1 ? 's' : ''} found
-  </p>
-  <div className="flex flex-wrap gap-1">
-    {(['jikan', 'mangadex', 'anilist', 'mangaupdates'] as const).map(src => (
-      <span
-        key={src}
-        className={cn('text-[9px] px-1.5 py-0.5 rounded-full border font-semibold', sourceColors[src])}
-      >
-        {sourceLabels[src]}
-      </span>
-    ))}
-  </div>
-</div>
+            <div className="px-3 py-2 bg-muted/50 border-t border-border flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {results.length} result{results.length !== 1 ? 's' : ''} found
+              </p>
+              <span className={cn('text-[9px] px-1.5 py-0.5 rounded-full border font-semibold', EXTERNAL_SOURCE_COLOR)}>
+                {EXTERNAL_SOURCE_LABEL}
+              </span>
+            </div>
           </div>
         )}
 
@@ -249,7 +220,7 @@ export function MangaSearch({ onSelect }: Props) {
         <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
           <Sparkles size={14} className="text-primary shrink-0" />
           <p className="text-xs text-primary font-medium">
-            Form auto-filled from {sourceLabels[selected.source] ?? selected.source} — review and adjust below
+            Form auto-filled from External Database, review and adjust below
           </p>
         </div>
       )}
