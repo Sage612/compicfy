@@ -19,33 +19,18 @@ export function SimilarComics({ comicId, contentRating, showAdult = false }: Pro
     const fetchSimilar = async () => {
       try {
         const params = new URLSearchParams({
-          mode:     'similar',
-          comic_id: comicId,
-          limit:    '8',
-          // pass as string 'true'/'false' — API reads it as query param
-          exclude_adult: showAdult ? 'false' : 'true',
+          mode:            'similar',
+          comic_id:        comicId,
+          limit:           '8',
+          content_ratings: showAdult
+            ? 'all_ages,teen,mature,adult'
+            : 'all_ages,teen',
         })
         const res  = await fetch(`/api/recommendations/personalized?${params}`)
         const data = await res.json()
 
-        const recs = (data.recommendations ?? []) as Recommendation[]
-
-        // Client-side safety filter
-        let filtered: Recommendation[]
-        if (showAdult) {
-          // Adult context: show adult + mature + anything returned
-          // Don't over-filter — the API already scoped the results
-          filtered = recs
-        } else {
-          // Safe context: never show adult/mature
-          filtered = recs.filter(
-            r => r.content_rating !== 'adult' && r.content_rating !== 'mature'
-          )
-        }
-
-        // Always exclude the current comic from similar results
-        filtered = filtered.filter(r => r.id !== comicId)
-
+        const recs     = (data.recommendations ?? []) as Recommendation[]
+        const filtered = recs.filter(r => r.id !== comicId)
         setComics(filtered)
       } catch {
         console.error('Failed to fetch similar comics')

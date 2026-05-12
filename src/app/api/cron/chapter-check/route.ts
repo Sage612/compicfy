@@ -25,7 +25,6 @@ export async function GET(req: Request) {
     .eq('is_approved', true)
     .eq('status', 'ongoing')
     .or(`last_chapter_check.is.null,last_chapter_check.lt.${cutoff}`)
-    .not('chapter_count', 'is', null)
     .limit(BATCH_SIZE)
 
   if (!comics || comics.length === 0) {
