@@ -16,14 +16,14 @@ export function AdminFloatingButton() {
       className={cn(
         'fixed bottom-20 right-4 z-50 md:bottom-6 md:right-6',
         'w-12 h-12 rounded-full',
-        'bg-gradient-to-br from-primary to-violet-500',
+        'bg-primary',
         'flex items-center justify-center',
         'shadow-lg shadow-primary/30',
         'hover:scale-110 active:scale-95 transition-transform',
         'ring-2 ring-background'
       )}
     >
-      <Shield size={19} className="text-white" />
+      <Shield size={19} className="text-primary-foreground" />
     </Link>
   )
 }

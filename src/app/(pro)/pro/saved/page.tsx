@@ -2,17 +2,14 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import {
-   Bookmark, ArrowRight, Sparkles,
-  ThumbsUp, Star, Crown,
-  Radar, BookOpen
+  Bookmark, ArrowRight, Sparkles,
+  ThumbsUp, Star, Crown, Radar, BookOpen,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { formatDate } from '@/lib/utils/format'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Saved Comics | Pro' }
-
-const FREE_SAVE_LIMIT = 50
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
@@ -48,44 +45,45 @@ export default async function ProSavedPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
       {/* Header */}
-<div className="flex items-center justify-between gap-3">
-  <div className="flex items-center gap-2.5 min-w-0">
-    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg shadow-rose-500/20 shrink-0">
-      <Bookmark size={16} className="text-white" />
-    </div>
-    <div className="min-w-0">
-      <h1 className="text-xl font-black tracking-tight leading-tight truncate">Saved Comics</h1>
-      <div className="flex items-center gap-1.5 mt-0.5">
-        <Crown size={11} className="text-amber-500 fill-amber-500" />
-        <span className="text-xs text-amber-600 font-semibold">Unlimited saves · Pro</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <Bookmark size={16} className="text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xl font-black tracking-tight leading-tight truncate">Saved Comics</h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <Crown size={11} className="text-amber-500 fill-amber-500" />
+              <span className="text-xs text-amber-600 font-semibold">Unlimited saves · Pro</span>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              {saveCount} comic{saveCount !== 1 ? 's' : ''} saved
+            </p>
+          </div>
+        </div>
+        <Link href="/browse" className="shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 border-border hover:border-amber-500/40 hover:text-amber-600 hover:bg-amber-500/5 transition-all duration-200"
+          >
+            <Radar size={14} />
+            Browse More
+          </Button>
+        </Link>
       </div>
-      <p className="text-muted-foreground text-xs">
-        {saveCount} comic{saveCount !== 1 ? 's' : ''} saved
-      </p>
-    </div>
-  </div>
-  <Link href="/browse" className="shrink-0">
-    <Button
-      variant="outline"
-      size="sm"
-      className="gap-2 border-border hover:border-amber-500/40 hover:text-amber-600 hover:bg-amber-500/5 transition-all duration-200"
-    >
-      <Radar size={14} />
-      Browse More
-    </Button>
-  </Link>
-</div>
+
       {/* Empty state */}
       {savedComics.length === 0 ? (
         <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-rose-500/5 blur-2xl pointer-events-none" />
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-amber-500/5 blur-2xl pointer-events-none" />
 
           <div className="relative w-28 h-28 mx-auto mb-6">
             <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
             <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
-            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-rose-500/30 bg-card flex items-center justify-center shadow-lg">
-              <Bookmark size={20} className="text-rose-500/50" />
+            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-primary/30 bg-card flex items-center justify-center shadow-lg">
+              <Bookmark size={20} className="text-primary/50" />
             </div>
           </div>
 
@@ -96,7 +94,7 @@ export default async function ProSavedPage() {
 
           <div className="flex flex-wrap justify-center gap-3">
             <Link href="/browse">
-              <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
+              <Button className="gap-2">
                 <Radar size={14} />
                 Browse Comics
               </Button>
@@ -125,8 +123,8 @@ export default async function ProSavedPage() {
                     <BookOpen size={16} className="text-muted-foreground opacity-40" />
                   </div>
                 )}
-                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500/90 flex items-center justify-center shadow-sm">
-                  <Bookmark size={8} className="text-white fill-white" />
+                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center shadow-sm">
+                  <Bookmark size={8} className="text-primary-foreground fill-primary-foreground" />
                 </div>
               </div>
 

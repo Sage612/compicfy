@@ -37,44 +37,44 @@ export default async function ProReviewsPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
       {/* Header */}
-<div className="flex items-center justify-between gap-3">
-  <div className="flex items-center gap-2.5 min-w-0">
-    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0">
-      <Star size={16} className="text-white" />
-    </div>
-    <div className="min-w-0">
-      <h1 className="text-xl font-black tracking-tight leading-tight truncate">My Reviews</h1>
-      <div className="flex items-center gap-1.5 mt-0.5">
-        <Crown size={11} className="text-amber-500 fill-amber-500" />
-        <span className="text-xs text-amber-600 font-semibold">Pro</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <Star size={16} className="text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xl font-black tracking-tight leading-tight truncate">My Reviews</h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <Crown size={11} className="text-amber-500 fill-amber-500" />
+              <span className="text-xs text-amber-600 font-semibold">Pro</span>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              {reviews.length} review{reviews.length !== 1 ? 's' : ''} written
+            </p>
+          </div>
+        </div>
+        <Link href="/browse" className="shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 border-border hover:border-amber-500/40 hover:text-amber-600 hover:bg-amber-500/5 transition-all duration-200"
+          >
+            <Radar size={14} />
+            Browse Comics
+          </Button>
+        </Link>
       </div>
-      <p className="text-muted-foreground text-xs">
-        {reviews.length} review{reviews.length !== 1 ? 's' : ''} written
-      </p>
-    </div>
-  </div>
-  <Link href="/browse" className="shrink-0">
-    <Button
-      variant="outline"
-      size="sm"
-      className="gap-2 border-border hover:border-amber-500/40 hover:text-amber-600 hover:bg-amber-500/5 transition-all duration-200"
-    >
-      <Radar size={14} />
-      Browse Comics
-    </Button>
-  </Link>
-</div>
 
       {!reviews.length ? (
         <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-amber-500/5 blur-2xl pointer-events-none" />
-          <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-orange-500/5 blur-2xl pointer-events-none" />
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-amber-500/5 blur-2xl pointer-events-none" />
 
           <div className="relative w-28 h-28 mx-auto mb-6">
             <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
             <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
-            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-amber-500/30 bg-card flex items-center justify-center shadow-lg">
-              <Star size={20} className="text-amber-500/50" />
+            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-primary/30 bg-card flex items-center justify-center shadow-lg">
+              <Star size={20} className="text-primary/50" />
             </div>
           </div>
 
@@ -84,13 +84,15 @@ export default async function ProReviewsPage() {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link href="/browse">
-              <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
-                <Radar size={14} />Browse Comics
+              <Button className="gap-2">
+                <Radar size={14} />
+                Browse Comics
               </Button>
             </Link>
             <Link href="/browse?sort=score">
               <Button variant="outline" className="gap-2 hover:border-amber-500/40 hover:text-amber-600 transition-colors">
-                <Sparkles size={14} />Top Rated
+                <Sparkles size={14} />
+                Top Rated
               </Button>
             </Link>
           </div>

@@ -9,6 +9,7 @@ import {
   BookMarked, Plus, Trash2, Globe, Lock,
   Loader2, BookOpen, Pencil, ArrowRight, Crown,
   Sparkles,
+  Radar,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
@@ -26,12 +27,12 @@ interface ReadingList {
 
 const FREE_LIST_LIMIT = 5
 
-export function ReadingListsClient({ 
-  initialLists, 
-  basePath = '/dashboard/lists' 
-}: { 
-  initialLists: ReadingList[], 
-  basePath?: string 
+export function ReadingListsClient({
+  initialLists,
+  basePath = '/dashboard/lists'
+}: {
+  initialLists: ReadingList[]
+  basePath?: string
 }) {
   const [lists, setLists] = useState(initialLists)
   const [showCreate, setShowCreate] = useState(false)
@@ -69,12 +70,10 @@ export function ReadingListsClient({
     fetchProStatus()
   }, [supabase])
 
-  // Sort oldest first to determine free slots consistently
   const sortedLists = [...lists].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   )
   const freeListIds = new Set(sortedLists.slice(0, FREE_LIST_LIMIT).map(l => l.id))
-
   const isListLocked = (listId: string) => isProUser === false && !freeListIds.has(listId)
 
   const atLimit   = isProUser === false && lists.length >= FREE_LIST_LIMIT
@@ -197,8 +196,8 @@ export function ReadingListsClient({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
-            <BookMarked size={16} className="text-white" />
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <BookMarked size={16} className="text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
@@ -217,10 +216,8 @@ export function ReadingListsClient({
             size="sm"
             onClick={handleNewListClick}
             className={cn(
-              'gap-1.5 border-0 shadow-lg',
-              atLimit
-                ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-amber-500/20'
-                : 'bg-gradient-to-r from-primary to-violet-500 shadow-primary/20 hover:opacity-90'
+              'gap-1.5',
+              atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 shadow-lg shadow-amber-500/20 hover:opacity-90'
             )}
           >
             {atLimit ? <Crown size={14} /> : <Plus size={14} />}
@@ -236,7 +233,7 @@ export function ReadingListsClient({
         <UpgradeBanner current={lists.length} limit={FREE_LIST_LIMIT} feature="reading lists" dismissible={false} />
       )}
 
-      {/* Locked lists notice — shown when user has lists beyond free limit */}
+      {/* Locked lists notice */}
       {isProUser === false && lists.length > FREE_LIST_LIMIT && (
         <div className="flex items-start gap-3 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5">
           <Crown size={14} className="text-amber-500 shrink-0 mt-0.5" />
@@ -260,11 +257,11 @@ export function ReadingListsClient({
       {/* Create form */}
       {showCreate && (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-gradient-to-r from-teal-500/10 to-cyan-500/5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shrink-0">
-              <Plus size={13} className="text-white" />
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-primary/5">
+            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
+              <Plus size={13} className="text-primary-foreground" />
             </div>
-            <p className="text-xs font-black uppercase tracking-widest text-teal-600">Create New List</p>
+            <p className="text-xs font-black uppercase tracking-widest text-primary">Create New List</p>
           </div>
           <div className="p-5 space-y-3">
             <div className="space-y-1.5">
@@ -295,7 +292,7 @@ export function ReadingListsClient({
                 )}
                 onClick={() => setIsPublic(p => !p)}
               >
-                {isPublic && <span className="text-white text-[10px] font-black leading-none">✓</span>}
+                {isPublic && <span className="text-primary-foreground text-[10px] font-black leading-none">✓</span>}
               </div>
               <div>
                 <span className="text-sm font-medium">Make this list public</span>
@@ -307,7 +304,7 @@ export function ReadingListsClient({
                 size="sm"
                 onClick={handleCreate}
                 disabled={!newName.trim() || creating}
-                className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+                className="gap-2"
               >
                 {creating ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                 Create List
@@ -323,34 +320,34 @@ export function ReadingListsClient({
       {/* Empty state */}
       {lists.length === 0 && !showCreate ? (
         <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-teal-500/5 blur-2xl pointer-events-none" />
-          <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-cyan-500/5 blur-2xl pointer-events-none" />
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
 
           <div className="relative w-28 h-28 mx-auto mb-6">
             <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
             <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
-            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-teal-500/30 bg-card flex items-center justify-center shadow-lg">
-              <BookMarked size={20} className="text-teal-500/50" />
+            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-primary/30 bg-card flex items-center justify-center shadow-lg">
+              <BookMarked size={20} className="text-primary/50" />
             </div>
           </div>
 
           <h3 className="font-black text-xl mb-2">No lists yet</h3>
           <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto leading-relaxed">
-            Create lists to organise your reading journey, currently reading, plan to read, all-time favourites.
+            Create lists to organise your reading journey, currently reading, plan to read, marinating, all-time favourites.
           </p>
 
           <div className="flex flex-wrap justify-center gap-3">
             <Button
               size="sm"
               onClick={() => setShowCreate(true)}
-              className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+              className="gap-2"
             >
               <Plus size={14} />
               Create Your First List
             </Button>
             <Link href="/browse">
-              <Button variant="outline" size="sm" className="gap-2 border-border hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all duration-200">
-                <Sparkles size={14} />
+              <Button variant="outline" size="sm" className="gap-2 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all duration-200">
+                <Radar size={14} />
                 Browse Comics
               </Button>
             </Link>
@@ -373,7 +370,6 @@ export function ReadingListsClient({
                     : 'border-border hover:border-primary/40 hover:shadow-md'
                 )}
               >
-                {/* Locked overlay badge */}
                 {locked && (
                   <div className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-[10px] font-black z-10">
                     <Crown size={9} className="fill-amber-500" />
@@ -381,7 +377,6 @@ export function ReadingListsClient({
                   </div>
                 )}
 
-                {/* Name + actions */}
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0 space-y-0.5">
                     {isEditing ? (
@@ -416,7 +411,6 @@ export function ReadingListsClient({
                     )}
                   </div>
 
-                  {/* Edit/Delete — always visible on mobile, hover-only on md+ */}
                   {!isEditing && !locked && (
                     <div className="flex gap-0.5 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <Button
@@ -440,7 +434,6 @@ export function ReadingListsClient({
                     </div>
                   )}
 
-                  {/* Locked: only show delete */}
                   {!isEditing && locked && (
                     <div className="flex gap-0.5 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                       <Button
@@ -458,14 +451,12 @@ export function ReadingListsClient({
                   )}
                 </div>
 
-                {/* Stats + visibility + date */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <BookOpen size={11} className={locked ? 'text-amber-500/50' : 'text-primary/60'} />
                       <span><strong className="text-foreground font-black">{count}</strong> comic{count !== 1 ? 's' : ''}</span>
                     </div>
-                    {/* Visibility toggle — disabled for locked lists */}
                     <button
                       onClick={() => !locked && handleTogglePublic(list.id, list.is_public)}
                       className={cn(
@@ -484,7 +475,6 @@ export function ReadingListsClient({
                   <span className="text-xs text-muted-foreground">{formatDate(list.created_at)}</span>
                 </div>
 
-                {/* Hover arrow */}
                 <Link
                   href={`${basePath}/${list.id}`}
                   className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"

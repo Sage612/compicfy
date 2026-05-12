@@ -32,7 +32,7 @@ const settingsSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof settingsSchema>
 
-function FormSection({ icon: Icon, title, accent = 'from-primary to-violet-500', children }: {
+function FormSection({ icon: Icon, title, accent = 'bg-primary', children }: {
   icon: React.ElementType
   title: string
   accent?: string
@@ -41,8 +41,8 @@ function FormSection({ icon: Icon, title, accent = 'from-primary to-violet-500',
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-muted/30">
-        <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${accent} flex items-center justify-center shrink-0`}>
-          <Icon size={13} className="text-white" />
+        <div className={`w-7 h-7 rounded-lg ${accent} flex items-center justify-center shrink-0`}>
+          <Icon size={13} className="text-primary-foreground" />
         </div>
         <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{title}</h3>
       </div>
@@ -60,9 +60,9 @@ interface Props {
 export function SettingsForm({ profile, userId, isPro }: Props) {
   const supabase    = createClient()
   const { setTheme } = useTheme()
-  const [saving,         setSubmitting]    = useState(false)
-  const [avatarUrl,      setAvatarUrl]     = useState(profile.avatar_url)
-  const [selectedGenres, setSelectedGenres] = useState<string[]>(profile.favorite_genres || [])
+  const [saving,          setSubmitting]    = useState(false)
+  const [avatarUrl,       setAvatarUrl]     = useState(profile.avatar_url)
+  const [selectedGenres,  setSelectedGenres] = useState<string[]>(profile.favorite_genres || [])
   const [themePreference, setThemePreference] = useState<'dark' | 'light' | 'system'>(
     profile.theme_preference ?? 'system'
   )
@@ -133,9 +133,9 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
   }
 
   const themeOptions = [
-    { value: 'light'  as const, label: 'Light',  icon: Sun,     desc: 'Always light'          },
-    { value: 'dark'   as const, label: 'Dark',   icon: Moon,    desc: 'Always dark'            },
-    { value: 'system' as const, label: 'System', icon: Monitor, desc: 'Follows your OS theme'  },
+    { value: 'light'  as const, label: 'Light',  icon: Sun,     desc: 'Always light'         },
+    { value: 'dark'   as const, label: 'Dark',   icon: Moon,    desc: 'Always dark'           },
+    { value: 'system' as const, label: 'System', icon: Monitor, desc: 'Follows your OS theme' },
   ]
 
   return (
@@ -155,7 +155,7 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
       </FormSection>
 
       {/* Basic Information */}
-      <FormSection icon={User} title="Basic Information" accent="from-violet-500 to-purple-600">
+      <FormSection icon={User} title="Basic Information" accent="bg-violet-500">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="username" className="text-sm font-semibold">Username</Label>
@@ -202,7 +202,7 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
 
       {/* Theme Preference — Pro/Admin only */}
       {isPro && (
-        <FormSection icon={Palette} title="Theme Preference" accent="from-amber-400 to-orange-500">
+        <FormSection icon={Palette} title="Theme Preference" accent="bg-amber-500">
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               Saved to your account and applied across all sessions.
@@ -231,7 +231,7 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
       )}
 
       {/* Favourite Genres */}
-      <FormSection icon={Heart} title="Favourite Genres" accent="from-rose-500 to-pink-600">
+      <FormSection icon={Heart} title="Favourite Genres" accent="bg-rose-500">
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Select up to 10 genres
@@ -264,7 +264,7 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
       </FormSection>
 
       {/* Content Preferences */}
-      <FormSection icon={Shield} title="Content Preferences" accent="from-zinc-600 to-zinc-800">
+      <FormSection icon={Shield} title="Content Preferences" accent="bg-zinc-600">
         <AdultContentToggle userId={userId} initialEnabled={profile.adult_content_enabled ?? false} />
       </FormSection>
 
@@ -274,7 +274,7 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
         <Button
           type="submit"
           disabled={saving}
-          className="gap-2 min-w-32 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+          className="gap-2 min-w-32"
         >
           {saving
             ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
@@ -283,7 +283,7 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
         </Button>
       </div>
 
-      {/* ── Danger Zone ── */}
+      {/* Danger Zone */}
       <div className="rounded-2xl border border-destructive/20 bg-card overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-3.5 border-b border-destructive/15 bg-destructive/5">
           <div className="w-7 h-7 rounded-lg bg-destructive/15 flex items-center justify-center shrink-0">

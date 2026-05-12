@@ -76,7 +76,6 @@ export default async function DashboardPage() {
     supabase.from('reading_lists').select('id, name').eq('user_id', user.id).order('created_at', { ascending: false }),
   ])
 
-  // Normalise the profiles join — Supabase can return object or single-item array
   const feedItems = (rawFeedItems ?? []).map((r: any) => {
     const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
     return { ...r, profiles: p ?? null }
@@ -89,15 +88,15 @@ export default async function DashboardPage() {
   const stats = [
     { label: 'Recommendations', value: profile.total_recommendations ?? 0, icon: BookOpen,   href: '/dashboard/recommendations', bg: 'bg-violet-500/10', text: 'text-violet-500' },
     { label: 'Saved Comics',     value: savedCount ?? 0,                    icon: Bookmark,   href: '/dashboard/saved',           bg: 'bg-rose-500/10',   text: 'text-rose-500'  },
-    { label: 'Reading Lists',    value: listsCount ?? 0,                    icon: BookMarked, href: '/dashboard/lists',           bg: 'bg-teal-500/10',   text: 'text-teal-500'  },
+    { label: 'Reading Lists',    value: listsCount ?? 0,                    icon: BookMarked, href: '/dashboard/lists',           bg: 'bg-primary/10',    text: 'text-primary'   },
     { label: 'Following',        value: followingCount ?? 0,                icon: Users,      href: '/feed',                      bg: 'bg-primary/10',    text: 'text-primary'   },
   ]
 
   const quickActions = [
-    { href: '/dashboard/recommendations/new', icon: Plus,       label: 'Submit a Recommendation', desc: 'Share a comic with the community', gradient: 'from-violet-500 to-purple-600' },
-    { href: '/feed',                           icon: LayoutList, label: 'Following Feed',           desc: 'Latest from people you follow',   gradient: 'from-primary to-violet-500'   },
-    { href: '/dashboard/lists',                icon: BookMarked, label: 'Reading Lists',            desc: 'Manage your reading collection',  gradient: 'from-teal-500 to-cyan-600'    },
-    { href: '/browse',                         icon: Flame,      label: 'Browse Comics',            desc: 'Discover new recommendations',    gradient: 'from-rose-500 to-pink-600'    },
+    { href: '/dashboard/recommendations/new', icon: Plus,       label: 'Submit a Recommendation', desc: 'Share a comic with the community', bg: 'bg-primary/10',          text: 'text-primary'   },
+    { href: '/feed',                           icon: LayoutList, label: 'Following Feed',           desc: 'Latest from people you follow',   bg: 'bg-violet-500/10',       text: 'text-violet-500'},
+    { href: '/dashboard/lists',                icon: BookMarked, label: 'Reading Lists',            desc: 'Manage your reading collection',  bg: 'bg-teal-500/10',         text: 'text-teal-500'  },
+    { href: '/browse',                         icon: Flame,      label: 'Browse Comics',            desc: 'Discover new recommendations',    bg: 'bg-rose-500/10',         text: 'text-rose-500'  },
   ]
 
   return (
@@ -107,14 +106,14 @@ export default async function DashboardPage() {
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 md:p-8">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-primary/5 blur-2xl" />
-          <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-violet-500/5 blur-xl" />
+          <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full bg-primary/5 blur-xl" />
         </div>
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
           <div className="relative shrink-0">
-            <div className="absolute -inset-1 rounded-full bg-gradient-to-br from-primary to-violet-500 opacity-30 blur-sm" />
+            <div className="absolute -inset-1 rounded-full bg-primary opacity-20 blur-sm" />
             <Avatar className="relative h-16 w-16 border-2 border-background">
               <AvatarImage src={profile.avatar_url ?? undefined} />
-              <AvatarFallback className="text-xl bg-gradient-to-br from-primary to-violet-500 text-white font-bold">
+              <AvatarFallback className="text-xl bg-primary text-primary-foreground font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -175,10 +174,10 @@ export default async function DashboardPage() {
       {!hasReadingItems ? (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Reading Tracker</h2>
-          <div className="relative overflow-hidden rounded-2xl border border-dashed border-teal-500/30 bg-teal-500/5 p-6 text-center space-y-4">
-            <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-teal-500/10 blur-2xl pointer-events-none" />
-            <div className="w-12 h-12 rounded-2xl bg-teal-500/15 flex items-center justify-center mx-auto">
-              <BookOpen size={20} className="text-teal-600" />
+          <div className="relative overflow-hidden rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-6 text-center space-y-4">
+            <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
+            <div className="w-12 h-12 rounded-2xl bg-primary/15 flex items-center justify-center mx-auto">
+              <BookOpen size={20} className="text-primary" />
             </div>
             <div>
               <p className="font-black text-sm">What are you reading right now?</p>
@@ -188,13 +187,13 @@ export default async function DashboardPage() {
             </div>
             <div className="flex gap-3 justify-center">
               <Link href="/browse">
-                <Button size="sm" className="gap-1.5 bg-gradient-to-r from-teal-500 to-cyan-600 border-0 hover:opacity-90 shadow-md shadow-teal-500/20 text-white">
+                <Button size="sm" className="gap-1.5">
                   <BookOpen size={13} />
                   Find something to read
                 </Button>
               </Link>
               <Link href="/dashboard/lists">
-                <Button size="sm" variant="outline" className="gap-1.5 border-teal-500/30 hover:border-teal-500/60 text-teal-600">
+                <Button size="sm" variant="outline" className="gap-1.5 border-primary/30 hover:border-primary/60 text-primary">
                   <BookMarked size={13} />
                   My Lists
                 </Button>
@@ -235,7 +234,7 @@ export default async function DashboardPage() {
             </div>
             <div className="flex gap-3 justify-center">
               <Link href="/feed?tab=discover">
-                <Button size="sm" className="gap-1.5 bg-gradient-to-r from-primary to-violet-500 border-0 hover:opacity-90 shadow-md shadow-primary/20">
+                <Button size="sm" className="gap-1.5">
                   <Users size={13} />
                   Discover Readers
                 </Button>
@@ -298,11 +297,11 @@ export default async function DashboardPage() {
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {quickActions.map(({ href, icon: Icon, label, desc, gradient }) => (
+          {quickActions.map(({ href, icon: Icon, label, desc, bg, text }) => (
             <Link key={href} href={href}>
               <div className="group flex items-center gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer">
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shrink-0 shadow-sm group-hover:scale-110 transition-transform`}>
-                  <Icon size={17} className="text-white" />
+                <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform`}>
+                  <Icon size={17} className={text} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold group-hover:text-primary transition-colors">{label}</p>

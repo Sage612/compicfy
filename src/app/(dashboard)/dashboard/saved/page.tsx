@@ -33,7 +33,6 @@ export default async function SavedPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Fetch profile to check pro status
   const { data: profile } = await (supabase as any)
     .from('profiles')
     .select('is_pro, pro_expires_at, role')
@@ -64,32 +63,32 @@ export default async function SavedPage() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
       {/* Header */}
-<div className="flex items-center justify-between gap-3">
-  <div className="flex items-center gap-2.5 min-w-0">
-    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center shadow-lg shadow-rose-500/20 shrink-0">
-      <Bookmark size={16} className="text-white" />
-    </div>
-    <div className="min-w-0">
-      <h1 className="text-xl font-black tracking-tight leading-tight truncate">Saved Comics</h1>
-      <p className="text-muted-foreground text-xs mt-0.5">
-        {saveCount} saved
-        {!isPro && (
-          <span className="text-muted-foreground/60 ml-1">
-            · {Math.max(0, FREE_SAVE_LIMIT - saveCount)} slots left
-          </span>
-        )}
-      </p>
-    </div>
-  </div>
-  <Link href="/browse" className="shrink-0">
-    <Button variant="outline" size="sm" className="gap-2 hover:border-primary/40 hover:text-primary transition-colors">
-      <Radar size={14} />
-      Browse More
-    </Button>
-  </Link>
-</div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <Bookmark size={16} className="text-primary" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xl font-black tracking-tight leading-tight truncate">Saved Comics</h1>
+            <p className="text-muted-foreground text-xs mt-0.5">
+              {saveCount} saved
+              {!isPro && (
+                <span className="text-muted-foreground/60 ml-1">
+                  · {Math.max(0, FREE_SAVE_LIMIT - saveCount)} slots left
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+        <Link href="/browse" className="shrink-0">
+          <Button variant="outline" size="sm" className="gap-2 hover:border-primary/40 hover:text-primary transition-colors">
+            <Radar size={14} />
+            Browse More
+          </Button>
+        </Link>
+      </div>
 
-      {/* Free user usage bar — shown when near or at limit */}
+      {/* Free user usage bar */}
       {!isPro && saveCount > 0 && (
         <div className={`rounded-2xl border p-4 space-y-3 ${
           atLimit
@@ -116,7 +115,6 @@ export default async function SavedPage() {
             )}
           </div>
 
-          {/* Progress bar */}
           <div className="h-1.5 rounded-full bg-muted overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ${
@@ -141,25 +139,25 @@ export default async function SavedPage() {
       {/* Empty state */}
       {savedComics.length === 0 ? (
         <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-rose-500/5 blur-2xl pointer-events-none" />
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
 
           <div className="relative w-28 h-28 mx-auto mb-6">
             <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
             <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
-            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-rose-500/30 bg-card flex items-center justify-center shadow-lg">
-              <Bookmark size={20} className="text-rose-500/50" />
+            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-primary/30 bg-card flex items-center justify-center shadow-lg">
+              <Bookmark size={20} className="text-primary/50" />
             </div>
           </div>
 
           <h3 className="font-black text-xl mb-2">Your saved list is empty</h3>
           <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto leading-relaxed">
-            Browse comics and hit the bookmark/save comic icon to save them here for later.
+            Browse comics and hit the bookmark icon to save them here for later.
           </p>
 
           <div className="flex flex-wrap justify-center gap-3">
             <Link href="/browse">
-              <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
+              <Button className="gap-2">
                 <BookOpen size={14} />
                 Browse Comics
               </Button>
@@ -180,7 +178,6 @@ export default async function SavedPage() {
               href={`/comic/${rec.id}`}
               className="group flex gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200"
             >
-              {/* Cover */}
               <div className="relative w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                 {rec.cover_url ? (
                   <img
@@ -193,12 +190,11 @@ export default async function SavedPage() {
                     <BookOpen size={16} className="text-muted-foreground opacity-40" />
                   </div>
                 )}
-                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-rose-500/90 flex items-center justify-center shadow-sm">
-                  <Bookmark size={8} className="text-white fill-white" />
+                <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center shadow-sm">
+                  <Bookmark size={8} className="text-primary-foreground fill-primary-foreground" />
                 </div>
               </div>
 
-              {/* Info */}
               <div className="flex-1 min-w-0 space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-black text-sm truncate group-hover:text-primary transition-colors leading-tight">
