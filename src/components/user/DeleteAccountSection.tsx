@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,30 +8,47 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { Trash2, AlertTriangle, Loader2, Eye, EyeOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { createClient } from '@/lib/supabase/client'
 
 export function DeleteAccountSection() {
-  const router = useRouter()
+  const router   = useRouter()
+  const supabase = createClient()
 
-  const [open,          setOpen]          = useState(false)
-  const [confirmed,     setConfirmed]     = useState(false)
-  const [password,      setPassword]      = useState('')
-  const [showPassword,  setShowPassword]  = useState(false)
-  const [loading,       setLoading]       = useState(false)
-  const [typedConfirm,  setTypedConfirm]  = useState('')
+  const [open,         setOpen]         = useState(false)
+  const [password,     setPassword]     = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading,      setLoading]      = useState(false)
+  const [typedConfirm, setTypedConfirm] = useState('')
+  const [isGoogleUser, setIsGoogleUser] = useState<boolean | null>(null)
 
-  // User must type "delete my account" exactly to enable the button
-  const CONFIRM_PHRASE   = 'delete my account'
-  const phraseMatches    = typedConfirm.toLowerCase() === CONFIRM_PHRASE
-  const canSubmit        = phraseMatches && password.length >= 6 && !loading
+  // Detect auth provider on mount
+  useEffect(() => {
+    const detectProvider = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const provider = user.identities?.[0]?.provider ?? 'email'
+      setIsGoogleUser(provider === 'google')
+    }
+    detectProvider()
+  }, [supabase])
+
+  const CONFIRM_PHRASE = 'delete my account'
+  const phraseMatches  = typedConfirm.toLowerCase() === CONFIRM_PHRASE
+
+  // Google users only need the phrase; email users also need password
+  const canSubmit = isGoogleUser
+    ? phraseMatches && !loading
+    : phraseMatches && password.length >= 6 && !loading
 
   const handleDelete = async () => {
     if (!canSubmit) return
     setLoading(true)
     try {
+      const body = isGoogleUser ? {} : { password }
       const res  = await fetch('/api/account', {
         method:  'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ password }),
+        body:    JSON.stringify(body),
       })
       const data = await res.json()
 
@@ -40,11 +57,11 @@ export function DeleteAccountSection() {
         return
       }
 
-      toast.success('Account deleted. Goodbye ')
+      toast.success('Account deleted Goodbye 😢')
       router.push('/')
       router.refresh()
     } catch {
-      toast.error('Something went wrong — try again')
+      toast.error('Something went wrong try again')
     } finally {
       setLoading(false)
     }
@@ -89,7 +106,7 @@ export function DeleteAccountSection() {
         </div>
       </div>
 
-      {/* Step 1: typed confirmation */}
+      {/* Step 1: typed confirmation — same for everyone */}
       <div className="space-y-1.5">
         <Label className="text-xs font-semibold text-muted-foreground">
           Type <span className="font-black text-foreground">delete my account</span> to confirm
@@ -108,27 +125,36 @@ export function DeleteAccountSection() {
         />
       </div>
 
-      {/* Step 2: password */}
-      <div className="space-y-1.5">
-        <Label className="text-xs font-semibold text-muted-foreground">Confirm your password</Label>
-        <div className="relative">
-          <Input
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="Your current password"
-            className="h-10 pr-10 text-sm"
-            autoComplete="current-password"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(v => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
+      {/* Step 2: password — email users only */}
+      {isGoogleUser === false && (
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold text-muted-foreground">Confirm your password</Label>
+          <div className="relative">
+            <Input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Your current password"
+              className="h-10 pr-10 text-sm"
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(v => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Google user note */}
+      {isGoogleUser === true && (
+        <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+          You signed up with Google so no password is needed, just confirm the phrase above.
+        </p>
+      )}
 
       {/* Actions */}
       <div className="flex gap-2 pt-1">

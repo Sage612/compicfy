@@ -20,22 +20,18 @@ import { cn } from '@/lib/utils'
 import { useTheme } from 'next-themes'
 
 const settingsSchema = z.object({
-  username: z
-    .string()
-    .min(3, 'At least 3 characters')
-    .max(30, 'Max 30 characters')
-    .regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers, underscores only'),
+  username:     z.string().min(3, 'At least 3 characters').max(30, 'Max 30 characters').regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers, underscores only'),
   display_name: z.string().max(50, 'Max 50 characters').optional(),
-  bio: z.string().max(500, 'Max 500 characters').optional(),
-  website: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  bio:          z.string().max(500, 'Max 500 characters').optional(),
+  website:      z.string().url('Must be a valid URL').optional().or(z.literal('')),
 })
 
 type SettingsFormValues = z.infer<typeof settingsSchema>
 
 function FormSection({ icon: Icon, title, accent = 'bg-primary', children }: {
-  icon: React.ElementType
-  title: string
-  accent?: string
+  icon:     React.ElementType
+  title:    string
+  accent?:  string
   children: React.ReactNode
 }) {
   return (
@@ -53,17 +49,18 @@ function FormSection({ icon: Icon, title, accent = 'bg-primary', children }: {
 
 interface Props {
   profile: Profile
-  userId: string
-  isPro: boolean
+  userId:  string
+  isPro:   boolean
 }
 
 export function SettingsForm({ profile, userId, isPro }: Props) {
-  const supabase    = createClient()
+  const supabase     = createClient()
   const { setTheme } = useTheme()
-  const [saving,          setSubmitting]    = useState(false)
-  const [avatarUrl,       setAvatarUrl]     = useState(profile.avatar_url)
-  const [selectedGenres,  setSelectedGenres] = useState<string[]>(profile.favorite_genres || [])
-  const [themePreference, setThemePreference] = useState<'dark' | 'light' | 'system'>(
+
+  const [saving,           setSubmitting]      = useState(false)
+  const [avatarUrl,        setAvatarUrl]        = useState(profile.avatar_url)
+  const [selectedGenres,   setSelectedGenres]   = useState<string[]>(profile.favorite_genres || [])
+  const [themePreference,  setThemePreference]  = useState<'dark' | 'light' | 'system'>(
     profile.theme_preference ?? 'system'
   )
 
@@ -85,6 +82,12 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
         ? prev.filter(g => g !== genre)
         : prev.length >= 10 ? prev : [...prev, genre]
     )
+  }
+
+  // Apply theme immediately on click for everyone
+  const handleThemeChange = (value: 'dark' | 'light' | 'system') => {
+    setThemePreference(value)
+    setTheme(value)
   }
 
   const onSubmit = async (data: SettingsFormValues) => {
@@ -113,6 +116,7 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
         updated_at:      new Date().toISOString(),
       }
 
+      // Only save theme to DB for pro/admin — free users get it applied locally only
       if (isPro) updateData.theme_preference = themePreference
 
       const { error } = await (supabase as any)
@@ -121,7 +125,6 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
         .eq('id', userId)
 
       if (error) throw error
-      if (isPro) setTheme(themePreference)
 
       toast.success('Profile updated!')
     } catch (error) {
@@ -189,46 +192,41 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
             <Globe size={13} />
             Website
           </Label>
-          <Input
-            id="website"
-            {...register('website')}
-            placeholder="https://yoursite.com"
-            type="url"
-            className="h-10"
-          />
+          <Input id="website" {...register('website')} placeholder="https://yoursite.com" type="url" className="h-10" />
           {errors.website && <p className="text-xs text-destructive">{errors.website.message}</p>}
         </div>
       </FormSection>
 
-      {/* Theme Preference — Pro/Admin only */}
-      {isPro && (
-        <FormSection icon={Palette} title="Theme Preference" accent="bg-amber-500">
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Saved to your account and applied across all sessions.
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              {themeOptions.map(({ value, label, icon: Icon, desc }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setThemePreference(value)}
-                  className={cn(
-                    'flex flex-col items-center gap-2 p-3 rounded-xl border text-center transition-all duration-150',
-                    themePreference === value
-                      ? 'border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 shadow-sm'
-                      : 'border-border bg-card text-muted-foreground hover:border-amber-500/30 hover:text-foreground'
-                  )}
-                >
-                  <Icon size={18} />
-                  <span className="text-xs font-bold leading-none">{label}</span>
-                  <span className="text-[10px] leading-tight opacity-70">{desc}</span>
-                </button>
-              ))}
-            </div>
+      {/* Theme Preference — all users */}
+      <FormSection icon={Palette} title="Theme Preference" accent="bg-primary">
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {isPro
+              ? 'Saved to your account and applied across all sessions.'
+              : 'Applied to this browser only. Upgrade to Pro to save your theme across all sessions.'
+            }
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {themeOptions.map(({ value, label, icon: Icon, desc }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => handleThemeChange(value)}
+                className={cn(
+                  'flex flex-col items-center gap-2 p-3 rounded-xl border text-center transition-all duration-150',
+                  themePreference === value
+                    ? 'border-primary/50 bg-primary/10 text-primary shadow-sm'
+                    : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                )}
+              >
+                <Icon size={18} />
+                <span className="text-xs font-bold leading-none">{label}</span>
+                <span className="text-[10px] leading-tight opacity-70">{desc}</span>
+              </button>
+            ))}
           </div>
-        </FormSection>
-      )}
+        </div>
+      </FormSection>
 
       {/* Favourite Genres */}
       <FormSection icon={Heart} title="Favourite Genres" accent="bg-rose-500">
@@ -271,11 +269,7 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
       {/* Save row */}
       <div className="flex items-center justify-between pt-1">
         <p className="text-xs text-muted-foreground">Username changes take effect immediately across the platform</p>
-        <Button
-          type="submit"
-          disabled={saving}
-          className="gap-2 min-w-32"
-        >
+        <Button type="submit" disabled={saving} className="gap-2 min-w-32">
           {saving
             ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
             : 'Save Changes'
