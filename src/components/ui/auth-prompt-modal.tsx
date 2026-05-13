@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { LogIn, UserPlus } from 'lucide-react'
 import {
@@ -23,7 +23,6 @@ export interface AuthPromptConfig {
   action:      string
   comicTitle?: string
   icon?:       React.ReactNode
-  /** Override redirect path — defaults to current pathname */
   nextPath?:   string
 }
 
@@ -37,14 +36,14 @@ function PromptContent({ config, onClose, resolvedNextPath }: {
   config:           AuthPromptConfig
   onClose:          () => void
   resolvedNextPath: string
-}) {
+}): React.ReactNode {
   const loginHref  = `/login?next=${encodeURIComponent(resolvedNextPath)}`
   const signupHref = `/signup?next=${encodeURIComponent(resolvedNextPath)}`
 
   return (
     <div className="flex flex-col items-center text-center gap-6 py-2">
       <div className="relative">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-violet-500/10 border border-primary/20 flex items-center justify-center">
+        <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
           {config.icon ?? <LogIn size={24} className="text-primary" />}
         </div>
         <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-400 border-2 border-background flex items-center justify-center">
@@ -70,7 +69,7 @@ function PromptContent({ config, onClose, resolvedNextPath }: {
       </div>
 
       <div className="w-full space-y-2.5 max-w-xs">
-        <Button asChild className="w-full gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20 h-11">
+        <Button asChild className="w-full gap-2 h-11">
           <a href={loginHref}>
             <LogIn size={15} />
             Sign In
@@ -95,7 +94,7 @@ function PromptContent({ config, onClose, resolvedNextPath }: {
 }
 
 export function AuthPromptModal({ open, onClose, config }: Props) {
-  const pathname  = usePathname()
+  const pathname   = usePathname()
   const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
@@ -106,7 +105,6 @@ export function AuthPromptModal({ open, onClose, config }: Props) {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  // Use config.nextPath if provided, else current pathname
   const resolvedNextPath = config.nextPath ?? pathname
 
   if (isMobile) {

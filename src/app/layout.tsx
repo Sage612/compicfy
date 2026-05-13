@@ -11,13 +11,13 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Compicfy — Find your next obsession',
+    default:  'Compicfy — Find your next obsession',
     template: '%s | Compicfy',
   },
   description: 'Community-driven recommendations for manga, manhwa, manhua, and webtoons. Discover, vote, review, and share your favorite comics.',
   keywords: ['manga', 'manhwa', 'manhua', 'webtoon', 'comics', 'recommendations', 'community'],
-  authors: [{ name: 'Compicfy' }],
-  creator: 'Compicfy',
+  authors:  [{ name: 'Compicfy' }],
+  creator:  'Compicfy',
   openGraph: {
     type:        'website',
     locale:      'en_US',
@@ -40,9 +40,6 @@ export const metadata: Metadata = {
   },
 }
 
-// ── WebSite + SearchAction JSON-LD ────────────────────────────────
-// Enables Google Sitelinks Search Box and brand knowledge panel.
-// Completely invisible to users — only parsed by crawlers.
 const websiteJsonLd = {
   '@context': 'https://schema.org',
   '@type':    'WebSite',
@@ -54,19 +51,17 @@ const websiteJsonLd = {
     name:    'Compicfy',
     url:      SITE_URL,
     logo: {
-      '@type':       'ImageObject',
-      url:           `${SITE_URL}/icons/icon-192.png`,
-      width:         192,
-      height:        192,
+      '@type':  'ImageObject',
+      url:      `${SITE_URL}/icons/icon-192.png`,
+      width:    192,
+      height:   192,
     },
   },
-  // SearchAction tells Google what the search URL pattern looks like.
-  // This is what powers the Sitelinks Search Box in Google results.
   potentialAction: {
-    '@type':       'SearchAction',
+    '@type':  'SearchAction',
     target: {
-      '@type':      'EntryPoint',
-      urlTemplate:  `${SITE_URL}/browse?q={search_term_string}`,
+      '@type':     'EntryPoint',
+      urlTemplate: `${SITE_URL}/browse?q={search_term_string}`,
     },
     'query-input': 'required name=search_term_string',
   },
@@ -80,13 +75,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           name="viewport"
           content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-visual"
         />
-        {/* WebSite structured data — injected once at root for all pages */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
       </head>
-      <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased`}>
+      <body className={`${GeistSans.variable} ${GeistMono.variable} antialiased bg-background text-foreground`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
           <Toaster richColors position="top-right" />

@@ -25,22 +25,6 @@ export default async function ProListDetailPage({ params }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Verify user is actually pro/admin
-  const { data: profile } = await (supabase as any)
-    .from('profiles')
-    .select('is_pro, pro_expires_at, role')
-    .eq('id', user.id)
-    .single()
-
-  const isPro = profile
-    ? ['admin', 'moderator'].includes(profile.role) ||
-      (profile.is_pro &&
-        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-    : false
-
-  if (!isPro) redirect('/pricing?reason=pro_required')
-
-  // Fetch all lists
   const { data: allListsData } = await (supabase as any)
     .from('reading_lists')
     .select('id, name, created_at')
@@ -50,7 +34,6 @@ export default async function ProListDetailPage({ params }: Props) {
   const list = (allListsData ?? []).find((l: any) => l.id === id)
   if (!list) notFound()
 
-  // Pro users are never locked
   const { data: items } = await supabase
     .from('reading_list_items')
     .select(`

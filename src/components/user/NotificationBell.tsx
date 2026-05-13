@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { timeAgo } from '@/lib/utils/format'
 import { createClient } from '@/lib/supabase/client'
-import { useUserStore } from '@/store/userStore'
 import { toast } from 'sonner'
 
 interface Notification {
@@ -94,19 +93,27 @@ export function NotificationBell({ userId }: { userId: string }) {
   const [open,          setOpen]          = useState(false)
   const [pushEnabled,   setPushEnabled]   = useState<boolean | null>(null)
   const [pushLoading,   setPushLoading]   = useState(false)
+  const [notifHref, setNotifHref] = useState('/dashboard/notifications')
   const supabase = createClient()
 
-  const profile = useUserStore(state => state.profile)
-
-  const isPro =
-    profile?.role === 'admin' ||
-    profile?.role === 'moderator' ||
-    (profile?.is_pro && (
-      !profile?.pro_expires_at ||
-      new Date(profile.pro_expires_at) > new Date()
-    ))
-
-  const notifHref = isPro ? '/pro/notifications' : '/dashboard/notifications'
+  useEffect(() => {
+    const fetchProStatus = async () => {
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      if (!currentUser) return
+      const { data: profile } = await (supabase as any)
+        .from('profiles')
+        .select('role, is_pro, pro_expires_at')
+        .eq('id', currentUser.id)
+        .single()
+      if (!profile) return
+      const isPro =
+        profile.role === 'admin' ||
+        profile.role === 'moderator' ||
+        (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+      setNotifHref(isPro ? '/pro/notifications' : '/dashboard/notifications')
+    }
+    fetchProStatus()
+  }, [supabase])
 
   const fetchNotifications = useCallback(async () => {
     const res  = await fetch('/api/notifications')

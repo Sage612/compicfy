@@ -4,6 +4,7 @@ import { FilterBar } from '@/components/recommendations/FilterBar'
 import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
 import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
+import { BrowseRecButton } from '@/components/recommendations/BrowseRecButton'
 import { BookOpen, Radar } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -40,7 +41,6 @@ async function getRecent(s: SupabaseClient) {
   return (data as Recommendation[]) ?? []
 }
 
-// New this week — approved in the last 7 days, ordered by score
 async function getNewThisWeek(s: SupabaseClient) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const { data } = await s
@@ -116,6 +116,7 @@ export default async function BrowsePage({ searchParams }: Props) {
   let adultEnabled     = false
   let interactionCount = 0
   let isPro            = false
+  let recommendHref    = '/dashboard/recommendations/new'
 
   if (user) {
     const [profileRes, interactions] = await Promise.all([
@@ -124,25 +125,18 @@ export default async function BrowsePage({ searchParams }: Props) {
     ])
     adultEnabled     = (profileRes.data as any)?.adult_content_enabled === true
     interactionCount = interactions
-    
+
     const profile = profileRes.data as any
     isPro = profile?.role === 'admin' ||
             profile?.role === 'moderator' ||
-            (profile?.is_pro && (
-              !profile?.pro_expires_at ||
-              new Date(profile.pro_expires_at) > new Date()
-            ))
+            (profile?.is_pro && (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+
+    if (isPro) recommendHref = '/pro/recommendations/new'
   }
 
   const [
-    featured,
-    trending,
-    recent,
-    newThisWeek,
-    adminPicks,
-    communityFavs,
-    hiddenGems,
-    youMightLike,
+    featured, trending, recent, newThisWeek,
+    adminPicks, communityFavs, hiddenGems, youMightLike,
     { items, total },
   ] = await Promise.all([
     isFiltering ? Promise.resolve([]) : getFeatured(supabase),
@@ -166,7 +160,7 @@ export default async function BrowsePage({ searchParams }: Props) {
   return (
     <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-8 h-8 rounded bg-primary flex items-center justify-center shrink-0">
@@ -185,28 +179,22 @@ export default async function BrowsePage({ searchParams }: Props) {
               <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 h-8 px-2.5">🔞</Button>
             </Link>
           )}
-          <Link href="/dashboard/recommendations/new">
-            <Button size="sm" className="gap-1.5 bg-primary hover:bg-primary/90 border-0 h-8 px-3">
-              <BookOpen size={14} />
-              <span className="hidden sm:inline">Recommend</span>
-              <span className="sm:hidden text-xs font-semibold">Rec</span>
-            </Button>
-          </Link>
+          {/* BrowseRecButton handles auth state — shows modal for guests, links for logged in */}
+          <BrowseRecButton isLoggedIn={!!user} recommendHref={recommendHref} />
         </div>
       </div>
 
-      {/* ── Featured Carousel ── */}
+      {/* Featured Carousel */}
       {!isFiltering && featured.length > 0 && (
         <Suspense fallback={<div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />}>
           <FeaturedCarousel recommendations={featured} />
         </Suspense>
       )}
 
-      {/* ── Horizontal Sections ── */}
+      {/* Horizontal Sections */}
       {!isFiltering && (
         <div className="space-y-10">
           <HorizontalSection title="Trending Today"  emoji="🔥" recommendations={trending}     viewAllHref="/browse?sort=trending" />
-          {/* New This Week — only shown when there are actually new comics */}
           {newThisWeek.length > 0 && (
             <HorizontalSection title="New This Week" emoji="🆕" recommendations={newThisWeek}  viewAllHref="/browse?sort=recent"   />
           )}
@@ -224,7 +212,7 @@ export default async function BrowsePage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* ── All Comics divider ── */}
+      {/* All Comics divider */}
       {!isFiltering && (
         <div className="relative flex items-center gap-4 py-2">
           <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
@@ -236,12 +224,12 @@ export default async function BrowsePage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* ── Filter Bar ── */}
+      {/* Filter Bar */}
       <Suspense fallback={<div className="h-24 bg-muted/30 rounded-xl animate-pulse" />}>
         <FilterBar adult={false} />
       </Suspense>
 
-      {/* ── Comic Grid ── */}
+      {/* Comic Grid */}
       <ComicGridClient
         initialItems={items}
         initialTotal={total}

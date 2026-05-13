@@ -136,7 +136,7 @@ export function MobileNav() {
 
       {/* Profile sheet */}
       <div className={cn(
-        'fixed bottom-0 left-0 right-0 z-[60] lg:hidden bg-background border-t border-border rounded-t-2xl',
+        'fixed bottom-0 left-0 right-0 z-[60] lg:hidden bg-background border-t border-border rounded-t-2xl overflow-y-auto max-h-[85vh]',
         'transition-transform duration-300 ease-in-out',
         profileOpen ? 'translate-y-0' : 'translate-y-full'
       )}>

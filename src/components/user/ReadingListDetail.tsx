@@ -64,7 +64,6 @@ interface Props {
   initialItems: ListItem[]
   isLocked?:    boolean
   allLists?:    { id: string; name: string }[]
-  /** Where the back link points — defaults to /dashboard/lists */
   backHref?:    string
 }
 
@@ -115,7 +114,7 @@ export function ReadingListDetail({
   return (
     <div className="space-y-6">
 
-      {/* Back link — uses backHref so pro users go to /pro/lists */}
+      {/* Back link */}
       <Link
         href={backHref}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -147,11 +146,17 @@ export function ReadingListDetail({
 
       {/* Header card */}
       <div className={cn('rounded-2xl border bg-card overflow-hidden', isLocked ? 'border-amber-500/20' : 'border-border')}>
-        <div className={cn('h-16 bg-gradient-to-br', isLocked ? 'from-amber-500/10 via-orange-500/5 to-transparent' : 'from-teal-500/20 via-cyan-500/10 to-transparent')} />
+        <div className={cn('h-16 bg-gradient-to-br', isLocked ? 'from-amber-500/10 via-orange-500/5 to-transparent' : 'from-primary/15 via-primary/5 to-transparent')} />
         <div className="px-5 pb-5 -mt-6 space-y-3">
           <div className="flex items-end justify-between gap-4">
-            <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-card', isLocked ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-gradient-to-br from-teal-500 to-cyan-600')}>
-              {isLocked ? <Lock size={20} className="text-white" /> : <BookMarked size={20} className="text-white" />}
+            <div className={cn(
+              'w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-card',
+              isLocked ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-primary'
+            )}>
+              {isLocked
+                ? <Lock size={20} className="text-white" />
+                : <BookMarked size={20} className="text-primary-foreground" />
+              }
             </div>
           </div>
           <div className="space-y-1">
@@ -160,7 +165,10 @@ export function ReadingListDetail({
           </div>
           <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
             <span><strong className="text-foreground font-black">{items.length}</strong> comic{items.length !== 1 ? 's' : ''}</span>
-            <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold', list.is_public ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border')}>
+            <span className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold',
+              list.is_public ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : 'bg-muted text-muted-foreground border-border'
+            )}>
               {list.is_public ? <Globe size={9} /> : <Lock size={9} />}
               {list.is_public ? 'Public' : 'Private'}
             </span>
@@ -169,7 +177,7 @@ export function ReadingListDetail({
         </div>
       </div>
 
-      {/* Add to tracker search — only for unlocked lists */}
+      {/* Add to tracker search */}
       {!isLocked && (
         <AddToTrackerSearch
           lists={[{ id: list.id, name: list.name }, ...allLists.filter(l => l.id !== list.id)]}
@@ -182,7 +190,10 @@ export function ReadingListDetail({
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => setFilterStatus(null)}
-            className={cn('px-3 py-1.5 rounded-full text-xs font-semibold border transition-all', !filterStatus ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border text-muted-foreground hover:border-primary')}
+            className={cn(
+              'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+              !filterStatus ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border text-muted-foreground hover:border-primary'
+            )}
           >
             All ({items.length})
           </button>
@@ -190,7 +201,10 @@ export function ReadingListDetail({
             <button
               key={s.value}
               onClick={() => setFilterStatus(filterStatus === s.value ? null : s.value)}
-              className={cn('px-3 py-1.5 rounded-full text-xs font-semibold border transition-all', filterStatus === s.value ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border text-muted-foreground hover:border-primary')}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+                filterStatus === s.value ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border text-muted-foreground hover:border-primary'
+              )}
             >
               {s.emoji} {s.label} ({statusCounts[s.value]})
             </button>
@@ -212,9 +226,7 @@ export function ReadingListDetail({
           </div>
           {!isLocked && (
             <Link href="/browse">
-              <Button size="sm" className="bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0">
-                Browse Comics
-              </Button>
+              <Button size="sm">Browse Comics</Button>
             </Link>
           )}
         </div>
@@ -239,7 +251,7 @@ export function ReadingListDetail({
               >
                 {progressPct !== null && (
                   <div className="h-0.5 bg-muted">
-                    <div className="h-full bg-gradient-to-r from-primary to-violet-500 transition-all" style={{ width: `${progressPct}%` }} />
+                    <div className="h-full bg-primary transition-all" style={{ width: `${progressPct}%` }} />
                   </div>
                 )}
 
@@ -247,7 +259,6 @@ export function ReadingListDetail({
                   onClick={() => router.push(`/comic/${rec.id}`)}
                   className="flex gap-4 p-4 cursor-pointer"
                 >
-                  {/* Cover */}
                   <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                     {rec.cover_url ? (
                       <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -258,7 +269,6 @@ export function ReadingListDetail({
                     )}
                   </div>
 
-                  {/* Info */}
                   <div className="flex-1 min-w-0 space-y-2 py-0.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 space-y-1.5">
