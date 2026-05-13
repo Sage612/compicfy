@@ -5,7 +5,6 @@ import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useRouter, usePathname } from 'next/navigation'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -43,8 +42,8 @@ type FormValues = z.infer<typeof formSchema>
 
 const TYPES = [
   { value: 'manga',   label: 'Manga',   desc: 'Japanese', activeClass: 'bg-rose-500   border-rose-500   text-white' },
-  { value: 'manhwa',  label: 'Manhwa',   desc: 'Korean',   activeClass: 'bg-violet-500 border-violet-500 text-white' },
-  { value: 'manhua',  label: 'Manhua',   desc: 'Chinese',  activeClass: 'bg-amber-500  border-amber-500  text-white' },
+  { value: 'manhwa',  label: 'Manhwa',  desc: 'Korean',   activeClass: 'bg-violet-500 border-violet-500 text-white' },
+  { value: 'manhua',  label: 'Manhua',  desc: 'Chinese',  activeClass: 'bg-amber-500  border-amber-500  text-white' },
   { value: 'webtoon', label: 'Webtoon', desc: 'Vertical', activeClass: 'bg-teal-500   border-teal-500   text-white' },
   { value: 'comic',   label: 'Comic',   desc: 'Western',  activeClass: 'bg-blue-500   border-blue-500   text-white' },
   { value: 'other',   label: 'Other',   desc: 'Misc',     activeClass: 'bg-zinc-500   border-zinc-500   text-white' },
@@ -64,7 +63,7 @@ const RATINGS = [
   { value: 'adult',    label: 'Adult 18+',  emoji: '🔴' },
 ] as const
 
-function FormSection({ icon: Icon, title, accent = 'from-primary to-violet-500', children }: {
+function FormSection({ icon: Icon, title, accent = 'bg-primary', children }: {
   icon: React.ElementType
   title: string
   accent?: string
@@ -73,8 +72,8 @@ function FormSection({ icon: Icon, title, accent = 'from-primary to-violet-500',
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-muted/30">
-        <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${accent} flex items-center justify-center shrink-0`}>
-          <Icon size={13} className="text-white" />
+        <div className={`w-7 h-7 rounded-lg ${accent} flex items-center justify-center shrink-0`}>
+          <Icon size={13} className="text-primary-foreground" />
         </div>
         <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{title}</h3>
       </div>
@@ -89,7 +88,7 @@ interface Props {
 }
 
 export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
-  const router = useRouter()
+  const router   = useRouter()
   const pathname = usePathname()
   const isProPath = pathname.startsWith('/pro')
   const [submitting, setSubmitting] = useState(false)
@@ -97,19 +96,19 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
   const { register, handleSubmit, control, watch, formState: { errors, isDirty } } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
-      title:               rec.title              ?? '',
-      description:         rec.description        ?? '',
-      type:                rec.type               ?? 'manga',
-      status:              rec.status             ?? 'ongoing',
-      genres:              rec.genres             ?? [],
+      title:              rec.title              ?? '',
+      description:        rec.description        ?? '',
+      type:               rec.type               ?? 'manga',
+      status:             rec.status             ?? 'ongoing',
+      genres:             rec.genres             ?? [],
       official_platforms: rec.official_platforms ?? [],
-      cover_url:           rec.cover_url          ?? '',
+      cover_url:          rec.cover_url          ?? '',
       content_rating:     (rec.content_rating === 'all' ? 'all_ages' : rec.content_rating) ?? 'all_ages',
-      why_recommend:       rec.why_recommend      ?? '',
-      author:              rec.author             ?? '',
-      artist:              rec.artist             ?? '',
-      year_released:       rec.year_released      ?? undefined,
-      chapter_count:       rec.chapter_count      ?? undefined,
+      why_recommend:      rec.why_recommend      ?? '',
+      author:             rec.author             ?? '',
+      artist:             rec.artist             ?? '',
+      year_released:      rec.year_released      ?? undefined,
+      chapter_count:      rec.chapter_count      ?? undefined,
     },
   })
 
@@ -120,17 +119,12 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
     setSubmitting(true)
     try {
       const response = await fetch(`/api/recommendations/${rec.id}`, {
-        method: 'PATCH',
+        method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body:    JSON.stringify(data),
       })
       const result = await response.json()
-
-      if (!response.ok) {
-        toast.error(result.error || 'Failed to update')
-        return
-      }
-
+      if (!response.ok) { toast.error(result.error || 'Failed to update'); return }
       toast.success('Recommendation updated! It will be reviewed before going live.')
       router.push(isProPath ? '/pro/recommendations' : '/dashboard/recommendations')
       router.refresh()
@@ -161,12 +155,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
               <Label htmlFor="title" className="text-sm font-semibold">
                 Title <span className="text-destructive">*</span>
               </Label>
-              <Input
-                id="title"
-                {...register('title')}
-                placeholder="e.g. One Piece, Solo Leveling…"
-                className="h-11 text-base"
-              />
+              <Input id="title" {...register('title')} placeholder="e.g. One Piece, Solo Leveling…" className="h-11 text-base" />
               {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -194,7 +183,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       </FormSection>
 
       {/* Classification */}
-      <FormSection icon={Tag} title="Classification" accent="from-violet-500 to-purple-600">
+      <FormSection icon={Tag} title="Classification" accent="bg-violet-500">
         <div className="space-y-2">
           <Label className="text-sm font-semibold">Type <span className="text-destructive">*</span></Label>
           <Controller
@@ -215,9 +204,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
                     )}
                   >
                     {label}
-                    <span className={cn('text-[10px] font-normal', field.value === value ? 'opacity-75' : 'opacity-60')}>
-                      {desc}
-                    </span>
+                    <span className={cn('text-[10px] font-normal', field.value === value ? 'opacity-75' : 'opacity-60')}>{desc}</span>
                   </button>
                 ))}
               </div>
@@ -285,7 +272,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       </FormSection>
 
       {/* Genres */}
-      <FormSection icon={Tag} title="Genres" accent="from-rose-500 to-pink-600">
+      <FormSection icon={Tag} title="Genres" accent="bg-rose-500">
         <Controller
           name="genres"
           control={control}
@@ -296,7 +283,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       </FormSection>
 
       {/* Description */}
-      <FormSection icon={FileText} title="Description" accent="from-amber-500 to-orange-500">
+      <FormSection icon={FileText} title="Description" accent="bg-amber-500">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label htmlFor="description" className="text-sm font-semibold">
@@ -304,13 +291,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
             </Label>
             <span className="text-xs text-muted-foreground">{descValue.length}/2000</span>
           </div>
-          <Textarea
-            id="description"
-            {...register('description')}
-            placeholder="What is this comic about?"
-            rows={4}
-            className="resize-none"
-          />
+          <Textarea id="description" {...register('description')} placeholder="What is this comic about?" rows={4} className="resize-none" />
           {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
         </div>
         <div className="space-y-1.5">
@@ -321,18 +302,12 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
             </Label>
             <span className="text-xs text-muted-foreground">{whyValue.length}/1000</span>
           </div>
-          <Textarea
-            id="why_recommend"
-            {...register('why_recommend')}
-            placeholder="What makes this special?"
-            rows={3}
-            className="resize-none"
-          />
+          <Textarea id="why_recommend" {...register('why_recommend')} placeholder="What makes this special?" rows={3} className="resize-none" />
         </div>
       </FormSection>
 
       {/* Platforms */}
-      <FormSection icon={Globe} title="Official Platforms" accent="from-teal-500 to-cyan-600">
+      <FormSection icon={Globe} title="Official Platforms" accent="bg-teal-500">
         <Controller
           name="official_platforms"
           control={control}
@@ -355,7 +330,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
         <Button
           type="submit"
           disabled={submitting || !isDirty}
-          className="gap-2 min-w-44 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+          className="gap-2 min-w-44"
         >
           {submitting
             ? <><Loader2 size={15} className="animate-spin" /> Saving…</>

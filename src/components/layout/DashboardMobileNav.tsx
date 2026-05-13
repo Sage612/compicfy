@@ -10,14 +10,13 @@ import { cn } from '@/lib/utils'
 
 const items = [
   { href: '/dashboard',                     label: 'Home',    icon: LayoutDashboard, exact: true,  isSubmit: false },
-  // Submit rec — exact so it doesn't stay active on /dashboard/recommendations list
   { href: '/dashboard/recommendations/new', label: 'Submit',  icon: Plus,            exact: true,  isSubmit: true  },
   { href: '/dashboard/recommendations',     label: 'My Recs', icon: BookOpen,        exact: false, isSubmit: false },
   { href: '/dashboard/saved',               label: 'Saved',   icon: Bookmark,        exact: false, isSubmit: false },
   { href: '/dashboard/lists',               label: 'Lists',   icon: BookMarked,      exact: false, isSubmit: false },
   { href: '/dashboard/notifications',       label: 'Alerts',  icon: Bell,            exact: false, isSubmit: false },
   { href: '/dashboard/reviews',             label: 'Reviews', icon: Star,            exact: false, isSubmit: false },
-  { href: '/dashboard/settings',            label: 'Settings',icon: Settings,        exact: false, isSubmit: false },
+  { href: '/dashboard/settings',            label: 'Settings', icon: Settings,       exact: false, isSubmit: false },
   { href: '/dashboard/billing',             label: 'Billing', icon: CreditCard,      exact: false, isSubmit: false },
 ]
 
@@ -25,8 +24,9 @@ export function DashboardMobileNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-lg border-t border-border">
-      <div className="flex overflow-x-auto no-scrollbar px-1 py-1.5">
+    /* Show on mobile portrait + landscape touch devices, hide on lg+ */
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden touch-land:flex lg:hidden bg-background/95 backdrop-blur-lg border-t border-border">
+      <div className="flex overflow-x-auto no-scrollbar px-2 py-2 gap-1">
         {items.map(({ href, label, icon: Icon, exact, isSubmit }) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
 
@@ -66,6 +66,7 @@ export function DashboardMobileNav() {
           )
         })}
       </div>
+      <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
     </nav>
   )
 }

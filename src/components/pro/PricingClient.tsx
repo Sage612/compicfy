@@ -61,8 +61,8 @@ const ERROR_MESSAGES: Record<string, string> = {
 const YEARLY_BILLED = '$29.99'
 
 export function PricingClient({ user, profile }: Props) {
-  const [billing,  setBilling]  = useState<'monthly' | 'yearly'>('yearly')
-  const [loading,  setLoading]  = useState(false)
+  const [billing, setBilling] = useState<'monthly' | 'yearly'>('yearly')
+  const [loading, setLoading] = useState(false)
   const searchParams = useSearchParams()
 
   const isAdmin = profile?.role === 'admin'
@@ -104,7 +104,7 @@ export function PricingClient({ user, profile }: Props) {
   return (
     <div className="max-w-5xl mx-auto px-4 py-12 space-y-14">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="text-center space-y-4">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm font-semibold">
           <Crown size={14} className="fill-amber-500" />
@@ -112,7 +112,7 @@ export function PricingClient({ user, profile }: Props) {
         </div>
         <h1 className="text-4xl md:text-5xl font-black tracking-tight">
           Stand out as a{' '}
-          <span className="bg-gradient-to-r from-amber-400 to-orange-500 bg-clip-text text-transparent">
+          <span className="text-amber-500">
             top recommender
           </span>
         </h1>
@@ -122,7 +122,7 @@ export function PricingClient({ user, profile }: Props) {
         </p>
       </div>
 
-      {/* ── Already Pro / Admin ── */}
+      {/* Already Pro / Admin */}
       {(isAdmin || isPro) && (
         <div className={cn(
           'max-w-md mx-auto p-6 rounded-2xl border text-center space-y-3 shadow-sm',
@@ -154,7 +154,7 @@ export function PricingClient({ user, profile }: Props) {
         </div>
       )}
 
-      {/* ── Pricing section ── */}
+      {/* Pricing section */}
       {!isAdmin && !isPro && (
         <div className="space-y-10">
 
@@ -222,7 +222,6 @@ export function PricingClient({ user, profile }: Props) {
                 </span>
               </div>
 
-              {/* Price */}
               <div>
                 <p className="text-xs font-black uppercase tracking-widest text-amber-600">Pro 👑</p>
                 <div className="flex items-end gap-1 mt-1">
@@ -244,7 +243,6 @@ export function PricingClient({ user, profile }: Props) {
                 )}
               </div>
 
-              {/* Features */}
               <div className="space-y-4 flex-grow">
                 <div className="space-y-2">
                   <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Recognition</p>
@@ -266,8 +264,6 @@ export function PricingClient({ user, profile }: Props) {
                   ))}
                 </div>
               </div>
-
-
 
               <Button
                 onClick={handleUpgrade}

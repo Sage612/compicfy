@@ -3,14 +3,10 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Crown, BarChart2, BookOpen, Bookmark, Bell,
+  BarChart2, BookOpen, Bookmark, Bell,
   Settings, LayoutDashboard, BookMarked, Trophy, Eye, Download, CreditCard, Star, Plus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-interface ProMobileNavProps {
-  role: string
-}
 
 interface NavItem {
   href:      string
@@ -21,28 +17,27 @@ interface NavItem {
 }
 
 const allProItems: NavItem[] = [
-  { href: '/pro/dashboard',          label: 'Pro',      icon: LayoutDashboard, exact: true  },
-  { href: '/pro/analytics',          label: 'Analytics',icon: BarChart2                     },
-  { href: '/pro/profile-views',      label: 'Views',    icon: Eye                           },
-  { href: '/pro/export',             label: 'Export',   icon: Download                      },
-  { href: '/pro/leaderboard',        label: 'Ranks',    icon: Trophy                        },
-  // Submit rec — exact so it doesn't stay active on /pro/recommendations list
-  { href: '/pro/recommendations/new',label: 'Submit',   icon: Plus,  exact: true, isSubmit: true },
+  { href: '/pro/dashboard',          label: 'Pro',       icon: LayoutDashboard, exact: true  },
+  { href: '/pro/analytics',          label: 'Analytics', icon: BarChart2                     },
+  { href: '/pro/profile-views',      label: 'Views',     icon: Eye                           },
+  { href: '/pro/export',             label: 'Export',    icon: Download                      },
+  { href: '/pro/leaderboard',        label: 'Ranks',     icon: Trophy                        },
+  { href: '/pro/recommendations/new', label: 'Submit',   icon: Plus, exact: true, isSubmit: true },
   { href: '/pro/recommendations',    label: 'My recs',   icon: BookOpen                      },
-  { href: '/pro/saved',              label: 'Saved',    icon: Bookmark                      },
-  { href: '/pro/lists',              label: 'Lists',    icon: BookMarked                    },
-  { href: '/pro/reviews',            label: 'Reviews',  icon: Star                          },
-  { href: '/pro/notifications',      label: 'Alerts',   icon: Bell                          },
-  { href: '/pro/settings',           label: 'Settings', icon: Settings                      },
-  { href: '/pro/billing',            label: 'Billing',  icon: CreditCard                    },
+  { href: '/pro/saved',              label: 'Saved',     icon: Bookmark                      },
+  { href: '/pro/lists',              label: 'Lists',     icon: BookMarked                    },
+  { href: '/pro/reviews',            label: 'Reviews',   icon: Star                          },
+  { href: '/pro/notifications',      label: 'Alerts',    icon: Bell                          },
+  { href: '/pro/settings',           label: 'Settings',  icon: Settings                      },
+  { href: '/pro/billing',            label: 'Billing',   icon: CreditCard                    },
 ]
 
-export function ProMobileNav({ role }: ProMobileNavProps) {
+export function ProMobileNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/95 backdrop-blur-lg border-t border-border">
-      <div className="flex overflow-x-auto no-scrollbar px-1 py-1.5 gap-1">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden touch-land:flex lg:hidden bg-background/95 backdrop-blur-lg border-t border-border">
+      <div className="flex overflow-x-auto no-scrollbar px-2 py-2 gap-1">
         {allProItems.map(({ href, label, icon: Icon, exact, isSubmit }) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
 
@@ -58,7 +53,7 @@ export function ProMobileNav({ role }: ProMobileNavProps) {
               <div className={cn(
                 'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150',
                 isActive
-                  ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm shadow-amber-500/30'
+                  ? 'bg-amber-500/20 text-amber-500 shadow-sm shadow-amber-500/20'
                   : isSubmit
                   ? 'bg-amber-500/15 hover:bg-amber-500/25'
                   : 'bg-amber-500/5 hover:bg-amber-500/10'
@@ -75,6 +70,7 @@ export function ProMobileNav({ role }: ProMobileNavProps) {
           )
         })}
       </div>
+      <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
     </nav>
   )
 }

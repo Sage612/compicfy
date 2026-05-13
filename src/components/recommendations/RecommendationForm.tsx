@@ -73,7 +73,7 @@ const RATINGS = [
   { value: 'adult',    label: 'Adult 18+',  emoji: '🔴' },
 ] as const
 
-function FormSection({ icon: Icon, title, accent = 'from-primary to-violet-500', children }: {
+function FormSection({ icon: Icon, title, accent = 'bg-primary', children }: {
   icon: React.ElementType
   title: string
   accent?: string
@@ -82,8 +82,8 @@ function FormSection({ icon: Icon, title, accent = 'from-primary to-violet-500',
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-muted/30">
-        <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${accent} flex items-center justify-center shrink-0`}>
-          <Icon size={13} className="text-white" />
+        <div className={`w-7 h-7 rounded-lg ${accent} flex items-center justify-center shrink-0`}>
+          <Icon size={13} className="text-primary-foreground" />
         </div>
         <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{title}</h3>
       </div>
@@ -99,20 +99,20 @@ interface Props {
 export function RecommendationForm({ userId }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const prefillTitle       = searchParams.get('title')       ?? ''
-  const prefillAuthor      = searchParams.get('author')      ?? ''
-  const prefillArtist      = searchParams.get('artist')      ?? ''
-  const prefillDescription = searchParams.get('description') ?? ''
-  const prefillType        = searchParams.get('type')        ?? ''
-  const prefillStatus      = searchParams.get('status')      ?? ''
-  const prefillCover       = searchParams.get('cover_url')   ?? ''
+  const prefillTitle       = searchParams.get('title')        ?? ''
+  const prefillAuthor      = searchParams.get('author')       ?? ''
+  const prefillArtist      = searchParams.get('artist')       ?? ''
+  const prefillDescription = searchParams.get('description')  ?? ''
+  const prefillType        = searchParams.get('type')         ?? ''
+  const prefillStatus      = searchParams.get('status')       ?? ''
+  const prefillCover       = searchParams.get('cover_url')    ?? ''
   const prefillYear        = searchParams.get('year_released') ?? ''
   const prefillChapters    = searchParams.get('chapter_count') ?? ''
   const prefillGenres      = searchParams.get('genres')?.split(',').filter(Boolean) ?? []
-  
-  const [submitting, setSubmitting] = useState(false)
-  const [duplicateWarning, setDuplicateWarning] = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
-  const [checkingDuplicate, setCheckingDuplicate] = useState(false)
+
+  const [submitting,         setSubmitting]         = useState(false)
+  const [duplicateWarning,   setDuplicateWarning]   = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
+  const [checkingDuplicate,  setCheckingDuplicate]  = useState(false)
   const duplicateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [externalIds, setExternalIds] = useState<{
     mangaupdates_id?: string
@@ -121,13 +121,10 @@ export function RecommendationForm({ userId }: Props) {
     mangadex_id?:     string
   }>({})
 
-  // Monthly usage tracking
   const [monthlyCount, setMonthlyCount] = useState<number | null>(null)
-  const [isPro, setIsPro] = useState<boolean | null>(null)
-
+  const [isPro,        setIsPro]        = useState<boolean | null>(null)
   const supabase = createClient()
 
-  // ── Fetch pro status + this month's rec count ──
   useEffect(() => {
     const fetchUsage = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -148,27 +145,24 @@ export function RecommendationForm({ userId }: Props) {
 
       setIsPro(proStatus)
 
-      // Only count for free users
       if (!proStatus) {
         const startOfMonth = new Date()
         startOfMonth.setDate(1)
         startOfMonth.setHours(0, 0, 0, 0)
-
         const { count } = await supabase
           .from('recommendations')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id)
           .gte('created_at', startOfMonth.toISOString())
-
         setMonthlyCount(count ?? 0)
       }
     }
     fetchUsage()
   }, [supabase])
 
-  const atRecLimit  = isPro === false && monthlyCount !== null && monthlyCount >= FREE_REC_LIMIT
+  const atRecLimit   = isPro === false && monthlyCount !== null && monthlyCount >= FREE_REC_LIMIT
   const nearRecLimit = isPro === false && monthlyCount !== null && monthlyCount >= FREE_REC_LIMIT - 5
-  const usagePct    = monthlyCount !== null ? Math.min(100, Math.round((monthlyCount / FREE_REC_LIMIT) * 100)) : 0
+  const usagePct     = monthlyCount !== null ? Math.min(100, Math.round((monthlyCount / FREE_REC_LIMIT) * 100)) : 0
 
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
@@ -184,8 +178,8 @@ export function RecommendationForm({ userId }: Props) {
       official_platforms: [],
       content_rating:     'all_ages',
       why_recommend:      '',
-      ...(prefillYear     ? { year_released:  Number(prefillYear)    } : {}),
-      ...(prefillChapters ? { chapter_count:  Number(prefillChapters) } : {}),
+      ...(prefillYear     ? { year_released: Number(prefillYear)     } : {}),
+      ...(prefillChapters ? { chapter_count: Number(prefillChapters) } : {}),
     },
   })
 
@@ -203,7 +197,7 @@ export function RecommendationForm({ userId }: Props) {
     if (title.trim().length < 2) { setDuplicateWarning(null); return }
     setCheckingDuplicate(true)
     try {
-      const res = await fetch(`/api/recommendations/check-duplicate?title=${encodeURIComponent(title.trim())}`)
+      const res  = await fetch(`/api/recommendations/check-duplicate?title=${encodeURIComponent(title.trim())}`)
       const data = await res.json()
       setDuplicateWarning(data.duplicate ?? null)
     } catch { /* silent */ } finally { setCheckingDuplicate(false) }
@@ -218,9 +212,9 @@ export function RecommendationForm({ userId }: Props) {
     setSubmitting(true)
     try {
       const response = await fetch('/api/recommendations', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, ...externalIds }),
+        body:    JSON.stringify({ ...data, ...externalIds }),
       })
       const result = await response.json()
 
@@ -233,7 +227,6 @@ export function RecommendationForm({ userId }: Props) {
         return
       }
 
-      // API returned 403 = limit hit server-side (safety net)
       if (response.status === 403) {
         toast.error(
           <div className="flex flex-col gap-1.5">
@@ -260,39 +253,36 @@ export function RecommendationForm({ userId }: Props) {
   }
 
   const handleMangaSelect = (result: any) => {
-    setValue('title', result.title || '')
-    setValue('author', result.author || '')
-    setValue('artist', result.artist || '')
+    setValue('title',       result.title              || '')
+    setValue('author',      result.author             || '')
+    setValue('artist',      result.artist             || '')
     setValue('description', result.description?.slice(0, 2000) || '')
-    setValue('type', result.type || 'manga')
-    setValue('status', result.status || 'ongoing')
-    if (result.year) setValue('year_released', result.year)
+    setValue('type',        result.type               || 'manga')
+    setValue('status',      result.status             || 'ongoing')
+    if (result.year)     setValue('year_released', result.year)
     if (result.chapters) setValue('chapter_count', result.chapters)
-    if (result.title) checkDuplicate(result.title)
+    if (result.title)    checkDuplicate(result.title)
     const validGenres = ['Action','Adventure','Comedy','Drama','Fantasy','Horror','Mystery','Romance','Sci-Fi','Slice of Life','Sports','Supernatural','Thriller','Isekai','Martial Arts','School Life','Historical','Psychological','Shounen','Shoujo','Seinen','Josei','Yuri','Yaoi']
     setValue('genres', result.genres?.filter((g: string) => validGenres.includes(g)).slice(0, 5) || [])
     if (result.coverUrl && !getValues('cover_url')) setValue('cover_url', result.coverUrl)
 
-    // Extract and store external IDs
     const id: string = result.id ?? ''
     if (id.startsWith('mangaupdates-')) setExternalIds(prev => ({ ...prev, mangaupdates_id: id.replace('mangaupdates-', '') }))
-    else if (id.startsWith('anilist-'))   setExternalIds(prev => ({ ...prev, anilist_id:     id.replace('anilist-', '')     }))
-    else if (id.startsWith('jikan-'))     setExternalIds(prev => ({ ...prev, mal_id:          id.replace('jikan-', '')       }))
-    else if (id.startsWith('mangadex-'))  setExternalIds(prev => ({ ...prev, mangadex_id:     id.replace('mangadex-', '')    }))
+    else if (id.startsWith('anilist-'))  setExternalIds(prev => ({ ...prev, anilist_id:     id.replace('anilist-', '')     }))
+    else if (id.startsWith('jikan-'))    setExternalIds(prev => ({ ...prev, mal_id:          id.replace('jikan-', '')       }))
+    else if (id.startsWith('mangadex-')) setExternalIds(prev => ({ ...prev, mangadex_id:     id.replace('mangadex-', '')    }))
   }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-      {/* Monthly usage bar — free users only, shown once loaded */}
+      {/* Monthly usage bar */}
       {isPro === false && monthlyCount !== null && (
         <div className={cn(
           'rounded-2xl border p-4 space-y-3',
-          atRecLimit
-            ? 'border-red-500/30 bg-red-500/5'
-            : nearRecLimit
-            ? 'border-amber-500/20 bg-amber-500/5'
-            : 'border-border bg-card'
+          atRecLimit  ? 'border-red-500/30 bg-red-500/5' :
+          nearRecLimit ? 'border-amber-500/20 bg-amber-500/5' :
+                         'border-border bg-card'
         )}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -302,16 +292,12 @@ export function RecommendationForm({ userId }: Props) {
               </span>
             </div>
             {(atRecLimit || nearRecLimit) && (
-              <Link
-                href="/pricing"
-                className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline shrink-0"
-              >
+              <Link href="/pricing" className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline shrink-0">
                 <Crown size={10} className="fill-amber-500" />
                 Go unlimited
               </Link>
             )}
           </div>
-
           <div className="h-1.5 rounded-full bg-muted overflow-hidden">
             <div
               className={cn(
@@ -321,7 +307,6 @@ export function RecommendationForm({ userId }: Props) {
               style={{ width: `${usagePct}%` }}
             />
           </div>
-
           {atRecLimit && (
             <div className="flex items-start gap-2">
               <AlertTriangle size={13} className="text-red-500 shrink-0 mt-0.5" />
@@ -336,11 +321,11 @@ export function RecommendationForm({ userId }: Props) {
 
       {/* Auto-fill banner */}
       <div className="flex items-start gap-3 p-4 rounded-2xl border border-primary/20 bg-primary/5">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shrink-0 mt-0.5">
-          <Sparkles size={13} className="text-white" />
+        <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0 mt-0.5">
+          <Sparkles size={13} className="text-primary-foreground" />
         </div>
         <div className="flex-1 space-y-2">
-          <p className="text-sm font-bold text-primary">Auto-fill from database</p>
+          <p className="text-sm font-bold text-primary">Auto-fill from external database</p>
           <MangaSearch onSelect={handleMangaSelect} />
         </div>
       </div>
@@ -419,7 +404,7 @@ export function RecommendationForm({ userId }: Props) {
       </FormSection>
 
       {/* Classification */}
-      <FormSection icon={Tag} title="Classification" accent="from-violet-500 to-purple-600">
+      <FormSection icon={Tag} title="Classification" accent="bg-violet-500">
         <div className="space-y-2">
           <Label className="text-sm font-semibold">Type <span className="text-destructive">*</span></Label>
           <Controller
@@ -529,7 +514,7 @@ export function RecommendationForm({ userId }: Props) {
       </FormSection>
 
       {/* Genres */}
-      <FormSection icon={Tag} title="Genres" accent="from-rose-500 to-pink-600">
+      <FormSection icon={Tag} title="Genres" accent="bg-rose-500">
         <Controller
           name="genres"
           control={control}
@@ -540,7 +525,7 @@ export function RecommendationForm({ userId }: Props) {
       </FormSection>
 
       {/* Description */}
-      <FormSection icon={FileText} title="Description" accent="from-amber-500 to-orange-500">
+      <FormSection icon={FileText} title="Description" accent="bg-amber-500">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label htmlFor="description" className="text-sm font-semibold">Description <span className="text-destructive">*</span></Label>
@@ -556,7 +541,7 @@ export function RecommendationForm({ userId }: Props) {
                 Why do you recommend it?
               </Label>
               <p className="text-[11px] text-muted-foreground leading-snug">
-                Optional, but recs with a personal reason get far more votes. What hooked you? Who is it for?
+                Optional, but recs with a personal reason get far more votes.
               </p>
             </div>
             <span className="text-xs text-muted-foreground shrink-0 mt-0.5">{whyValue.length}/1000</span>
@@ -564,7 +549,7 @@ export function RecommendationForm({ userId }: Props) {
           <Textarea
             id="why_recommend"
             {...register('why_recommend')}
-            placeholder="e.g. &quot;If you loved Tower of God, this hits the same notes but with better art. The first 20 chapters are slow but chapter 21 changes everything.&quot;"
+            placeholder='e.g. "If you loved Tower of God, this hits the same notes but with better art."'
             rows={3}
             className="resize-none border-primary/20 focus:border-primary bg-background"
           />
@@ -572,7 +557,7 @@ export function RecommendationForm({ userId }: Props) {
       </FormSection>
 
       {/* Platforms */}
-      <FormSection icon={Globe} title="Official Platforms" accent="from-teal-500 to-cyan-600">
+      <FormSection icon={Globe} title="Official Platforms" accent="bg-teal-500">
         <Controller
           name="official_platforms"
           control={control}
@@ -604,10 +589,8 @@ export function RecommendationForm({ userId }: Props) {
             (watch('content_rating') === 'adult' && !watch('adult_content_confirmed'))
           }
           className={cn(
-            'gap-2 min-w-44 border-0 shadow-lg',
-            atRecLimit
-              ? 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-amber-500/20 cursor-not-allowed'
-              : 'bg-gradient-to-r from-primary to-violet-500 shadow-primary/20 hover:opacity-90'
+            'gap-2 min-w-44',
+            atRecLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 shadow-lg shadow-amber-500/20 cursor-not-allowed'
           )}
         >
           {atRecLimit ? (
