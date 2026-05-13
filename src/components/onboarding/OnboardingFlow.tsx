@@ -32,7 +32,7 @@ const TOUR_ITEMS_DESKTOP = [
     color: 'bg-rose-500/10',
     iconColor: 'text-rose-500',
     title: 'Browse',
-    desc:  'Community recs sorted by votes. Filter by genre, type, or platform. Find something worth reading in under a minute.',
+    desc:  'Community recs sorted by votes. Filter by genre, type or status. Find something worth reading in under a minute.',
   },
   {
     icon:  LayoutList,
@@ -64,7 +64,7 @@ const TOUR_ITEMS_MOBILE = [
     color: 'bg-rose-500/10',
     iconColor: 'text-rose-500',
     title: 'Browse',
-    desc:  'Tap Browse in the bottom nav. Community recs sorted by votes — filter by genre, type, or platform.',
+    desc:  'Tap Browse in the bottom nav. Community recs sorted by votes filter by genre, type, or status.',
   },
   {
     icon:  LayoutList,
@@ -78,14 +78,14 @@ const TOUR_ITEMS_MOBILE = [
     color: 'bg-teal-500/10',
     iconColor: 'text-teal-500',
     title: 'Reading Lists & Settings',
-    desc:  "Tap the Profile tab (bottom right) to access your reading lists, settings, notifications, and everything else.",
+    desc:  "Tap the Profile tab (bottom right) to access your settings, notifications, and everything else.",
   },
   {
     icon:  UserIcon,
     color: 'bg-amber-500/10',
     iconColor: 'text-amber-500',
     title: 'Profile Tab',
-    desc:  "Your Profile tab in the bottom nav is your hub — dashboard, saved comics, billing, and sign out all live there.",
+    desc:  "Your Profile tab in the bottom nav is your hub  dashboard, saved comics, billing, and sign out all live there.",
   },
 ]
 

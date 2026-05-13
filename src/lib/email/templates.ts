@@ -1,18 +1,23 @@
-import { SITE_NAME, SITE_URL } from './resend'
+import { SITE_NAME, SITE_URL } from './mailer'
+
+// ── Brand colors — updated to Compicfy teal ──────────────────────
+const BRAND     = '#0ea5b0'   // teal primary
+const BRAND_DIM = '#0ea5b01a' // teal 10% opacity for badge backgrounds
+const BRAND_BRD = '#0ea5b033' // teal 20% opacity for badge borders
 
 const base = (content: string) => `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${SITE_NAME}</title>
 </head>
-<body style="margin:0;padding:0;background:#0f1117;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<body style="margin:0;padding:0;background:#0f0f0f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
   <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
     <div style="text-align:center;margin-bottom:32px;">
-      <h1 style="color:#6366f1;font-size:24px;font-weight:800;margin:0;letter-spacing:-0.5px;">
-        📚 ${SITE_NAME}
+      <h1 style="color:${BRAND};font-size:24px;font-weight:800;margin:0;letter-spacing:-0.5px;">
+         ${SITE_NAME}
       </h1>
     </div>
 
@@ -22,8 +27,8 @@ const base = (content: string) => `
 
     <div style="text-align:center;margin-top:24px;">
       <p style="color:#6b7280;font-size:12px;margin:0;">
-        © ${new Date().getFullYear()} ${SITE_NAME} · 
-        <a href="${SITE_URL}/dashboard/notifications" style="color:#6366f1;text-decoration:none;">
+        © ${new Date().getFullYear()} ${SITE_NAME} ·
+        <a href="${SITE_URL}/dashboard/notifications" style="color:${BRAND};text-decoration:none;">
           Manage notifications
         </a>
       </p>
@@ -40,7 +45,7 @@ const p = (text: string) =>
   `<p style="color:#9ca3af;font-size:15px;line-height:1.6;margin:0 0 20px;">${text}</p>`
 
 const btn = (text: string, href: string) =>
-  `<a href="${href}" style="display:inline-block;background:#6366f1;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">${text}</a>`
+  `<a href="${href}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">${text}</a>`
 
 const divider = () =>
   `<hr style="border:none;border-top:1px solid #2a2d3a;margin:24px 0;">`
@@ -52,7 +57,7 @@ export const templates = {
     ${divider()}
     <div style="margin-bottom:20px;">
       ${btn('Browse Comics', `${SITE_URL}/browse`)}
-      <a href="${SITE_URL}/dashboard/recommendations/new" style="display:inline-block;margin-left:12px;color:#6366f1;text-decoration:none;font-size:14px;font-weight:600;">Submit a Recommendation →</a>
+      <a href="${SITE_URL}/dashboard/recommendations/new" style="display:inline-block;margin-left:12px;color:${BRAND};text-decoration:none;font-size:14px;font-weight:600;">Submit a Recommendation →</a>
     </div>
     ${p(`If you have any questions, join our Discord community — we'd love to chat.`)}
   `),
@@ -146,8 +151,8 @@ export const templates = {
   `),
 
   newFollower: (username: string, followerUsername: string, followerDisplayName: string) => base(`
-    <div style="display:inline-block;background:#6366f11a;border:1px solid #6366f133;border-radius:8px;padding:6px 12px;margin-bottom:20px;">
-      <span style="color:#6366f1;font-size:13px;font-weight:600;">👤 New Follower</span>
+    <div style="display:inline-block;background:${BRAND_DIM};border:1px solid ${BRAND_BRD};border-radius:8px;padding:6px 12px;margin-bottom:20px;">
+      <span style="color:${BRAND};font-size:13px;font-weight:600;">👤 New Follower</span>
     </div>
     ${h1(`@${followerUsername} is now following you!`)}
     ${p(`<strong style="color:#f9fafb;">${followerDisplayName}</strong> just followed you on ${SITE_NAME}. They'll see your recommendations in their feed.`)}

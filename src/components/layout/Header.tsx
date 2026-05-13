@@ -154,9 +154,9 @@ export function Header() {
   const settingsHref      = isPro ? '/pro/settings'            : '/dashboard/settings'
   const notificationsHref = isPro ? '/pro/notifications'       : '/dashboard/notifications'
   const recommendHref     = isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'
-  const dashboardLabel    = isPro ? 'Pro Dashboard'            : 'Dashboard'
-  const billingLabel      = isPro ? 'Pro Billing'              : 'Billing'
-  const listsLabel        = isPro ? 'Pro Lists'                : 'Lists'
+  const dashboardLabel    = isPro ? ' Dashboard'               : 'Dashboard'
+  const billingLabel      = isPro ? ' Billing'                 : 'Billing'
+  const listsLabel        = isPro ? ' Lists'                   : 'Lists'
 
   const publicNavLinks = [
     { href: '/browse',    label: 'Browse', icon: Radar       },
