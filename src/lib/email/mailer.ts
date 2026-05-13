@@ -21,7 +21,7 @@ const transporter = nodemailer.createTransport({
 export async function sendMail(to: string, subject: string, html: string) {
   try {
     await transporter.sendMail({
-      from:    `${SITE_NAME} <${FROM}>`,
+      from: `${SITE_NAME} (no-reply) <${FROM}>`,
       to,
       subject,
       html,

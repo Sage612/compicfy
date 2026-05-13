@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
+import { sendMail } from '@/lib/email/mailer'
 import { createClient } from '@/lib/supabase/server'
-
-const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +11,6 @@ export async function POST(req: NextRequest) {
       description, signature, good_faith, accuracy, authority,
     } = body
 
-    // Basic validation
     if (
       !claimant_name || !claimant_email || !copyrighted_work ||
       !infringing_url || !content_type || !description || !signature
@@ -22,7 +19,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 1. Store in DB ───────────────────────────────────────────
-    // Use service role so unauthenticated users can submit
     const { createClient: createAdmin } = await import('@supabase/supabase-js')
     const adminClient = createAdmin(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,11 +55,10 @@ export async function POST(req: NextRequest) {
     })
 
     // ── 2. Email admin ───────────────────────────────────────────
-    await resend.emails.send({
-      from: 'Compicfy Support <noreply@compicfy.cloud>',
-      to:   ['support@compicfy.cloud'],
-      subject: `🚨 DMCA Takedown Notice  ${claimant_name}`,
-      html: `
+    await sendMail(
+      'support@compicfy.cloud',
+      `🚨 DMCA Takedown Notice — ${claimant_name}`,
+      `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #e11d48;">DMCA Takedown Notice Received</h2>
           <p style="color: #6b7280; font-size: 14px;">
@@ -99,27 +94,26 @@ export async function POST(req: NextRequest) {
             ${submissionId ? `<br/>Admin ref: ${submissionId}` : ''}
           </p>
         </div>
-      `,
-    })
+      `
+    )
 
     // ── 3. Confirmation to claimant ──────────────────────────────
-    await resend.emails.send({
-      from: 'Compicfy Support <noreply@compicfy.cloud>',
-      to:   [claimant_email],
-      subject: 'DMCA Notice Received  Compicfy',
-      html: `
+    await sendMail(
+      claimant_email,
+      'DMCA Notice Received — Compicfy',
+      `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>DMCA Notice Received</h2>
           <p>Hi ${claimant_name},</p>
           <p>We have received your DMCA takedown notice regarding <strong>${copyrighted_work}</strong>.</p>
-          ${submissionId ? `<p>Your reference ID is <strong>${submissionId}</strong>,  keep this for follow-up.</p>` : ''}
+          ${submissionId ? `<p>Your reference ID is <strong>${submissionId}</strong> — keep this for follow-up.</p>` : ''}
           <p>Our team will review your claim and respond to this email within <strong>72 hours</strong>.</p>
           <p>To follow up, email <a href="mailto:support@compicfy.cloud">support@compicfy.cloud</a>${submissionId ? ` with reference ID: ${submissionId}` : ''}.</p>
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
           <p style="font-size: 12px; color: #9ca3af;">Compicfy · Submitted: ${submittedAt} UTC</p>
         </div>
-      `,
-    })
+      `
+    )
 
     return NextResponse.json({ success: true })
   } catch (err) {

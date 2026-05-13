@@ -8,12 +8,12 @@ import {
   Crown, Check, Zap, BookOpen,
   Bookmark, BookMarked, Star, BarChart2,
   Download, Bell, Eye, ArrowRight,
-  Shield, Users, TrendingUp,
-  BadgeCheck, Flame,
+  Shield, Users, TrendingUp, BadgeCheck, Flame,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import type { User } from '@supabase/supabase-js'
+import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 
 interface Props {
   user: User | null
@@ -61,8 +61,9 @@ const ERROR_MESSAGES: Record<string, string> = {
 const YEARLY_BILLED = '$29.99'
 
 export function PricingClient({ user, profile }: Props) {
-  const [billing, setBilling] = useState<'monthly' | 'yearly'>('yearly')
-  const [loading, setLoading] = useState(false)
+  const [billing,  setBilling]  = useState<'monthly' | 'yearly'>('yearly')
+  const [loading,  setLoading]  = useState(false)
+  const [showAuth, setShowAuth] = useState(false)
   const searchParams = useSearchParams()
 
   const isAdmin = profile?.role === 'admin'
@@ -78,10 +79,7 @@ export function PricingClient({ user, profile }: Props) {
   }, [searchParams])
 
   const handleUpgrade = async () => {
-    if (!user) {
-      window.location.href = `/signup?redirect=${encodeURIComponent('/pricing')}`
-      return
-    }
+    if (!user) { setShowAuth(true); return }
     setLoading(true)
     try {
       const res  = await fetch('/api/flutterwave/initialize', {
@@ -104,6 +102,17 @@ export function PricingClient({ user, profile }: Props) {
   return (
     <div className="max-w-5xl mx-auto px-4 py-12 space-y-14">
 
+      {/* Auth modal for guests */}
+      <AuthPromptModal
+        open={showAuth}
+        onClose={() => setShowAuth(false)}
+        config={{
+          action:   'upgrade to Pro',
+          nextPath: '/pricing',
+          icon:     <Crown size={24} className="text-amber-500" />,
+        }}
+      />
+
       {/* Header */}
       <div className="text-center space-y-4">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm font-semibold">
@@ -112,9 +121,7 @@ export function PricingClient({ user, profile }: Props) {
         </div>
         <h1 className="text-4xl md:text-5xl font-black tracking-tight">
           Stand out as a{' '}
-          <span className="text-amber-500">
-            top recommender
-          </span>
+          <span className="text-amber-500">top recommender</span>
         </h1>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">
           Pro isn't just about removing limits, it's about the recognition,
@@ -147,9 +154,7 @@ export function PricingClient({ user, profile }: Props) {
             }
           </p>
           <Link href={isAdmin ? '/admin' : '/pro/dashboard'}>
-            <Button className="gap-2 mt-2">
-              Go to Dashboard <ArrowRight size={14} />
-            </Button>
+            <Button className="gap-2 mt-2">Go to Dashboard <ArrowRight size={14} /></Button>
           </Link>
         </div>
       )}
@@ -164,9 +169,7 @@ export function PricingClient({ user, profile }: Props) {
               onClick={() => setBilling('monthly')}
               className={cn(
                 'px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
-                billing === 'monthly'
-                  ? 'bg-foreground text-background border-foreground'
-                  : 'bg-card text-muted-foreground border-border'
+                billing === 'monthly' ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border'
               )}
             >
               Monthly
@@ -175,15 +178,11 @@ export function PricingClient({ user, profile }: Props) {
               onClick={() => setBilling('yearly')}
               className={cn(
                 'relative px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
-                billing === 'yearly'
-                  ? 'bg-foreground text-background border-foreground'
-                  : 'bg-card text-muted-foreground border-border'
+                billing === 'yearly' ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border'
               )}
             >
               Yearly
-              <span className="absolute -top-2.5 -right-2.5 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-black">
-                -50%
-              </span>
+              <span className="absolute -top-2.5 -right-2.5 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-black">-50%</span>
             </button>
           </div>
 
@@ -229,9 +228,7 @@ export function PricingClient({ user, profile }: Props) {
                   <span className="text-muted-foreground text-sm mb-1.5">/month</span>
                 </div>
                 {billing === 'yearly' && (
-                  <p className="text-xs text-emerald-600 font-bold mt-1">
-                    Billed {YEARLY_BILLED}/year · save 50% vs monthly
-                  </p>
+                  <p className="text-xs text-emerald-600 font-bold mt-1">Billed {YEARLY_BILLED}/year · save 50% vs monthly</p>
                 )}
                 {billing === 'monthly' && (
                   <p className="text-xs text-muted-foreground mt-1">
