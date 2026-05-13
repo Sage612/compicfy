@@ -106,7 +106,7 @@ export default async function ProDashboardPage() {
   ]
 
   const quickActions = [
-    { href: '/dashboard/recommendations/new', icon: Plus,       label: 'Submit a Recommendation', desc: 'Share a comic with the community', bg: 'bg-primary/10',    text: 'text-primary'    },
+    { href: '/pro/recommendations/new', icon: Plus,       label: 'Submit a Recommendation', desc: 'Share a comic with the community', bg: 'bg-primary/10',    text: 'text-primary'    },
     { href: '/feed',                           icon: LayoutList, label: 'Following Feed',           desc: 'Latest from people you follow',   bg: 'bg-violet-500/10', text: 'text-violet-500' },
     { href: '/pro/lists',                      icon: BookMarked, label: 'Reading Lists',            desc: 'Manage your reading collection',  bg: 'bg-teal-500/10',   text: 'text-teal-500'   },
     { href: '/browse',                         icon: Flame,      label: 'Browse Comics',            desc: 'Discover new recommendations',    bg: 'bg-rose-500/10',   text: 'text-rose-500'   },
@@ -160,7 +160,7 @@ export default async function ProDashboardPage() {
                 Settings
               </Button>
             </Link>
-            <Link href="/dashboard/recommendations/new">
+            <Link href="/pro/recommendations/new">
               <Button size="sm" className="gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white shadow-md shadow-amber-500/20">
                 <BookOpen size={13} />
                 Recommend

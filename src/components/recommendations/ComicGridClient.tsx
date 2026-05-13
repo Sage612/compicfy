@@ -200,7 +200,6 @@ export function ComicGridClient({
 
       {showTabs && !forYouUnlocked && interactionCount >= MIN_INTERACTIONS - 3 && (
         <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
-          <Sparkles size={13} className="text-primary shrink-0" />
           <p className="text-xs text-muted-foreground">
             <span className="text-primary font-semibold">
               {MIN_INTERACTIONS - interactionCount} more vote{MIN_INTERACTIONS - interactionCount !== 1 ? 's' : ''} or save{MIN_INTERACTIONS - interactionCount !== 1 ? 's' : ''}
