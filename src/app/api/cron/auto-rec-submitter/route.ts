@@ -62,6 +62,7 @@ interface SeriesData {
   year_released:      number | null
   chapter_count:      number | null
   official_platforms: string[]
+  content_rating:     'all_ages' | 'teen' | 'mature' | 'adult'
   // Source IDs for chapter-check cron to use later
   mangaupdates_id:    string | null
   anilist_id:         string | null
@@ -158,6 +159,7 @@ async function fetchMangaUpdatesTop(limit: number): Promise<SeriesData[]> {
           year_released:      year,
           chapter_count:      detail?.latest_chapter ?? record.latest_chapter ?? null,
           official_platforms: platforms,
+          content_rating:     'all_ages' as const,
           mangaupdates_id:    String(seriesId),
           anilist_id:         null,
           mal_id:             null,
@@ -234,6 +236,7 @@ async function fetchAniListTrending(limit: number): Promise<SeriesData[]> {
         year_released:      item.startDate?.year ?? null,
         chapter_count:      item.chapters ?? null,
         official_platforms: platforms,
+        content_rating:     'all_ages' as const,
         mangaupdates_id:    null,
         anilist_id:         String(item.id),
         mal_id:             null,
@@ -275,6 +278,7 @@ async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
         year_released:      item.published?.prop?.from?.year ?? null,
         chapter_count:      item.chapters ?? null,
         official_platforms: platforms,
+        content_rating:     'all_ages' as const,
         mangaupdates_id:    null,
         anilist_id:         null,
         mal_id:             String(item.mal_id),
@@ -400,6 +404,7 @@ export async function GET(req: Request) {
           year_released:      s.year_released,
           chapter_count:      s.chapter_count,
           official_platforms: s.official_platforms,
+          content_rating:     'all_ages',      // Default — admin can update during review
           is_approved:        false,           // Admin reviews manually
           is_ai_generated:    true,            // System label
           ai_model:           'auto-submitter',// Distinguishes from user submissions
