@@ -1,25 +1,20 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const BATCH_SIZE = 20
+// ── Ratio config — change these to adjust the mix ─────────────────
+// Total must equal BATCH_SIZE (20)
+const BATCH_SIZE     = 20
+const MANHWA_COUNT   = 10  // 50%
+const MANHUA_COUNT   = 6   // 30%
+const MANGA_COUNT    = 4   // 20%
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-function mapType(raw: string): 'manga' | 'manhwa' | 'manhua' | 'webtoon' | 'comic' | 'other' {
-  const t = raw.toLowerCase()
-  if (t.includes('manhwa') || t.includes('korean'))  return 'manhwa'
-  if (t.includes('manhua') || t.includes('chinese')) return 'manhua'
-  if (t.includes('webtoon'))                         return 'webtoon'
-  if (t.includes('comic'))                           return 'comic'
-  if (t.includes('manga'))                           return 'manga'
-  return 'other'
-}
-
 function mapStatus(raw: string): 'ongoing' | 'completed' | 'hiatus' | 'cancelled' {
   const s = raw.toLowerCase()
-  if (s.includes('complet') || s.includes('finish'))         return 'completed'
-  if (s.includes('hiatus'))                                  return 'hiatus'
-  if (s.includes('cancel') || s.includes('discontinu'))      return 'cancelled'
+  if (s.includes('complet') || s.includes('finish'))        return 'completed'
+  if (s.includes('hiatus'))                                 return 'hiatus'
+  if (s.includes('cancel') || s.includes('discontinu'))     return 'cancelled'
   return 'ongoing'
 }
 
@@ -74,10 +69,15 @@ interface SeriesData {
   source:             'mangaupdates' | 'anilist' | 'jikan'
 }
 
-// ── Source 1: MangaUpdates top series (paginated) ─────────────────
-// page param increments each run so we never re-fetch the same batch
+// ── MangaUpdates fetcher — fetches by specific type ───────────────
+// muType: 'Manhwa' | 'Manhua' | 'Manga'
+// page increments per type per run so each type advances independently
 
-async function fetchMangaUpdatesTop(limit: number, page: number): Promise<SeriesData[]> {
+async function fetchMangaUpdatesByType(
+  limit:  number,
+  page:   number,
+  muType: 'Manhwa' | 'Manhua' | 'Manga'
+): Promise<SeriesData[]> {
   try {
     const res = await fetch('https://api.mangaupdates.com/v1/series/search', {
       method:  'POST',
@@ -87,7 +87,7 @@ async function fetchMangaUpdatesTop(limit: number, page: number): Promise<Series
         asc:     'desc',
         perpage: limit,
         page,
-        type:    'series',
+        type:    muType,
       }),
       next: { revalidate: 0 },
     })
@@ -114,6 +114,11 @@ async function fetchMangaUpdatesTop(limit: number, page: number): Promise<Series
       })
     )
 
+    // Map muType string to our internal type
+    const internalType: 'manga' | 'manhwa' | 'manhua' =
+      muType === 'Manhwa' ? 'manhwa' :
+      muType === 'Manhua' ? 'manhua' : 'manga'
+
     return detailed
       .filter((r) => r.status === 'fulfilled' && r.value)
       .map((r) => {
@@ -126,7 +131,6 @@ async function fetchMangaUpdatesTop(limit: number, page: number): Promise<Series
 
         const genreList    = (detail?.genres    ?? record.genres    ?? []).map((g: any) => g.genre ?? g)
         const categoryList = (detail?.categories ?? record.categories ?? []).slice(0, 3).map((c: any) => c.category ?? c)
-        const muType       = (detail?.type ?? record.type ?? '').toLowerCase()
         const rawDesc      = detail?.description ?? record.description ?? ''
         const cleanDesc    = rawDesc.replace(/<[^>]*>/g, '').trim().slice(0, 2000)
 
@@ -149,7 +153,7 @@ async function fetchMangaUpdatesTop(limit: number, page: number): Promise<Series
           title:              detail?.title ?? record.title ?? '',
           alternative_titles: altTitles.slice(0, 5),
           description:        cleanDesc || 'No description available.',
-          type:               mapType(muType),
+          type:               internalType,
           status:             mapStatus(detail?.status ?? record.status ?? ''),
           genres:             sanitizeGenres([...new Set([...genreList, ...categoryList])]),
           cover_url:          coverUrl,
@@ -157,7 +161,7 @@ async function fetchMangaUpdatesTop(limit: number, page: number): Promise<Series
           artist:             artists[0] ?? authors[0] ?? firstCredit,
           year_released:      year,
           chapter_count:      detail?.latest_chapter ?? record.latest_chapter ?? null,
-          official_platforms: resolvePlatforms(mapType(muType)),
+          official_platforms: resolvePlatforms(internalType),
           mangaupdates_id:    String(seriesId),
           anilist_id:         null,
           mal_id:             null,
@@ -171,14 +175,14 @@ async function fetchMangaUpdatesTop(limit: number, page: number): Promise<Series
   }
 }
 
-// ── Source 2: AniList trending manga ─────────────────────────────
+// ── AniList fallback — filtered by format ─────────────────────────
 
-async function fetchAniListTrending(limit: number): Promise<SeriesData[]> {
+async function fetchAniListByFormat(limit: number, format: 'MANHWA' | 'MANHUA' | 'MANGA'): Promise<SeriesData[]> {
   try {
     const gql = `
-      query ($perPage: Int) {
+      query ($perPage: Int, $format: MediaFormat) {
         Page(perPage: $perPage) {
-          media(type: MANGA, sort: TRENDING_DESC, status_in: [RELEASING, FINISHED]) {
+          media(type: MANGA, sort: TRENDING_DESC, format: $format, status_in: [RELEASING, FINISHED]) {
             id
             title { romaji english native }
             description(asHtml: false)
@@ -198,7 +202,7 @@ async function fetchAniListTrending(limit: number): Promise<SeriesData[]> {
     const res = await fetch('https://graphql.anilist.co', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ query: gql, variables: { perPage: limit } }),
+      body:    JSON.stringify({ query: gql, variables: { perPage: limit, format } }),
       next:    { revalidate: 0 },
     })
     if (!res.ok) return []
@@ -242,7 +246,7 @@ async function fetchAniListTrending(limit: number): Promise<SeriesData[]> {
   }
 }
 
-// ── Source 3: Jikan (MAL) popular manga ──────────────────────────
+// ── Jikan fallback — manga only (no manhwa/manhua type filter) ────
 
 async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
   try {
@@ -255,13 +259,11 @@ async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
     const data = await res.json()
 
     return (data.data ?? []).map((item: any): SeriesData => {
-      const type = mapType(item.type ?? 'manga')
-
       return {
         title:              item.title_english || item.title || '',
         alternative_titles: [item.title, item.title_japanese].filter(Boolean),
         description:        item.synopsis?.replace(/\[Written by MAL Rewrite\]/g, '').trim().slice(0, 2000) || 'No description available.',
-        type,
+        type:               'manga',
         status:             mapStatus(item.status ?? ''),
         genres:             sanitizeGenres(item.genres?.map((g: any) => g.name) ?? []),
         cover_url:          item.images?.jpg?.large_image_url ?? item.images?.jpg?.image_url ?? null,
@@ -269,7 +271,7 @@ async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
         artist:             item.authors?.[1]?.name?.replace(', ', ' ') ?? item.authors?.[0]?.name?.replace(', ', ' ') ?? null,
         year_released:      item.published?.prop?.from?.year ?? null,
         chapter_count:      item.chapters ?? null,
-        official_platforms: resolvePlatforms(type),
+        official_platforms: resolvePlatforms('manga'),
         mangaupdates_id:    null,
         anilist_id:         null,
         mal_id:             String(item.mal_id),
@@ -282,10 +284,17 @@ async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
   }
 }
 
+// ── Merge helper — deduplicates by title across buckets ──────────
+
+function dedupe(existing: SeriesData[], incoming: SeriesData[]): SeriesData[] {
+  const seen = new Set(existing.map((s) => s.title.toLowerCase()))
+  return incoming.filter((s) => !seen.has(s.title.toLowerCase()))
+}
+
 // ── Main handler ──────────────────────────────────────────────────
 
 export async function GET(req: Request) {
-  // 1. Auth check — same pattern as chapter-check
+  // 1. Auth check
   const secret = req.headers.get('x-cron-secret')
   if (secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -296,11 +305,11 @@ export async function GET(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // 2. System user — profiles id: 00000000-0000-0000-0000-000000000000, username: their_shadow, display_name: Ghost
+  // 2. System user
   const systemUserId = '00000000-0000-0000-0000-000000000000'
 
-  // 3. Read last MangaUpdates page used from activity_logs
-  //    Each run advances the page so we never pull the same batch twice
+  // 3. Read last pages used per type from activity_logs
+  //    Each type tracks its own page so they advance independently
   const { data: lastLog } = await supabase
     .from('activity_logs')
     .select('details')
@@ -310,45 +319,51 @@ export async function GET(req: Request) {
     .limit(1)
     .maybeSingle()
 
-  const lastPage    = (lastLog?.details as any)?.mu_page ?? 0
-  const currentPage = lastPage + 1  // Advance one page every run
+  const lastDetails     = (lastLog?.details as any) ?? {}
+  const manhwaPage      = (lastDetails.page_manhwa ?? 0) + 1
+  const manhuaPage      = (lastDetails.page_manhua ?? 0) + 1
+  const mangaPage       = (lastDetails.page_manga  ?? 0) + 1
 
-  // 4. Fetch from MangaUpdates first (paginated), fall back to AniList then Jikan
-  let series: SeriesData[] = []
+  // 4. Fetch each type separately in parallel — ratio: 50% manhwa, 30% manhua, 20% manga
+  const [manhwaResults, manhuaResults, mangaResults] = await Promise.all([
+    fetchMangaUpdatesByType(MANHWA_COUNT + 3, manhwaPage, 'Manhwa'), // fetch a few extra to cover dupes
+    fetchMangaUpdatesByType(MANHUA_COUNT + 3, manhuaPage, 'Manhua'),
+    fetchMangaUpdatesByType(MANGA_COUNT  + 3, mangaPage,  'Manga'),
+  ])
 
-  const muResults = await fetchMangaUpdatesTop(BATCH_SIZE, currentPage)
+  // 5. Fill any shortfalls with AniList fallback per type
+  let manhwa = manhwaResults.slice(0, MANHWA_COUNT)
+  let manhua = manhuaResults.slice(0, MANHUA_COUNT)
+  let manga  = mangaResults.slice(0,  MANGA_COUNT)
 
-  if (muResults.length >= BATCH_SIZE) {
-    // MangaUpdates gave us a full batch — use exclusively
-    series = muResults
-  } else {
-    // Partial or empty — fill remaining with fallbacks
-    series = [...muResults]
-    const remaining = BATCH_SIZE - series.length
-
-    if (remaining > 0) {
-      const anilistResults = await fetchAniListTrending(remaining + 5)
-      const muTitles       = new Set(series.map((s) => s.title.toLowerCase()))
-      const filtered       = anilistResults.filter((s) => !muTitles.has(s.title.toLowerCase()))
-      series.push(...filtered.slice(0, remaining))
-    }
-
-    if (series.length < BATCH_SIZE) {
-      const stillNeeded    = BATCH_SIZE - series.length
-      const jikanResults   = await fetchJikanPopular(stillNeeded + 5)
-      const existingTitles = new Set(series.map((s) => s.title.toLowerCase()))
-      const filtered       = jikanResults.filter((s) => !existingTitles.has(s.title.toLowerCase()))
-      series.push(...filtered.slice(0, stillNeeded))
-    }
+  if (manhwa.length < MANHWA_COUNT) {
+    const fallback = await fetchAniListByFormat(MANHWA_COUNT + 3, 'MANHWA')
+    const fresh    = dedupe(manhwa, fallback)
+    manhwa.push(...fresh.slice(0, MANHWA_COUNT - manhwa.length))
   }
+
+  if (manhua.length < MANHUA_COUNT) {
+    const fallback = await fetchAniListByFormat(MANHUA_COUNT + 3, 'MANHUA')
+    const fresh    = dedupe(manhua, fallback)
+    manhua.push(...fresh.slice(0, MANHUA_COUNT - manhua.length))
+  }
+
+  if (manga.length < MANGA_COUNT) {
+    const fallback = await fetchJikanPopular(MANGA_COUNT + 3)
+    const fresh    = dedupe(manga, fallback)
+    manga.push(...fresh.slice(0, MANGA_COUNT - manga.length))
+  }
+
+  // 6. Combine — manhwa first, then manhua, then manga
+  const series: SeriesData[] = [...manhwa, ...manhua, ...manga]
 
   if (series.length === 0) {
     return NextResponse.json({ error: 'All sources failed to return data.' }, { status: 502 })
   }
 
-  // 5. Process each series
+  // 7. Process each series
   const report = {
-    submitted: [] as { title: string; source: string }[],
+    submitted: [] as { title: string; type: string; source: string }[],
     skipped:   [] as { title: string; reason: string }[],
     failed:    [] as { title: string; error: string }[],
   }
@@ -360,7 +375,7 @@ export async function GET(req: Request) {
     }
 
     try {
-      // Duplicate check — case-insensitive title match
+      // Duplicate check
       const { data: existing } = await supabase
         .from('recommendations')
         .select('id, title')
@@ -393,10 +408,10 @@ export async function GET(req: Request) {
           year_released:      s.year_released,
           chapter_count:      s.chapter_count,
           official_platforms: s.official_platforms,
-          content_rating:     'all_ages',       // Default — admin updates during review
-          is_approved:        false,            // Admin reviews manually
-          is_ai_generated:    true,             // System label
-          ai_model:           'auto-submitter', // Distinguishes from user submissions
+          content_rating:     'all_ages',
+          is_approved:        false,
+          is_ai_generated:    true,
+          ai_model:           'auto-submitter',
           mangaupdates_id:    s.mangaupdates_id,
           anilist_id:         s.anilist_id,
           mal_id:             s.mal_id,
@@ -408,13 +423,13 @@ export async function GET(req: Request) {
         continue
       }
 
-      report.submitted.push({ title: s.title, source: s.source })
+      report.submitted.push({ title: s.title, type: s.type, source: s.source })
     } catch (err: any) {
       report.failed.push({ title: s.title, error: err?.message ?? 'Unknown error' })
     }
   }
 
-  // 6. Log the run — store mu_page so next run reads it and advances by 1
+  // 8. Log run — store each type's page so next run advances all three independently
   await supabase.from('activity_logs').insert({
     user_id:     systemUserId,
     action:      'auto_rec_submit',
@@ -423,7 +438,9 @@ export async function GET(req: Request) {
       submitted_count: report.submitted.length,
       skipped_count:   report.skipped.length,
       failed_count:    report.failed.length,
-      mu_page:         currentPage,  // ← next run does lastPage + 1
+      page_manhwa:     manhwaPage,
+      page_manhua:     manhuaPage,
+      page_manga:      mangaPage,
     },
   } as any)
 
@@ -431,7 +448,7 @@ export async function GET(req: Request) {
     submitted_count: report.submitted.length,
     skipped_count:   report.skipped.length,
     failed_count:    report.failed.length,
-    mu_page:         currentPage,
+    pages:           { manhwa: manhwaPage, manhua: manhuaPage, manga: mangaPage },
     report,
   })
 }
