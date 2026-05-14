@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ThumbsUp, MessageSquare, Bookmark, TrendingUp } from 'lucide-react'
+import { ThumbsUp, MessageSquare, Bookmark, TrendingUp, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
@@ -13,24 +13,23 @@ interface ComicCardProps {
 
 // ── Type accent system ────────────────────────────────────────────
 const TYPE_ACCENTS: Record<string, {
-  bar:    string  // left border bar colour
-  badge:  string  // type pill
-  glow:   string  // hover glow
-  dot:    string  // inline dot
+  bar:   string
+  badge: string
+  glow:  string
 }> = {
-  manga:   { bar: 'bg-rose-500',   badge: 'text-rose-400   bg-rose-500/10   border-rose-500/20',   glow: 'hover:shadow-rose-500/10',   dot: 'bg-rose-500'   },
-  manhwa:  { bar: 'bg-violet-500', badge: 'text-violet-400 bg-violet-500/10 border-violet-500/20', glow: 'hover:shadow-violet-500/10', dot: 'bg-violet-500' },
-  manhua:  { bar: 'bg-amber-500',  badge: 'text-amber-400  bg-amber-500/10  border-amber-500/20',  glow: 'hover:shadow-amber-500/10',  dot: 'bg-amber-500'  },
-  webtoon: { bar: 'bg-teal-500',   badge: 'text-teal-400   bg-teal-500/10   border-teal-500/20',   glow: 'hover:shadow-teal-500/10',   dot: 'bg-teal-500'   },
-  comic:   { bar: 'bg-blue-500',   badge: 'text-blue-400   bg-blue-500/10   border-blue-500/20',   glow: 'hover:shadow-blue-500/10',   dot: 'bg-blue-500'   },
-  other:   { bar: 'bg-zinc-500',   badge: 'text-zinc-400   bg-zinc-500/10   border-zinc-500/20',   glow: 'hover:shadow-zinc-500/10',   dot: 'bg-zinc-500'   },
+  manga:   { bar: 'bg-rose-500',   badge: 'text-rose-400   bg-rose-500/10   border-rose-500/20',   glow: 'hover:shadow-rose-500/10'   },
+  manhwa:  { bar: 'bg-violet-500', badge: 'text-violet-400 bg-violet-500/10 border-violet-500/20', glow: 'hover:shadow-violet-500/10' },
+  manhua:  { bar: 'bg-amber-500',  badge: 'text-amber-400  bg-amber-500/10  border-amber-500/20',  glow: 'hover:shadow-amber-500/10'  },
+  webtoon: { bar: 'bg-teal-500',   badge: 'text-teal-400   bg-teal-500/10   border-teal-500/20',   glow: 'hover:shadow-teal-500/10'   },
+  comic:   { bar: 'bg-blue-500',   badge: 'text-blue-400   bg-blue-500/10   border-blue-500/20',   glow: 'hover:shadow-blue-500/10'   },
+  other:   { bar: 'bg-zinc-500',   badge: 'text-zinc-400   bg-zinc-500/10   border-zinc-500/20',   glow: 'hover:shadow-zinc-500/10'   },
 }
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
-  ongoing:   { label: 'Ongoing',   color: 'text-emerald-400' },
-  completed: { label: 'Complete',  color: 'text-sky-400'     },
-  hiatus:    { label: 'Hiatus',    color: 'text-amber-400'   },
-  cancelled: { label: 'Dropped',   color: 'text-rose-400'    },
+  ongoing:   { label: 'Ongoing',  color: 'text-emerald-400' },
+  completed: { label: 'Complete', color: 'text-sky-400'     },
+  hiatus:    { label: 'Hiatus',   color: 'text-amber-400'   },
+  cancelled: { label: 'Dropped',  color: 'text-rose-400'    },
 }
 
 function isNewThisWeek(createdAt: string): boolean {
@@ -38,16 +37,18 @@ function isNewThisWeek(createdAt: string): boolean {
 }
 
 export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
-  const accent  = TYPE_ACCENTS[rec.type]  ?? TYPE_ACCENTS.other
-  const status  = STATUS_META[rec.status] ?? { label: rec.status, color: 'text-muted-foreground' }
-  const score   = rec.score ?? (rec.upvotes - rec.downvotes)
-  const isNew   = isNewThisWeek(rec.created_at)
+  const accent = TYPE_ACCENTS[rec.type] ?? TYPE_ACCENTS.other
+  const status = STATUS_META[rec.status] ?? { label: rec.status, color: 'text-muted-foreground' }
+  const score  = rec.score ?? (rec.upvotes - rec.downvotes)
+  const isNew  = isNewThisWeek(rec.created_at)
+
+  // System-submitted flag — covers auto-submitter and any future system accounts
+  const isSystemSubmitted = rec.is_ai_generated && rec.ai_model === 'auto-submitter'
 
   return (
     <Link
       href={`/comic/${rec.id}`}
       className={cn(
-        // Base — portrait card
         'group relative flex flex-col rounded-xl overflow-hidden',
         'border border-border bg-card',
         'hover:border-transparent hover:shadow-xl',
@@ -57,14 +58,19 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
       )}
     >
       {/* ── Accent bar — left edge ── */}
-      <div className={cn('absolute left-0 top-0 bottom-0 w-[3px] z-10 transition-all duration-300 group-hover:w-1', accent.bar)} />
+      <div className={cn(
+        'absolute left-0 top-0 bottom-0 w-[3px] z-10 transition-all duration-300 group-hover:w-1',
+        accent.bar
+      )} />
 
       {/* ── Cover ── */}
       <div className="relative aspect-[3/4] overflow-hidden bg-muted">
         {rec.cover_url ? (
           <img
             src={rec.cover_url}
-            alt={rec.title}
+            alt={`Cover art for ${rec.title}`}
+            title={rec.title}
+            referrerPolicy="no-referrer"   // don't leak user browsing to third-party CDNs
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             loading="lazy"
           />
@@ -100,6 +106,19 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
             </span>
           ) : null}
         </div>
+
+        {/* ── System submitted badge — bottom-right of cover ── */}
+        {isSystemSubmitted && (
+          <div className="absolute bottom-8 right-2 z-10">
+            <span
+              title="Submitted by Compicfy system"
+              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-primary/80 backdrop-blur-sm text-primary-foreground"
+            >
+              <Bot size={7} />
+              SYS
+            </span>
+          </div>
+        )}
 
         {/* ── Bottom title ── */}
         <div className="absolute inset-x-0 bottom-0 px-3 pt-4 pb-2.5 z-10">
@@ -139,6 +158,13 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
             {formatNumber(rec.save_count)}
           </span>
         </div>
+
+        {/* Cover credit — always shown when cover exists */}
+        {rec.cover_url && (
+          <p className="text-[8px] text-muted-foreground/40 truncate">
+            © {rec.author ?? 'respective rights holder'}
+          </p>
+        )}
       </div>
 
       {/* ── Hover shimmer ── */}

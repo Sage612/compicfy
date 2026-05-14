@@ -1,36 +1,66 @@
-import type { Metadata } from 'next'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'Cookie Policy',
-  description: 'How Compicfy uses cookies and similar technologies.',
+import type { Metadata } from 'next'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { RotateCcw } from 'lucide-react'
+
+// ── Update this date whenever you make material changes ──────────
+const LAST_UPDATED = 'May 14, 2025'
+
+const cookies = [
+  {
+    category: 'Necessary',
+    purpose:  'Authentication, security tokens, and your cookie consent choice.',
+    required: true,
+  },
+  {
+    category: 'Preferences',
+    purpose:  'Theme (light/dark mode), age verification status, and UI preferences.',
+    required: false,
+  },
+  {
+    category: 'Referrals',
+    purpose:  'Attribution for merchandise links to help support the platform. Third-party partners (e.g., Amazon) may set their own cookies upon clicking links.',
+    required: false,
+  },
+  {
+    category: 'Analytics',
+    purpose:  'Anonymous usage data to understand how people use Compicfy. No personal data collected.',
+    required: false,
+  },
+]
+
+function ResetCookieButton() {
+  const [done, setDone] = useState(false)
+
+  const handleReset = () => {
+    try {
+      localStorage.removeItem('compicfy_cookie_consent')
+      localStorage.removeItem('compicfy_age_verified')
+      localStorage.removeItem('compicfy_age_verified_date')
+      // Clear cookie too
+      document.cookie = 'compicfy_age=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      setDone(true)
+      toast.success('Cookie preferences reset. Refresh the page to re-verify.')
+    } catch {
+      toast.error('Could not reset preferences. Try clearing your browser cookies manually.')
+    }
+  }
+
+  return (
+    <button
+      onClick={handleReset}
+      disabled={done}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <RotateCcw size={13} className={done ? 'opacity-40' : ''} />
+      {done ? 'Preferences reset — refresh to see changes' : 'Reset my cookie preferences'}
+    </button>
+  )
 }
 
 export default function CookiePolicyPage() {
-  const lastUpdated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-
-  const cookies = [
-    {
-      category: 'Necessary',
-      purpose: 'Authentication, security tokens, and your cookie consent choice.',
-      required: true,
-    },
-    {
-      category: 'Preferences',
-      purpose: 'Theme (light/dark mode), age verification status, and UI preferences.',
-      required: false,
-    },
-    {
-      category: 'Referrals',
-      purpose: 'Attribution for merchandise links to help support the platform. Third-party partners (e.g., Amazon) may set their own cookies upon clicking links.',
-      required: false,
-    },
-    {
-      category: 'Analytics',
-      purpose: 'Anonymous usage data to understand how people use Compicfy. No personal data collected.',
-      required: false,
-    },
-  ]
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-12 space-y-10">
 
@@ -42,7 +72,7 @@ export default function CookiePolicyPage() {
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Cookie Policy</h1>
         </div>
-        <p className="text-muted-foreground text-sm pl-0.5">Last updated: {lastUpdated}</p>
+        <p className="text-muted-foreground text-sm pl-0.5">Last updated: {LAST_UPDATED}</p>
       </div>
 
       <div className="space-y-8">
@@ -58,14 +88,14 @@ export default function CookiePolicyPage() {
           </p>
         </section>
 
-        {/* Cookie table — desktop */}
+        {/* Cookie table */}
         <section className="space-y-3">
           <h2 className="text-base font-black flex items-center gap-2">
             <span className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 text-xs font-black flex items-center justify-center shrink-0">2</span>
             What cookies does Compicfy use?
           </h2>
 
-          {/* Desktop table — hidden on mobile */}
+          {/* Desktop table */}
           <div className="pl-0 sm:pl-8 hidden sm:block">
             <div className="rounded-2xl border border-border overflow-hidden">
               <table className="w-full text-sm">
@@ -99,7 +129,7 @@ export default function CookiePolicyPage() {
             </div>
           </div>
 
-          {/* Mobile cards — shown only on mobile */}
+          {/* Mobile cards */}
           <div className="sm:hidden space-y-3">
             {cookies.map(({ category, purpose, required }) => (
               <div key={category} className="rounded-2xl border border-border bg-card p-4 space-y-2">
@@ -125,7 +155,7 @@ export default function CookiePolicyPage() {
         <section className="space-y-2">
           <h2 className="text-base font-black flex items-center gap-2">
             <span className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 text-xs font-black flex items-center justify-center shrink-0">3</span>
-            We do NOT do any of the following
+            What we do NOT do
           </h2>
           <ul className="pl-8 space-y-1.5">
             {[
@@ -135,26 +165,25 @@ export default function CookiePolicyPage() {
               'Use fingerprinting or cross-site tracking',
             ].map((item) => (
               <li key={item} className="flex items-start gap-2 text-sm text-muted-foreground">
-                <span className="text-red-500 font-bold shrink-0 mt-0.5">✕</span>
+                <span className="text-destructive font-bold shrink-0 mt-0.5">✕</span>
                 {item}
               </li>
             ))}
           </ul>
         </section>
 
-        {/* How to change preferences */}
-        <section className="space-y-2">
+        {/* Reset preferences — now a proper button instead of devtools instructions */}
+        <section className="space-y-3">
           <h2 className="text-base font-black flex items-center gap-2">
             <span className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 text-xs font-black flex items-center justify-center shrink-0">4</span>
-            How to change your preferences
+            Reset your cookie preferences
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed pl-8">
-            You can reset your cookie preferences at any time by going to your browser&apos;s developer tools → Application → Local Storage → delete the{' '}
-            <code className="text-xs bg-muted border border-border px-1.5 py-0.5 rounded font-mono break-all">
-              compicfy_cookie_consent
-            </code>{' '}
-            key, then refresh the page.
+            You can reset your cookie and age verification preferences at any time using the button below. This will clear your saved choices and show the age verification prompt on your next visit.
           </p>
+          <div className="pl-8">
+            <ResetCookieButton />
+          </div>
         </section>
 
         {/* Contact */}

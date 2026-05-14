@@ -28,15 +28,18 @@ import { cn } from '@/lib/utils'
 import { GlobalSearch } from '@/components/layout/GlobalSearch'
 import { NotificationBell } from '@/components/user/NotificationBell'
 
+// ── Fixed: uses fill-primary-foreground with opacity variants
+// so the logo adapts to both light and dark themes,
+// matching the footer logo behaviour exactly.
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
-      <rect x="3"    y="18"   width="22"  height="5.5" rx="1" fill="white" fillOpacity="0.25" />
-      <rect x="3"    y="18"   width="10"  height="5.5" rx="1" fill="white" fillOpacity="0.55" />
-      <rect x="4.5"  y="11.5" width="19"  height="5.5" rx="1" fill="white" fillOpacity="0.45" />
-      <rect x="4.5"  y="11.5" width="9"   height="5.5" rx="1" fill="white" fillOpacity="0.75" />
-      <rect x="6"    y="5"    width="16"  height="5.5" rx="1" fill="white" fillOpacity="1"    />
-      <rect x="6"    y="5"    width="7.5" height="5.5" rx="1" fill="white" fillOpacity="0.65" />
+      <rect x="3"   y="18"    width="22"  height="5.5" rx="1.5" className="fill-primary-foreground/25" />
+      <rect x="3"   y="18"    width="10"  height="5.5" rx="1.5" className="fill-primary-foreground/55" />
+      <rect x="4.5" y="11.5"  width="19"  height="5.5" rx="1.5" className="fill-primary-foreground/45" />
+      <rect x="4.5" y="11.5"  width="9"   height="5.5" rx="1.5" className="fill-primary-foreground/75" />
+      <rect x="6"   y="5"     width="16"  height="5.5" rx="1.5" className="fill-primary-foreground"    />
+      <rect x="6"   y="5"     width="7.5" height="5.5" rx="1.5" className="fill-primary-foreground/65" />
     </svg>
   )
 }
@@ -165,8 +168,8 @@ export function Header() {
   ]
 
   const authNavLinks = [
-    { href: '/feed',    label: 'Feed',    icon: LayoutList },
-    { href: listsHref,  label: listsLabel, icon: BookMarked },
+    { href: '/feed',   label: 'Feed',    icon: LayoutList },
+    { href: listsHref, label: listsLabel, icon: BookMarked },
   ]
 
   const themeOptions = [
@@ -186,7 +189,7 @@ export function Header() {
 
   return (
     <>
-      {/* ── MOBILE HEADER — floating pill, hidden on lg+ ── */}
+      {/* ── MOBILE HEADER ── */}
       <header className={cn(
         'fixed top-0 left-0 right-0 z-50 lg:hidden px-3 pt-3',
         'transition-transform duration-300',
@@ -245,7 +248,7 @@ export function Header() {
         </div>
       </header>
 
-      {/* ── DESKTOP HEADER — floating pill, visible on lg+ ── */}
+      {/* ── DESKTOP HEADER ── */}
       <header className={cn(
         'fixed top-0 left-0 right-0 z-50 hidden lg:flex px-6 pt-3',
         'transition-transform duration-300',
@@ -399,7 +402,7 @@ export function Header() {
 
                 <NotificationBell userId={user.id} />
 
-                {/* Avatar dropdown — all items preserved */}
+                {/* Avatar dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/30 focus-visible:ring-primary/30 transition-all outline-none">

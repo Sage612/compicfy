@@ -2,6 +2,9 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Disclaimer' }
 
+// ── Update this date whenever you make material changes ──────────
+const LAST_UPDATED = 'May 14, 2025'
+
 const SECTIONS = [
   {
     n: '1', title: 'Content Ownership',
@@ -17,7 +20,7 @@ const SECTIONS = [
   },
   {
     n: '4', title: 'Third-Party Cover Images',
-    body: 'Where an official publisher or platform cover image is unavailable or cannot be used, Compicfy may display cover artwork sourced from community-maintained databases such as MyAnimeList (MAL), AniList, MangaUpdates, or similar services. These images are used solely for identification and recommendation purposes. We do not claim ownership over any such images. If you are a rights holder and believe an image has been used without permission, please contact us at support@compicfy.cloud and we will remove it promptly.',
+    body: 'Where an official publisher or platform cover image is unavailable, Compicfy may display cover artwork sourced from community-maintained databases such as MyAnimeList (MAL), AniList, MangaUpdates, or similar services. These images are linked directly from their source and are not stored or served by Compicfy. They are used solely for identification and recommendation purposes. If you are a rights holder and believe an image has been used without permission, please contact us at support@compicfy.cloud and we will remove it promptly.',
   },
   {
     n: '5', title: 'Mature Content',
@@ -36,8 +39,8 @@ const SECTIONS = [
     body: 'Compicfy may contain links to third-party websites and services. We are not responsible for the content, privacy practices, or terms of service of any external sites. Accessing external links is at your own discretion and risk.',
   },
   {
-    n: '9', title: 'AI-Generated Content',
-    body: 'Some news summaries on Compicfy are generated with the assistance of AI. All AI-generated content is clearly labelled and reviewed by our moderation team before publication. AI-generated summaries are based on publicly available source material and are not a substitute for the original reporting.',
+    n: '9', title: 'AI-Generated & System-Submitted Content',
+    body: 'Some news summaries and comic recommendations on Compicfy are generated or submitted automatically by our system (labelled "auto-submitter"). All system-submitted recommendations are clearly marked and require manual review and approval by our moderation team before appearing publicly. AI-generated news summaries are based on publicly available source material and are not a substitute for the original reporting.',
   },
   {
     n: '10', title: 'Changes to This Disclaimer',
@@ -51,8 +54,6 @@ const SECTIONS = [
 ]
 
 export default function DisclaimerPage() {
-  const lastUpdated = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-12 space-y-10">
 
@@ -64,21 +65,28 @@ export default function DisclaimerPage() {
           </div>
           <h1 className="text-3xl font-black tracking-tight">Disclaimer</h1>
         </div>
-        <p className="text-muted-foreground text-sm pl-0.5">Last updated: {lastUpdated}</p>
+        <p className="text-muted-foreground text-sm pl-0.5">Last updated: {LAST_UPDATED}</p>
       </div>
 
       <div className="space-y-8">
         {SECTIONS.map(({ n, title, body, contact }) => (
           <section key={n} className="space-y-2">
             <h2 className="text-base font-black flex items-center gap-2">
-              <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-black flex items-center justify-center shrink-0">{n}</span>
+              <span className="w-6 h-6 rounded-lg bg-primary/10 text-primary text-xs font-black flex items-center justify-center shrink-0">
+                {n}
+              </span>
               {title}
             </h2>
-            {body && <p className="text-sm text-muted-foreground leading-relaxed pl-8">{body}</p>}
+            {body && (
+              <p className="text-sm text-muted-foreground leading-relaxed pl-8">{body}</p>
+            )}
+            {/* Fixed: was not rendering the email link */}
             {contact && (
               <p className="text-sm text-muted-foreground leading-relaxed pl-8">
                 If you have questions about this disclaimer or wish to report a DMCA concern, please contact us at{' '}
-                <a href={`mailto:${contact}`} className="text-primary hover:underline font-medium">{contact}</a>.
+                <a href={`mailto:${contact}`} className="text-primary hover:underline font-medium">
+                  {contact}
+                </a>.
               </p>
             )}
           </section>

@@ -30,11 +30,13 @@ const footerLinks = {
     { label: 'Discord',              href: 'https://discord.gg/7WPGMb696N' },
   ],
   Legal: [
-    { label: 'Disclaimer',     href: '/disclaimer' },
-    { label: 'Terms',          href: '/terms'      },
-    { label: 'Privacy Policy', href: '/privacy'    },
-    { label: 'Cookies',        href: '/cookies'    },
-    { label: 'DMCA',           href: '/dmca'       },
+    { label: 'Disclaimer',           href: '/disclaimer' },
+    { label: 'Terms',                href: '/terms'      },
+    { label: 'Privacy Policy',       href: '/privacy'    },
+    { label: 'Cookies',              href: '/cookies'    },
+    { label: 'DMCA',                 href: '/dmca'       },
+    // Added: was missing from footer
+    { label: 'Community Guidelines', href: '/guidelines' },
   ],
 }
 
@@ -89,7 +91,7 @@ export function Footer() {
               </h3>
               <ul className="space-y-2.5">
                 {links.map(({ label, href }) => (
-                  <li key={href}>
+                  <li key={`${category}-${href}`}>
                     <Link
                       href={href}
                       className="text-sm text-muted-foreground hover:text-foreground hover:translate-x-0.5 inline-block transition-all duration-150"
@@ -113,7 +115,7 @@ export function Footer() {
 
         <div className="h-px bg-gradient-to-r from-transparent via-border to-transparent mb-6" />
 
-        {/* Bottom bar — removed "Made with ❤️" filler line */}
+        {/* Bottom bar */}
         <div className="flex flex-col gap-1 text-[11px] text-muted-foreground sm:flex-row sm:justify-between sm:items-center">
           <p className="text-center sm:text-left leading-relaxed">
             &copy; {new Date().getFullYear()} Compicfy. All rights reserved.

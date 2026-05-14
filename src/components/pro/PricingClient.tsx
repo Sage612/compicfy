@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import {
   Crown, Check, Zap, BookOpen,
   Bookmark, BookMarked, Star, BarChart2,
-  Download, Bell, Eye, ArrowRight,
+  Download, Bell, ArrowRight,
   Shield, Users, TrendingUp, BadgeCheck, Flame,
 } from 'lucide-react'
 import Link from 'next/link'
@@ -35,20 +35,20 @@ const FREE_FEATURES = [
   { icon: Bell,       text: 'Basic notifications'          },
 ]
 
+// Recognition perks — removed "Priority placement in Community Picks"
 const PRO_STATUS = [
   { icon: Crown,      text: 'Exclusive 👑 Pro badge on profile'       },
   { icon: BadgeCheck, text: 'Eligible for Verified Recommender badge' },
-  { icon: TrendingUp, text: 'Priority placement in Community Picks'   },
   { icon: Flame,      text: 'Early access to new features'            },
 ]
 
+// Power tools — removed "Ad-free experience" and "See who viewed your profile"
 const PRO_POWER = [
   { icon: BookOpen,  text: 'Unlimited recommendations'      },
   { icon: Bookmark,  text: 'Unlimited saves'                },
   { icon: BarChart2, text: 'Recommendation analytics'       },
-  { icon: Eye,       text: 'See who viewed your profile'    },
   { icon: Download,  text: 'Export reading lists (CSV/PDF)' },
-  { icon: Zap,       text: 'Ad-free experience'             },
+  { icon: Zap,       text: 'Priority support'               },
 ]
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -58,7 +58,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   verification_failed: 'We could not verify your payment.',
 }
 
-const YEARLY_BILLED = '$29.99'
+const YEARLY_BILLED  = '$29.99'
+const MONTHLY_PRICE  = '$4.99'
+const EFFECTIVE_MONTHLY = '$2.49'
 
 export function PricingClient({ user, profile }: Props) {
   const [billing,  setBilling]  = useState<'monthly' | 'yearly'>('yearly')
@@ -97,7 +99,7 @@ export function PricingClient({ user, profile }: Props) {
     }
   }
 
-  const monthlyDisplay = billing === 'monthly' ? '$4.99' : '$2.49'
+  const monthlyDisplay = billing === 'monthly' ? MONTHLY_PRICE : EFFECTIVE_MONTHLY
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12 space-y-14">
@@ -169,7 +171,9 @@ export function PricingClient({ user, profile }: Props) {
               onClick={() => setBilling('monthly')}
               className={cn(
                 'px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
-                billing === 'monthly' ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border'
+                billing === 'monthly'
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'bg-card text-muted-foreground border-border'
               )}
             >
               Monthly
@@ -178,11 +182,15 @@ export function PricingClient({ user, profile }: Props) {
               onClick={() => setBilling('yearly')}
               className={cn(
                 'relative px-4 py-2 rounded-xl text-sm font-semibold border transition-all',
-                billing === 'yearly' ? 'bg-foreground text-background border-foreground' : 'bg-card text-muted-foreground border-border'
+                billing === 'yearly'
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'bg-card text-muted-foreground border-border'
               )}
             >
               Yearly
-              <span className="absolute -top-2.5 -right-2.5 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-black">-50%</span>
+              <span className="absolute -top-2.5 -right-2.5 px-1.5 py-0.5 rounded-full bg-emerald-500 text-white text-[9px] font-black">
+                -50%
+              </span>
             </button>
           </div>
 
@@ -228,12 +236,17 @@ export function PricingClient({ user, profile }: Props) {
                   <span className="text-muted-foreground text-sm mb-1.5">/month</span>
                 </div>
                 {billing === 'yearly' && (
-                  <p className="text-xs text-emerald-600 font-bold mt-1">Billed {YEARLY_BILLED}/year · save 50% vs monthly</p>
+                  <p className="text-xs text-emerald-600 font-bold mt-1">
+                    Billed {YEARLY_BILLED}/year · save 50% vs monthly
+                  </p>
                 )}
                 {billing === 'monthly' && (
                   <p className="text-xs text-muted-foreground mt-1">
                     Or{' '}
-                    <button onClick={() => setBilling('yearly')} className="text-emerald-600 font-bold hover:underline">
+                    <button
+                      onClick={() => setBilling('yearly')}
+                      className="text-emerald-600 font-bold hover:underline"
+                    >
                       save 50% with yearly ({YEARLY_BILLED}/yr)
                     </button>
                   </p>
@@ -241,8 +254,11 @@ export function PricingClient({ user, profile }: Props) {
               </div>
 
               <div className="space-y-4 flex-grow">
+                {/* Recognition */}
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">Recognition</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-600">
+                    Recognition
+                  </p>
                   {PRO_STATUS.map(f => (
                     <div key={f.text} className="flex items-start gap-2.5 text-sm font-medium">
                       <Check size={14} className="text-amber-500 mt-0.5 shrink-0" />
@@ -250,9 +266,14 @@ export function PricingClient({ user, profile }: Props) {
                     </div>
                   ))}
                 </div>
+
                 <div className="h-px bg-border" />
+
+                {/* Power Tools */}
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Power Tools</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    Power Tools
+                  </p>
                   {PRO_POWER.map(f => (
                     <div key={f.text} className="flex items-start gap-2.5 text-sm text-muted-foreground">
                       <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
@@ -271,14 +292,35 @@ export function PricingClient({ user, profile }: Props) {
                   ? 'Processing…'
                   : billing === 'yearly'
                   ? `Upgrade — ${YEARLY_BILLED}/year`
-                  : 'Upgrade — $4.99/month'
+                  : `Upgrade — ${MONTHLY_PRICE}/month`
                 }
               </Button>
 
-              <p className="text-center text-[10px] text-muted-foreground">
-                Cancel anytime · Secure payment via Flutterwave
-              </p>
+              {/* Fixed: no "cancel anytime" since yearly has no mid-year refund */}
+              <div className="text-center space-y-1">
+                <p className="text-[10px] text-muted-foreground">
+                  {billing === 'yearly'
+                    ? 'One-time yearly payment · no auto-renewal'
+                    : 'Billed monthly · cancel before next cycle'
+                  }
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Secure payment via Flutterwave ·{' '}
+                  <Link href="/terms" className="hover:underline text-primary">Terms apply</Link>
+                </p>
+              </div>
             </div>
+          </div>
+
+          {/* Trust row */}
+          <div className="flex flex-wrap items-center justify-center gap-6 text-xs text-muted-foreground max-w-lg mx-auto">
+            {[
+              '🔒 Secure checkout',
+              '🌍 Available worldwide',
+              '📧 Support via email',
+            ].map(item => (
+              <span key={item} className="flex items-center gap-1">{item}</span>
+            ))}
           </div>
         </div>
       )}
