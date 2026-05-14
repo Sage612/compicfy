@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const filter = searchParams.get('filter') ?? 'pending'
     const q      = searchParams.get('q')?.trim() ?? ''
     const page   = parseInt(searchParams.get('page') ?? '1')
-    const limit  = 20
+    const limit  = 50
     const offset = (page - 1) * limit
 
     let query = (supabase as any)
