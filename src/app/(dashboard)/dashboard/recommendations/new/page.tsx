@@ -37,7 +37,7 @@ export default async function NewRecommendationPage() {
       {/* Header */}
       <div className="space-y-1">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20">
+          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
             <Sparkles size={16} className="text-white" />
           </div>
           <h1 className="text-2xl font-black tracking-tight">Submit a Recommendation</h1>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { X, BookOpen, CheckCircle2 } from 'lucide-react'
+import { X, BookOpen, CheckCircle2, Target  } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Show every new session, dismiss survives within-session navigation
@@ -48,8 +48,8 @@ export function SubmissionGuidelineBanner() {
       </button>
 
       <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shrink-0 shadow-sm">
-          <BookOpen size={14} className="text-white" />
+        <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-sm">
+          <Target  size={14} className="text-white" />
         </div>
         <div>
           <p className="text-sm font-black leading-tight">Submission Guidelines</p>

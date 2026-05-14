@@ -33,7 +33,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     n: '7', title: 'Third-Party Cover Images',
-    body: 'Cover images may be sourced from community databases such as MyAnimeList and AniList when official publisher assets are unavailable. These are linked directly from their source — we do not store or serve these images from our own servers. Rights holders who wish to have images removed may contact us at support@compicfy.cloud.',
+    body: 'Cover images may be sourced from community databases such as MyAnimeList and AniList when official publisher assets are unavailable. These are linked directly from their source, we do not store or serve these images from our own servers. Rights holders who wish to have images removed may contact us at support@compicfy.cloud.',
   },
   {
     n: '8', title: 'Data Retention',

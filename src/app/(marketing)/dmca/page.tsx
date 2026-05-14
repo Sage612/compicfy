@@ -180,7 +180,7 @@ export default function DMCAPage() {
           <div className="flex justify-end pt-2">
             <Button
               onClick={() => setStep('form')}
-              className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20"
+              className="gap-2 bg-primary hover:bg-primary/90 border-0 shadow-lg shadow-primary/20"
             >
               Continue to Form →
             </Button>
@@ -319,7 +319,7 @@ export default function DMCAPage() {
             <Button
               onClick={handleSubmit}
               disabled={!canSubmit || loading}
-              className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-lg shadow-primary/20 disabled:opacity-40"
+              className="gap-2 bg-primary hover:bg-primary/90 border-0 shadow-lg shadow-primary/20 disabled:opacity-40"
             >
               {loading ? <Loader2 size={14} className="animate-spin" /> : <ShieldAlert size={14} />}
               Submit DMCA Notice

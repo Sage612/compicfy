@@ -41,7 +41,7 @@ export function CookieBanner() {
             </p>
             <p className="text-xs text-muted-foreground leading-relaxed">
               We use essential cookies to keep the site working, plus analytics and referral tracking 
-              to support the community. No ads, no data selling — ever.{' '}
+              to support the community. No ads, no data selling ever.{' '}
               <Link
                 href="/cookies"
                 className="underline underline-offset-2 hover:text-foreground transition-colors"

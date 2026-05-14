@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Search, Loader2, Sparkles, BookOpen, X } from 'lucide-react'
+import { Search, Loader2, BookOpen, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
 interface MangaResult {
@@ -88,17 +88,7 @@ export function MangaSearch({ onSelect }: Props) {
 
   return (
     <div className="space-y-3">
-
-      {/* Label */}
-      <div className="flex items-center gap-2">
-        <Sparkles size={15} className="text-primary" />
-        <p className="text-sm font-semibold">Auto-fill from External Database</p>
-        <Badge variant="secondary" className="text-xs">Optional</Badge>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Search across external databases to auto-fill the form.
-      </p>
-
+      
       {/* Search input */}
       <div className="relative" ref={containerRef}>
         <div className="relative">

@@ -16,7 +16,7 @@ export default function AboutPage() {
 
       {/* Hero */}
       <div className="text-center space-y-5">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center mx-auto shadow-lg shadow-primary/20">
+        <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center mx-auto shadow-lg shadow-primary/20">
           <span className="text-3xl">📚</span>
         </div>
         <div className="space-y-3">
@@ -79,11 +79,11 @@ export default function AboutPage() {
       </section>
 
       {/* CTA */}
-      <div className="relative overflow-hidden text-center p-8 rounded-2xl bg-gradient-to-br from-primary/10 to-violet-500/10 border border-primary/20 space-y-4">
+      <div className="relative overflow-hidden text-center p-8 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 space-y-4">
         <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
         <p className="font-black text-lg">Ready to find your next favourite comic?</p>
         <div className="flex justify-center gap-3">
-          <Link href="/browse" className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-violet-500 text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity shadow-lg shadow-primary/20">
+          <Link href="/browse" className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20">
             Browse Comics
           </Link>
           <Link href="/signup" className="px-5 py-2.5 rounded-xl border border-border text-sm font-semibold hover:border-primary transition-colors">

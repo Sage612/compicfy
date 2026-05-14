@@ -55,7 +55,7 @@ function ResetCookieButton() {
       className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-border bg-card text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
     >
       <RotateCcw size={13} className={done ? 'opacity-40' : ''} />
-      {done ? 'Preferences reset — refresh to see changes' : 'Reset my cookie preferences'}
+      {done ? 'Preferences reset. Refresh to see changes.' : 'Reset my cookie preferences'}
     </button>
   )
 }
