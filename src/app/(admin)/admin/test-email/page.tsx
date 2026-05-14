@@ -43,7 +43,7 @@ export default function TestEmailPage() {
         return
       }
 
-      toast.success(`✅ ${type} email sent to ${email}`)
+      toast.success(` ${type} email sent to ${email}`)
       setSent(prev => [...prev, type])
     } catch {
       toast.error('Network error — check console')
@@ -57,7 +57,7 @@ export default function TestEmailPage() {
       <div>
         <h1 className="text-2xl font-bold">Email Testing</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Send test emails to verify Resend is configured correctly
+          Send test emails to verify Mailer is configured correctly
         </p>
       </div>
 

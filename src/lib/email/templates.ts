@@ -59,7 +59,7 @@ export const templates = {
       ${btn('Browse Comics', `${SITE_URL}/browse`)}
       <a href="${SITE_URL}/dashboard/recommendations/new" style="display:inline-block;margin-left:12px;color:${BRAND};text-decoration:none;font-size:14px;font-weight:600;">Submit a Recommendation →</a>
     </div>
-    ${p(`If you have any questions, join our Discord community — we'd love to chat.`)}
+    ${p(`If you have any questions, join our Discord community we'd love to chat.`)}
   `),
 
   recommendationApproved: (username: string, title: string, recId: string) => base(`
@@ -88,10 +88,10 @@ export const templates = {
 
   accountBanned: (username: string, reason: string) => base(`
     <div style="display:inline-block;background:#dc26261a;border:1px solid #dc262633;border-radius:8px;padding:6px 12px;margin-bottom:20px;">
-      <span style="color:#dc2626;font-size:13px;font-weight:600;">🚫 Account Suspended</span>
+      <span style="color:#dc2626;font-size:13px;font-weight:600;">🚫 Account Banned</span>
     </div>
     ${h1(`Hi @${username},`)}
-    ${p(`Your ${SITE_NAME} account has been suspended.`)}
+    ${p(`Your ${SITE_NAME} account has been Banned.`)}
     <div style="background:#2a2d3a;border-left:3px solid #dc2626;padding:12px 16px;border-radius:0 8px 8px 0;margin-bottom:20px;">
       <p style="color:#9ca3af;font-size:13px;margin:0;"><strong style="color:#f9fafb;">Reason:</strong> ${reason}</p>
     </div>
