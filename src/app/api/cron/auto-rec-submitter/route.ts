@@ -1,12 +1,26 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// ── Ratio config — change these to adjust the mix ─────────────────
-// Total must equal BATCH_SIZE (20)
-const BATCH_SIZE     = 20
-const MANHWA_COUNT   = 10  // 50%
-const MANHUA_COUNT   = 6   // 30%
-const MANGA_COUNT    = 4   // 20%
+// ── Ratio config ──────────────────────────────────────────────────
+const BATCH_SIZE   = 20
+const MANHWA_COUNT = 10  // 50%
+const MANHUA_COUNT = 6   // 30%
+const MANGA_COUNT  = 4   // 20%
+
+// ── Sort rotation — cycles every 10 pages per type ───────────────
+// This prevents hitting the same top-rated wall forever
+const SORT_ORDERS = ['rating', 'subscribers', 'latest', 'votes'] as const
+type SortOrder = typeof SORT_ORDERS[number]
+
+function resolveSortOrder(page: number): SortOrder {
+  const index = Math.floor((page - 1) / 10) % SORT_ORDERS.length
+  return SORT_ORDERS[index]
+}
+
+// Normalize page within the current sort block (1-10, then resets)
+function resolveLocalPage(page: number): number {
+  return ((page - 1) % 10) + 1
+}
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -69,9 +83,7 @@ interface SeriesData {
   source:             'mangaupdates' | 'anilist' | 'jikan'
 }
 
-// ── MangaUpdates fetcher — fetches by specific type ───────────────
-// muType: 'Manhwa' | 'Manhua' | 'Manga'
-// page increments per type per run so each type advances independently
+// ── MangaUpdates fetcher by type + rotating sort ──────────────────
 
 async function fetchMangaUpdatesByType(
   limit:  number,
@@ -79,14 +91,17 @@ async function fetchMangaUpdatesByType(
   muType: 'Manhwa' | 'Manhua' | 'Manga'
 ): Promise<SeriesData[]> {
   try {
+    const sortOrder = resolveSortOrder(page)
+    const localPage = resolveLocalPage(page)
+
     const res = await fetch('https://api.mangaupdates.com/v1/series/search', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        orderby: 'rating',
+        orderby: sortOrder,
         asc:     'desc',
         perpage: limit,
-        page,
+        page:    localPage,
         type:    muType,
       }),
       next: { revalidate: 0 },
@@ -114,7 +129,6 @@ async function fetchMangaUpdatesByType(
       })
     )
 
-    // Map muType string to our internal type
     const internalType: 'manga' | 'manhwa' | 'manhua' =
       muType === 'Manhwa' ? 'manhwa' :
       muType === 'Manhua' ? 'manhua' : 'manga'
@@ -175,7 +189,7 @@ async function fetchMangaUpdatesByType(
   }
 }
 
-// ── AniList fallback — filtered by format ─────────────────────────
+// ── AniList fallback by format ────────────────────────────────────
 
 async function fetchAniListByFormat(limit: number, format: 'MANHWA' | 'MANHUA' | 'MANGA'): Promise<SeriesData[]> {
   try {
@@ -246,7 +260,7 @@ async function fetchAniListByFormat(limit: number, format: 'MANHWA' | 'MANHUA' |
   }
 }
 
-// ── Jikan fallback — manga only (no manhwa/manhua type filter) ────
+// ── Jikan fallback ────────────────────────────────────────────────
 
 async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
   try {
@@ -284,11 +298,21 @@ async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
   }
 }
 
-// ── Merge helper — deduplicates by title across buckets ──────────
+// ── Dedupe helper ─────────────────────────────────────────────────
 
 function dedupe(existing: SeriesData[], incoming: SeriesData[]): SeriesData[] {
   const seen = new Set(existing.map((s) => s.title.toLowerCase()))
   return incoming.filter((s) => !seen.has(s.title.toLowerCase()))
+}
+
+function dedupeWithin(series: SeriesData[]): SeriesData[] {
+  const seen = new Set<string>()
+  return series.filter((s) => {
+    const key = s.title.toLowerCase()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 }
 
 // ── Main handler ──────────────────────────────────────────────────
@@ -308,8 +332,7 @@ export async function GET(req: Request) {
   // 2. System user
   const systemUserId = '00000000-0000-0000-0000-000000000000'
 
-  // 3. Read last pages used per type from activity_logs
-  //    Each type tracks its own page so they advance independently
+  // 3. Read last pages from activity_logs
   const { data: lastLog } = await supabase
     .from('activity_logs')
     .select('details')
@@ -319,49 +342,57 @@ export async function GET(req: Request) {
     .limit(1)
     .maybeSingle()
 
-  const lastDetails     = (lastLog?.details as any) ?? {}
-  const manhwaPage      = (lastDetails.page_manhwa ?? 0) + 1
-  const manhuaPage      = (lastDetails.page_manhua ?? 0) + 1
-  const mangaPage       = (lastDetails.page_manga  ?? 0) + 1
+  const lastDetails = (lastLog?.details as any) ?? {}
+  const manhwaPage  = (lastDetails.page_manhwa ?? 0) + 1
+  const manhuaPage  = (lastDetails.page_manhua ?? 0) + 1
+  const mangaPage   = (lastDetails.page_manga  ?? 0) + 1
 
-  // 4. Fetch each type separately in parallel — ratio: 50% manhwa, 30% manhua, 20% manga
-  const [manhwaResults, manhuaResults, mangaResults] = await Promise.all([
-    fetchMangaUpdatesByType(MANHWA_COUNT + 3, manhwaPage, 'Manhwa'), // fetch a few extra to cover dupes
-    fetchMangaUpdatesByType(MANHUA_COUNT + 3, manhuaPage, 'Manhua'),
-    fetchMangaUpdatesByType(MANGA_COUNT  + 3, mangaPage,  'Manga'),
+  // Log what sort order is being used this run
+  const sortInfo = {
+    manhwa: resolveSortOrder(manhwaPage),
+    manhua: resolveSortOrder(manhuaPage),
+    manga:  resolveSortOrder(mangaPage),
+  }
+
+  // 4. Fetch each type separately in parallel — fetch extra to cover within-run dupes
+  const [manhwaRaw, manhuaRaw, mangaRaw] = await Promise.all([
+    fetchMangaUpdatesByType(MANHWA_COUNT + 5, manhwaPage, 'Manhwa'),
+    fetchMangaUpdatesByType(MANHUA_COUNT + 5, manhuaPage, 'Manhua'),
+    fetchMangaUpdatesByType(MANGA_COUNT  + 5, mangaPage,  'Manga'),
   ])
 
-  // 5. Fill any shortfalls with AniList fallback per type
-  let manhwa = manhwaResults.slice(0, MANHWA_COUNT)
-  let manhua = manhuaResults.slice(0, MANHUA_COUNT)
-  let manga  = mangaResults.slice(0,  MANGA_COUNT)
+  // 5. Dedupe within each bucket first, then slice to target count
+  let manhwa = dedupeWithin(manhwaRaw).slice(0, MANHWA_COUNT)
+  let manhua = dedupeWithin(manhuaRaw).slice(0, MANHUA_COUNT)
+  let manga  = dedupeWithin(mangaRaw).slice(0, MANGA_COUNT)
 
+  // 6. Fill shortfalls with AniList/Jikan fallbacks
   if (manhwa.length < MANHWA_COUNT) {
-    const fallback = await fetchAniListByFormat(MANHWA_COUNT + 3, 'MANHWA')
-    const fresh    = dedupe(manhwa, fallback)
+    const fallback = await fetchAniListByFormat(MANHWA_COUNT + 5, 'MANHWA')
+    const fresh    = dedupe(manhwa, dedupeWithin(fallback))
     manhwa.push(...fresh.slice(0, MANHWA_COUNT - manhwa.length))
   }
 
   if (manhua.length < MANHUA_COUNT) {
-    const fallback = await fetchAniListByFormat(MANHUA_COUNT + 3, 'MANHUA')
-    const fresh    = dedupe(manhua, fallback)
+    const fallback = await fetchAniListByFormat(MANHUA_COUNT + 5, 'MANHUA')
+    const fresh    = dedupe(manhua, dedupeWithin(fallback))
     manhua.push(...fresh.slice(0, MANHUA_COUNT - manhua.length))
   }
 
   if (manga.length < MANGA_COUNT) {
-    const fallback = await fetchJikanPopular(MANGA_COUNT + 3)
-    const fresh    = dedupe(manga, fallback)
+    const fallback = await fetchJikanPopular(MANGA_COUNT + 5)
+    const fresh    = dedupe(manga, dedupeWithin(fallback))
     manga.push(...fresh.slice(0, MANGA_COUNT - manga.length))
   }
 
-  // 6. Combine — manhwa first, then manhua, then manga
-  const series: SeriesData[] = [...manhwa, ...manhua, ...manga]
+  // 7. Combine and do a final global dedupe across all three buckets
+  const series: SeriesData[] = dedupeWithin([...manhwa, ...manhua, ...manga])
 
   if (series.length === 0) {
     return NextResponse.json({ error: 'All sources failed to return data.' }, { status: 502 })
   }
 
-  // 7. Process each series
+  // 8. Process each series
   const report = {
     submitted: [] as { title: string; type: string; source: string }[],
     skipped:   [] as { title: string; reason: string }[],
@@ -375,7 +406,7 @@ export async function GET(req: Request) {
     }
 
     try {
-      // Duplicate check
+      // Duplicate check against DB
       const { data: existing } = await supabase
         .from('recommendations')
         .select('id, title')
@@ -429,7 +460,7 @@ export async function GET(req: Request) {
     }
   }
 
-  // 8. Log run — store each type's page so next run advances all three independently
+  // 9. Log run — advance all three pages
   await supabase.from('activity_logs').insert({
     user_id:     systemUserId,
     action:      'auto_rec_submit',
@@ -441,6 +472,7 @@ export async function GET(req: Request) {
       page_manhwa:     manhwaPage,
       page_manhua:     manhuaPage,
       page_manga:      mangaPage,
+      sort_used:       sortInfo,
     },
   } as any)
 
@@ -449,6 +481,7 @@ export async function GET(req: Request) {
     skipped_count:   report.skipped.length,
     failed_count:    report.failed.length,
     pages:           { manhwa: manhwaPage, manhua: manhuaPage, manga: mangaPage },
+    sort_used:       sortInfo,
     report,
   })
 }
