@@ -93,23 +93,21 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
           </span>
         </div>
 
-        {/* ── Top-right: NEW or score ── */}
-        <div className="absolute top-2 right-2 z-10">
-          {isNew ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-500 text-white">
-              NEW
-            </span>
-          ) : score > 0 ? (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-black/60 backdrop-blur-sm text-white/90">
-              <TrendingUp size={7} />
-              {formatNumber(score)}
-            </span>
-          ) : null}
-        </div>
-
-        {/* ── System submitted badge — bottom-right of cover ── */}
-        {isSystemSubmitted && (
-          <div className="absolute bottom-8 right-2 z-10">
+        {/* ── Top-right: NEW or score + System badge ── */}
+        <div className="absolute top-2 right-2 z-10 flex flex-col gap-1 items-end">
+          <div>
+            {isNew ? (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-500 text-white">
+                NEW
+              </span>
+            ) : score > 0 ? (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-black/60 backdrop-blur-sm text-white/90">
+                <TrendingUp size={7} />
+                {formatNumber(score)}
+              </span>
+            ) : null}
+          </div>
+          {isSystemSubmitted && (
             <span
               title="Submitted by Compicfy system"
               className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-primary/80 backdrop-blur-sm text-primary-foreground"
@@ -117,8 +115,8 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
               <Bot size={7} />
               SYS
             </span>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* ── Bottom title ── */}
         <div className="absolute inset-x-0 bottom-0 px-3 pt-4 pb-2.5 z-10">
