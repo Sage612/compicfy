@@ -99,8 +99,8 @@ export function MobileNav() {
   const settingsHref      = isPro ? '/pro/settings'            : '/dashboard/settings'
   const notificationsHref = isPro ? '/pro/notifications'       : '/dashboard/notifications'
   const recommendHref     = isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'
-  const dashboardLabel    = isPro ? 'Pro Dashboard'            : 'Dashboard'
-  const billingLabel      = isPro ? 'Pro Billing'              : 'Billing'
+  const dashboardLabel    = isPro ? ' Dashboard'            : 'Dashboard'
+  const billingLabel      = isPro ? ' Billing'              : 'Billing'
   const initials          = displayName
     ? displayName.slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() ?? 'U'
