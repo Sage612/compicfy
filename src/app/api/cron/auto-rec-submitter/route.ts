@@ -7,19 +7,19 @@ const BATCH_SIZE = 20
 
 function mapType(raw: string): 'manga' | 'manhwa' | 'manhua' | 'webtoon' | 'comic' | 'other' {
   const t = raw.toLowerCase()
-  if (t.includes('manhwa') || t.includes('korean'))   return 'manhwa'
-  if (t.includes('manhua') || t.includes('chinese'))  return 'manhua'
-  if (t.includes('webtoon'))                          return 'webtoon'
-  if (t.includes('comic'))                            return 'comic'
-  if (t.includes('manga'))                            return 'manga'
+  if (t.includes('manhwa') || t.includes('korean'))  return 'manhwa'
+  if (t.includes('manhua') || t.includes('chinese')) return 'manhua'
+  if (t.includes('webtoon'))                         return 'webtoon'
+  if (t.includes('comic'))                           return 'comic'
+  if (t.includes('manga'))                           return 'manga'
   return 'other'
 }
 
 function mapStatus(raw: string): 'ongoing' | 'completed' | 'hiatus' | 'cancelled' {
   const s = raw.toLowerCase()
-  if (s.includes('complet') || s.includes('finish'))          return 'completed'
-  if (s.includes('hiatus'))                                   return 'hiatus'
-  if (s.includes('cancel') || s.includes('discontinu'))       return 'cancelled'
+  if (s.includes('complet') || s.includes('finish'))         return 'completed'
+  if (s.includes('hiatus'))                                  return 'hiatus'
+  if (s.includes('cancel') || s.includes('discontinu'))      return 'cancelled'
   return 'ongoing'
 }
 
@@ -40,14 +40,19 @@ function mapAniListStatus(status: string): 'ongoing' | 'completed' | 'hiatus' | 
 }
 
 function sanitizeGenres(genres: string[]): string[] {
-  // Keep max 5, trim whitespace, remove empty strings
-  return genres
-    .map((g) => g.trim())
-    .filter(Boolean)
-    .slice(0, 5)
+  return genres.map((g) => g.trim()).filter(Boolean).slice(0, 5)
 }
 
-// ── Normalised shape we work with internally ──────────────────────
+function resolvePlatforms(type: string): string[] {
+  switch (type) {
+    case 'manhwa':  return ['Webtoon', 'Tapas', 'Tappytoon']
+    case 'manhua':  return ['Mangatoon', 'Webcomics', 'INKR']
+    case 'webtoon': return ['Webtoon', 'Tapas']
+    default:        return ['Mangaplus', 'Viz Media', 'INKR']
+  }
+}
+
+// ── Normalised shape ──────────────────────────────────────────────
 
 interface SeriesData {
   title:              string
@@ -62,8 +67,6 @@ interface SeriesData {
   year_released:      number | null
   chapter_count:      number | null
   official_platforms: string[]
-  content_rating:     'all_ages' | 'teen' | 'mature' | 'adult'
-  // Source IDs for chapter-check cron to use later
   mangaupdates_id:    string | null
   anilist_id:         string | null
   mal_id:             string | null
@@ -71,19 +74,20 @@ interface SeriesData {
   source:             'mangaupdates' | 'anilist' | 'jikan'
 }
 
-// ── Source 1: MangaUpdates top series ────────────────────────────
+// ── Source 1: MangaUpdates top series (paginated) ─────────────────
+// page param increments each run so we never re-fetch the same batch
 
-async function fetchMangaUpdatesTop(limit: number): Promise<SeriesData[]> {
+async function fetchMangaUpdatesTop(limit: number, page: number): Promise<SeriesData[]> {
   try {
-    // MangaUpdates /v1/series/search with orderby=rating gives top-rated series
     const res = await fetch('https://api.mangaupdates.com/v1/series/search', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        orderby:  'rating',
-        asc:      'desc',
-        perpage:  limit,
-        type:     'series',
+        orderby: 'rating',
+        asc:     'desc',
+        perpage: limit,
+        page,
+        type:    'series',
       }),
       next: { revalidate: 0 },
     })
@@ -92,13 +96,11 @@ async function fetchMangaUpdatesTop(limit: number): Promise<SeriesData[]> {
     const data  = await res.json()
     const items = data.results ?? []
 
-    // Fetch full detail for each (author/artist/description live in detail endpoint)
     const detailed = await Promise.allSettled(
       items.map(async (item: any) => {
         const record   = item.record ?? {}
         const seriesId = record.series_id
         if (!seriesId) return null
-
         try {
           const detailRes = await fetch(
             `https://api.mangaupdates.com/v1/series/${seriesId}`,
@@ -117,18 +119,16 @@ async function fetchMangaUpdatesTop(limit: number): Promise<SeriesData[]> {
       .map((r) => {
         const { record, detail, seriesId } = (r as PromiseFulfilledResult<any>).value
 
-        const allCredits = detail?.authors ?? record.authors ?? []
-        const authors    = allCredits.filter((a: any) => a.type?.toLowerCase() === 'author').map((a: any) => a.name ?? '')
-        const artists    = allCredits.filter((a: any) => a.type?.toLowerCase() === 'artist').map((a: any) => a.name ?? '')
+        const allCredits  = detail?.authors ?? record.authors ?? []
+        const authors     = allCredits.filter((a: any) => a.type?.toLowerCase() === 'author').map((a: any) => a.name ?? '')
+        const artists     = allCredits.filter((a: any) => a.type?.toLowerCase() === 'artist').map((a: any) => a.name ?? '')
         const firstCredit = allCredits[0]?.name ?? null
 
         const genreList    = (detail?.genres    ?? record.genres    ?? []).map((g: any) => g.genre ?? g)
         const categoryList = (detail?.categories ?? record.categories ?? []).slice(0, 3).map((c: any) => c.category ?? c)
-
-        const muType = (detail?.type ?? record.type ?? '').toLowerCase()
-
-        const rawDesc   = detail?.description ?? record.description ?? ''
-        const cleanDesc = rawDesc.replace(/<[^>]*>/g, '').trim().slice(0, 2000)
+        const muType       = (detail?.type ?? record.type ?? '').toLowerCase()
+        const rawDesc      = detail?.description ?? record.description ?? ''
+        const cleanDesc    = rawDesc.replace(/<[^>]*>/g, '').trim().slice(0, 2000)
 
         const altTitles: string[] = []
         ;(detail?.associated ?? record.associated ?? []).forEach((a: any) => {
@@ -141,10 +141,9 @@ async function fetchMangaUpdatesTop(limit: number): Promise<SeriesData[]> {
           record.image?.url?.original  ??
           record.image?.url?.thumb     ?? null
 
-        const year = detail?.year ? parseInt(detail.year) : record.year ? parseInt(record.year) : null
-
-        // Determine official platforms from type
-        const platforms = resolvePlatforms(mapType(muType))
+        const year = detail?.year
+          ? parseInt(detail.year)
+          : record.year ? parseInt(record.year) : null
 
         return {
           title:              detail?.title ?? record.title ?? '',
@@ -158,8 +157,7 @@ async function fetchMangaUpdatesTop(limit: number): Promise<SeriesData[]> {
           artist:             artists[0] ?? authors[0] ?? firstCredit,
           year_released:      year,
           chapter_count:      detail?.latest_chapter ?? record.latest_chapter ?? null,
-          official_platforms: platforms,
-          content_rating:     'all_ages' as const,
+          official_platforms: resolvePlatforms(mapType(muType)),
           mangaupdates_id:    String(seriesId),
           anilist_id:         null,
           mal_id:             null,
@@ -187,10 +185,7 @@ async function fetchAniListTrending(limit: number): Promise<SeriesData[]> {
             genres
             coverImage { extraLarge large }
             staff(perPage: 10) {
-              edges {
-                role
-                node { name { full } }
-              }
+              edges { role node { name { full } } }
             }
             startDate { year }
             chapters
@@ -220,8 +215,7 @@ async function fetchAniListTrending(limit: number): Promise<SeriesData[]> {
         e.role?.toLowerCase().includes('art') || e.role?.toLowerCase().includes('illustrat')
       )?.node?.name?.full ?? author
 
-      const type      = mapAniListFormat(item.format)
-      const platforms = resolvePlatforms(type)
+      const type = mapAniListFormat(item.format)
 
       return {
         title:              item.title?.english || item.title?.romaji || '',
@@ -235,8 +229,7 @@ async function fetchAniListTrending(limit: number): Promise<SeriesData[]> {
         artist,
         year_released:      item.startDate?.year ?? null,
         chapter_count:      item.chapters ?? null,
-        official_platforms: platforms,
-        content_rating:     'all_ages' as const,
+        official_platforms: resolvePlatforms(type),
         mangaupdates_id:    null,
         anilist_id:         String(item.id),
         mal_id:             null,
@@ -262,8 +255,7 @@ async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
     const data = await res.json()
 
     return (data.data ?? []).map((item: any): SeriesData => {
-      const type      = mapType(item.type ?? 'manga')
-      const platforms = resolvePlatforms(type)
+      const type = mapType(item.type ?? 'manga')
 
       return {
         title:              item.title_english || item.title || '',
@@ -277,8 +269,7 @@ async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
         artist:             item.authors?.[1]?.name?.replace(', ', ' ') ?? item.authors?.[0]?.name?.replace(', ', ' ') ?? null,
         year_released:      item.published?.prop?.from?.year ?? null,
         chapter_count:      item.chapters ?? null,
-        official_platforms: platforms,
-        content_rating:     'all_ages' as const,
+        official_platforms: resolvePlatforms(type),
         mangaupdates_id:    null,
         anilist_id:         null,
         mal_id:             String(item.mal_id),
@@ -288,17 +279,6 @@ async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
     }).filter((s: SeriesData) => s.title.length > 0)
   } catch {
     return []
-  }
-}
-
-// ── Platform resolver ─────────────────────────────────────────────
-// Maps comic type to a sensible default platform list
-function resolvePlatforms(type: string): string[] {
-  switch (type) {
-    case 'manhwa':  return ['Webtoon', 'Tapas', 'Tappytoon']
-    case 'manhua':  return ['Mangatoon', 'Webcomics', 'INKR']
-    case 'webtoon': return ['Webtoon', 'Tapas']
-    default:        return ['Mangaplus', 'Viz Media', 'INKR']
   }
 }
 
@@ -319,33 +299,45 @@ export async function GET(req: Request) {
   // 2. System user — profiles id: 00000000-0000-0000-0000-000000000000, username: their_shadow, display_name: Ghost
   const systemUserId = '00000000-0000-0000-0000-000000000000'
 
-  // 3. Fetch from MangaUpdates first, fall back to AniList then Jikan
+  // 3. Read last MangaUpdates page used from activity_logs
+  //    Each run advances the page so we never pull the same batch twice
+  const { data: lastLog } = await supabase
+    .from('activity_logs')
+    .select('details')
+    .eq('action', 'auto_rec_submit')
+    .eq('user_id', systemUserId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const lastPage    = (lastLog?.details as any)?.mu_page ?? 0
+  const currentPage = lastPage + 1  // Advance one page every run
+
+  // 4. Fetch from MangaUpdates first (paginated), fall back to AniList then Jikan
   let series: SeriesData[] = []
 
-  const muResults = await fetchMangaUpdatesTop(BATCH_SIZE)
+  const muResults = await fetchMangaUpdatesTop(BATCH_SIZE, currentPage)
 
   if (muResults.length >= BATCH_SIZE) {
-    // MangaUpdates gave us enough — use it exclusively
+    // MangaUpdates gave us a full batch — use exclusively
     series = muResults
   } else {
-    // Partial or empty — fill remaining slots with fallbacks
+    // Partial or empty — fill remaining with fallbacks
     series = [...muResults]
     const remaining = BATCH_SIZE - series.length
 
     if (remaining > 0) {
       const anilistResults = await fetchAniListTrending(remaining + 5)
-      // Avoid title overlaps with MangaUpdates results
-      const muTitles = new Set(series.map((s) => s.title.toLowerCase()))
-      const filtered  = anilistResults.filter((s) => !muTitles.has(s.title.toLowerCase()))
+      const muTitles       = new Set(series.map((s) => s.title.toLowerCase()))
+      const filtered       = anilistResults.filter((s) => !muTitles.has(s.title.toLowerCase()))
       series.push(...filtered.slice(0, remaining))
     }
 
-    // Still need more? Use Jikan
     if (series.length < BATCH_SIZE) {
-      const stillNeeded  = BATCH_SIZE - series.length
-      const jikanResults = await fetchJikanPopular(stillNeeded + 5)
+      const stillNeeded    = BATCH_SIZE - series.length
+      const jikanResults   = await fetchJikanPopular(stillNeeded + 5)
       const existingTitles = new Set(series.map((s) => s.title.toLowerCase()))
-      const filtered = jikanResults.filter((s) => !existingTitles.has(s.title.toLowerCase()))
+      const filtered       = jikanResults.filter((s) => !existingTitles.has(s.title.toLowerCase()))
       series.push(...filtered.slice(0, stillNeeded))
     }
   }
@@ -354,7 +346,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'All sources failed to return data.' }, { status: 502 })
   }
 
-  // 4. Process each series
+  // 5. Process each series
   const report = {
     submitted: [] as { title: string; source: string }[],
     skipped:   [] as { title: string; reason: string }[],
@@ -362,14 +354,13 @@ export async function GET(req: Request) {
   }
 
   for (const s of series) {
-    // Skip if title is empty
     if (!s.title.trim()) {
       report.skipped.push({ title: '(empty)', reason: 'Empty title from source' })
       continue
     }
 
     try {
-      // 5. Duplicate check — case-insensitive title match
+      // Duplicate check — case-insensitive title match
       const { data: existing } = await supabase
         .from('recommendations')
         .select('id, title')
@@ -384,10 +375,8 @@ export async function GET(req: Request) {
         continue
       }
 
-      // 6. Genres must have at least 1 — fallback to ['Action'] if empty
       const genres = s.genres.length > 0 ? s.genres : ['Action']
 
-      // 7. Insert — is_approved false, is_ai_generated true, ai_model = 'auto-submitter'
       const { error: insertError } = await supabase
         .from('recommendations')
         .insert({
@@ -404,11 +393,10 @@ export async function GET(req: Request) {
           year_released:      s.year_released,
           chapter_count:      s.chapter_count,
           official_platforms: s.official_platforms,
-          content_rating:     'all_ages',      // Default — admin can update during review
-          is_approved:        false,           // Admin reviews manually
-          is_ai_generated:    true,            // System label
-          ai_model:           'auto-submitter',// Distinguishes from user submissions
-          // Store source IDs so chapter-check cron can track these too
+          content_rating:     'all_ages',       // Default — admin updates during review
+          is_approved:        false,            // Admin reviews manually
+          is_ai_generated:    true,             // System label
+          ai_model:           'auto-submitter', // Distinguishes from user submissions
           mangaupdates_id:    s.mangaupdates_id,
           anilist_id:         s.anilist_id,
           mal_id:             s.mal_id,
@@ -426,7 +414,7 @@ export async function GET(req: Request) {
     }
   }
 
-  // 8. Log the run to activity_logs so it shows in your admin logs viewer
+  // 6. Log the run — store mu_page so next run reads it and advances by 1
   await supabase.from('activity_logs').insert({
     user_id:     systemUserId,
     action:      'auto_rec_submit',
@@ -435,6 +423,7 @@ export async function GET(req: Request) {
       submitted_count: report.submitted.length,
       skipped_count:   report.skipped.length,
       failed_count:    report.failed.length,
+      mu_page:         currentPage,  // ← next run does lastPage + 1
     },
   } as any)
 
@@ -442,6 +431,7 @@ export async function GET(req: Request) {
     submitted_count: report.submitted.length,
     skipped_count:   report.skipped.length,
     failed_count:    report.failed.length,
+    mu_page:         currentPage,
     report,
   })
 }
