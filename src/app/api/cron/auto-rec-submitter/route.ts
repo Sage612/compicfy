@@ -8,8 +8,12 @@ const MANHUA_COUNT = 6   // 30%
 const MANGA_COUNT  = 4   // 20%
 
 // ── Sort rotation — cycles every 10 pages per type ───────────────
-// This prevents hitting the same top-rated wall forever
-const SORT_ORDERS = ['rating', 'subscribers', 'latest', 'votes'] as const
+// Pages  1-10 : rating      → top rated
+// Pages 11-20 : subscribers → most followed
+// Pages 21-30 : year        → newest series (new series discovery)
+// Pages 31-40 : votes       → most voted
+// Pages 41+   : cycles back to rating
+const SORT_ORDERS = ['rating', 'subscribers', 'year', 'votes'] as const
 type SortOrder = typeof SORT_ORDERS[number]
 
 function resolveSortOrder(page: number): SortOrder {
@@ -17,7 +21,7 @@ function resolveSortOrder(page: number): SortOrder {
   return SORT_ORDERS[index]
 }
 
-// Normalize page within the current sort block (1-10, then resets)
+// Normalize to local page within the 10-page block (1→1, 11→1, 21→1 etc.)
 function resolveLocalPage(page: number): number {
   return ((page - 1) % 10) + 1
 }
@@ -83,12 +87,14 @@ interface SeriesData {
   source:             'mangaupdates' | 'anilist' | 'jikan'
 }
 
-// ── MangaUpdates fetcher by type + rotating sort ──────────────────
+// ── MangaUpdates fetcher ──────────────────────────────────────────
+// muType uses lowercase as required by the API: 'manhwa' | 'manhua' | 'manga'
+// sort rotates every 10 pages — rating → subscribers → year (new) → votes
 
 async function fetchMangaUpdatesByType(
   limit:  number,
   page:   number,
-  muType: 'Manhwa' | 'Manhua' | 'Manga'
+  muType: 'manhwa' | 'manhua' | 'manga'
 ): Promise<SeriesData[]> {
   try {
     const sortOrder = resolveSortOrder(page)
@@ -102,7 +108,8 @@ async function fetchMangaUpdatesByType(
         asc:     'desc',
         perpage: limit,
         page:    localPage,
-        type:    muType,
+        type:    muType,              // lowercase — correct API format
+        filter:  'some_releases',     // only series with at least one release
       }),
       next: { revalidate: 0 },
     })
@@ -128,10 +135,6 @@ async function fetchMangaUpdatesByType(
         }
       })
     )
-
-    const internalType: 'manga' | 'manhwa' | 'manhua' =
-      muType === 'Manhwa' ? 'manhwa' :
-      muType === 'Manhua' ? 'manhua' : 'manga'
 
     return detailed
       .filter((r) => r.status === 'fulfilled' && r.value)
@@ -167,7 +170,7 @@ async function fetchMangaUpdatesByType(
           title:              detail?.title ?? record.title ?? '',
           alternative_titles: altTitles.slice(0, 5),
           description:        cleanDesc || 'No description available.',
-          type:               internalType,
+          type:               muType,   // already correct internal type
           status:             mapStatus(detail?.status ?? record.status ?? ''),
           genres:             sanitizeGenres([...new Set([...genreList, ...categoryList])]),
           cover_url:          coverUrl,
@@ -175,7 +178,7 @@ async function fetchMangaUpdatesByType(
           artist:             artists[0] ?? authors[0] ?? firstCredit,
           year_released:      year,
           chapter_count:      detail?.latest_chapter ?? record.latest_chapter ?? null,
-          official_platforms: resolvePlatforms(internalType),
+          official_platforms: resolvePlatforms(muType),
           mangaupdates_id:    String(seriesId),
           anilist_id:         null,
           mal_id:             null,
@@ -298,12 +301,7 @@ async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
   }
 }
 
-// ── Dedupe helper ─────────────────────────────────────────────────
-
-function dedupe(existing: SeriesData[], incoming: SeriesData[]): SeriesData[] {
-  const seen = new Set(existing.map((s) => s.title.toLowerCase()))
-  return incoming.filter((s) => !seen.has(s.title.toLowerCase()))
-}
+// ── Dedupe helpers ────────────────────────────────────────────────
 
 function dedupeWithin(series: SeriesData[]): SeriesData[] {
   const seen = new Set<string>()
@@ -313,6 +311,11 @@ function dedupeWithin(series: SeriesData[]): SeriesData[] {
     seen.add(key)
     return true
   })
+}
+
+function dedupeAgainst(existing: SeriesData[], incoming: SeriesData[]): SeriesData[] {
+  const seen = new Set(existing.map((s) => s.title.toLowerCase()))
+  return incoming.filter((s) => !seen.has(s.title.toLowerCase()))
 }
 
 // ── Main handler ──────────────────────────────────────────────────
@@ -329,10 +332,10 @@ export async function GET(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // 2. System user
+  // 2. System user — id: 00000000-0000-0000-0000-000000000000, username: their_shadow
   const systemUserId = '00000000-0000-0000-0000-000000000000'
 
-  // 3. Read last pages from activity_logs
+  // 3. Read last pages per type from activity_logs
   const { data: lastLog } = await supabase
     .from('activity_logs')
     .select('details')
@@ -347,45 +350,46 @@ export async function GET(req: Request) {
   const manhuaPage  = (lastDetails.page_manhua ?? 0) + 1
   const mangaPage   = (lastDetails.page_manga  ?? 0) + 1
 
-  // Log what sort order is being used this run
   const sortInfo = {
-    manhwa: resolveSortOrder(manhwaPage),
-    manhua: resolveSortOrder(manhuaPage),
-    manga:  resolveSortOrder(mangaPage),
+    manhwa: `${resolveSortOrder(manhwaPage)} (local page ${resolveLocalPage(manhwaPage)})`,
+    manhua: `${resolveSortOrder(manhuaPage)} (local page ${resolveLocalPage(manhuaPage)})`,
+    manga:  `${resolveSortOrder(mangaPage)}  (local page ${resolveLocalPage(mangaPage)})`,
   }
 
-  // 4. Fetch each type separately in parallel — fetch extra to cover within-run dupes
+  // 4. Fetch each type in parallel — extra buffer to cover dupes
+  //    Type strings are lowercase as required by MangaUpdates API
   const [manhwaRaw, manhuaRaw, mangaRaw] = await Promise.all([
-    fetchMangaUpdatesByType(MANHWA_COUNT + 5, manhwaPage, 'Manhwa'),
-    fetchMangaUpdatesByType(MANHUA_COUNT + 5, manhuaPage, 'Manhua'),
-    fetchMangaUpdatesByType(MANGA_COUNT  + 5, mangaPage,  'Manga'),
+    fetchMangaUpdatesByType(MANHWA_COUNT + 5, manhwaPage, 'manhwa'),
+    fetchMangaUpdatesByType(MANHUA_COUNT + 5, manhuaPage, 'manhua'),
+    fetchMangaUpdatesByType(MANGA_COUNT  + 5, mangaPage,  'manga'),
   ])
 
-  // 5. Dedupe within each bucket first, then slice to target count
+  // 5. Dedupe within each bucket then slice to target count
   let manhwa = dedupeWithin(manhwaRaw).slice(0, MANHWA_COUNT)
   let manhua = dedupeWithin(manhuaRaw).slice(0, MANHUA_COUNT)
-  let manga  = dedupeWithin(mangaRaw).slice(0, MANGA_COUNT)
+  let manga  = dedupeWithin(mangaRaw).slice(0,  MANGA_COUNT)
 
-  // 6. Fill shortfalls with AniList/Jikan fallbacks
+  // 6. Fill shortfalls with type-matched AniList/Jikan fallbacks
   if (manhwa.length < MANHWA_COUNT) {
-    const fallback = await fetchAniListByFormat(MANHWA_COUNT + 5, 'MANHWA')
-    const fresh    = dedupe(manhwa, dedupeWithin(fallback))
+    const fallback = dedupeWithin(await fetchAniListByFormat(MANHWA_COUNT + 5, 'MANHWA'))
+    const fresh    = dedupeAgainst(manhwa, fallback)
     manhwa.push(...fresh.slice(0, MANHWA_COUNT - manhwa.length))
   }
 
   if (manhua.length < MANHUA_COUNT) {
-    const fallback = await fetchAniListByFormat(MANHUA_COUNT + 5, 'MANHUA')
-    const fresh    = dedupe(manhua, dedupeWithin(fallback))
+    const fallback = dedupeWithin(await fetchAniListByFormat(MANHUA_COUNT + 5, 'MANHUA'))
+    const fresh    = dedupeAgainst(manhua, fallback)
     manhua.push(...fresh.slice(0, MANHUA_COUNT - manhua.length))
   }
 
   if (manga.length < MANGA_COUNT) {
-    const fallback = await fetchJikanPopular(MANGA_COUNT + 5)
-    const fresh    = dedupe(manga, dedupeWithin(fallback))
+    const fallback = dedupeWithin(await fetchJikanPopular(MANGA_COUNT + 5))
+    const fresh    = dedupeAgainst(manga, fallback)
     manga.push(...fresh.slice(0, MANGA_COUNT - manga.length))
   }
 
-  // 7. Combine and do a final global dedupe across all three buckets
+  // 7. Combine — manhwa first, manhua second, manga last
+  //    Final global dedupe catches any cross-bucket overlaps
   const series: SeriesData[] = dedupeWithin([...manhwa, ...manhua, ...manga])
 
   if (series.length === 0) {
@@ -406,7 +410,7 @@ export async function GET(req: Request) {
     }
 
     try {
-      // Duplicate check against DB
+      // Duplicate check against DB — case-insensitive
       const { data: existing } = await supabase
         .from('recommendations')
         .select('id, title')
@@ -460,7 +464,7 @@ export async function GET(req: Request) {
     }
   }
 
-  // 9. Log run — advance all three pages
+  // 9. Log run — store all three pages so next run advances independently
   await supabase.from('activity_logs').insert({
     user_id:     systemUserId,
     action:      'auto_rec_submit',
