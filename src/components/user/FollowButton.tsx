@@ -65,7 +65,7 @@ export function FollowButton({ profileId, initialFollowing, isLoggedIn }: Props)
       className={
         following
           ? 'gap-1.5 border-primary/30 text-primary hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors'
-          : 'gap-1.5 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20'
+          : 'gap-1.5 bg-primary hover:bg-primary/90 border-0 shadow-md shadow-primary/20'
       }
     >
       {loading ? (
