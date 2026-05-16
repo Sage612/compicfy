@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { BookOpen, BookMarked, ChevronRight, Flame } from 'lucide-react'
+import { BookOpen, ChevronRight } from 'lucide-react'
 import { ChapterUpdater } from '@/components/recommendations/ChapterUpdater'
 import { AddToTrackerSearch } from '@/components/recommendations/AddToTrackerSearch'
 import { cn } from '@/lib/utils'
@@ -31,6 +31,8 @@ interface ReadingList {
 interface Props {
   initialItems: ReadingItem[]
   lists:        ReadingList[]
+  // Pass '/pro/lists' from ProDashboard, '/dashboard/lists' from Dashboard
+  listsHref?:   string
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -59,7 +61,7 @@ const STATUS_LABEL: Record<string, string> = {
   marinating:   'Marinating',
 }
 
-export function CurrentlyReadingSection({ initialItems, lists }: Props) {
+export function CurrentlyReadingSection({ initialItems, lists, listsHref = '/dashboard/lists' }: Props) {
   const [items, setItems] = useState<ReadingItem[]>(initialItems)
 
   const handleUpdate = (itemId: string, chapter: number | null, status: string) => {
@@ -96,8 +98,9 @@ export function CurrentlyReadingSection({ initialItems, lists }: Props) {
             )}
           </div>
         </div>
+        {/* Fixed: was hardcoded to /dashboard/lists, now uses listsHref prop */}
         <Link
-          href="/dashboard/lists"
+          href={listsHref}
           className="flex items-center gap-1 text-[11px] font-semibold text-teal-600 hover:text-teal-500 transition-colors"
         >
           All lists <ChevronRight size={11} />
@@ -117,8 +120,8 @@ export function CurrentlyReadingSection({ initialItems, lists }: Props) {
               const rec = item.recommendations
               if (!rec) return null
 
-              const typeStyle  = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
-              const emoji      = STATUS_EMOJI[item.status]  ?? '📖'
+              const typeStyle   = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
+              const emoji       = STATUS_EMOJI[item.status]  ?? '📖'
               const statusLabel = STATUS_LABEL[item.status] ?? item.status.replace(/_/g, ' ')
 
               const progressPct = rec.chapter_count && item.progress_chapter
@@ -143,7 +146,10 @@ export function CurrentlyReadingSection({ initialItems, lists }: Props) {
                   <div className="flex gap-3 p-3">
                     {/* Cover */}
                     <Link href={`/comic/${rec.id}`} className="shrink-0">
-                      <div className="w-11 h-15 rounded-lg overflow-hidden bg-muted shadow-sm group-hover:shadow-md transition-shadow" style={{ height: '60px', width: '44px' }}>
+                      <div
+                        className="w-11 rounded-lg overflow-hidden bg-muted shadow-sm group-hover:shadow-md transition-shadow"
+                        style={{ height: '60px', width: '44px' }}
+                      >
                         {rec.cover_url ? (
                           <img
                             src={rec.cover_url}
@@ -168,7 +174,6 @@ export function CurrentlyReadingSection({ initialItems, lists }: Props) {
                         >
                           {rec.title}
                         </Link>
-                        {/* Progress % badge */}
                         {progressPct !== null && (
                           <span className="text-[10px] font-black text-teal-600 bg-teal-500/10 border border-teal-500/20 px-1.5 py-0.5 rounded-full shrink-0 leading-none">
                             {progressPct}%
@@ -217,7 +222,6 @@ export function CurrentlyReadingSection({ initialItems, lists }: Props) {
             })}
           </div>
         ) : (
-          /* Empty state */
           <div className="text-center py-8 space-y-2.5">
             <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center mx-auto">
               <BookOpen size={16} className="text-teal-500 opacity-60" />

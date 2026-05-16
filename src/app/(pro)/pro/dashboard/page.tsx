@@ -289,12 +289,13 @@ export default async function ProDashboardPage() {
               </Link>
             </div>
           </div>
-          <CurrentlyReadingSection initialItems={[]} lists={(listsForTracker ?? [])} />
+          <CurrentlyReadingSection initialItems={[]} lists={(listsForTracker ?? [])} listsHref="/pro/lists" />
         </div>
       ) : (
         <CurrentlyReadingSection
           initialItems={(currentlyReading ?? [])}
           lists={(listsForTracker ?? [])}
+          listsHref="/pro/lists"
         />
       )}
 

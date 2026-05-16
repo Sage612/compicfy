@@ -301,7 +301,7 @@ export default async function ProfilePage({ params }: Props) {
               </>
             )}
             {[
-              { icon: BookOpen, value: profile.total_recommendations, label: 'recommendations' },
+              { icon: BookOpen, value: totalRecs, label: 'recommendations' },
               { icon: Star,     value: profile.total_reviews,          label: 'reviews'         },
               { icon: ThumbsUp, value: profile.total_votes_received,   label: 'votes received'  },
             ].map(({ icon: Icon, value, label }) => (
