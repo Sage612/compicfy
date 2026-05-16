@@ -19,8 +19,8 @@ export type Database = {
           total_votes_received: number
           member_since: string
           last_seen: string
-          is_age_verified: boolean
-          show_mature_content: boolean
+          // Age/mature columns removed — dropped from DB via migration
+          // Remaining active adult content fields:
           adult_content_enabled: boolean | null
           adult_content_enabled_at: string | null
           email_notifications: boolean
@@ -35,7 +35,7 @@ export type Database = {
           is_suspended: boolean
           suspended_until: string | null
           suspension_reason: string | null
-          // Appeal fields (used when user appeals a ban)
+          // Appeal fields
           appeal_status: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text: string | null
           // Verified recommender badge
@@ -53,8 +53,6 @@ export type Database = {
           social_links?: Json
           favorite_genres?: string[]
           favorite_platforms?: string[]
-          is_age_verified?: boolean
-          show_mature_content?: boolean
           adult_content_enabled?: boolean | null
           adult_content_enabled_at?: string | null
           email_notifications?: boolean
@@ -81,8 +79,6 @@ export type Database = {
           social_links?: Json
           favorite_genres?: string[]
           favorite_platforms?: string[]
-          is_age_verified?: boolean
-          show_mature_content?: boolean
           adult_content_enabled?: boolean | null
           adult_content_enabled_at?: string | null
           email_notifications?: boolean
@@ -115,7 +111,8 @@ export type Database = {
           genres: string[]
           themes: string[]
           content_warnings: string[]
-          content_rating: 'all' | 'teen' | 'mature' | 'adult'
+          // Fixed: DB constraint uses 'all_ages' not 'all'
+          content_rating: 'all_ages' | 'teen' | 'mature' | 'adult'
           official_platforms: string[]
           official_links: string[]
           is_official_only: boolean
@@ -168,7 +165,7 @@ export type Database = {
           genres: string[]
           themes?: string[]
           content_warnings?: string[]
-          content_rating?: 'all' | 'teen' | 'mature' | 'adult'
+          content_rating?: 'all_ages' | 'teen' | 'mature' | 'adult'
           official_platforms: string[]
           official_links?: string[]
           is_official_only?: boolean
@@ -207,7 +204,7 @@ export type Database = {
           genres?: string[]
           themes?: string[]
           content_warnings?: string[]
-          content_rating?: 'all' | 'teen' | 'mature' | 'adult'
+          content_rating?: 'all_ages' | 'teen' | 'mature' | 'adult'
           official_platforms?: string[]
           official_links?: string[]
           is_official_only?: boolean
@@ -295,7 +292,6 @@ export type Database = {
           id: string
           user_id: string
           recommendation_id: string
-          // emoji or reaction type — e.g. 'heart', 'fire', 'eyes'
           reaction_type: string
           created_at: string
         }
@@ -613,11 +609,8 @@ export type Database = {
         Row: {
           id: string
           user_id: string
-          // The browser push endpoint URL (unique per browser/device)
           endpoint: string
-          // ECDH public key from the browser subscription
           p256dh: string
-          // Authentication secret from the browser subscription
           auth: string
           created_at: string
           updated_at: string
@@ -660,7 +653,6 @@ export type Database = {
     Views: Record<string, never>
 
     Functions: {
-      // Feed trending sidebar RPC
       get_trending_feed: {
         Args: { p_limit: number }
         Returns: {
@@ -673,7 +665,6 @@ export type Database = {
           daily_votes: number
         }[]
       }
-      // Featured comics RPC
       get_featured_comics: {
         Args: Record<string, never>
         Returns: {
@@ -695,7 +686,7 @@ export type Database = {
 
 // ─── Convenience type exports ───────────────────────────────────────────────
 
-export type Profile    = Database['public']['Tables']['profiles']['Row']
+export type Profile       = Database['public']['Tables']['profiles']['Row']
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
 export type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 
@@ -728,9 +719,9 @@ export type News       = Database['public']['Tables']['news']['Row']
 export type NewsInsert = Database['public']['Tables']['news']['Insert']
 export type NewsUpdate = Database['public']['Tables']['news']['Update']
 
-export type Notification = Database['public']['Tables']['notifications']['Row']
-export type Report       = Database['public']['Tables']['reports']['Row']
-export type ActivityLog  = Database['public']['Tables']['activity_logs']['Row']
+export type Notification  = Database['public']['Tables']['notifications']['Row']
+export type Report        = Database['public']['Tables']['reports']['Row']
+export type ActivityLog   = Database['public']['Tables']['activity_logs']['Row']
 export type DailyFeatured = Database['public']['Tables']['daily_featured']['Row']
 
 export type PushSubscription       = Database['public']['Tables']['push_subscriptions']['Row']
@@ -744,24 +735,16 @@ export type ReadingListItemUpdate = Database['public']['Tables']['reading_list_i
 
 // ─── API Response & Error Types ────────────────────────────────────────────
 
-/** Generic API error response */
-export type ApiError = {
-  error: string
-}
+export type ApiError = { error: string }
 
-/** Status endpoint - unauthenticated response */
-export type StatusUnauthenticatedResponse = {
-  authenticated: false
-}
+export type StatusUnauthenticatedResponse = { authenticated: false }
 
-/** Status endpoint - authenticated but default response */
 export type StatusDefaultResponse = {
   authenticated: true
   is_suspended: false
   is_banned: false
 }
 
-/** Status endpoint - authenticated with suspension/ban details */
 export type StatusDetailedResponse = {
   authenticated: true
   is_banned: boolean
@@ -770,5 +753,8 @@ export type StatusDetailedResponse = {
   suspension_reason: string | null
 }
 
-/** Status endpoint - all possible responses */
-export type StatusResponse = StatusUnauthenticatedResponse | StatusDefaultResponse | StatusDetailedResponse | ApiError
+export type StatusResponse =
+  | StatusUnauthenticatedResponse
+  | StatusDefaultResponse
+  | StatusDetailedResponse
+  | ApiError
