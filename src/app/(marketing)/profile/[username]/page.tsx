@@ -1,10 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
 import {
   CalendarDays, BookOpen, Star, ThumbsUp,
   Globe, BookMarked, Users, Pin, ArrowRight, PenLine,
+  MapPin,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
@@ -57,31 +57,42 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: `@${username}` }
 }
 
-const THEME_GRADIENTS: Record<string, string> = {
-  default:  'from-primary/20 via-primary/5 to-transparent',
-  gold:     'from-amber-400/30 via-orange-500/15 to-transparent',
-  rose:     'from-rose-500/25 via-pink-500/10 to-transparent',
-  teal:     'from-teal-500/25 via-cyan-500/10 to-transparent',
-  violet:   'from-primary/25 via-primary/10 to-transparent',
-  amber:    'from-amber-500/25 via-yellow-500/10 to-transparent',
-  midnight: 'from-slate-700/25 via-blue-900/10 to-transparent',
+// ── Genre colour palette — maps genre names to colours ────────────
+const GENRE_COLORS: Record<string, string> = {
+  Action:        'bg-red-500/10    text-red-500    border-red-500/20',
+  Adventure:     'bg-orange-500/10 text-orange-500 border-orange-500/20',
+  Comedy:        'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+  Drama:         'bg-orange-600/10 text-orange-600 border-orange-600/20',
+  Fantasy:       'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  Horror:        'bg-zinc-500/10   text-zinc-400   border-zinc-500/20',
+  Mystery:       'bg-slate-500/10  text-slate-400  border-slate-500/20',
+  Romance:       'bg-pink-500/10   text-pink-500   border-pink-500/20',
+  'Sci-Fi':      'bg-cyan-500/10   text-cyan-500   border-cyan-500/20',
+  'Slice of Life':'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+  Sports:        'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  Supernatural:  'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  Thriller:      'bg-red-700/10    text-red-600    border-red-700/20',
+  Isekai:        'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+  'Martial Arts':'bg-rose-600/10   text-rose-600   border-rose-600/20',
+  'School Life': 'bg-sky-500/10    text-sky-500    border-sky-500/20',
+  Historical:    'bg-stone-500/10  text-stone-400  border-stone-500/20',
+  Psychological: 'bg-fuchsia-500/10 text-fuchsia-500 border-fuchsia-500/20',
+  Shounen:       'bg-blue-500/10   text-blue-500   border-blue-500/20',
+  Shoujo:        'bg-pink-400/10   text-pink-400   border-pink-400/20',
+  Seinen:        'bg-zinc-600/10   text-zinc-400   border-zinc-600/20',
+  Josei:         'bg-rose-400/10   text-rose-400   border-rose-400/20',
+  Yuri:          'bg-purple-400/10 text-purple-400 border-purple-400/20',
+  Yaoi:          'bg-indigo-400/10 text-indigo-400 border-indigo-400/20',
+  Mecha:         'bg-teal-500/10   text-teal-500   border-teal-500/20',
 }
+
+const DEFAULT_GENRE_COLOR = 'bg-muted text-muted-foreground border-border'
 
 export default async function ProfilePage({ params }: Props) {
   const { username } = await params
   const supabase = await createClient()
 
   const { data: { user: viewer } } = await supabase.auth.getUser()
-
-  let viewerRole: string | null = null
-  if (viewer) {
-    const { data: vp } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', viewer.id)
-      .single()
-    viewerRole = (vp as any)?.role ?? 'user'
-  }
 
   const { data: profileData } = await supabase
     .from('profiles')
@@ -101,19 +112,11 @@ export default async function ProfilePage({ params }: Props) {
     favorite_genres:          (profileData as any).favorite_genres ?? [],
   }
 
-  const isGhost  = profile.id === GHOST_ID
-  const isOwner  = viewer?.id === profile.id && !isGhost
-
-  const isPro    = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  const isAdmin  = profile.role === 'admin'
+  const isGhost = profile.id === GHOST_ID
+  const isOwner = viewer?.id === profile.id && !isGhost
+  const isPro   = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin = profile.role === 'admin'
   const showGold = isPro && !isAdmin
-
-  const profileTheme   = isGhost ? 'midnight' : (profile.profile_theme ?? 'default')
-  const bannerGradient = isGhost
-    ? 'from-indigo-900/40 via-slate-800/20 to-transparent'
-    : showGold
-    ? (THEME_GRADIENTS[profileTheme] ?? THEME_GRADIENTS.default)
-    : THEME_GRADIENTS.default
 
   if (viewer?.id && viewer.id !== profile.id && !isGhost) {
     try {
@@ -148,7 +151,7 @@ export default async function ProfilePage({ params }: Props) {
     recQuery = recQuery.neq('id', profile.pinned_recommendation_id)
   }
 
-  let totalRecsQuery = (supabase as any)
+  const totalRecsQuery = (supabase as any)
     .from('recommendations')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', profile.id)
@@ -174,21 +177,10 @@ export default async function ProfilePage({ params }: Props) {
           .eq('is_public', true)
           .order('created_at', { ascending: false })
           .limit(6),
-    supabase
-      .from('follows')
-      .select('*', { count: 'exact', head: true })
-      .eq('following_id', profile.id),
-    supabase
-      .from('follows')
-      .select('*', { count: 'exact', head: true })
-      .eq('follower_id', profile.id),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', profile.id),
+    supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', profile.id),
     viewer && !isOwner && !isGhost
-      ? supabase
-          .from('follows')
-          .select('id')
-          .eq('follower_id', viewer.id)
-          .eq('following_id', profile.id)
-          .maybeSingle()
+      ? supabase.from('follows').select('id').eq('follower_id', viewer.id).eq('following_id', profile.id).maybeSingle()
       : Promise.resolve({ data: null }),
   ])
 
@@ -211,150 +203,250 @@ export default async function ProfilePage({ params }: Props) {
   const favoriteGenres = Array.isArray(profile.favorite_genres) ? profile.favorite_genres : []
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10 space-y-10">
+    <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
 
-      {/* Profile card */}
-      <div className={`rounded-2xl border overflow-hidden ${
-        isGhost   ? 'border-indigo-500/30' :
-        showGold  ? 'border-amber-500/30'  :
-                    'border-border'
-      } bg-card`}>
+      {/* ── PROFILE CARD ─────────────────────────────────────────── */}
+      <div className={`relative rounded-2xl overflow-hidden border ${
+        isGhost  ? 'border-indigo-500/30' :
+        showGold ? 'border-amber-500/30'  :
+                   'border-border'
+      } bg-card shadow-sm`}>
 
-        {/* Banner */}
-        <div className={`h-24 bg-gradient-to-br ${bannerGradient} relative`}>
+        {/* ── Banner ── */}
+        <div className="relative h-32 md:h-40 overflow-hidden">
+
+          {/* Base gradient */}
+          <div className={`absolute inset-0 ${
+            isGhost
+              ? 'bg-gradient-to-br from-indigo-900/60 via-slate-800/40 to-violet-900/30'
+              : showGold
+              ? 'bg-gradient-to-br from-amber-500/30 via-orange-500/15 to-transparent'
+              : 'bg-gradient-to-br from-primary/20 via-primary/5 to-transparent'
+          }`} />
+
+          {/* Mesh overlay — circles */}
           {isGhost && (
             <>
-              <div className="absolute inset-0 opacity-20"
-                style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #4f46e5 0%, transparent 50%), radial-gradient(circle at 80% 20%, #7c3aed 0%, transparent 40%)' }}
+              <div
+                className="absolute inset-0 opacity-30"
+                style={{
+                  backgroundImage: 'radial-gradient(circle at 15% 60%, #4f46e5 0%, transparent 45%), radial-gradient(circle at 85% 25%, #7c3aed 0%, transparent 40%), radial-gradient(circle at 50% 90%, #2563eb 0%, transparent 35%)',
+                }}
               />
-              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
+              {/* Subtle grid */}
+              <div
+                className="absolute inset-0 opacity-10"
+                style={{
+                  backgroundImage: 'linear-gradient(rgba(99,102,241,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.4) 1px, transparent 1px)',
+                  backgroundSize: '32px 32px',
+                }}
+              />
             </>
           )}
+
           {showGold && !isGhost && (
-            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
+            <>
+              <div
+                className="absolute inset-0 opacity-20"
+                style={{
+                  backgroundImage: 'radial-gradient(circle at 20% 50%, #f59e0b 0%, transparent 50%), radial-gradient(circle at 80% 30%, #ea580c 0%, transparent 40%)',
+                }}
+              />
+              {/* Gold shimmer line */}
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+            </>
           )}
+
+          {!isGhost && !showGold && (
+            <div
+              className="absolute inset-0 opacity-15"
+              style={{
+                backgroundImage: 'radial-gradient(circle at 20% 60%, var(--color-primary) 0%, transparent 50%), radial-gradient(circle at 80% 30%, var(--color-primary) 0%, transparent 40%)',
+              }}
+            />
+          )}
+
+          {/* Bottom fade to card */}
+          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-card to-transparent" />
         </div>
 
-        <div className="px-6 pb-6 -mt-12 space-y-5">
+        {/* ── Card body ── */}
+        <div className="px-5 pb-6 -mt-14 relative">
 
-          {/* Avatar row + follow button */}
-          <div className="flex flex-row items-end justify-between gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-3 flex-1 min-w-0">
+          {/* Avatar + action row */}
+          <div className="flex items-end justify-between gap-3 mb-4">
+
+            {/* Avatar with ring */}
+            <div className={`relative shrink-0 rounded-full p-[3px] ${
+              isGhost  ? 'bg-gradient-to-br from-indigo-500 to-violet-600' :
+              isAdmin  ? 'bg-gradient-to-br from-primary to-primary/60'    :
+              showGold ? 'bg-gradient-to-br from-amber-400 to-orange-500'  :
+                         'bg-gradient-to-br from-border to-border'
+            } shadow-lg`}>
               <ProAvatar
                 src={profile.avatar_url}
                 fallback={initials}
                 size="xl"
                 isPro={isPro}
                 isAdmin={isAdmin}
-                className="border-4 border-card shadow-lg shrink-0"
+                className="border-2 border-card"
               />
-              <div className="space-y-1 pb-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-black truncate">
-                    {profile.display_name || profile.username}
-                  </h1>
-                  <ProBadge role={profile.role} isPro={isPro} />
-                  {profile.verified_recommender && <VerifiedBadge />}
-                </div>
-                <p className="text-sm text-muted-foreground">@{profile.username}</p>
-              </div>
             </div>
 
-            {!isOwner && !isGhost && viewer && (
-              <div className="shrink-0 pb-1">
+            {/* Right side — follow button or ghost badge */}
+            <div className="flex items-center gap-2 pb-1 shrink-0">
+              {isGhost && (
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                  The Archivist
+                </div>
+              )}
+              {!isOwner && !isGhost && viewer && (
                 <FollowButton
                   profileId={profile.id}
                   initialFollowing={isFollowing}
                   isLoggedIn={!!viewer}
                 />
-              </div>
-            )}
-
-            {isGhost && (
-              <div className="shrink-0 pb-1">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                  The Archivist
-                </div>
-              </div>
-            )}
+              )}
+              {isOwner && (
+                <Link href="/dashboard/settings">
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+                    Edit Profile
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
 
+          {/* Name + badges */}
+          <div className="space-y-1 mb-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-black tracking-tight leading-tight">
+                {profile.display_name || profile.username}
+              </h1>
+              <ProBadge role={profile.role} isPro={isPro} />
+              {profile.verified_recommender && <VerifiedBadge />}
+            </div>
+            <p className="text-sm text-muted-foreground">@{profile.username}</p>
+          </div>
+
+          {/* Bio */}
           {profile.bio && (
-            <p className="text-sm leading-relaxed text-muted-foreground max-w-lg">{profile.bio}</p>
+            <p className="text-sm leading-relaxed text-muted-foreground mb-4 max-w-lg">
+              {profile.bio}
+            </p>
           )}
 
-          <div className="flex flex-wrap gap-4">
+          {/* Website */}
+          {profile.website && !isGhost && (
+            <a
+              href={profile.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mb-4"
+            >
+              <Globe size={11} />
+              {profile.website.replace(/^https?:\/\//, '')}
+            </a>
+          )}
+
+          {/* ── Stats row ── */}
+          <div className="flex flex-wrap gap-2 mb-4">
+
+            {/* Followers / Following — non-ghost only */}
             {!isGhost && (
               <>
-                <Link
-                  href={`/profile/${profile.username}`}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Users size={13} className="text-primary/60" />
-                  <span><strong className="text-foreground font-black">{followersCount ?? 0}</strong> followers</span>
-                </Link>
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <Users size={13} className="text-primary/60" />
-                  <span><strong className="text-foreground font-black">{followingCount ?? 0}</strong> following</span>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
+                  <Users size={11} className="text-primary/60" />
+                  <span className="font-black text-foreground">{followersCount ?? 0}</span>
+                  <span className="text-muted-foreground">followers</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
+                  <Users size={11} className="text-primary/60" />
+                  <span className="font-black text-foreground">{followingCount ?? 0}</span>
+                  <span className="text-muted-foreground">following</span>
                 </div>
               </>
             )}
-            {[
-              { icon: BookOpen, value: totalRecs, label: 'recommendations' },
-              { icon: Star,     value: profile.total_reviews,          label: 'reviews'         },
-              { icon: ThumbsUp, value: profile.total_votes_received,   label: 'votes received'  },
-            ].map(({ icon: Icon, value, label }) => (
-              <div key={label} className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <Icon size={13} className="text-primary/60" />
-                <span><strong className="text-foreground font-black">{value ?? 0}</strong> {label}</span>
+
+            {/* Recommendations — approved count */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
+              <BookOpen size={11} className="text-primary/60" />
+              <span className="font-black text-foreground">{totalRecs}</span>
+              <span className="text-muted-foreground">
+                {isGhost ? 'archived' : 'recs'}
+              </span>
+            </div>
+
+            {/* Reviews */}
+            {(profile.total_reviews ?? 0) > 0 && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
+                <Star size={11} className="text-amber-500/70" />
+                <span className="font-black text-foreground">{profile.total_reviews ?? 0}</span>
+                <span className="text-muted-foreground">reviews</span>
               </div>
-            ))}
+            )}
+
+            {/* Votes received */}
+            {(profile.total_votes_received ?? 0) > 0 && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
+                <ThumbsUp size={11} className="text-emerald-500/70" />
+                <span className="font-black text-foreground">{profile.total_votes_received ?? 0}</span>
+                <span className="text-muted-foreground">votes</span>
+              </div>
+            )}
+
+            {/* Join date — non-ghost only */}
             {!isGhost && (
-              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <CalendarDays size={13} className="text-primary/60" />
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs text-muted-foreground">
+                <CalendarDays size={11} className="text-primary/60" />
                 <span>Joined {formatDate(profile.member_since)}</span>
               </div>
             )}
           </div>
 
+          {/* ── Genre tags ── */}
           {favoriteGenres.length > 0 && !isGhost && (
             <div className="flex flex-wrap gap-1.5">
               {favoriteGenres.map((genre: string) => (
-                <Badge key={genre} variant="secondary" className="text-xs rounded-full">
-                  {genre}
-                </Badge>
+                <Link key={genre} href={`/browse?genre=${encodeURIComponent(genre)}`}>
+                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all hover:scale-105 cursor-pointer ${
+                    GENRE_COLORS[genre] ?? DEFAULT_GENRE_COLOR
+                  }`}>
+                    {genre}
+                  </span>
+                </Link>
               ))}
             </div>
+          )}
+
+          {/* Ghost lore text */}
+          {isGhost && (
+            <p className="text-xs text-indigo-400/70 italic leading-relaxed max-w-md">
+              An archivist of forgotten recommendations. Comics submitted here live on even when their recommenders are gone.
+            </p>
           )}
         </div>
       </div>
 
-      {/* Pinned Recommendation */}
+      {/* ── PINNED ───────────────────────────────────────────────── */}
       {pinnedRec && (
         <section className="space-y-3">
           <div className="flex items-center gap-2">
             <Pin size={14} className="text-amber-500" />
             <h2 className="text-sm font-black text-amber-600 uppercase tracking-wider">Pinned</h2>
           </div>
-          {/* Fixed: constrained layout so cover doesn't blow up on desktop */}
-          <div className={`rounded-2xl border ${showGold ? 'border-amber-500/30 bg-amber-500/5' : 'border-border'} overflow-hidden`}>
+          <div className={`rounded-2xl border ${showGold ? 'border-amber-500/30 bg-amber-500/5' : 'border-border bg-card'} overflow-hidden`}>
             <div className="flex gap-4 p-4">
-              {/* Cover — fixed size, not full-width */}
               <div className="w-20 h-28 sm:w-24 sm:h-32 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                 {pinnedRec.cover_url ? (
-                  <img
-                    src={pinnedRec.cover_url}
-                    alt={pinnedRec.title}
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={pinnedRec.cover_url} alt={pinnedRec.title} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <BookOpen size={20} className="text-muted-foreground opacity-40" />
                   </div>
                 )}
               </div>
-              {/* Info */}
               <div className="flex-1 min-w-0 space-y-2 py-1">
                 <div>
                   <Link
@@ -383,19 +475,10 @@ export default async function ProfilePage({ params }: Props) {
                   </p>
                 )}
                 <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <ThumbsUp size={10} className="text-emerald-500" />
-                    {pinnedRec.upvotes ?? 0}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Star size={10} className="text-amber-500" />
-                    {pinnedRec.review_count ?? 0}
-                  </span>
+                  <span className="flex items-center gap-1"><ThumbsUp size={10} className="text-emerald-500" />{pinnedRec.upvotes ?? 0}</span>
+                  <span className="flex items-center gap-1"><Star size={10} className="text-amber-500" />{pinnedRec.review_count ?? 0}</span>
                 </div>
-                <Link
-                  href={`/comic/${pinnedRec.id}`}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
-                >
+                <Link href={`/comic/${pinnedRec.id}`} className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
                   View comic <ArrowRight size={11} />
                 </Link>
               </div>
@@ -404,7 +487,7 @@ export default async function ProfilePage({ params }: Props) {
         </section>
       )}
 
-      {/* Recommendations */}
+      {/* ── RECOMMENDATIONS ──────────────────────────────────────── */}
       {recommendations.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
@@ -477,7 +560,7 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       )}
 
-      {/* Public Reading Lists */}
+      {/* ── PUBLIC READING LISTS ─────────────────────────────────── */}
       {!isGhost && lists.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
