@@ -194,12 +194,6 @@ export function ProAnalyticsClient({ recommendations, analytics }: Props) {
     ? Math.round(scoredRecs.reduce((a, s) => a + s.score, 0) / scoredRecs.length)
     : null
 
-  const selected         = recommendations.find(r => r.id === selectedRec)
-  const selectedAnalytics = analytics
-    .filter(a => a.recommendation_id === selectedRec)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(-30)
-
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
 
@@ -235,7 +229,7 @@ export function ProAnalyticsClient({ recommendations, analytics }: Props) {
       {/* Average quality score — shown when at least 1 scored rec exists */}
       {avgQuality !== null && (
         <div className="flex items-center gap-4 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5">
-      
+          
           <div className="flex-1 min-w-0">
             <p className="text-sm font-black">
               Average Quality Score: <span className="text-amber-500">{avgQuality}/100</span>
@@ -263,111 +257,110 @@ export function ProAnalyticsClient({ recommendations, analytics }: Props) {
         ) : (
           <div className="space-y-2">
             {recommendations.map((rec) => (
-              <div
-                key={rec.id}
-                className={cn(
-                  'group flex gap-3 p-3 rounded-2xl border bg-card cursor-pointer transition-all duration-150',
-                  selectedRec === rec.id
-                    ? 'border-amber-500/40 bg-amber-500/5'
-                    : 'border-border hover:border-primary/30'
-                )}
-                onClick={() => setSelectedRec(selectedRec === rec.id ? null : rec.id)}
-              >
-                {/* Cover */}
-                <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
-                  {rec.cover_url ? (
-                    <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen size={12} className="text-muted-foreground opacity-40" />
-                    </div>
+              <div key={rec.id}>
+                <div
+                  className={cn(
+                    'group flex gap-3 p-3 rounded-2xl border bg-card cursor-pointer transition-all duration-150',
+                    selectedRec === rec.id
+                      ? 'border-amber-500/40 bg-amber-500/5 rounded-b-none border-b-0'
+                      : 'border-border hover:border-primary/30'
                   )}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-xs font-black line-clamp-1">{rec.title}</p>
-                    <Link
-                      href={`/comic/${rec.id}`}
-                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <ArrowUpRight size={12} className="text-muted-foreground" />
-                    </Link>
+                  onClick={() => setSelectedRec(selectedRec === rec.id ? null : rec.id)}
+                >
+                  {/* Cover */}
+                  <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
+                    {rec.cover_url ? (
+                      <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={12} className="text-muted-foreground opacity-40" />
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border capitalize', TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border')}>
-                      {rec.type}
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-black line-clamp-1">{rec.title}</p>
+                      <Link
+                        href={`/comic/${rec.id}`}
+                        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <ArrowUpRight size={12} className="text-muted-foreground" />
+                      </Link>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border capitalize', TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border')}>
+                        {rec.type}
+                      </span>
+                      <QualityBadge rec={rec} />
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
+                    <span className="items-center gap-1 hidden sm:flex"><Eye size={10} className="text-blue-500" />{formatNumber(rec.view_count)}</span>
+                    <span className="flex items-center gap-1"><ThumbsUp size={10} className="text-emerald-500" />{rec.upvotes}</span>
+                    <span className="flex items-center gap-1"><Bookmark size={10} className="text-rose-500" />{rec.save_count}</span>
+                    <span className="flex items-center gap-1 font-black text-amber-500">
+                      {rec.score > 0 ? '+' : ''}{rec.score}
                     </span>
-                    {/* Quality grade badge */}
-                    <QualityBadge rec={rec} />
                   </div>
                 </div>
 
-                {/* Stats */}
-                <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
-                  <span className="items-center gap-1 hidden sm:flex"><Eye size={10} className="text-blue-500" />{formatNumber(rec.view_count)}</span>
-                  <span className="flex items-center gap-1"><ThumbsUp size={10} className="text-emerald-500" />{rec.upvotes}</span>
-                  <span className="flex items-center gap-1"><Bookmark size={10} className="text-rose-500" />{rec.save_count}</span>
-                  <span className="flex items-center gap-1 font-black text-amber-500">
-                    {rec.score > 0 ? '+' : ''}{rec.score}
-                  </span>
-                </div>
+                {/* Inline detail panel — renders directly below the clicked card */}
+                {selectedRec === rec.id && (
+                  <div className="border border-t-0 border-amber-500/40 bg-amber-500/5 rounded-b-2xl p-4 space-y-4">
+
+                    {/* Quality Score breakdown */}
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                        <Sparkles size={10} className="text-amber-500" />
+                        Quality Score
+                      </p>
+                      <QualityDetail rec={rec} />
+                    </div>
+
+                    {/* Daily analytics */}
+                    {(() => {
+                      const recAnalytics = analytics
+                        .filter(a => a.recommendation_id === rec.id)
+                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+                        .slice(-30)
+
+                      if (recAnalytics.length === 0) return (
+                        <p className="text-xs text-muted-foreground border-t border-amber-500/20 pt-3">
+                          No daily analytics data yet. Data starts tracking from today.
+                        </p>
+                      )
+
+                      return (
+                        <div className="space-y-2 border-t border-amber-500/20 pt-3">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Last 30 Days</p>
+                          <div className="space-y-1.5">
+                            {recAnalytics.map((row) => (
+                              <div key={row.date} className="flex items-center gap-3 text-xs">
+                                <span className="text-muted-foreground w-20 shrink-0">{formatDate(row.date)}</span>
+                                <div className="flex gap-3">
+                                  <span className="flex items-center gap-1"><Eye size={9} className="text-blue-500" />{row.views}</span>
+                                  <span className="flex items-center gap-1"><ThumbsUp size={9} className="text-emerald-500" />{row.upvotes}</span>
+                                  <span className="flex items-center gap-1"><Bookmark size={9} className="text-rose-500" />{row.saves}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Selected rec detail */}
-      {selected && (
-        <div className="p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="font-black text-sm">{selected.title}</h3>
-            <button
-              onClick={() => setSelectedRec(null)}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Close
-            </button>
-          </div>
-
-          {/* Quality Score breakdown */}
-          <div className="space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-              <Sparkles size={10} className="text-amber-500" />
-              Quality Score
-            </p>
-            <QualityDetail rec={selected} />
-          </div>
-
-          {/* Daily analytics */}
-          {selectedAnalytics.length > 0 && (
-            <div className="space-y-2 border-t border-amber-500/20 pt-4">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Last 30 Days</p>
-              <div className="space-y-2">
-                {selectedAnalytics.map((row) => (
-                  <div key={row.date} className="flex items-center gap-3 text-xs">
-                    <span className="text-muted-foreground w-20 shrink-0">{formatDate(row.date)}</span>
-                    <div className="flex gap-3 flex-1">
-                      <span className="flex items-center gap-1"><Eye size={9} className="text-blue-500" />{row.views}</span>
-                      <span className="flex items-center gap-1"><ThumbsUp size={9} className="text-emerald-500" />{row.upvotes}</span>
-                      <span className="flex items-center gap-1"><Bookmark size={9} className="text-rose-500" />{row.saves}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {selectedAnalytics.length === 0 && (
-            <p className="text-xs text-muted-foreground border-t border-amber-500/20 pt-4">
-              No daily analytics data yet. Data starts tracking from today.
-            </p>
-          )}
-        </div>
-      )}
     </div>
   )
 }
