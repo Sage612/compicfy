@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import {
   CheckCircle, XCircle, Star, StarOff, Loader2, BookOpen,
   ChevronDown, ChevronUp, Pencil, Eye, Trash2, Search,
-  CheckSquare, Square, ListChecks, X,
+  CheckSquare, Square, ListChecks, X, Crown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/format'
@@ -54,6 +54,18 @@ function sanitisePayload(data: Record<string, any>): Record<string, any> {
   return result
 }
 
+// ── Sort recs so Pro submissions appear first in the pending queue ─
+function sortRecs(recs: any[], currentFilter: string): any[] {
+  if (currentFilter !== 'pending' && currentFilter !== 'all') return recs
+  return [...recs].sort((a, b) => {
+    // Pro submissions first
+    if (a.is_pro_submission && !b.is_pro_submission) return -1
+    if (!a.is_pro_submission && b.is_pro_submission) return 1
+    // Then by date descending
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+}
+
 export function AdminRecommendations() {
   const [recs, setRecs]                     = useState<any[]>([])
   const [filter, setFilter]                 = useState('pending')
@@ -67,7 +79,6 @@ export function AdminRecommendations() {
   const [editData, setEditData]             = useState<Record<string, any>>({})
   const [total, setTotal]                   = useState<number>(0)
 
-  // ── Bulk selection state ──────────────────────────────────────────
   const [bulkMode, setBulkMode]             = useState(false)
   const [selected, setSelected]             = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading]       = useState(false)
@@ -81,7 +92,8 @@ export function AdminRecommendations() {
       if (search) params.set('q', search)
       const res  = await fetch(`/api/admin/recommendations?${params}`)
       const data = await res.json()
-      setRecs(data.recommendations ?? [])
+      // Sort Pro submissions first on arrival
+      setRecs(sortRecs(data.recommendations ?? [], filter))
       setTotal(data.total ?? 0)
     } catch {
       toast.error('Failed to fetch')
@@ -92,7 +104,6 @@ export function AdminRecommendations() {
 
   useEffect(() => { fetchRecs() }, [fetchRecs])
 
-  // Clear selection when filter/search changes
   useEffect(() => {
     setSelected(new Set())
     setBulkMode(false)
@@ -112,7 +123,6 @@ export function AdminRecommendations() {
     setBulkMode(false)
   }
 
-  // ── Single-item actions (unchanged) ──────────────────────────────
   const handleAction = async (id: string, action: string, extra: Record<string, any> = {}) => {
     setActionLoading(`${id}-${action}`)
     try {
@@ -196,8 +206,7 @@ export function AdminRecommendations() {
     })
   }
 
-  // ── Bulk helpers ──────────────────────────────────────────────────
-  const pendingRecs  = recs.filter(r => !r.is_approved && !r.rejection_reason)
+  const pendingRecs   = recs.filter(r => !r.is_approved && !r.rejection_reason)
   const allPendingIds = pendingRecs.map(r => r.id)
 
   const toggleSelect = (id: string) => {
@@ -219,12 +228,9 @@ export function AdminRecommendations() {
   const handleBulkApprove = async () => {
     if (selected.size === 0) return
     const ids = Array.from(selected)
-
     setBulkLoading(true)
     let successCount = 0
     let failCount    = 0
-
-    // Process in batches of 5 to avoid overwhelming the server
     const BATCH = 5
     for (let i = 0; i < ids.length; i += BATCH) {
       const batch = ids.slice(i, i + BATCH)
@@ -236,39 +242,29 @@ export function AdminRecommendations() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ action: 'approve' }),
             })
-            if (res.ok) {
-              successCount++
-            } else {
-              failCount++
-            }
+            if (res.ok) successCount++
+            else failCount++
           } catch {
             failCount++
           }
         })
       )
     }
-
     if (successCount > 0) {
       toast.success(`✅ ${successCount} recommendation${successCount > 1 ? 's' : ''} approved`)
-      // Remove approved ones from the list
       setRecs(prev => prev.filter(r => !selected.has(r.id)))
       setSelected(new Set())
     }
-    if (failCount > 0) {
-      toast.error(`${failCount} failed to approve`)
-    }
-
+    if (failCount > 0) toast.error(`${failCount} failed to approve`)
     setBulkLoading(false)
   }
 
   const handleBulkReject = async (reason: string) => {
     if (selected.size === 0 || !reason.trim()) return
     const ids = Array.from(selected)
-
     setBulkLoading(true)
     let successCount = 0
     let failCount    = 0
-
     const BATCH = 5
     for (let i = 0; i < ids.length; i += BATCH) {
       const batch = ids.slice(i, i + BATCH)
@@ -288,36 +284,29 @@ export function AdminRecommendations() {
         })
       )
     }
-
     if (successCount > 0) {
       toast.success(`❌ ${successCount} recommendation${successCount > 1 ? 's' : ''} rejected`)
       setRecs(prev => prev.filter(r => !selected.has(r.id)))
       setSelected(new Set())
     }
-    if (failCount > 0) {
-      toast.error(`${failCount} failed to reject`)
-    }
-
+    if (failCount > 0) toast.error(`${failCount} failed to reject`)
     setBulkLoading(false)
   }
 
-  // ── Bulk toolbar ──────────────────────────────────────────────────
   const BulkToolbar = () => {
     const [bulkRejectReason, setBulkRejectReason] = useState('')
     const [showRejectInput, setShowRejectInput]   = useState(false)
 
     if (!bulkMode) return null
 
-    const hasPending    = allPendingIds.length > 0
-    const allSelected   = selected.size === allPendingIds.length && allPendingIds.length > 0
-    const someSelected  = selected.size > 0
+    const hasPending   = allPendingIds.length > 0
+    const allSelected  = selected.size === allPendingIds.length && allPendingIds.length > 0
+    const someSelected = selected.size > 0
 
     return (
       <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-3">
-        {/* Top row */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            {/* Select all toggle */}
             <button
               onClick={toggleSelectAll}
               disabled={!hasPending}
@@ -332,18 +321,14 @@ export function AdminRecommendations() {
               }
               {allSelected ? 'Deselect all' : `Select all pending (${allPendingIds.length})`}
             </button>
-
             {someSelected && (
               <span className="text-xs font-black px-2.5 py-1 rounded-full bg-primary text-primary-foreground">
                 {selected.size} selected
               </span>
             )}
           </div>
-
-          {/* Exit bulk mode */}
           <Button
-            variant="ghost"
-            size="sm"
+            variant="ghost" size="sm"
             className="h-7 gap-1.5 text-xs text-muted-foreground"
             onClick={() => { setBulkMode(false); setSelected(new Set()) }}
           >
@@ -352,27 +337,19 @@ export function AdminRecommendations() {
           </Button>
         </div>
 
-        {/* Action buttons — only show when something selected */}
         {someSelected && (
           <div className="flex flex-col sm:flex-row gap-2">
-            {/* Approve all selected */}
             <Button
               size="sm"
               className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white border-0"
               onClick={handleBulkApprove}
               disabled={bulkLoading}
             >
-              {bulkLoading
-                ? <Loader2 size={13} className="animate-spin" />
-                : <CheckCircle size={13} />
-              }
+              {bulkLoading ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
               Approve {selected.size} selected
             </Button>
-
-            {/* Reject toggle */}
             <Button
-              size="sm"
-              variant="outline"
+              size="sm" variant="outline"
               className="gap-2 text-red-500 border-red-500/30 hover:bg-red-500/10"
               onClick={() => setShowRejectInput(v => !v)}
               disabled={bulkLoading}
@@ -383,7 +360,6 @@ export function AdminRecommendations() {
           </div>
         )}
 
-        {/* Bulk reject input */}
         {someSelected && showRejectInput && (
           <div className="space-y-2 pt-1">
             <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
@@ -397,16 +373,11 @@ export function AdminRecommendations() {
               className="resize-none text-sm"
             />
             <Button
-              size="sm"
-              variant="destructive"
-              className="gap-2"
+              size="sm" variant="destructive" className="gap-2"
               onClick={() => handleBulkReject(bulkRejectReason)}
               disabled={!bulkRejectReason.trim() || bulkLoading}
             >
-              {bulkLoading
-                ? <Loader2 size={13} className="animate-spin" />
-                : <XCircle size={13} />
-              }
+              {bulkLoading ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
               Confirm reject {selected.size}
             </Button>
           </div>
@@ -424,7 +395,7 @@ export function AdminRecommendations() {
   return (
     <div className="space-y-4">
 
-      {/* Search bar */}
+      {/* Search */}
       <div className="relative">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         <Input
@@ -459,8 +430,6 @@ export function AdminRecommendations() {
             {label}
           </button>
         ))}
-
-        {/* Bulk mode toggle — always visible */}
         <button
           onClick={() => { setBulkMode(v => !v); setSelected(new Set()) }}
           className={cn(
@@ -473,7 +442,6 @@ export function AdminRecommendations() {
           <ListChecks size={12} />
           Bulk
         </button>
-
         {!loading && (
           <span className="text-xs text-muted-foreground">
             {total} result{total !== 1 ? 's' : ''}
@@ -482,7 +450,14 @@ export function AdminRecommendations() {
         )}
       </div>
 
-      {/* Bulk toolbar */}
+      {/* Pro submissions note — shown in pending/all when there are pro submissions */}
+      {!loading && (filter === 'pending' || filter === 'all') && recs.some(r => r.is_pro_submission && !r.is_approved && !r.rejection_reason) && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-600">
+          <Crown size={12} className="fill-amber-500 shrink-0" />
+          Pro submissions are shown first and marked with a crown badge.
+        </div>
+      )}
+
       <BulkToolbar />
 
       {loading ? (
@@ -490,27 +465,19 @@ export function AdminRecommendations() {
           <Loader2 size={24} className="animate-spin text-muted-foreground" />
         </div>
       ) : recs.length === 0 ? (
-        /* ── Empty state using the comic-panel design ── */
         <div className="relative flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border overflow-hidden">
-          {/* blobs */}
           <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
-
-          {/* stacked panels */}
           <div className="relative mb-6 w-32 h-32 mx-auto">
-            <div className="absolute top-0 left-0 w-18 h-24 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" style={{ width: '4.5rem', height: '6rem' }} />
-            <div className="absolute top-2 left-5 w-18 h-24 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" style={{ width: '4.5rem', height: '6rem' }} />
+            <div className="absolute top-0 left-0 rounded-2xl border-2 border-border bg-card rotate-[-12deg] opacity-40" style={{ width: '4.5rem', height: '6rem' }} />
+            <div className="absolute top-2 left-5 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" style={{ width: '4.5rem', height: '6rem' }} />
             <div className="absolute top-4 left-9 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1" style={{ width: '4.5rem', height: '6rem' }}>
-              {search
-                ? <Search size={16} className="text-primary opacity-60" />
-                : <BookOpen size={16} className="text-primary opacity-60" />
-              }
+              {search ? <Search size={16} className="text-primary opacity-60" /> : <BookOpen size={16} className="text-primary opacity-60" />}
               <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">
                 {search ? 'No results' : 'All clear'}
               </span>
             </div>
           </div>
-
           <p className="text-sm font-black">
             {search ? `No results for "${search}"` : `No ${filter} recommendations`}
           </p>
@@ -518,11 +485,7 @@ export function AdminRecommendations() {
             {search ? 'Try a different search term' : 'Nothing to review right now'}
           </p>
           {search && (
-            <Button
-              variant="ghost" size="sm"
-              onClick={() => { setSearchInput(''); setSearch('') }}
-              className="mt-3 text-xs"
-            >
+            <Button variant="ghost" size="sm" onClick={() => { setSearchInput(''); setSearch('') }} className="mt-3 text-xs">
               Clear search
             </Button>
           )}
@@ -536,6 +499,7 @@ export function AdminRecommendations() {
             const typeStyle   = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
             const isPending   = !rec.is_approved && !rec.rejection_reason
             const isSelected  = selected.has(rec.id)
+            const isProSub    = !!rec.is_pro_submission
 
             return (
               <div
@@ -544,14 +508,18 @@ export function AdminRecommendations() {
                   'rounded-2xl border bg-card overflow-hidden transition-colors',
                   isSelected
                     ? 'border-primary/50 bg-primary/5'
+                    : isProSub && isPending
+                    ? 'border-amber-500/30 hover:border-amber-500/50'
                     : 'border-border hover:border-primary/30'
                 )}
               >
+                {/* Pro priority stripe */}
+                {isProSub && isPending && (
+                  <div className="h-0.5 bg-gradient-to-r from-amber-400 via-orange-400 to-transparent" />
+                )}
 
-                {/* ── Main row ── */}
                 <div className="flex gap-3 p-4">
-
-                  {/* Bulk checkbox — only for pending recs when bulk mode active */}
+                  {/* Bulk checkbox */}
                   {bulkMode && isPending && (
                     <button
                       onClick={() => toggleSelect(rec.id)}
@@ -595,6 +563,19 @@ export function AdminRecommendations() {
                       {rec.appeal_status === 'pending' && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-orange-500/10 text-orange-600 border-orange-500/20">🚩 Appeal</span>
                       )}
+                      {/* Pro submission badge */}
+                      {isProSub && (
+                        <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20">
+                          <Crown size={9} className="fill-amber-500" />
+                          Pro
+                        </span>
+                      )}
+                      {/* System/auto-submitter badge */}
+                      {rec.is_ai_generated && rec.ai_model === 'auto-submitter' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-primary/10 text-primary border-primary/20">
+                          🤖 System
+                        </span>
+                      )}
                     </div>
 
                     <p className="text-xs text-muted-foreground">
@@ -609,14 +590,12 @@ export function AdminRecommendations() {
 
                     {/* Action buttons */}
                     <div className="flex flex-wrap items-center gap-1 pt-1 sm:justify-end">
-
                       <Link href={`/comic/${rec.id}`} target="_blank">
                         <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0">
                           <Eye size={12} />
                           <span className="sm:hidden">View</span>
                         </Button>
                       </Link>
-
                       <Button
                         variant="outline" size="sm"
                         className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0"
@@ -625,7 +604,6 @@ export function AdminRecommendations() {
                         <Pencil size={12} />
                         <span className="sm:hidden">Edit</span>
                       </Button>
-
                       {!rec.is_approved && !rec.rejection_reason && (
                         <Button
                           variant="outline" size="sm"
@@ -640,7 +618,6 @@ export function AdminRecommendations() {
                           <span className="sm:hidden">Approve</span>
                         </Button>
                       )}
-
                       {rec.is_featured ? (
                         <Button
                           variant="outline" size="sm"
@@ -660,7 +637,6 @@ export function AdminRecommendations() {
                           <span className="sm:hidden">Feature</span>
                         </Button>
                       )}
-
                       <Button
                         variant="outline" size="sm"
                         className="h-7 gap-1.5 text-xs px-2.5 text-red-500 border-red-500/30 hover:bg-red-500/10 sm:h-8 sm:w-8 sm:p-0"
@@ -673,7 +649,6 @@ export function AdminRecommendations() {
                         }
                         <span className="sm:hidden">Delete</span>
                       </Button>
-
                       <Button
                         variant="outline" size="sm"
                         className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0"
@@ -682,41 +657,29 @@ export function AdminRecommendations() {
                         {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                         <span className="sm:hidden">{isExpanded ? 'Less' : 'More'}</span>
                       </Button>
-
                     </div>
                   </div>
                 </div>
 
-                {/* ── Edit form ── */}
+                {/* Edit form */}
                 {isEditing && (
                   <div className="px-4 pb-5 space-y-4 border-t border-border pt-4 bg-muted/20">
                     <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Edit Recommendation</p>
-
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <Input value={editData.title ?? ''} onChange={e => setEditData(d => ({ ...d, title: e.target.value }))} placeholder="Title" className="text-sm h-9" />
                       <Input value={editData.cover_url ?? ''} onChange={e => setEditData(d => ({ ...d, cover_url: e.target.value }))} placeholder="Cover URL" className="text-sm h-9" />
                     </div>
-
                     <Textarea value={editData.description ?? ''} onChange={e => setEditData(d => ({ ...d, description: e.target.value }))} placeholder="Description" rows={3} className="resize-none text-sm" />
                     <Textarea value={editData.why_recommend ?? ''} onChange={e => setEditData(d => ({ ...d, why_recommend: e.target.value }))} placeholder="Why recommend..." rows={2} className="resize-none text-sm" />
-
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                       {['author', 'artist', 'publisher'].map(f => (
-                        <Input
-                          key={f}
-                          value={editData[f] ?? ''}
-                          onChange={e => setEditData(d => ({ ...d, [f]: e.target.value }))}
-                          placeholder={f.charAt(0).toUpperCase() + f.slice(1)}
-                          className="text-sm h-9"
-                        />
+                        <Input key={f} value={editData[f] ?? ''} onChange={e => setEditData(d => ({ ...d, [f]: e.target.value }))} placeholder={f.charAt(0).toUpperCase() + f.slice(1)} className="text-sm h-9" />
                       ))}
                     </div>
-
                     <div className="grid grid-cols-2 gap-2">
                       <Input type="number" value={editData.chapter_count ?? ''} onChange={e => setEditData(d => ({ ...d, chapter_count: e.target.value }))} placeholder="Chapters" className="text-sm h-9" />
                       <Input type="number" value={editData.year_released ?? ''} onChange={e => setEditData(d => ({ ...d, year_released: e.target.value }))} placeholder="Year" className="text-sm h-9" />
                     </div>
-
                     {[
                       { label: 'Type',   field: 'type',           items: TYPES    },
                       { label: 'Status', field: 'status',         items: STATUSES },
@@ -726,41 +689,27 @@ export function AdminRecommendations() {
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{label}</p>
                         <div className="flex flex-wrap gap-1.5">
                           {items.map(v => (
-                            <button
-                              key={v}
-                              onClick={() => setEditData(d => ({ ...d, [field]: v }))}
-                              className={cn(
-                                'px-2.5 py-1 rounded-full text-xs border capitalize transition-colors',
-                                editData[field] === v
-                                  ? 'bg-primary text-primary-foreground border-primary'
-                                  : 'border-border text-muted-foreground hover:border-primary'
-                              )}
-                            >
+                            <button key={v} onClick={() => setEditData(d => ({ ...d, [field]: v }))}
+                              className={cn('px-2.5 py-1 rounded-full text-xs border capitalize transition-colors',
+                                editData[field] === v ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:border-primary'
+                              )}>
                               {v.replace('_', ' ')}
                             </button>
                           ))}
                         </div>
                       </div>
                     ))}
-
                     <div className="space-y-1.5">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Genres</p>
                       <GenreSelector value={editData.genres ?? []} onChange={(genres) => setEditData(d => ({ ...d, genres }))} />
                     </div>
-
                     <div className="space-y-1.5">
                       <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Platforms</p>
                       <PlatformSelector value={editData.official_platforms ?? []} onChange={(platforms) => setEditData(d => ({ ...d, official_platforms: platforms }))} />
                     </div>
-
                     <div className="flex gap-2 justify-end pt-1">
                       <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleEdit(rec.id)}
-                        disabled={!!actionLoading}
-                        className="gap-2"
-                      >
+                      <Button size="sm" onClick={() => handleEdit(rec.id)} disabled={!!actionLoading} className="gap-2">
                         {actionLoading === `${rec.id}-edit` && <Loader2 size={13} className="animate-spin" />}
                         Save Changes
                       </Button>
@@ -768,11 +717,10 @@ export function AdminRecommendations() {
                   </div>
                 )}
 
-                {/* ── Expanded: reject / appeal ── */}
+                {/* Expanded: reject / appeal */}
                 {isExpanded && (
                   <div className="px-4 pb-4 space-y-3 border-t border-border pt-4 bg-muted/10">
                     <p className="text-xs text-muted-foreground line-clamp-3">{rec.description}</p>
-
                     {!rec.rejection_reason && (
                       <div className="space-y-2">
                         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reject with Reason</p>
@@ -789,15 +737,11 @@ export function AdminRecommendations() {
                           disabled={!rejectReason.trim() || !!actionLoading}
                           className="gap-2"
                         >
-                          {actionLoading === `${rec.id}-reject`
-                            ? <Loader2 size={13} className="animate-spin" />
-                            : <XCircle size={13} />
-                          }
+                          {actionLoading === `${rec.id}-reject` ? <Loader2 size={13} className="animate-spin" /> : <XCircle size={13} />}
                           Reject
                         </Button>
                       </div>
                     )}
-
                     {rec.appeal_status === 'pending' && rec.appeal_text && (
                       <div className="space-y-2 p-3 rounded-xl bg-orange-500/5 border border-orange-500/20">
                         <p className="text-xs font-bold text-orange-600">Appeal Message</p>
@@ -814,7 +758,6 @@ export function AdminRecommendations() {
                     )}
                   </div>
                 )}
-
               </div>
             )
           })}

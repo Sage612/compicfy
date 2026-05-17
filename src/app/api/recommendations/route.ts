@@ -78,11 +78,16 @@ export async function POST(request: Request) {
 
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('role, is_banned')
+      .select('role, is_banned, is_pro, pro_expires_at')
       .eq('id', user.id)
       .single()
 
-    const profile = profileData as { role: string; is_banned: boolean } | null
+    const profile = profileData as {
+      role:           string
+      is_banned:      boolean
+      is_pro:         boolean
+      pro_expires_at: string | null
+    } | null
 
     if (profile?.is_banned) {
       return NextResponse.json({ error: 'Your account has been banned' }, { status: 403 })
@@ -123,31 +128,39 @@ export async function POST(request: Request) {
       )
     }
 
-    const isAutoApproved = ['admin', 'moderator'].includes(profile?.role ?? '')
+    const isAdminOrMod    = ['admin', 'moderator'].includes(profile?.role ?? '')
+    const isAutoApproved  = isAdminOrMod
+
+    // Pro flag — used to prioritise in admin review queue
+    // Admin/mod always count as pro for this purpose
+    const isProSubmission = isAdminOrMod || !!(
+      profile?.is_pro &&
+      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+    )
 
     const insertData = {
-  user_id:            user.id,
-  title:              data.title,
-  description:        data.description,
-  type:               data.type,
-  status:             data.status,
-  genres:             data.genres,
-  official_platforms: data.official_platforms,
-  cover_url:          data.cover_url    || null,
-  content_rating:     data.content_rating,
-  why_recommend:      data.why_recommend || null,
-  author:             data.author        || null,
-  artist:             data.artist        || null,
-  year_released:      data.year_released || null,
-  chapter_count:      data.chapter_count || null,
-  is_approved:        isAutoApproved,
-  mangaupdates_id:    body.mangaupdates_id || null,
-  anilist_id:         body.anilist_id      || null,
-  mal_id:             body.mal_id          || null,
-  mangadex_id:        body.mangadex_id     || null,
-}
+      user_id:            user.id,
+      title:              data.title,
+      description:        data.description,
+      type:               data.type,
+      status:             data.status,
+      genres:             data.genres,
+      official_platforms: data.official_platforms,
+      cover_url:          data.cover_url    || null,
+      content_rating:     data.content_rating,
+      why_recommend:      data.why_recommend || null,
+      author:             data.author        || null,
+      artist:             data.artist        || null,
+      year_released:      data.year_released || null,
+      chapter_count:      data.chapter_count || null,
+      is_approved:        isAutoApproved,
+      is_pro_submission:  isProSubmission,   // Pro queue priority
+      mangaupdates_id:    body.mangaupdates_id || null,
+      anilist_id:         body.anilist_id      || null,
+      mal_id:             body.mal_id          || null,
+      mangadex_id:        body.mangadex_id     || null,
+    }
 
-    // Supabase doesn't have proper type definitions for insert with custom table schema
     const { data: recommendation, error } = await supabase
       .from('recommendations')
       .insert(insertData as any)

@@ -15,6 +15,8 @@ import { ProAvatar } from '@/components/pro/ProAvatar'
 import { ProBadge } from '@/components/pro/ProBadge'
 import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
 import { Button } from '@/components/ui/button'
+import { TasteTags } from '@/components/profile/TasteTags'
+import { TasteCompatibility } from '@/components/profile/TasteCompatibility'
 
 const GHOST_ID = '00000000-0000-0000-0000-000000000000'
 
@@ -113,6 +115,17 @@ export default async function ProfilePage({ params }: Props) {
   }
 
   const isGhost = profile.id === GHOST_ID
+
+  // Fetch viewer's genres for taste compatibility (only if viewing someone else's profile)
+  let viewerGenres: string[] = []
+  if (viewer && viewer.id !== profile.id && !isGhost) {
+    const { data: viewerProfile } = await supabase
+      .from('profiles')
+      .select('favorite_genres')
+      .eq('id', viewer.id)
+      .single()
+    viewerGenres = (viewerProfile as any)?.favorite_genres ?? []
+  }
   const isOwner = viewer?.id === profile.id && !isGhost
   const isPro   = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
   const isAdmin = profile.role === 'admin'
@@ -407,7 +420,7 @@ export default async function ProfilePage({ params }: Props) {
 
           {/* ── Genre tags ── */}
           {favoriteGenres.length > 0 && !isGhost && (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-1.5 mb-3">
               {favoriteGenres.map((genre: string) => (
                 <Link key={genre} href={`/browse?genre=${encodeURIComponent(genre)}`}>
                   <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all hover:scale-105 cursor-pointer ${
@@ -418,6 +431,22 @@ export default async function ProfilePage({ params }: Props) {
                 </Link>
               ))}
             </div>
+          )}
+
+          {/* ── Taste tags — auto-generated identity tags ── */}
+          {!isGhost && favoriteGenres.length > 0 && (
+            <div className="mb-3">
+              <TasteTags genres={favoriteGenres} />
+            </div>
+          )}
+
+          {/* ── Taste compatibility — only show when viewing someone else's profile ── */}
+          {!isGhost && !isOwner && viewer && viewerGenres.length > 0 && favoriteGenres.length > 0 && (
+            <TasteCompatibility
+              viewerGenres={viewerGenres}
+              profileGenres={favoriteGenres}
+              profileName={profile.display_name || profile.username}
+            />
           )}
 
           {/* Ghost lore text */}

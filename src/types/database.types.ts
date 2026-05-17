@@ -151,6 +151,7 @@ export type Database = {
           appeal_status: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text: string | null
           appeal_submitted_at: string | null
+          is_pro_submission: boolean
           created_at: string
           updated_at: string
         }
@@ -194,6 +195,7 @@ export type Database = {
           appeal_status?: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text?: string | null
           appeal_submitted_at?: string | null
+          is_pro_submission?: boolean
         }
         Update: {
           title?: string
@@ -233,6 +235,7 @@ export type Database = {
           appeal_status?: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text?: string | null
           appeal_submitted_at?: string | null
+          is_pro_submission?: boolean
           updated_at?: string
         }
       }
