@@ -132,7 +132,7 @@ export default function ProRecommendationsClient({ initialRecs }: Props) {
           </div>
         </div>
         <Link href="/pro/recommendations/new" className="shrink-0">
-          <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
+          <Button className="gap-2 bg-primary hover:bg-primary/90 border-0 shadow-md shadow-primary/20">
             <Plus size={15} />
             Add New
           </Button>
@@ -197,7 +197,7 @@ export default function ProRecommendationsClient({ initialRecs }: Props) {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link href="/pro/recommendations/new">
-              <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 border-0 shadow-md shadow-primary/20 hover:opacity-90">
+              <Button className="gap-2 bg-primary hover:bg-primary/90 border-0 shadow-md shadow-primary/20">
                 <BookOpen size={14} />Submit a Recommendation
               </Button>
             </Link>

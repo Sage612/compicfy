@@ -7,12 +7,13 @@ const MANHWA_COUNT = 10  // 50%
 const MANHUA_COUNT = 6   // 30%
 const MANGA_COUNT  = 4   // 20%
 
+// ── Smart switching config ────────────────────────────────────────
+// If MU returns 0 new results for a type N times in a row → switch to MAL
+// After MAL_RUN_LIMIT MAL runs → try MU again
+const MU_ZERO_THRESHOLD = 3   // consecutive MU zeros before switching
+const MAL_RUN_LIMIT     = 5   // MAL runs before re-checking MU
+
 // ── Sort rotation — cycles every 10 pages per type ───────────────
-// Pages  1-10 : rating      → top rated
-// Pages 11-20 : subscribers → most followed
-// Pages 21-30 : year        → newest series (new series discovery)
-// Pages 31-40 : votes       → most voted
-// Pages 41+   : cycles back to rating
 const SORT_ORDERS = ['rating', 'subscribers', 'year', 'votes'] as const
 type SortOrder = typeof SORT_ORDERS[number]
 
@@ -21,7 +22,6 @@ function resolveSortOrder(page: number): SortOrder {
   return SORT_ORDERS[index]
 }
 
-// Normalize to local page within the 10-page block (1→1, 11→1, 21→1 etc.)
 function resolveLocalPage(page: number): number {
   return ((page - 1) % 10) + 1
 }
@@ -30,16 +30,15 @@ function resolveLocalPage(page: number): number {
 
 function mapStatus(raw: string): 'ongoing' | 'completed' | 'hiatus' | 'cancelled' {
   const s = raw.toLowerCase()
-  if (s.includes('complet') || s.includes('finish'))        return 'completed'
-  if (s.includes('hiatus'))                                 return 'hiatus'
-  if (s.includes('cancel') || s.includes('discontinu'))     return 'cancelled'
+  if (s.includes('complet') || s.includes('finish'))    return 'completed'
+  if (s.includes('hiatus'))                             return 'hiatus'
+  if (s.includes('cancel') || s.includes('discontinu')) return 'cancelled'
   return 'ongoing'
 }
 
 function mapAniListFormat(format: string): 'manga' | 'manhwa' | 'manhua' | 'webtoon' | 'comic' | 'other' {
   const map: Record<string, 'manga' | 'manhwa' | 'manhua' | 'webtoon' | 'comic' | 'other'> = {
-    MANGA: 'manga', MANHWA: 'manhwa', MANHUA: 'manhua',
-    ONE_SHOT: 'manga', NOVEL: 'other',
+    MANGA: 'manga', MANHWA: 'manhwa', MANHUA: 'manhua', ONE_SHOT: 'manga', NOVEL: 'other',
   }
   return map[format] ?? 'manga'
 }
@@ -87,9 +86,19 @@ interface SeriesData {
   source:             'mangaupdates' | 'anilist' | 'jikan'
 }
 
+// ── Per-type state stored in activity_logs ────────────────────────
+interface TypeState {
+  page:           number   // current MU page for this type
+  mu_zero_streak: number   // consecutive runs where MU gave 0 new results
+  source_mode:    'mu' | 'mal'  // which source is active
+  mal_run_count:  number   // how many MAL runs done in current MAL stint
+}
+
+function defaultTypeState(): TypeState {
+  return { page: 0, mu_zero_streak: 0, source_mode: 'mu', mal_run_count: 0 }
+}
+
 // ── MangaUpdates fetcher ──────────────────────────────────────────
-// muType uses lowercase as required by the API: 'manhwa' | 'manhua' | 'manga'
-// sort rotates every 10 pages — rating → subscribers → year (new) → votes
 
 async function fetchMangaUpdatesByType(
   limit:  number,
@@ -108,8 +117,8 @@ async function fetchMangaUpdatesByType(
         asc:     'desc',
         perpage: limit,
         page:    localPage,
-        type:    muType,              // lowercase — correct API format
-        filter:  'some_releases',     // only series with at least one release
+        type:    muType,
+        filter:  'some_releases',
       }),
       next: { revalidate: 0 },
     })
@@ -170,7 +179,7 @@ async function fetchMangaUpdatesByType(
           title:              detail?.title ?? record.title ?? '',
           alternative_titles: altTitles.slice(0, 5),
           description:        cleanDesc || 'No description available.',
-          type:               muType,   // already correct internal type
+          type:               muType,
           status:             mapStatus(detail?.status ?? record.status ?? ''),
           genres:             sanitizeGenres([...new Set([...genreList, ...categoryList])]),
           cover_url:          coverUrl,
@@ -192,7 +201,7 @@ async function fetchMangaUpdatesByType(
   }
 }
 
-// ── AniList fallback by format ────────────────────────────────────
+// ── AniList fallback ──────────────────────────────────────────────
 
 async function fetchAniListByFormat(limit: number, format: 'MANHWA' | 'MANHUA' | 'MANGA'): Promise<SeriesData[]> {
   try {
@@ -263,12 +272,17 @@ async function fetchAniListByFormat(limit: number, format: 'MANHWA' | 'MANHUA' |
   }
 }
 
-// ── Jikan fallback ────────────────────────────────────────────────
+// ── Jikan (MAL) fetcher — paginated so MAL runs don't repeat ─────
 
-async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
+async function fetchJikanByType(
+  limit:   number,
+  page:    number,
+  malType: 'manhwa' | 'manhua' | 'manga'
+): Promise<SeriesData[]> {
+  // Jikan type param: manga | manhwa | manhua
   try {
     const res = await fetch(
-      `https://api.jikan.moe/v4/top/manga?limit=${limit}&type=manga`,
+      `https://api.jikan.moe/v4/top/manga?limit=${limit}&type=${malType}&page=${page}`,
       { next: { revalidate: 0 } }
     )
     if (!res.ok) return []
@@ -276,11 +290,12 @@ async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
     const data = await res.json()
 
     return (data.data ?? []).map((item: any): SeriesData => {
+      const internalType: 'manga' | 'manhwa' | 'manhua' = malType
       return {
         title:              item.title_english || item.title || '',
         alternative_titles: [item.title, item.title_japanese].filter(Boolean),
         description:        item.synopsis?.replace(/\[Written by MAL Rewrite\]/g, '').trim().slice(0, 2000) || 'No description available.',
-        type:               'manga',
+        type:               internalType,
         status:             mapStatus(item.status ?? ''),
         genres:             sanitizeGenres(item.genres?.map((g: any) => g.name) ?? []),
         cover_url:          item.images?.jpg?.large_image_url ?? item.images?.jpg?.image_url ?? null,
@@ -288,7 +303,7 @@ async function fetchJikanPopular(limit: number): Promise<SeriesData[]> {
         artist:             item.authors?.[1]?.name?.replace(', ', ' ') ?? item.authors?.[0]?.name?.replace(', ', ' ') ?? null,
         year_released:      item.published?.prop?.from?.year ?? null,
         chapter_count:      item.chapters ?? null,
-        official_platforms: resolvePlatforms('manga'),
+        official_platforms: resolvePlatforms(internalType),
         mangaupdates_id:    null,
         anilist_id:         null,
         mal_id:             String(item.mal_id),
@@ -318,6 +333,111 @@ function dedupeAgainst(existing: SeriesData[], incoming: SeriesData[]): SeriesDa
   return incoming.filter((s) => !seen.has(s.title.toLowerCase()))
 }
 
+// ── Smart fetch for a single type ────────────────────────────────
+// Returns { results, nextState } so we can update the log correctly
+
+async function fetchForType(
+  state:      TypeState,
+  count:      number,
+  muType:     'manhwa' | 'manhua' | 'manga',
+  aniFormat:  'MANHWA' | 'MANHUA' | 'MANGA',
+  malType:    'manhwa' | 'manhua' | 'manga',
+  dbTitles:   Set<string>   // already in DB — for counting "new" MU results
+): Promise<{ results: SeriesData[]; nextState: TypeState; usedSource: string }> {
+
+  let nextState = { ...state }
+  let results:  SeriesData[] = []
+  let usedSource: string = state.source_mode
+
+  if (state.source_mode === 'mu') {
+    // ── MU mode ──────────────────────────────────────────────────
+    const nextPage = state.page + 1
+    nextState.page = nextPage
+
+    const muRaw   = dedupeWithin(await fetchMangaUpdatesByType(count + 5, nextPage, muType))
+    // Count how many are actually new (not already in DB)
+    const muFresh = muRaw.filter(s => !dbTitles.has(s.title.toLowerCase()))
+
+    if (muFresh.length === 0) {
+      // MU gave nothing new — increment zero streak
+      nextState.mu_zero_streak = state.mu_zero_streak + 1
+
+      if (nextState.mu_zero_streak >= MU_ZERO_THRESHOLD) {
+        // Switch to MAL
+        nextState.source_mode  = 'mal'
+        nextState.mal_run_count = 0
+        usedSource = 'mal (switched from mu)'
+      }
+
+      // Fall through to MAL/AniList regardless for this run
+      const malPage = state.mal_run_count + 1
+      const malRaw  = dedupeWithin(await fetchJikanByType(count + 5, malPage, malType))
+      results       = malRaw.slice(0, count)
+
+      // Fill shortfall with AniList
+      if (results.length < count) {
+        const aniRaw = dedupeWithin(await fetchAniListByFormat(count + 5, aniFormat))
+        const fresh  = dedupeAgainst(results, aniRaw)
+        results.push(...fresh.slice(0, count - results.length))
+      }
+    } else {
+      // MU gave fresh results — reset zero streak, use MU
+      nextState.mu_zero_streak = 0
+      results = muFresh.slice(0, count)
+
+      // Fill shortfall with AniList if needed
+      if (results.length < count) {
+        const aniRaw = dedupeWithin(await fetchAniListByFormat(count + 5, aniFormat))
+        const fresh  = dedupeAgainst(results, aniRaw)
+        results.push(...fresh.slice(0, count - results.length))
+      }
+    }
+  } else {
+    // ── MAL mode ─────────────────────────────────────────────────
+    const malPage = state.mal_run_count + 1
+    nextState.mal_run_count = malPage
+
+    if (malPage >= MAL_RUN_LIMIT) {
+      // Time to check if MU has new stuff again
+      const muCheckPage = state.page + 1
+      const muRaw       = dedupeWithin(await fetchMangaUpdatesByType(count + 5, muCheckPage, muType))
+      const muFresh     = muRaw.filter(s => !dbTitles.has(s.title.toLowerCase()))
+
+      if (muFresh.length > 0) {
+        // MU is back — switch back
+        nextState.source_mode   = 'mu'
+        nextState.page          = muCheckPage
+        nextState.mu_zero_streak = 0
+        nextState.mal_run_count  = 0
+        results    = muFresh.slice(0, count)
+        usedSource = 'mu (switched back from mal)'
+      } else {
+        // MU still dry — reset MAL run counter and keep going with MAL
+        nextState.mal_run_count  = 0
+        nextState.mu_zero_streak = MU_ZERO_THRESHOLD // stays at threshold
+        usedSource = 'mal (mu still dry)'
+
+        const malRaw = dedupeWithin(await fetchJikanByType(count + 5, malPage, malType))
+        results = malRaw.slice(0, count)
+      }
+    } else {
+      // Still in MAL stint
+      usedSource = `mal (run ${malPage}/${MAL_RUN_LIMIT})`
+      const malRaw = dedupeWithin(await fetchJikanByType(count + 5, malPage, malType))
+      results = malRaw.slice(0, count)
+    }
+
+    // Fill shortfall with AniList in either case
+    if (results.length < count) {
+      const aniRaw = dedupeWithin(await fetchAniListByFormat(count + 5, aniFormat))
+      const fresh  = dedupeAgainst(results, aniRaw)
+      results.push(...fresh.slice(0, count - results.length))
+    }
+  }
+
+  return { results, nextState, usedSource }
+}
+
 // ── Main handler ──────────────────────────────────────────────────
 
 export async function GET(req: Request) {
@@ -332,10 +452,10 @@ export async function GET(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  // 2. System user — id: 00000000-0000-0000-0000-000000000000, username: their_shadow
+  // 2. System user
   const systemUserId = '00000000-0000-0000-0000-000000000000'
 
-  // 3. Read last pages per type from activity_logs
+  // 3. Read last state from activity_logs
   const { data: lastLog } = await supabase
     .from('activity_logs')
     .select('details')
@@ -346,57 +466,57 @@ export async function GET(req: Request) {
     .maybeSingle()
 
   const lastDetails = (lastLog?.details as any) ?? {}
-  const manhwaPage  = (lastDetails.page_manhwa ?? 0) + 1
-  const manhuaPage  = (lastDetails.page_manhua ?? 0) + 1
-  const mangaPage   = (lastDetails.page_manga  ?? 0) + 1
 
-  const sortInfo = {
-    manhwa: `${resolveSortOrder(manhwaPage)} (local page ${resolveLocalPage(manhwaPage)})`,
-    manhua: `${resolveSortOrder(manhuaPage)} (local page ${resolveLocalPage(manhuaPage)})`,
-    manga:  `${resolveSortOrder(mangaPage)}  (local page ${resolveLocalPage(mangaPage)})`,
+  // Parse per-type states — falls back to default if first run
+  const manhwaState: TypeState = {
+    page:           lastDetails.manhwa?.page           ?? 0,
+    mu_zero_streak: lastDetails.manhwa?.mu_zero_streak ?? 0,
+    source_mode:    lastDetails.manhwa?.source_mode    ?? 'mu',
+    mal_run_count:  lastDetails.manhwa?.mal_run_count  ?? 0,
+  }
+  const manhuaState: TypeState = {
+    page:           lastDetails.manhua?.page           ?? 0,
+    mu_zero_streak: lastDetails.manhua?.mu_zero_streak ?? 0,
+    source_mode:    lastDetails.manhua?.source_mode    ?? 'mu',
+    mal_run_count:  lastDetails.manhua?.mal_run_count  ?? 0,
+  }
+  const mangaState: TypeState = {
+    page:           lastDetails.manga?.page           ?? 0,
+    mu_zero_streak: lastDetails.manga?.mu_zero_streak ?? 0,
+    source_mode:    lastDetails.manga?.source_mode    ?? 'mu',
+    mal_run_count:  lastDetails.manga?.mal_run_count  ?? 0,
   }
 
-  // 4. Fetch each type in parallel — extra buffer to cover dupes
-  //    Type strings are lowercase as required by MangaUpdates API
-  const [manhwaRaw, manhuaRaw, mangaRaw] = await Promise.all([
-    fetchMangaUpdatesByType(MANHWA_COUNT + 5, manhwaPage, 'manhwa'),
-    fetchMangaUpdatesByType(MANHUA_COUNT + 5, manhuaPage, 'manhua'),
-    fetchMangaUpdatesByType(MANGA_COUNT  + 5, mangaPage,  'manga'),
+  // 4. Build a set of existing DB titles (lowercase) for "new result" detection
+  //    Only need titles from auto-submitter entries to keep query fast
+  const { data: existingRecs } = await supabase
+    .from('recommendations')
+    .select('title')
+    .eq('ai_model', 'auto-submitter')
+
+  const dbTitles = new Set(
+    (existingRecs ?? []).map((r: any) => r.title.toLowerCase())
+  )
+
+  // 5. Fetch each type using smart switching — runs independently per type
+  const [manhwaResult, manhuaResult, mangaResult] = await Promise.all([
+    fetchForType(manhwaState, MANHWA_COUNT, 'manhwa', 'MANHWA', 'manhwa', dbTitles),
+    fetchForType(manhuaState, MANHUA_COUNT, 'manhua', 'MANHUA', 'manhua', dbTitles),
+    fetchForType(mangaState,  MANGA_COUNT,  'manga',  'MANGA',  'manga',  dbTitles),
   ])
 
-  // 5. Dedupe within each bucket then slice to target count
-  let manhwa = dedupeWithin(manhwaRaw).slice(0, MANHWA_COUNT)
-  let manhua = dedupeWithin(manhuaRaw).slice(0, MANHUA_COUNT)
-  let manga  = dedupeWithin(mangaRaw).slice(0,  MANGA_COUNT)
-
-  // 6. Fill shortfalls with type-matched AniList/Jikan fallbacks
-  if (manhwa.length < MANHWA_COUNT) {
-    const fallback = dedupeWithin(await fetchAniListByFormat(MANHWA_COUNT + 5, 'MANHWA'))
-    const fresh    = dedupeAgainst(manhwa, fallback)
-    manhwa.push(...fresh.slice(0, MANHWA_COUNT - manhwa.length))
-  }
-
-  if (manhua.length < MANHUA_COUNT) {
-    const fallback = dedupeWithin(await fetchAniListByFormat(MANHUA_COUNT + 5, 'MANHUA'))
-    const fresh    = dedupeAgainst(manhua, fallback)
-    manhua.push(...fresh.slice(0, MANHUA_COUNT - manhua.length))
-  }
-
-  if (manga.length < MANGA_COUNT) {
-    const fallback = dedupeWithin(await fetchJikanPopular(MANGA_COUNT + 5))
-    const fresh    = dedupeAgainst(manga, fallback)
-    manga.push(...fresh.slice(0, MANGA_COUNT - manga.length))
-  }
-
-  // 7. Combine — manhwa first, manhua second, manga last
-  //    Final global dedupe catches any cross-bucket overlaps
-  const series: SeriesData[] = dedupeWithin([...manhwa, ...manhua, ...manga])
+  // 6. Combine with global dedupe
+  const series: SeriesData[] = dedupeWithin([
+    ...manhwaResult.results,
+    ...manhuaResult.results,
+    ...mangaResult.results,
+  ])
 
   if (series.length === 0) {
     return NextResponse.json({ error: 'All sources failed to return data.' }, { status: 502 })
   }
 
-  // 8. Process each series
+  // 7. Process each series
   const report = {
     submitted: [] as { title: string; type: string; source: string }[],
     skipped:   [] as { title: string; reason: string }[],
@@ -410,7 +530,6 @@ export async function GET(req: Request) {
     }
 
     try {
-      // Duplicate check against DB — case-insensitive
       const { data: existing } = await supabase
         .from('recommendations')
         .select('id, title')
@@ -464,7 +583,7 @@ export async function GET(req: Request) {
     }
   }
 
-  // 9. Log run — store all three pages so next run advances independently
+  // 8. Log run — store full state for each type so next run picks up correctly
   await supabase.from('activity_logs').insert({
     user_id:     systemUserId,
     action:      'auto_rec_submit',
@@ -473,10 +592,16 @@ export async function GET(req: Request) {
       submitted_count: report.submitted.length,
       skipped_count:   report.skipped.length,
       failed_count:    report.failed.length,
-      page_manhwa:     manhwaPage,
-      page_manhua:     manhuaPage,
-      page_manga:      mangaPage,
-      sort_used:       sortInfo,
+      // Full state stored per type
+      manhwa: manhwaResult.nextState,
+      manhua: manhuaResult.nextState,
+      manga:  mangaResult.nextState,
+      // Human-readable source info for debugging
+      sources: {
+        manhwa: manhwaResult.usedSource,
+        manhua: manhuaResult.usedSource,
+        manga:  mangaResult.usedSource,
+      },
     },
   } as any)
 
@@ -484,8 +609,16 @@ export async function GET(req: Request) {
     submitted_count: report.submitted.length,
     skipped_count:   report.skipped.length,
     failed_count:    report.failed.length,
-    pages:           { manhwa: manhwaPage, manhua: manhuaPage, manga: mangaPage },
-    sort_used:       sortInfo,
+    sources:  {
+      manhwa: manhwaResult.usedSource,
+      manhua: manhuaResult.usedSource,
+      manga:  mangaResult.usedSource,
+    },
+    states: {
+      manhwa: manhwaResult.nextState,
+      manhua: manhuaResult.nextState,
+      manga:  mangaResult.nextState,
+    },
     report,
   })
 }
