@@ -235,9 +235,7 @@ export function ProAnalyticsClient({ recommendations, analytics }: Props) {
       {/* Average quality score — shown when at least 1 scored rec exists */}
       {avgQuality !== null && (
         <div className="flex items-center gap-4 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5">
-          <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-
-          </div>
+      
           <div className="flex-1 min-w-0">
             <p className="text-sm font-black">
               Average Quality Score: <span className="text-amber-500">{avgQuality}/100</span>
