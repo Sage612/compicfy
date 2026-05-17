@@ -236,7 +236,7 @@ export function ProAnalyticsClient({ recommendations, analytics }: Props) {
       {avgQuality !== null && (
         <div className="flex items-center gap-4 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5">
           <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-            <Sparkles size={16} className="text-amber-500" />
+
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-black">
@@ -292,7 +292,7 @@ export function ProAnalyticsClient({ recommendations, analytics }: Props) {
                     <p className="text-xs font-black line-clamp-1">{rec.title}</p>
                     <Link
                       href={`/comic/${rec.id}`}
-                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto"
                       onClick={e => e.stopPropagation()}
                     >
                       <ArrowUpRight size={12} className="text-muted-foreground" />
