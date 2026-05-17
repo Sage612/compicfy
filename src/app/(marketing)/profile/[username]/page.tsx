@@ -483,16 +483,6 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       </div>
 
-      {/* ── MANGA SHELF ──────────────────────────────────────────── */}
-      <ProfileShelf
-        recommendations={recommendations}
-        totalRecs={totalRecs}
-        isPro={isPro || isAdmin}
-        isGhost={isGhost}
-        username={profile.username}
-        showGold={showGold}
-      />
-
       {/* ── PINNED ───────────────────────────────────────────────── */}
       {pinnedRec && (
         <section className="space-y-3">
@@ -550,6 +540,16 @@ export default async function ProfilePage({ params }: Props) {
           </div>
         </section>
       )}
+
+         {/* ── MANGA SHELF ──────────────────────────────────────────── */}
+              <ProfileShelf
+                recommendations={recommendations}
+                totalRecs={totalRecs}
+                isPro={isPro || isAdmin}
+                isGhost={isGhost}
+                username={profile.username}
+                showGold={showGold}
+              />
 
       {/* ── RECOMMENDATIONS ──────────────────────────────────────── */}
       {gridRecs.length > 0 ? (
