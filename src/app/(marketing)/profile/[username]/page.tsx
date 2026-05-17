@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button'
 import { TasteTags } from '@/components/profile/TasteTags'
 import { TasteCompatibility } from '@/components/profile/TasteCompatibility'
 import { ProfileShelf } from '@/components/profile/ProfileShelf'
+import { MangaDNACard } from '@/components/profile/MangaDNACard'
 
 const GHOST_ID = '00000000-0000-0000-0000-000000000000'
 
@@ -96,7 +97,6 @@ export default async function ProfilePage({ params }: Props) {
   const supabase = await createClient()
 
   const { data: { user: viewer } } = await supabase.auth.getUser()
-
 
   const { data: profileData } = await supabase
     .from('profiles')
@@ -459,6 +459,18 @@ export default async function ProfilePage({ params }: Props) {
               viewerGenres={viewerGenres}
               profileGenres={favoriteGenres}
               profileName={profile.display_name || profile.username}
+            />
+          )}
+
+          {/* ── Manga DNA — genre breakdown bar ── */}
+          {!isGhost && favoriteGenres.length > 0 && (
+            <MangaDNACard
+              username={profile.username}
+              displayName={profile.display_name || profile.username}
+              avatarUrl={profile.avatar_url}
+              genres={favoriteGenres}
+              isPro={isPro || isAdmin}
+              isOwner={isOwner}
             />
           )}
 

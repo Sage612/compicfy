@@ -37,7 +37,7 @@ export function ProfileShelf({ recommendations, totalRecs, isPro, isGhost, usern
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
-            Manga Shelf
+            Manhwa Shelf
           </h2>
           {!isPro && (
             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-black border bg-amber-500/10 text-amber-600 border-amber-500/20">
