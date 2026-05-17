@@ -17,6 +17,7 @@ import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
 import { Button } from '@/components/ui/button'
 import { TasteTags } from '@/components/profile/TasteTags'
 import { TasteCompatibility } from '@/components/profile/TasteCompatibility'
+import { ProfileShelf } from '@/components/profile/ProfileShelf'
 
 const GHOST_ID = '00000000-0000-0000-0000-000000000000'
 
@@ -96,6 +97,7 @@ export default async function ProfilePage({ params }: Props) {
 
   const { data: { user: viewer } } = await supabase.auth.getUser()
 
+
   const { data: profileData } = await supabase
     .from('profiles')
     .select('*')
@@ -116,7 +118,7 @@ export default async function ProfilePage({ params }: Props) {
 
   const isGhost = profile.id === GHOST_ID
 
-  // Fetch viewer's genres for taste compatibility (only if viewing someone else's profile)
+// Fetch viewer's genres for taste compatibility (only if viewing someone else's profile)
   let viewerGenres: string[] = []
   if (viewer && viewer.id !== profile.id && !isGhost) {
     const { data: viewerProfile } = await supabase
@@ -126,6 +128,7 @@ export default async function ProfilePage({ params }: Props) {
       .single()
     viewerGenres = (viewerProfile as any)?.favorite_genres ?? []
   }
+
   const isOwner = viewer?.id === profile.id && !isGhost
   const isPro   = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
   const isAdmin = profile.role === 'admin'
@@ -158,7 +161,7 @@ export default async function ProfilePage({ params }: Props) {
     .eq('is_approved', true)
     .not('content_rating', 'in', '("adult","mature")')
     .order('created_at', { ascending: false })
-    .limit(6)
+    .limit(18)  // 18 = Pro shelf max (3×6); free shows first 9 (3×3)
 
   if (profile.pinned_recommendation_id) {
     recQuery = recQuery.neq('id', profile.pinned_recommendation_id)
@@ -200,7 +203,9 @@ export default async function ProfilePage({ params }: Props) {
   const recommendations = (recData ?? []) as Recommendation[]
   const isFollowing     = !!isFollowingData
   const totalRecs       = totalRecsCount ?? 0
-  const hasMore         = totalRecs > recommendations.length
+  // Full ComicCard grid shows first 6; shelf shows up to 18
+  const gridRecs        = recommendations.slice(0, 6)
+  const hasMore         = totalRecs > 6
 
   const lists: ReadingList[] = isGhost ? [] : await Promise.all(
     (listsData ?? []).map(async (list: any) => {
@@ -420,22 +425,30 @@ export default async function ProfilePage({ params }: Props) {
 
           {/* ── Genre tags ── */}
           {favoriteGenres.length > 0 && !isGhost && (
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {favoriteGenres.map((genre: string) => (
-                <Link key={genre} href={`/browse?genre=${encodeURIComponent(genre)}`}>
-                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all hover:scale-105 cursor-pointer ${
-                    GENRE_COLORS[genre] ?? DEFAULT_GENRE_COLOR
-                  }`}>
-                    {genre}
-                  </span>
-                </Link>
-              ))}
+            <div className="space-y-1.5 mb-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Favourite Genres
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {favoriteGenres.map((genre: string) => (
+                  <Link key={genre} href={`/browse?genre=${encodeURIComponent(genre)}`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all hover:scale-105 cursor-pointer ${
+                      GENRE_COLORS[genre] ?? DEFAULT_GENRE_COLOR
+                    }`}>
+                      {genre}
+                    </span>
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
 
           {/* ── Taste tags — auto-generated identity tags ── */}
           {!isGhost && favoriteGenres.length > 0 && (
-            <div className="mb-3">
+            <div className="space-y-1.5 mb-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Taste Identity
+              </p>
               <TasteTags genres={favoriteGenres} />
             </div>
           )}
@@ -457,6 +470,16 @@ export default async function ProfilePage({ params }: Props) {
           )}
         </div>
       </div>
+
+      {/* ── MANGA SHELF ──────────────────────────────────────────── */}
+      <ProfileShelf
+        recommendations={recommendations}
+        totalRecs={totalRecs}
+        isPro={isPro || isAdmin}
+        isGhost={isGhost}
+        username={profile.username}
+        showGold={showGold}
+      />
 
       {/* ── PINNED ───────────────────────────────────────────────── */}
       {pinnedRec && (
@@ -517,7 +540,7 @@ export default async function ProfilePage({ params }: Props) {
       )}
 
       {/* ── RECOMMENDATIONS ──────────────────────────────────────── */}
-      {recommendations.length > 0 ? (
+      {gridRecs.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-black">
@@ -539,7 +562,7 @@ export default async function ProfilePage({ params }: Props) {
             )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {recommendations.map((rec) => (
+            {gridRecs.map((rec) => (
               <ComicCard key={rec.id} recommendation={rec} />
             ))}
           </div>
