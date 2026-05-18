@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { ReviewSection } from '@/components/recommendations/ReviewSection'
 import { AddToListButton } from '@/components/recommendations/AddToListButton'
+import { AddToCollectionButton } from '@/components/collections/AddToCollectionButton'
 import { SimilarComics } from '@/components/recommendations/SimilarComics'
 import {
   BookOpen, Calendar, Hash, User, Palette,
@@ -449,6 +450,7 @@ export default async function ComicDetailPage({ params }: Props) {
                 isLoggedIn={!!user}
               />
               {user && <AddToListButton recommendationId={id} userId={user.id} />}
+              <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
 
              <SubmitYourOwnButton
                 isLoggedIn={!!user}

@@ -17,6 +17,7 @@ function LogoMark({ className }: { className?: string }) {
 const footerLinks = {
   Discover: [
     { label: 'Browse Comics', href: '/browse'               },
+    { label: 'Collections',   href: '/collections'          },
     { label: 'News',          href: '/news'                 },
     { label: 'Shop & Merch',  href: '/affiliate'            },
     { label: 'Trending',      href: '/browse?sort=trending' },

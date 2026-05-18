@@ -162,9 +162,10 @@ export function Header() {
   const listsLabel        = isPro ? ' Lists'                   : 'Lists'
 
   const publicNavLinks = [
-    { href: '/browse',    label: 'Browse', icon: Radar       },
-    { href: '/news',      label: 'News',   icon: ScrollText  },
-    { href: '/affiliate', label: 'Shop',   icon: ShoppingBag },
+    { href: '/browse',       label: 'Browse',      icon: Radar       },
+    { href: '/collections',  label: 'Collections', icon: BookMarked  },
+    { href: '/news',         label: 'News',        icon: ScrollText  },
+    { href: '/affiliate',    label: 'Shop',        icon: ShoppingBag },
   ]
 
   const authNavLinks = [
