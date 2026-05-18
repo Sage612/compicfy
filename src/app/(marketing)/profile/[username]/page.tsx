@@ -19,6 +19,7 @@ import { TasteTags } from '@/components/profile/TasteTags'
 import { TasteCompatibility } from '@/components/profile/TasteCompatibility'
 import { ProfileShelf } from '@/components/profile/ProfileShelf'
 import { MangaDNACard } from '@/components/profile/MangaDNACard'
+import { ProfileBadges } from '@/components/profile/ProfileBadges'
 
 const GHOST_ID = '00000000-0000-0000-0000-000000000000'
 
@@ -61,7 +62,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: `@${username}` }
 }
 
-// ── Genre colour palette — maps genre names to colours ────────────
 const GENRE_COLORS: Record<string, string> = {
   Action:        'bg-red-500/10    text-red-500    border-red-500/20',
   Adventure:     'bg-orange-500/10 text-orange-500 border-orange-500/20',
@@ -118,7 +118,7 @@ export default async function ProfilePage({ params }: Props) {
 
   const isGhost = profile.id === GHOST_ID
 
-// Fetch viewer's genres for taste compatibility (only if viewing someone else's profile)
+  // Fetch viewer's genres for taste compatibility
   let viewerGenres: string[] = []
   if (viewer && viewer.id !== profile.id && !isGhost) {
     const { data: viewerProfile } = await supabase
@@ -129,9 +129,9 @@ export default async function ProfilePage({ params }: Props) {
     viewerGenres = (viewerProfile as any)?.favorite_genres ?? []
   }
 
-  const isOwner = viewer?.id === profile.id && !isGhost
-  const isPro   = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  const isAdmin = profile.role === 'admin'
+  const isOwner  = viewer?.id === profile.id && !isGhost
+  const isPro    = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin  = profile.role === 'admin'
   const showGold = isPro && !isAdmin
 
   if (viewer?.id && viewer.id !== profile.id && !isGhost) {
@@ -161,7 +161,7 @@ export default async function ProfilePage({ params }: Props) {
     .eq('is_approved', true)
     .not('content_rating', 'in', '("adult","mature")')
     .order('created_at', { ascending: false })
-    .limit(18)  // 18 = Pro shelf max (3×6); free shows first 9 (3×3)
+    .limit(18)
 
   if (profile.pinned_recommendation_id) {
     recQuery = recQuery.neq('id', profile.pinned_recommendation_id)
@@ -200,10 +200,28 @@ export default async function ProfilePage({ params }: Props) {
       : Promise.resolve({ data: null }),
   ])
 
+  // Fetch completed series count separately
+  let completedSeriesCount = 0
+  if (!isGhost) {
+    const { data: userListIds } = await (supabase as any)
+      .from('reading_lists')
+      .select('id')
+      .eq('user_id', profile.id)
+    
+    if (userListIds && (userListIds as any[]).length > 0) {
+      const listIds = (userListIds as any[]).map((l: any) => l.id)
+      const { count } = await supabase
+        .from('reading_list_items')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'completed')
+        .in('list_id', listIds)
+      completedSeriesCount = count ?? 0
+    }
+  }
+
   const recommendations = (recData ?? []) as Recommendation[]
   const isFollowing     = !!isFollowingData
   const totalRecs       = totalRecsCount ?? 0
-  // Full ComicCard grid shows first 6; shelf shows up to 18
   const gridRecs        = recommendations.slice(0, 6)
   const hasMore         = totalRecs > 6
 
@@ -232,8 +250,6 @@ export default async function ProfilePage({ params }: Props) {
 
         {/* ── Banner ── */}
         <div className="relative h-32 md:h-40 overflow-hidden">
-
-          {/* Base gradient */}
           <div className={`absolute inset-0 ${
             isGhost
               ? 'bg-gradient-to-br from-indigo-900/60 via-slate-800/40 to-violet-900/30'
@@ -242,49 +258,24 @@ export default async function ProfilePage({ params }: Props) {
               : 'bg-gradient-to-br from-primary/20 via-primary/5 to-transparent'
           }`} />
 
-          {/* Mesh overlay — circles */}
           {isGhost && (
             <>
-              <div
-                className="absolute inset-0 opacity-30"
-                style={{
-                  backgroundImage: 'radial-gradient(circle at 15% 60%, #4f46e5 0%, transparent 45%), radial-gradient(circle at 85% 25%, #7c3aed 0%, transparent 40%), radial-gradient(circle at 50% 90%, #2563eb 0%, transparent 35%)',
-                }}
-              />
-              {/* Subtle grid */}
-              <div
-                className="absolute inset-0 opacity-10"
-                style={{
-                  backgroundImage: 'linear-gradient(rgba(99,102,241,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.4) 1px, transparent 1px)',
-                  backgroundSize: '32px 32px',
-                }}
-              />
+              <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 15% 60%, #4f46e5 0%, transparent 45%), radial-gradient(circle at 85% 25%, #7c3aed 0%, transparent 40%), radial-gradient(circle at 50% 90%, #2563eb 0%, transparent 35%)' }} />
+              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(rgba(99,102,241,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.4) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
             </>
           )}
 
           {showGold && !isGhost && (
             <>
-              <div
-                className="absolute inset-0 opacity-20"
-                style={{
-                  backgroundImage: 'radial-gradient(circle at 20% 50%, #f59e0b 0%, transparent 50%), radial-gradient(circle at 80% 30%, #ea580c 0%, transparent 40%)',
-                }}
-              />
-              {/* Gold shimmer line */}
+              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #f59e0b 0%, transparent 50%), radial-gradient(circle at 80% 30%, #ea580c 0%, transparent 40%)' }} />
               <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
             </>
           )}
 
           {!isGhost && !showGold && (
-            <div
-              className="absolute inset-0 opacity-15"
-              style={{
-                backgroundImage: 'radial-gradient(circle at 20% 60%, var(--color-primary) 0%, transparent 50%), radial-gradient(circle at 80% 30%, var(--color-primary) 0%, transparent 40%)',
-              }}
-            />
+            <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'radial-gradient(circle at 20% 60%, var(--color-primary) 0%, transparent 50%), radial-gradient(circle at 80% 30%, var(--color-primary) 0%, transparent 40%)' }} />
           )}
 
-          {/* Bottom fade to card */}
           <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-card to-transparent" />
         </div>
 
@@ -293,8 +284,6 @@ export default async function ProfilePage({ params }: Props) {
 
           {/* Avatar + action row */}
           <div className="flex items-end justify-between gap-3 mb-4">
-
-            {/* Avatar with ring */}
             <div className={`relative shrink-0 rounded-full p-[3px] ${
               isGhost  ? 'bg-gradient-to-br from-indigo-500 to-violet-600' :
               isAdmin  ? 'bg-gradient-to-br from-primary to-primary/60'    :
@@ -311,7 +300,6 @@ export default async function ProfilePage({ params }: Props) {
               />
             </div>
 
-            {/* Right side — follow button or ghost badge */}
             <div className="flex items-center gap-2 pb-1 shrink-0">
               {isGhost && (
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
@@ -320,17 +308,11 @@ export default async function ProfilePage({ params }: Props) {
                 </div>
               )}
               {!isOwner && !isGhost && viewer && (
-                <FollowButton
-                  profileId={profile.id}
-                  initialFollowing={isFollowing}
-                  isLoggedIn={!!viewer}
-                />
+                <FollowButton profileId={profile.id} initialFollowing={isFollowing} isLoggedIn={!!viewer} />
               )}
               {isOwner && (
                 <Link href="/dashboard/settings">
-                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
-                    Edit Profile
-                  </Button>
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">Edit Profile</Button>
                 </Link>
               )}
             </div>
@@ -350,28 +332,19 @@ export default async function ProfilePage({ params }: Props) {
 
           {/* Bio */}
           {profile.bio && (
-            <p className="text-sm leading-relaxed text-muted-foreground mb-4 max-w-lg">
-              {profile.bio}
-            </p>
+            <p className="text-sm leading-relaxed text-muted-foreground mb-4 max-w-lg">{profile.bio}</p>
           )}
 
           {/* Website */}
           {profile.website && !isGhost && (
-            <a
-              href={profile.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mb-4"
-            >
+            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mb-4">
               <Globe size={11} />
               {profile.website.replace(/^https?:\/\//, '')}
             </a>
           )}
 
-          {/* ── Stats row ── */}
+          {/* Stats row */}
           <div className="flex flex-wrap gap-2 mb-4">
-
-            {/* Followers / Following — non-ghost only */}
             {!isGhost && (
               <>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
@@ -386,17 +359,11 @@ export default async function ProfilePage({ params }: Props) {
                 </div>
               </>
             )}
-
-            {/* Recommendations — approved count */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
               <BookOpen size={11} className="text-primary/60" />
               <span className="font-black text-foreground">{totalRecs}</span>
-              <span className="text-muted-foreground">
-                {isGhost ? 'archived' : 'recs'}
-              </span>
+              <span className="text-muted-foreground">{isGhost ? 'archived' : 'recs'}</span>
             </div>
-
-            {/* Reviews */}
             {(profile.total_reviews ?? 0) > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
                 <Star size={11} className="text-amber-500/70" />
@@ -404,8 +371,6 @@ export default async function ProfilePage({ params }: Props) {
                 <span className="text-muted-foreground">reviews</span>
               </div>
             )}
-
-            {/* Votes received */}
             {(profile.total_votes_received ?? 0) > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
                 <ThumbsUp size={11} className="text-emerald-500/70" />
@@ -413,8 +378,6 @@ export default async function ProfilePage({ params }: Props) {
                 <span className="text-muted-foreground">votes</span>
               </div>
             )}
-
-            {/* Join date — non-ghost only */}
             {!isGhost && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs text-muted-foreground">
                 <CalendarDays size={11} className="text-primary/60" />
@@ -423,18 +386,14 @@ export default async function ProfilePage({ params }: Props) {
             )}
           </div>
 
-          {/* ── Genre tags ── */}
+          {/* Favourite Genres */}
           {favoriteGenres.length > 0 && !isGhost && (
             <div className="space-y-1.5 mb-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                Favourite Genres
-              </p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Favourite Genres</p>
               <div className="flex flex-wrap gap-1.5">
                 {favoriteGenres.map((genre: string) => (
                   <Link key={genre} href={`/browse?genre=${encodeURIComponent(genre)}`}>
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all hover:scale-105 cursor-pointer ${
-                      GENRE_COLORS[genre] ?? DEFAULT_GENRE_COLOR
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all hover:scale-105 cursor-pointer ${GENRE_COLORS[genre] ?? DEFAULT_GENRE_COLOR}`}>
                       {genre}
                     </span>
                   </Link>
@@ -443,38 +402,51 @@ export default async function ProfilePage({ params }: Props) {
             </div>
           )}
 
-          {/* ── Taste tags — auto-generated identity tags ── */}
+          {/* Taste Identity */}
           {!isGhost && favoriteGenres.length > 0 && (
             <div className="space-y-1.5 mb-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                Taste Identity
-              </p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Taste Identity</p>
               <TasteTags genres={favoriteGenres} />
             </div>
           )}
 
-          {/* ── Taste compatibility — only show when viewing someone else's profile ── */}
+          {/* Taste Compatibility */}
           {!isGhost && !isOwner && viewer && viewerGenres.length > 0 && favoriteGenres.length > 0 && (
-            <TasteCompatibility
-              viewerGenres={viewerGenres}
-              profileGenres={favoriteGenres}
-              profileName={profile.display_name || profile.username}
-            />
+            <div className="mb-3">
+              <TasteCompatibility
+                viewerGenres={viewerGenres}
+                profileGenres={favoriteGenres}
+                profileName={profile.display_name || profile.username}
+              />
+            </div>
           )}
 
-          {/* ── Manga DNA — genre breakdown bar ── */}
+          {/* Manga DNA */}
           {!isGhost && favoriteGenres.length > 0 && (
-            <MangaDNACard
-              username={profile.username}
-              displayName={profile.display_name || profile.username}
-              avatarUrl={profile.avatar_url}
-              genres={favoriteGenres}
-              isPro={isPro || isAdmin}
-              isOwner={isOwner}
-            />
+            <div className="mb-3">
+              <MangaDNACard
+                username={profile.username}
+                displayName={profile.display_name || profile.username}
+                avatarUrl={profile.avatar_url}
+                genres={favoriteGenres}
+                isPro={isPro || isAdmin}
+                isOwner={isOwner}
+              />
+            </div>
           )}
 
-          {/* Ghost lore text */}
+          {/* Achievement Badges */}
+          <ProfileBadges
+            approvedRecs={totalRecs}
+            totalReviews={profile.total_reviews ?? 0}
+            totalVotes={profile.total_votes_received ?? 0}
+            completedSeries={completedSeriesCount ?? 0}
+            verifiedRecommender={profile.verified_recommender ?? false}
+            isPro={isPro || isAdmin}
+            isGhost={isGhost}
+          />
+
+          {/* Ghost lore */}
           {isGhost && (
             <p className="text-xs text-indigo-400/70 italic leading-relaxed max-w-md">
               An archivist of forgotten recommendations. Comics submitted here live on even when their recommenders are gone.
@@ -483,7 +455,17 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       </div>
 
-      {/* ── PINNED ───────────────────────────────────────────────── */}
+      {/* ── MANGA SHELF ── */}
+      <ProfileShelf
+        recommendations={recommendations}
+        totalRecs={totalRecs}
+        isPro={isPro || isAdmin}
+        isGhost={isGhost}
+        username={profile.username}
+        showGold={showGold}
+      />
+
+      {/* ── PINNED ── */}
       {pinnedRec && (
         <section className="space-y-3">
           <div className="flex items-center gap-2">
@@ -493,40 +475,28 @@ export default async function ProfilePage({ params }: Props) {
           <div className={`rounded-2xl border ${showGold ? 'border-amber-500/30 bg-amber-500/5' : 'border-border bg-card'} overflow-hidden`}>
             <div className="flex gap-4 p-4">
               <div className="w-20 h-28 sm:w-24 sm:h-32 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
-                {pinnedRec.cover_url ? (
-                  <img src={pinnedRec.cover_url} alt={pinnedRec.title} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <BookOpen size={20} className="text-muted-foreground opacity-40" />
-                  </div>
-                )}
+                {pinnedRec.cover_url
+                  ? <img src={pinnedRec.cover_url} alt={pinnedRec.title} className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center"><BookOpen size={20} className="text-muted-foreground opacity-40" /></div>
+                }
               </div>
               <div className="flex-1 min-w-0 space-y-2 py-1">
                 <div>
-                  <Link
-                    href={`/comic/${pinnedRec.id}`}
-                    className="font-black text-base hover:text-primary transition-colors line-clamp-2 leading-tight"
-                  >
+                  <Link href={`/comic/${pinnedRec.id}`} className="font-black text-base hover:text-primary transition-colors line-clamp-2 leading-tight">
                     {pinnedRec.title}
                   </Link>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-primary/10 text-primary border-primary/20 capitalize">
-                      {pinnedRec.type}
-                    </span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-primary/10 text-primary border-primary/20 capitalize">{pinnedRec.type}</span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${
                       pinnedRec.status === 'ongoing'   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
                       pinnedRec.status === 'completed' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
                       pinnedRec.status === 'hiatus'    ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
                       'bg-muted text-muted-foreground border-border'
-                    }`}>
-                      {pinnedRec.status}
-                    </span>
+                    }`}>{pinnedRec.status}</span>
                   </div>
                 </div>
                 {pinnedRec.description && (
-                  <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
-                    {pinnedRec.description}
-                  </p>
+                  <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{pinnedRec.description}</p>
                 )}
                 <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1"><ThumbsUp size={10} className="text-emerald-500" />{pinnedRec.upvotes ?? 0}</span>
@@ -541,50 +511,24 @@ export default async function ProfilePage({ params }: Props) {
         </section>
       )}
 
-         {/* ── MANGA SHELF ──────────────────────────────────────────── */}
-              <ProfileShelf
-                recommendations={recommendations}
-                totalRecs={totalRecs}
-                isPro={isPro || isAdmin}
-                isGhost={isGhost}
-                username={profile.username}
-                showGold={showGold}
-              />
-
-      {/* ── RECOMMENDATIONS ──────────────────────────────────────── */}
+      {/* ── RECOMMENDATIONS ── */}
       {gridRecs.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black">
-              {isGhost ? 'Archived Recommendations' : 'Recent Recommendations'}
-            </h2>
-            <div className={`h-0.5 flex-1 bg-gradient-to-r ${
-              isGhost  ? 'from-indigo-500/40' :
-              showGold ? 'from-amber-500/40'  :
-                         'from-primary/40'
-            } to-transparent`} />
+            <h2 className="text-lg font-black">{isGhost ? 'Archived Recommendations' : 'Recent Recommendations'}</h2>
+            <div className={`h-0.5 flex-1 bg-gradient-to-r ${isGhost ? 'from-indigo-500/40' : showGold ? 'from-amber-500/40' : 'from-primary/40'} to-transparent`} />
             {hasMore && (
-              <Link
-                href={`/profile/${profile.username}/recommendations`}
-                className="flex items-center gap-1 text-xs font-bold text-primary hover:underline shrink-0"
-              >
-                See all {totalRecs}
-                <ArrowRight size={12} />
+              <Link href={`/profile/${profile.username}/recommendations`} className="flex items-center gap-1 text-xs font-bold text-primary hover:underline shrink-0">
+                See all {totalRecs}<ArrowRight size={12} />
               </Link>
             )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {gridRecs.map((rec) => (
-              <ComicCard key={rec.id} recommendation={rec} />
-            ))}
+            {gridRecs.map((rec) => <ComicCard key={rec.id} recommendation={rec} />)}
           </div>
           {hasMore && (
-            <Link
-              href={`/profile/${profile.username}/recommendations`}
-              className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-border hover:border-primary/40 hover:bg-primary/5 text-sm font-semibold text-muted-foreground hover:text-primary transition-all duration-200"
-            >
-              See all {totalRecs} recommendations
-              <ArrowRight size={14} />
+            <Link href={`/profile/${profile.username}/recommendations`} className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border border-border hover:border-primary/40 hover:bg-primary/5 text-sm font-semibold text-muted-foreground hover:text-primary transition-all duration-200">
+              See all {totalRecs} recommendations<ArrowRight size={14} />
             </Link>
           )}
         </section>
@@ -597,14 +541,10 @@ export default async function ProfilePage({ params }: Props) {
             <div className="absolute top-2 left-6 w-20 h-28 rounded-2xl border-2 border-border bg-card rotate-[-5deg] opacity-60" />
             <div className="absolute top-4 left-10 w-20 h-28 rounded-2xl border-2 border-primary/30 bg-card shadow-xl flex flex-col items-center justify-center gap-1">
               <BookOpen size={18} className="text-primary opacity-60" />
-              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">
-                {isGhost ? 'Archive' : 'Empty'}
-              </span>
+              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center px-1">{isGhost ? 'Archive' : 'Empty'}</span>
             </div>
           </div>
-          <p className="font-black text-sm">
-            {isGhost ? 'The archive is empty' : 'No recommendations yet'}
-          </p>
+          <p className="font-black text-sm">{isGhost ? 'The archive is empty' : 'No recommendations yet'}</p>
           <p className="text-xs text-muted-foreground mt-1 text-center px-4">
             {isGhost
               ? 'Comics find their way here when their recommenders move on. More always arrive.'
@@ -615,16 +555,13 @@ export default async function ProfilePage({ params }: Props) {
           </p>
           {isOwner && !isGhost && (
             <Link href="/dashboard/recommendations/new" className="mt-5">
-              <Button size="sm" className="gap-2">
-                <PenLine size={13} />
-                Submit your first rec
-              </Button>
+              <Button size="sm" className="gap-2"><PenLine size={13} />Submit your first rec</Button>
             </Link>
           )}
         </div>
       )}
 
-      {/* ── PUBLIC READING LISTS ─────────────────────────────────── */}
+      {/* ── PUBLIC READING LISTS ── */}
       {!isGhost && lists.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
@@ -634,25 +571,15 @@ export default async function ProfilePage({ params }: Props) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {lists.map((list) => (
-              <Link
-                key={list.id}
-                href={`/lists/${list.id}`}
-                className="group relative p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 space-y-3"
-              >
+              <Link key={list.id} href={`/lists/${list.id}`} className="group relative p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
                       <BookMarked size={14} className="text-primary" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-black truncate group-hover:text-primary transition-colors">
-                        {list.name}
-                      </p>
-                      {list.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                          {list.description}
-                        </p>
-                      )}
+                      <p className="text-sm font-black truncate group-hover:text-primary transition-colors">{list.name}</p>
+                      {list.description && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{list.description}</p>}
                     </div>
                   </div>
                   <Globe size={12} className="text-emerald-500 shrink-0 mt-1" />
@@ -660,14 +587,9 @@ export default async function ProfilePage({ params }: Props) {
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <BookOpen size={11} className="text-primary/60" />
-                    <span>
-                      <strong className="text-foreground font-black">{list.item_count}</strong>{' '}
-                      comic{list.item_count !== 1 ? 's' : ''}
-                    </span>
+                    <span><strong className="text-foreground font-black">{list.item_count}</strong> comic{list.item_count !== 1 ? 's' : ''}</span>
                   </div>
-                  <span className="text-[10px] font-bold text-primary group-hover:translate-x-0.5 transition-transform">
-                    View →
-                  </span>
+                  <span className="text-[10px] font-bold text-primary group-hover:translate-x-0.5 transition-transform">View →</span>
                 </div>
               </Link>
             ))}
