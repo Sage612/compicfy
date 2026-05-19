@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Sun, Moon, Monitor, Radar, ScrollText,
+  Sun, Moon, Monitor, Radar, ScrollText, LayoutGrid,
   LayoutDashboard, Settings, LogOut, BookOpen,
   User as UserIcon, Bell,
   ShoppingBag, Crown, CreditCard, Sparkles, LayoutList, BookMarked,
@@ -28,9 +28,6 @@ import { cn } from '@/lib/utils'
 import { GlobalSearch } from '@/components/layout/GlobalSearch'
 import { NotificationBell } from '@/components/user/NotificationBell'
 
-// ── Fixed: uses fill-primary-foreground with opacity variants
-// so the logo adapts to both light and dark themes,
-// matching the footer logo behaviour exactly.
 function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
@@ -163,7 +160,7 @@ export function Header() {
 
   const publicNavLinks = [
     { href: '/browse',       label: 'Browse',      icon: Radar       },
-    { href: '/collections',  label: 'Collections', icon: BookMarked  },
+    { href: '/collections',  label: 'Collections', icon: LayoutGrid  },
     { href: '/news',         label: 'News',        icon: ScrollText  },
     { href: '/affiliate',    label: 'Shop',        icon: ShoppingBag },
   ]
