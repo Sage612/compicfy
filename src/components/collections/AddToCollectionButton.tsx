@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
+import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { BookMarked, ChevronDown, Plus, Check, Loader2 } from 'lucide-react'
+import { LayoutGrid, ChevronDown, Plus, Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 
 interface Collection {
   id:    string
@@ -17,12 +17,26 @@ interface Props {
 }
 
 export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
-  const [open,        setOpen]        = useState(false)
-  const [collections, setCollections] = useState<Collection[]>([])
-  const [added,       setAdded]       = useState<Set<string>>(new Set())
-  const [loading,     setLoading]     = useState(false)
-  const [adding,      setAdding]      = useState<string | null>(null)
+  const [open,             setOpen]             = useState(false)
+  const [collections,      setCollections]      = useState<Collection[]>([])
+  const [added,            setAdded]            = useState<Set<string>>(new Set())
+  const [loading,          setLoading]          = useState(false)
+  const [adding,           setAdding]           = useState<string | null>(null)
+  const [showAuthPrompt,   setShowAuthPrompt]   = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // Close on outside click — same pattern as ReadingProgressButton
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // Fetch collections when dropdown opens
   useEffect(() => {
     if (!open || !isLoggedIn) return
     const fetchCollections = async () => {
@@ -30,7 +44,6 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
       try {
         const res  = await fetch('/api/collections')
         const data = await res.json()
-        // Only own collections
         setCollections(data.collections ?? [])
       } catch {
         toast.error('Failed to load collections')
@@ -45,7 +58,7 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
     if (added.has(collectionId)) return
     setAdding(collectionId)
     try {
-      const res = await fetch(`/api/collections/${collectionId}/items`, {
+      const res  = await fetch(`/api/collections/${collectionId}/items`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ recommendation_id: recommendationId }),
@@ -66,75 +79,116 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
     }
   }
 
-  if (!isLoggedIn) return null
+  // Not logged in — auth prompt, same pattern as ReadingProgressButton
+  if (!isLoggedIn) {
+    return (
+      <>
+        <AuthPromptModal
+          open={showAuthPrompt}
+          onClose={() => setShowAuthPrompt(false)}
+          config={{
+            action: 'add comics to your collections',
+            icon: <LayoutGrid size={24} className="text-primary" />,
+          }}
+        />
+        <button
+          onClick={() => setShowAuthPrompt(true)}
+          className="flex items-center justify-between w-full h-10 px-4 rounded-xl border border-border bg-card text-sm font-semibold text-muted-foreground hover:border-primary/40 hover:text-primary transition-all"
+        >
+          <span className="flex items-center gap-2 flex-1 justify-center">
+            <LayoutGrid size={14} className="shrink-0" />
+            Add to Collection
+          </span>
+          <ChevronDown size={14} className="shrink-0 ml-2" />
+        </button>
+      </>
+    )
+  }
+
+  const addedCount = added.size
 
   return (
-    <div className="relative">
-      <Button
-        variant="outline"
-        size="sm"
+    <div ref={dropdownRef} className="relative w-full">
+
+      {/* ── Trigger — exact same sizing as ReadingProgressButton ── */}
+      <button
         onClick={() => setOpen(o => !o)}
-        className="w-full gap-1.5 justify-between"
+        className={cn(
+          'flex items-center justify-between w-full h-10 px-4 rounded-xl border text-sm font-semibold transition-all',
+          addedCount > 0
+            ? 'border-primary/40 bg-primary/8 text-primary'
+            : 'border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-primary'
+        )}
       >
-        <span className="flex items-center gap-1.5">
-          <BookMarked size={13} />
-          Add to Collection
+        <span className="flex items-center gap-2 flex-1 justify-center min-w-0">
+          <LayoutGrid size={14} className="shrink-0" />
+          <span className="truncate">
+            {addedCount > 0 ? `Added to ${addedCount} collection${addedCount !== 1 ? 's' : ''}` : 'Add to Collection'}
+          </span>
         </span>
-        <ChevronDown size={12} className={cn('transition-transform', open && 'rotate-180')} />
-      </Button>
+        <ChevronDown
+          size={14}
+          className={cn('shrink-0 transition-transform ml-2', open && 'rotate-180')}
+        />
+      </button>
 
+      {/* ── Dropdown ── */}
       {open && (
-        <>
-          {/* Backdrop */}
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+        <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border border-border bg-card shadow-2xl shadow-black/20 overflow-hidden">
 
-          {/* Dropdown */}
-          <div className="absolute left-0 right-0 mt-1 z-20 rounded-xl border border-border bg-card shadow-xl overflow-hidden">
-            {loading ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 size={16} className="animate-spin text-muted-foreground" />
-              </div>
-            ) : collections.length === 0 ? (
-              <div className="p-3 text-center space-y-2">
-                <p className="text-xs text-muted-foreground">No collections yet</p>
-                <a href="/collections" className="text-xs text-primary hover:underline inline-flex items-center gap-1">
-                  <Plus size={10} />
-                  Create a collection
-                </a>
-              </div>
-            ) : (
-              <div className="max-h-48 overflow-y-auto">
-                {collections.map((col) => (
-                  <button
-                    key={col.id}
-                    onClick={() => handleAdd(col.id)}
-                    disabled={adding === col.id}
-                    className={cn(
-                      'w-full flex items-center justify-between gap-2 px-3 py-2.5 text-sm text-left transition-colors',
-                      added.has(col.id)
-                        ? 'text-primary bg-primary/5'
-                        : 'text-foreground hover:bg-muted'
-                    )}
-                  >
-                    <span className="truncate flex-1 font-medium">{col.title}</span>
-                    {adding === col.id
-                      ? <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0" />
-                      : added.has(col.id)
-                      ? <Check size={12} className="text-primary shrink-0" />
-                      : <Plus size={12} className="text-muted-foreground shrink-0" />
-                    }
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="border-t border-border">
-              <a href="/collections" className="flex items-center gap-2 px-3 py-2 text-xs text-primary hover:bg-primary/5 transition-colors">
-                <Plus size={11} />
-                Create new collection
+          {loading ? (
+            <div className="flex items-center justify-center py-5">
+              <Loader2 size={16} className="animate-spin text-muted-foreground" />
+            </div>
+          ) : collections.length === 0 ? (
+            <div className="p-4 text-center space-y-2">
+              <p className="text-xs text-muted-foreground">No collections yet</p>
+              <a
+                href="/collections"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+              >
+                <Plus size={10} />
+                Create a collection
               </a>
             </div>
+          ) : (
+            <div className="max-h-52 overflow-y-auto p-2 space-y-0.5">
+              {collections.map((col) => (
+                <button
+                  key={col.id}
+                  onClick={() => handleAdd(col.id)}
+                  disabled={adding === col.id}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all text-left',
+                    added.has(col.id)
+                      ? 'bg-primary/8 text-primary border border-primary/20'
+                      : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <LayoutGrid size={12} className="shrink-0 opacity-60" />
+                  <span className="truncate flex-1">{col.title}</span>
+                  {adding === col.id
+                    ? <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0" />
+                    : added.has(col.id)
+                    ? <Check size={12} className="text-primary shrink-0" />
+                    : <Plus size={12} className="text-muted-foreground shrink-0" />
+                  }
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Footer link */}
+          <div className="border-t border-border">
+            <a
+              href="/collections"
+              className="flex items-center gap-2 px-3 py-2.5 text-xs font-semibold text-primary hover:bg-primary/5 transition-colors"
+            >
+              <Plus size={11} />
+              Create new collection
+            </a>
           </div>
-        </>
+        </div>
       )}
     </div>
   )
