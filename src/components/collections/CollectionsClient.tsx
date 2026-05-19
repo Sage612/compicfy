@@ -7,12 +7,16 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
-  Plus, BookOpen, Globe, Lock, Loader2,
-  Trash2, Pencil, Crown, Sparkles, Eye,
-  BookMarked, ArrowRight, X,
+  Plus, Globe, Lock, Loader2,
+  Trash2, Crown, Sparkles,
+  ArrowRight, X, LayoutGrid, BookOpen,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
+
+interface CoverPreview {
+  cover_url: string | null
+}
 
 interface Collection {
   id:           string
@@ -26,7 +30,7 @@ interface Collection {
   view_count:   number
   created_at:   string
   profiles:     { username: string; display_name: string | null } | null
-  collection_items: { count: number }[]
+  collection_items: { count: number; recommendations?: CoverPreview }[]
 }
 
 const FREE_LIMIT = 3
@@ -41,12 +45,12 @@ const THEME_OPTIONS = [
 ]
 
 const THEME_STYLES: Record<string, string> = {
-  primary: 'from-primary/20 via-primary/5',
-  violet:  'from-violet-500/20 via-violet-500/5',
-  rose:    'from-rose-500/20 via-rose-500/5',
-  amber:   'from-amber-500/20 via-amber-500/5',
-  emerald: 'from-emerald-500/20 via-emerald-500/5',
-  indigo:  'from-indigo-500/20 via-indigo-500/5',
+  primary: 'from-primary/30 via-primary/10',
+  violet:  'from-violet-500/30 via-violet-500/10',
+  rose:    'from-rose-500/30 via-rose-500/10',
+  amber:   'from-amber-500/30 via-amber-500/10',
+  emerald: 'from-emerald-500/30 via-emerald-500/10',
+  indigo:  'from-indigo-500/30 via-indigo-500/10',
 }
 
 const THEME_BORDER: Record<string, string> = {
@@ -58,15 +62,32 @@ const THEME_BORDER: Record<string, string> = {
   indigo:  'border-indigo-500/30 hover:border-indigo-500/50',
 }
 
+const THEME_ACCENT: Record<string, string> = {
+  primary: 'text-primary',
+  violet:  'text-violet-500',
+  rose:    'text-rose-500',
+  amber:   'text-amber-500',
+  emerald: 'text-emerald-500',
+  indigo:  'text-indigo-500',
+}
+
 function itemCount(c: Collection): number {
   return c.collection_items?.[0]?.count ?? 0
 }
 
+/** Grab up to 4 cover URLs from collection_items */
+function getCoverPreviews(c: Collection): string[] {
+  return (c.collection_items ?? [])
+    .map((item: any) => item.recommendations?.cover_url ?? item.cover_url ?? null)
+    .filter(Boolean)
+    .slice(0, 4) as string[]
+}
+
 interface Props {
-  userId:      string | null
-  isProUser:   boolean
-  ownOnly?:    boolean   // true = show only user's own collections (dashboard view)
-  basePath?:   string
+  userId:    string | null
+  isProUser: boolean
+  ownOnly?:  boolean
+  basePath?: string
 }
 
 export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath = '/collections' }: Props) {
@@ -75,7 +96,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
   const [showCreate,  setShowCreate]  = useState(false)
   const [creating,    setCreating]    = useState(false)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
-  const [editingId,   setEditingId]   = useState<string | null>(null)
 
   const [form, setForm] = useState({
     title:        '',
@@ -87,9 +107,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
 
   const atLimit = !isProUser && collections.filter(c => c.user_id === userId).length >= FREE_LIMIT
 
-  useEffect(() => {
-    fetchCollections()
-  }, [])
+  useEffect(() => { fetchCollections() }, [])
 
   const fetchCollections = async () => {
     setLoading(true)
@@ -109,10 +127,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
 
   const handleCreate = async () => {
     if (!form.title.trim()) return
-    if (atLimit) {
-      toast.error('Upgrade to Pro for unlimited collections')
-      return
-    }
+    if (atLimit) { toast.error('Upgrade to Pro for unlimited collections'); return }
     setCreating(true)
     try {
       const res  = await fetch('/api/collections', {
@@ -122,10 +137,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       })
       const data = await res.json()
       if (!res.ok) {
-        if (res.status === 403) {
-          toast.error(data.message ?? 'Collection limit reached')
-          return
-        }
+        if (res.status === 403) { toast.error(data.message ?? 'Collection limit reached'); return }
         throw new Error(data.error)
       }
       setCollections(prev => [{ ...data.collection, collection_items: [] }, ...prev])
@@ -174,13 +186,13 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <BookMarked size={16} className="text-primary" />
+            <LayoutGrid size={16} className="text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight">Collections</h1>
             <p className="text-muted-foreground text-sm">
               Curated comic picks, themed and shareable
-              {!isProUser && (
+              {!isProUser && userId && (
                 <span className="text-muted-foreground/60 ml-1">
                   · {Math.max(0, FREE_LIMIT - collections.filter(c => c.user_id === userId).length)} free slot{FREE_LIMIT - collections.filter(c => c.user_id === userId).length !== 1 ? 's' : ''} remaining
                 </span>
@@ -250,7 +262,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
               />
             </div>
 
-            {/* Theme picker */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">Theme Colour</label>
               <div className="flex gap-2">
@@ -269,7 +280,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
               </div>
             </div>
 
-            {/* Publish toggle */}
             <label className="flex items-center gap-3 cursor-pointer group">
               <div
                 className={cn('w-4 h-4 rounded border-2 flex items-center justify-center transition-colors shrink-0', form.is_published ? 'bg-primary border-primary' : 'border-border group-hover:border-primary/60')}
@@ -307,7 +317,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       {!loading && collections.length === 0 && (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <BookMarked size={20} className="text-primary opacity-60" />
+            <LayoutGrid size={20} className="text-primary opacity-60" />
           </div>
           <div>
             <p className="font-black text-sm">No collections yet</p>
@@ -328,35 +338,73 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       {!loading && collections.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {collections.map((col) => {
-            const isOwner    = col.user_id === userId
-            const count      = itemCount(col)
-            const themeGrad  = THEME_STYLES[col.theme_color]  ?? THEME_STYLES.primary
-            const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
+            const isOwner     = col.user_id === userId
+            const count       = itemCount(col)
+            const themeGrad   = THEME_STYLES[col.theme_color]  ?? THEME_STYLES.primary
+            const themeBorder = THEME_BORDER[col.theme_color]  ?? THEME_BORDER.primary
+            const themeAccent = THEME_ACCENT[col.theme_color]  ?? THEME_ACCENT.primary
+            const covers      = getCoverPreviews(col)
 
             return (
               <div
                 key={col.id}
                 className={cn(
-                  'group relative rounded-2xl border bg-card overflow-hidden transition-all duration-200 hover:shadow-lg',
+                  'group relative rounded-2xl border bg-card overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5',
                   col.is_published ? themeBorder : 'border-dashed border-border opacity-70 hover:opacity-90'
                 )}
               >
-                {/* Gradient banner */}
-                <div className={cn('h-16 bg-gradient-to-br to-transparent', themeGrad, 'relative overflow-hidden')}>
-                  {col.cover_url && (
+                {/* Banner — mosaic of covers or gradient fallback */}
+                <div className={cn('h-24 relative overflow-hidden bg-gradient-to-br to-transparent', themeGrad)}>
+                  {covers.length > 0 ? (
+                    <div className="absolute inset-0 flex gap-0.5">
+                      {covers.map((url, i) => (
+                        <div
+                          key={i}
+                          className={cn(
+                            'relative overflow-hidden',
+                            covers.length === 1 ? 'flex-1' :
+                            covers.length === 2 ? 'flex-1' :
+                            covers.length === 3 && i === 0 ? 'w-1/2' : 'flex-1',
+                          )}
+                        >
+                          <img
+                            src={url}
+                            alt=""
+                            className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300"
+                          />
+                          {/* per-cover gradient fade */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : col.cover_url ? (
                     <img src={col.cover_url} alt={col.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
-                  )}
-                  {/* Publish status */}
+                  ) : null}
+
+                  {/* Full fade to card at bottom */}
+                  <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
+
+                  {/* Status badge */}
                   <div className="absolute top-2 right-2">
                     {col.is_published
-                      ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-600 border border-emerald-500/20"><Globe size={8} /> Public</span>
-                      : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-muted text-muted-foreground border border-border"><Lock size={8} /> Draft</span>
+                      ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 backdrop-blur-sm"><Globe size={8} /> Public</span>
+                      : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-muted/80 text-muted-foreground border border-border backdrop-blur-sm"><Lock size={8} /> Draft</span>
                     }
                   </div>
+
+                  {/* Comic count pill */}
+                  {count > 0 && (
+                    <div className="absolute bottom-2 left-2">
+                      <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-background/80 backdrop-blur-sm border border-border', themeAccent)}>
+                        <BookOpen size={8} />
+                        {count} comic{count !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-4 space-y-3">
-                  {/* Title */}
+                  {/* Title + description */}
                   <div>
                     <Link href={`${basePath}/${col.id}`} className="font-black text-sm hover:text-primary transition-colors line-clamp-1 block">
                       {col.title}
@@ -366,19 +414,16 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                     )}
                   </div>
 
-                  {/* Meta */}
+                  {/* Meta row */}
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-1">
-                        <BookOpen size={10} className="text-primary/60" />
-                        <strong className="text-foreground font-black">{count}</strong> comic{count !== 1 ? 's' : ''}
-                      </span>
                       {col.save_count > 0 && (
                         <span className="flex items-center gap-1">
                           <Sparkles size={9} className="text-amber-500/60" />
                           {col.save_count} saved
                         </span>
                       )}
+                      <span className="text-muted-foreground/40 text-[10px]">{formatDate(col.created_at)}</span>
                     </div>
                     {!isOwner && col.profiles && (
                       <Link href={`/profile/${col.profiles.username}`} className="text-[10px] hover:text-primary transition-colors truncate max-w-[80px]">
