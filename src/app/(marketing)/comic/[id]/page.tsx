@@ -105,7 +105,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     'manga recommendation',
     'manhwa recommendation',
     'manhua recommendation',
-     'webtoon recommendation',
+    'webtoon recommendation',
   ].filter((k): k is string => !!k && k.trim().length > 0)
 
   const ogParams = new URLSearchParams({
@@ -166,7 +166,7 @@ function ComicJsonLd({
       : undefined,
     url:         `${SITE_URL}/comic/${id}`,
     ...(rec.cover_url     ? { image: rec.cover_url }                                         : {}),
-    ...(rec.author        ? { author: { '@type': 'Person', name: rec.author } }              : {}),
+    ...(rec.author        ? { author: { '@type': 'Person', name: rec.author } }               : {}),
     ...(rec.year_released ? { datePublished: String(rec.year_released) }                     : {}),
     bookFormat:   'GraphicNovel',
     inLanguage:   rec.original_language ?? 'ja',
@@ -219,19 +219,19 @@ function ComicJsonLd({
 
 // ── Style maps ────────────────────────────────────────────────────
 
-const TYPE_STYLES: Record<string, { gradient: string; badge: string; glow: string; border: string }> = {
-  manga:   { gradient: 'from-rose-500   to-pink-600',   badge: 'bg-rose-500/15   text-rose-500   border-rose-500/25',   glow: 'bg-rose-500/20',   border: 'border-rose-500/30'   },
-  manhwa:  { gradient: 'from-violet-500 to-purple-600', badge: 'bg-violet-500/15 text-violet-500 border-violet-500/25', glow: 'bg-violet-500/20', border: 'border-violet-500/30' },
-  manhua:  { gradient: 'from-amber-500  to-orange-500', badge: 'bg-amber-500/15  text-amber-500  border-amber-500/25',  glow: 'bg-amber-500/20',  border: 'border-amber-500/30'  },
-  webtoon: { gradient: 'from-teal-500   to-cyan-600',   badge: 'bg-teal-500/15   text-teal-500   border-teal-500/25',   glow: 'bg-teal-500/20',   border: 'border-teal-500/30'   },
-  comic:   { gradient: 'from-blue-500   to-indigo-600', badge: 'bg-blue-500/15   text-blue-500   border-blue-500/25',   glow: 'bg-blue-500/20',   border: 'border-blue-500/30'   },
+const TYPE_STYLES: Record<string, { gradient: string; badge: string; glow: string; border: string; accentText: string }> = {
+  manga:   { gradient: 'from-rose-500   to-pink-600',   badge: 'bg-rose-500/15   text-rose-400   border-rose-500/25',   glow: 'bg-rose-500/20',   border: 'border-rose-500/30',   accentText: 'text-rose-400'   },
+  manhwa:  { gradient: 'from-violet-500 to-purple-600', badge: 'bg-violet-500/15 text-violet-400 border-violet-500/25', glow: 'bg-violet-500/20', border: 'border-violet-500/30', accentText: 'text-violet-400' },
+  manhua:  { gradient: 'from-amber-500  to-orange-500', badge: 'bg-amber-500/15  text-amber-400  border-amber-500/25',  glow: 'bg-amber-500/20',  border: 'border-amber-500/30',  accentText: 'text-amber-400'  },
+  webtoon: { gradient: 'from-teal-500   to-cyan-600',   badge: 'bg-teal-500/15   text-teal-400   border-teal-500/25',   glow: 'bg-teal-500/20',   border: 'border-teal-500/30',   accentText: 'text-teal-400'   },
+  comic:   { gradient: 'from-blue-500   to-indigo-600', badge: 'bg-blue-500/15   text-blue-400   border-blue-500/25',   glow: 'bg-blue-500/20',   border: 'border-blue-500/30',   accentText: 'text-blue-400'   },
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  ongoing:   'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-  completed: 'bg-blue-500/10   text-blue-600    dark:text-blue-400    border-blue-500/20',
-  hiatus:    'bg-amber-500/10  text-amber-600   dark:text-amber-400   border-amber-500/20',
-  cancelled: 'bg-red-500/10    text-red-600     dark:text-red-400     border-red-500/20',
+  ongoing:   'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  completed: 'bg-blue-500/10   text-blue-400    border-blue-500/20',
+  hiatus:    'bg-amber-500/10  text-amber-400   border-amber-500/20',
+  cancelled: 'bg-red-500/10    text-red-400     border-red-500/20',
 }
 
 // ── Page ──────────────────────────────────────────────────────────
@@ -241,7 +241,6 @@ export default async function ComicDetailPage({ params }: Props) {
   const supabase = await createClient()
 
   // ── Bot-safe view count increment ────────────────────────────────
-  // Only increment for real users — crawlers inflated analytics badly
   const headersList = await headers()
   const ua = headersList.get('user-agent') ?? ''
   if (!isCrawler(ua)) {
@@ -268,7 +267,7 @@ export default async function ComicDetailPage({ params }: Props) {
           <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
             <ShieldAlert size={32} className="text-destructive" />
           </div>
-          <h1 className="text-2xl font-black">Age Restricted</h1>
+          <h1 className="text-2xl font-black tracking-tight">Age Restricted</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
             This comic contains {rec.content_rating === 'adult' ? '18+' : '17+'} content.
             Log in and enable adult content in settings to view it.
@@ -291,7 +290,7 @@ export default async function ComicDetailPage({ params }: Props) {
           <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto">
             <ShieldAlert size={32} className="text-destructive" />
           </div>
-          <h1 className="text-2xl font-black">Adult Content Disabled</h1>
+          <h1 className="text-2xl font-black tracking-tight">Adult Content Disabled</h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
             Enable adult content in your profile settings to view this comic.
           </p>
@@ -320,7 +319,6 @@ export default async function ComicDetailPage({ params }: Props) {
     verified_recommender: boolean
   } | null
 
-  // Ghost check — use UUID not username
   const isGhostRec = rec.user_id === GHOST_ID
 
   const recommenderIsPro = profile
@@ -333,7 +331,6 @@ export default async function ComicDetailPage({ params }: Props) {
     ? 'Ghost'
     : (profile?.display_name || profile?.username || 'unknown')
 
- // Determine correct submission route for current user
   let submitRoute = '/dashboard/recommendations/new'
   if (user) {
     const { data: currentUserProfile } = await supabase
@@ -366,63 +363,90 @@ export default async function ComicDetailPage({ params }: Props) {
     badge:    'bg-primary/15 text-primary border-primary/25',
     glow:     'bg-primary/15',
     border:   'border-primary/20',
+    accentText: 'text-primary'
   }
 
   return (
     <>
       <ComicJsonLd rec={rec} id={id} recommenderName={recommenderName} />
 
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
 
-        {/* ── CINEMATIC HERO ── */}
-        <div className="relative h-56 md:h-72 overflow-hidden">
+        {/* ── CINEMATIC HERO BACKGROUND ── */}
+        <div className="relative h-64 md:h-[420px] overflow-hidden w-full">
           {rec.cover_url && (
             <img
               src={rec.cover_url}
               alt=""
-              className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-25 dark:opacity-20"
+              className="absolute inset-0 w-full h-full object-cover scale-105 blur-2xl opacity-30 dark:opacity-20"
               aria-hidden
             />
           )}
-          <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-15 dark:opacity-25`} />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
-          <div className="absolute top-4 left-4 z-10">
+          <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-10 dark:opacity-20`} />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+          
+          {/* Top Navbar Actions */}
+          <div className="absolute top-6 left-4 md:left-8 z-20">
             <Link
               href="/browse"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-background/80 border border-border text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-background/60 border border-border/40 text-sm font-medium backdrop-blur-md text-muted-foreground hover:text-foreground hover:border-border transition-all duration-200"
             >
-              <ArrowLeft size={13} />
-              Browse
+              <ArrowLeft size={15} />
+              Browse Platform
             </Link>
+          </div>
+
+          {/* Floating Header info inside Hero Area for Large Screens */}
+          <div className="absolute bottom-0 left-0 right-0 max-w-6xl mx-auto px-4 md:px-8 pb-6 hidden md:block z-20">
+            <div className="md:pl-[248px] space-y-3">
+              <div className="flex items-center gap-2.5">
+                <span className={`inline-flex px-2.5 py-0.5 rounded-md text-[11px] font-bold tracking-wider uppercase border border-border/50 backdrop-blur-md ${typeStyle.badge}`}>
+                  {rec.type}
+                </span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold tracking-wider uppercase border ${STATUS_STYLES[rec.status] ?? ''} backdrop-blur-md`}>
+                  {rec.status}
+                </span>
+                <span className="text-[11px] font-bold tracking-wider uppercase border border-border/40 rounded-md px-2.5 py-0.5 bg-background/40 backdrop-blur-md text-muted-foreground">
+                  {rec.content_rating?.replace('_', ' ')}
+                </span>
+              </div>
+              <h1 className="text-4xl lg:text-5xl font-black leading-none tracking-tight drop-shadow-sm text-foreground">
+                {rec.title}
+              </h1>
+            </div>
           </div>
         </div>
 
-        {/* ── CONTENT ── */}
-        <div className="max-w-5xl mx-auto px-4 -mt-28 md:-mt-40 relative z-10 pb-20">
-          <div className="flex flex-col md:flex-row gap-8">
+        {/* ── CORE CONTENT GRID ── */}
+        <div className="max-w-6xl mx-auto px-4 md:px-8 -mt-32 md:-mt-48 relative z-30 pb-24">
+          <div className="flex flex-col md:flex-row gap-8 lg:gap-12">
 
-            {/* ── LEFT: Cover + actions ── */}
-            <div className="flex flex-col gap-3 md:w-52 shrink-0">
+            {/* ── SIDEBAR LAYER (LEFT COLUMN) ── */}
+            <div className="flex flex-col gap-5 md:w-56 shrink-0">
 
-              <div className="relative">
-                <div className={`absolute -inset-3 rounded-lg ${typeStyle.glow} blur-2xl opacity-40`} />
-                <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-muted border border-border shadow-xl">
+              {/* Cover Card Wrapper */}
+              <div className="relative group mx-auto md:mx-0 w-48 md:w-full">
+                <div className={`absolute -inset-1 rounded-xl ${typeStyle.glow} blur-xl opacity-50 transition duration-500`} />
+                <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-muted border border-border/60 shadow-2xl transition duration-300">
                   {rec.cover_url ? (
-                    <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                    <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen size={40} className="text-muted-foreground opacity-40" />
+                      <BookOpen size={48} className="text-muted-foreground opacity-30" />
                     </div>
                   )}
-                  <div className="absolute top-2 left-2">
+                  
+                  {/* Fallback badges overlay for small screens */}
+                  <div className="absolute top-3 left-3 md:hidden">
                     <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${typeStyle.badge}`}>
                       {rec.type}
                     </span>
                   </div>
+                  
                   {rec.is_featured && (
-                    <div className="absolute top-2 right-2">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/30 backdrop-blur-sm">
-                        <Star size={8} className="fill-amber-500" />
+                    <div className="absolute top-3 right-3">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500 text-black border border-amber-400 shadow-md">
+                        <Star size={10} className="fill-black" />
                         Featured
                       </span>
                     </div>
@@ -430,62 +454,83 @@ export default async function ComicDetailPage({ params }: Props) {
                 </div>
               </div>
 
-              <VoteButtons
-                recommendationId={id}
-                initialUpvotes={rec.upvotes}
-                initialDownvotes={rec.downvotes}
-                initialVote={userVote}
-                isLoggedIn={!!user}
-                comicTitle={rec.title}
-              />
-              <SaveButton
-                recommendationId={id}
-                initialSaved={isSaved}
-                isLoggedIn={!!user}
-                comicTitle={rec.title}
-              />
-              <ReadingProgressButton
-                comicId={id}
-                chapterCount={rec.chapter_count}
-                isLoggedIn={!!user}
-              />
-              {user && <AddToListButton recommendationId={id} userId={user.id} />}
-              <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
+              {/* Interactive Core Action Decks */}
+              <div className="bg-card/40 backdrop-blur-sm border border-border/50 rounded-2xl p-4 shadow-sm space-y-4">
+                <VoteButtons
+                  recommendationId={id}
+                  initialUpvotes={rec.upvotes}
+                  initialDownvotes={rec.downvotes}
+                  initialVote={userVote}
+                  isLoggedIn={!!user}
+                  comicTitle={rec.title}
+                />
+                
+                <div className="h-[1px] bg-border/60" />
 
-             <SubmitYourOwnButton
-                isLoggedIn={!!user}
-                submitRoute={submitRoute}
-                comicId={id}
-              />
+                <div className="grid grid-cols-1 gap-2">
+                  <SaveButton
+                    recommendationId={id}
+                    initialSaved={isSaved}
+                    isLoggedIn={!!user}
+                    comicTitle={rec.title}
+                  />
+                  
+                  <ReadingProgressButton
+                    comicId={id}
+                    chapterCount={rec.chapter_count}
+                    isLoggedIn={!!user}
+                  />
+                </div>
+                
+                <div className="space-y-2 pt-1">
+                  {user && <AddToListButton recommendationId={id} userId={user.id} />}
+                  <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
+                </div>
+              </div>
 
-              <ShareButton
-                title={rec.title}
-                url={`${SITE_URL}/comic/${id}`}
-              />
+              {/* Auxiliary Meta Deck */}
+              <div className="space-y-2">
+                <SubmitYourOwnButton
+                  isLoggedIn={!!user}
+                  submitRoute={submitRoute}
+                  comicId={id}
+                />
 
+                <ShareButton
+                  title={rec.title}
+                  url={`${SITE_URL}/comic/${id}`}
+                />
+              </div>
+
+              {/* Store & Platform Links Deck */}
               {rec.official_platforms && rec.official_platforms.length > 0 && (
-                <div className="space-y-1.5 pt-1">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Read On</p>
-                  {rec.official_platforms.map((platform: string, i: number) => (
-                    <div key={platform} className="flex items-center gap-2 px-3 py-2 rounded border border-border bg-card text-xs hover:border-primary/40 transition-colors">
-                      <Globe size={11} className="text-muted-foreground shrink-0" />
-                      <span className="truncate flex-1">{platform}</span>
-                      {rec.official_links?.[i] && (
-                        <a href={rec.official_links[i]} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                          <ExternalLink size={11} className="text-muted-foreground hover:text-primary transition-colors" />
-                        </a>
-                      )}
-                    </div>
-                  ))}
+                <div className="bg-muted/40 border border-border/40 rounded-xl p-3 space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1">Official Platforms</p>
+                  <div className="space-y-1.5">
+                    {rec.official_platforms.map((platform: string, i: number) => (
+                      <div key={platform} className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg border border-border/40 bg-background/50 text-xs hover:border-border hover:bg-background transition-all duration-200">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Globe size={12} className="text-muted-foreground shrink-0" />
+                          <span className="truncate font-medium text-foreground/90">{platform}</span>
+                        </div>
+                        {rec.official_links?.[i] && (
+                          <a href={rec.official_links[i]} target="_blank" rel="noopener noreferrer" className="p-1 hover:bg-muted rounded-md group transition-colors">
+                            <ExternalLink size={12} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* ── RIGHT: Details ── */}
-            <div className="flex-1 min-w-0 space-y-6 pt-2 md:pt-20">
+            {/* ── DETAILS LAYER (RIGHT COLUMN) ── */}
+            <div className="flex-1 min-w-0 space-y-8 pt-4 md:pt-6">
 
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
+              {/* Mobile-Only Heading Context */}
+              <div className="space-y-3 md:hidden">
+                <div className="flex flex-wrap gap-1.5">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
                     {rec.status}
                   </span>
@@ -493,61 +538,96 @@ export default async function ComicDetailPage({ params }: Props) {
                     {rec.content_rating?.replace('_', ' ')}
                   </span>
                 </div>
-
-                <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-tight">{rec.title}</h1>
-
-                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
-                  {rec.author  && <span className="flex items-center gap-1.5"><User    size={13} />{rec.author}</span>}
-                  {rec.artist  && rec.artist !== rec.author && <span className="flex items-center gap-1.5"><Palette  size={13} />{rec.artist}</span>}
-                  {rec.year_released  && <span className="flex items-center gap-1.5"><Calendar size={13} />{rec.year_released}</span>}
-                  {rec.chapter_count  && <span className="flex items-center gap-1.5"><Hash     size={13} />{rec.chapter_count} ch.</span>}
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {rec.genres?.map((genre: string) => (
-                    <Link key={genre} href={`/browse?genre=${genre}`}>
-                      <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-muted border border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-colors cursor-pointer">
-                        {genre}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
+                <h1 className="text-3xl font-black leading-tight tracking-tight text-foreground">{rec.title}</h1>
               </div>
 
-              <div className="grid grid-cols-4 gap-2">
+              {/* Creator Metadata Information Deck */}
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 bg-muted/30 border border-border/40 rounded-xl px-4 py-3 text-sm text-muted-foreground">
+                {rec.author && (
+                  <span className="flex items-center gap-2 text-foreground/90 font-medium">
+                    <User size={15} className={typeStyle.accentText} />
+                    <span className="text-muted-foreground font-normal">By</span> {rec.author}
+                  </span>
+                )}
+                {rec.artist && rec.artist !== rec.author && (
+                  <span className="flex items-center gap-2 text-foreground/90 font-medium">
+                    <Palette size={15} className={typeStyle.accentText} />
+                    <span className="text-muted-foreground font-normal">Art By</span> {rec.artist}
+                  </span>
+                )}
+                {rec.year_released && (
+                  <span className="flex items-center gap-2">
+                    <Calendar size={15} />
+                    {rec.year_released}
+                  </span>
+                )}
+                {rec.chapter_count && (
+                  <span className="flex items-center gap-2 font-medium text-foreground/80">
+                    <Hash size={15} />
+                    {rec.chapter_count} Chapters
+                  </span>
+                )}
+              </div>
+
+              {/* Interactive Platform Scorecard Grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {[
-                  { icon: ThumbsUp,      label: 'Upvotes', value: rec.upvotes,      color: 'text-emerald-500', bg: 'bg-emerald-500/8' },
-                  { icon: Star,          label: 'Reviews', value: rec.review_count, color: 'text-amber-500',   bg: 'bg-amber-500/8'  },
-                  { icon: Bookmark,      label: 'Saves',   value: rec.save_count,   color: 'text-blue-500',    bg: 'bg-blue-500/8'   },
-                  { icon: MessageSquare, label: 'Score',   value: rec.score,        color: 'text-violet-500',  bg: 'bg-violet-500/8' },
-                ].map(({ icon: Icon, label, value, color, bg }) => (
-                  <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-lg ${bg} border border-border`}>
-                    <Icon size={14} className={color} />
-                    <p className="text-lg font-black tabular-nums leading-none">{value ?? 0}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">{label}</p>
+                  { icon: ThumbsUp,      label: 'Community Upvotes', value: rec.upvotes,      color: 'text-emerald-400', border: 'hover:border-emerald-500/30' },
+                  { icon: Star,          label: 'Total Reviews',     value: rec.review_count, color: 'text-amber-400',   border: 'hover:border-amber-500/30'  },
+                  { icon: Bookmark,      label: 'Saved Progress',    value: rec.save_count,   color: 'text-blue-400',    border: 'hover:border-blue-500/30'   },
+                  { icon: MessageSquare, label: 'Analytics Score',   value: rec.score,        color: 'text-violet-400',  border: 'hover:border-violet-500/30' },
+                ].map(({ icon: Icon, label, value, color, border }) => (
+                  <div key={label} className={`flex flex-col p-4 rounded-xl bg-card border border-border/60 shadow-sm transition-all duration-300 ${border}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">{label}</p>
+                      <Icon size={15} className={color} />
+                    </div>
+                    <p className="text-2xl font-black tabular-nums tracking-tight text-foreground">{value ?? 0}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="space-y-2">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">About</h2>
-                <p className="text-sm leading-relaxed text-foreground/80">{rec.description}</p>
-              </div>
-
-              {rec.why_recommend && (
+              {/* Genre Navigation Chips */}
+              {rec.genres && rec.genres.length > 0 && (
                 <div className="space-y-2">
-                  <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Why Read This?</h2>
-                  <div className={`relative pl-5 pr-4 py-4 rounded-lg border ${typeStyle.border} bg-card`}>
-                    <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-full bg-gradient-to-b ${typeStyle.gradient}`} />
-                    <p className="text-sm leading-relaxed italic text-muted-foreground">"{rec.why_recommend}"</p>
+                  <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Categorized Tags</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {rec.genres.map((genre: string) => (
+                      <Link key={genre} href={`/browse?genre=${genre}`}>
+                        <span className="inline-flex px-3 py-1 rounded-lg text-xs font-semibold bg-secondary/60 border border-border/60 hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-all duration-200 cursor-pointer">
+                          {genre}
+                        </span>
+                      </Link>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {/* ── Recommender attribution ── */}
-              <div className="flex items-center justify-between py-3 border-t border-border text-xs text-muted-foreground">
+              {/* Synopsis Segment */}
+              <div className="space-y-2.5">
+                <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Synopsis</h2>
+                <p className="text-sm md:text-base leading-relaxed text-foreground/80 font-normal max-w-none whitespace-pre-line">
+                  {rec.description}
+                </p>
+              </div>
+
+              {/* Premium Review Highlight Banner */}
+              {rec.why_recommend && (
+                <div className="space-y-2.5">
+                  <h2 className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Recommender's Review Note</h2>
+                  <div className={`relative pl-5 pr-5 py-4 rounded-xl border ${typeStyle.border} bg-card/60 shadow-sm backdrop-blur-sm`}>
+                    <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-full bg-gradient-to-b ${typeStyle.gradient}`} />
+                    <p className="text-sm md:text-base leading-relaxed italic text-muted-foreground font-medium">
+                      "{rec.why_recommend}"
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Contributor Attribution Footer */}
+              <div className="flex items-center justify-between py-3.5 border-t border-b border-border/60 text-xs text-muted-foreground">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span>Recommended by</span>
+                  <span>Posted by</span>
                   <RecommenderLink
                     username={profile?.username ?? ''}
                     displayName={recommenderName}
@@ -559,11 +639,12 @@ export default async function ComicDetailPage({ params }: Props) {
                     comicTitle={rec.title}
                   />
                 </div>
-                <span className="shrink-0">{formatDate(rec.created_at)}</span>
+                <span className="font-medium">{formatDate(rec.created_at)}</span>
               </div>
 
-              <div className="space-y-3">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reviews</h2>
+              {/* Interactive Reviews Hub */}
+              <div className="space-y-4 pt-2">
+                <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">User Reviews Hub</h2>
                 <ReviewSection
                   recommendationId={id}
                   currentUserId={user?.id ?? null}
@@ -571,7 +652,8 @@ export default async function ComicDetailPage({ params }: Props) {
                 />
               </div>
 
-              <Suspense fallback={<div className="h-40 bg-muted/30 animate-pulse rounded-2xl border border-border mt-6" />}>
+              {/* Contextual Monetization Placement */}
+              <Suspense fallback={<div className="h-40 bg-muted/20 animate-pulse rounded-xl border border-border/50 mt-6" />}>
                 <ContextualOffers
                   comicId={id}
                   comicTitle={rec.title}
@@ -580,8 +662,9 @@ export default async function ComicDetailPage({ params }: Props) {
                 />
               </Suspense>
 
-              <div className="space-y-3 pt-2">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">You Might Also Like</h2>
+              {/* Recommendation Discovery Carousels */}
+              <div className="space-y-4 pt-4">
+                <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">More Recommendations Like This</h2>
                 <SimilarComics
                   comicId={id}
                   contentRating={rec.content_rating}
