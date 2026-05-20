@@ -8,10 +8,31 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const userId   = searchParams.get('user_id')
-    const page     = parseInt(searchParams.get('page') ?? '1')
+    const contains = searchParams.get('contains') // recommendation_id
+    const page     = parseInt(searchParams.get('page')  ?? '1')
     const limit    = parseInt(searchParams.get('limit') ?? '12')
     const offset   = (page - 1) * limit
 
+    // ── Special: return only the current user's collections that contain a given comic ──
+    if (contains) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return NextResponse.json({ collections: [] })
+
+      const { data, error } = await (supabase as any)
+        .from('collections')
+        .select(`
+          id, title,
+          collection_items!inner(recommendation_id)
+        `)
+        .eq('user_id', user.id)
+        .eq('collection_items.recommendation_id', contains)
+
+      if (error) throw error
+
+      return NextResponse.json({ collections: data ?? [] })
+    }
+
+    // ── Normal listing ──
     let query = (supabase as any)
       .from('collections')
       .select(`
@@ -19,11 +40,22 @@ export async function GET(request: Request) {
         profiles!collections_user_id_fkey(username, display_name, avatar_url, is_pro, role),
         collection_items(count)
       `, { count: 'exact' })
-      .eq('is_published', true)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    if (userId) query = query.eq('user_id', userId)
+    // If fetching own collections (dashboard / AddToCollectionButton), skip is_published filter
+    if (userId) {
+      query = query.eq('user_id', userId)
+    } else {
+      // Public discovery — only published
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        // Show own (published + draft) + others' published
+        query = query.or(`user_id.eq.${user.id},is_published.eq.true`)
+      } else {
+        query = query.eq('is_published', true)
+      }
+    }
 
     const { data, error, count } = await query
     if (error) throw error
@@ -45,7 +77,6 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // Check pro status
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, is_pro, pro_expires_at')
@@ -57,7 +88,6 @@ export async function POST(request: Request) {
         (!(profile as any)?.pro_expires_at ||
           new Date((profile as any).pro_expires_at) > new Date()))
 
-    // Enforce free limit
     if (!isProOrAdmin) {
       const { count } = await (supabase as any)
         .from('collections')
@@ -84,11 +114,11 @@ export async function POST(request: Request) {
     const { data, error } = await (supabase as any)
       .from('collections')
       .insert({
-        user_id:     user.id,
-        title:       title.trim(),
-        description: description || null,
-        cover_url:   cover_url   || null,
-        theme_color: theme_color || 'primary',
+        user_id:      user.id,
+        title:        title.trim(),
+        description:  description  || null,
+        cover_url:    cover_url    || null,
+        theme_color:  theme_color  || 'primary',
         is_published: is_published ?? false,
       })
       .select()

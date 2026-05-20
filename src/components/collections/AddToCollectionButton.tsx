@@ -38,13 +38,20 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
 
   // Fetch collections when dropdown opens
   useEffect(() => {
-    if (!open || !isLoggedIn) return
+    if (!isLoggedIn) return
     const fetchCollections = async () => {
       setLoading(true)
       try {
-        const res  = await fetch('/api/collections')
-        const data = await res.json()
-        setCollections(data.collections ?? [])
+        const [colRes, itemRes] = await Promise.all([
+          fetch('/api/collections'),
+          fetch(`/api/collections?contains=${recommendationId}`),
+        ])
+        const colData  = await colRes.json()
+        const itemData = await itemRes.json()
+        setCollections(colData.collections ?? [])
+        // Pre-mark collections that already contain this comic
+        const alreadyIn: string[] = (itemData.collections ?? []).map((c: { id: string }) => c.id)
+        if (alreadyIn.length > 0) setAdded(new Set(alreadyIn))
       } catch {
         toast.error('Failed to load collections')
       } finally {
@@ -52,7 +59,7 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
       }
     }
     fetchCollections()
-  }, [open, isLoggedIn])
+  }, [isLoggedIn, recommendationId]) // runs on mount, not just on open
 
   const handleAdd = async (collectionId: string) => {
     if (added.has(collectionId)) return
