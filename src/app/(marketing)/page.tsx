@@ -35,16 +35,16 @@ export const metadata: Metadata = {
 }
 
 const GENRES = [
-  { label: 'Action',        emoji: '⚔️',  href: '/browse?genre=Action'        },
-  { label: 'Romance',       emoji: '🌸',  href: '/browse?genre=Romance'       },
-  { label: 'Fantasy',       emoji: '✨',  href: '/browse?genre=Fantasy'       },
-  { label: 'Comedy',        emoji: '😂',  href: '/browse?genre=Comedy'        },
-  { label: 'Sci-Fi',        emoji: '🚀',  href: '/browse?genre=Sci-Fi'        },
-  { label: 'Drama',         emoji: '🎭',  href: '/browse?genre=Drama'         },
-  { label: 'Horror',        emoji: '👻',  href: '/browse?genre=Horror'        },
-  { label: 'Sports',        emoji: '⚡',  href: '/browse?genre=Sports'        },
-  { label: 'Slice of Life', emoji: '🍵',  href: '/browse?genre=Slice+of+Life' },
-  { label: 'Mystery',       emoji: '🔍',  href: '/browse?genre=Mystery'       },
+  { label: 'I need something addictive',     emoji: '⚔️',  href: '/browse?genre=Action'        },
+  { label: 'Give me butterflies',            emoji: '🌸',  href: '/browse?genre=Romance'       },
+  { label: 'Take me somewhere else',         emoji: '✨',  href: '/browse?genre=Fantasy'       },
+  { label: 'I just want to laugh',           emoji: '😂',  href: '/browse?genre=Comedy'        },
+  { label: 'Big brain, big world',           emoji: '🚀',  href: '/browse?genre=Sci-Fi'        },
+  { label: 'Something that hits deep',       emoji: '🎭',  href: '/browse?genre=Drama'         },
+  { label: 'I want to be unsettled',         emoji: '👻',  href: '/browse?genre=Horror'        },
+  { label: 'Hype me up',                     emoji: '⚡',  href: '/browse?genre=Sports'        },
+  { label: 'Cozy, slow, no stress',          emoji: '🍵',  href: '/browse?genre=Slice+of+Life' },
+  { label: "Can't figure out what's real",   emoji: '🔍',  href: '/browse?genre=Mystery'       },
 ]
 
 const PLATFORMS = [
@@ -95,7 +95,7 @@ export default async function HomePage() {
     supabase.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(1),
     supabase.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(1),
     supabase.from('recommendations').select('title, type, user_id, profiles!recommendations_user_id_fkey(username)').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('created_at', { ascending: false }).limit(6),
-    supabase.from('profiles').select('id, username, display_name, avatar_url, total_recommendations').eq('is_banned', false).not('role', 'eq', 'admin').gt('total_recommendations', 0).order('total_recommendations', { ascending: false }).limit(6),
+    supabase.from('profiles').select('id, username, display_name, avatar_url, total_recommendations').eq('is_banned', false).not('role', 'eq', 'admin').neq('username', 'ghost').gt('total_recommendations', 0).order('total_recommendations', { ascending: false }).limit(6),
   ])
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -121,6 +121,20 @@ export default async function HomePage() {
   const totalReviews = reviewCount ?? 0
   const activity     = (recentActivity  ?? []) as any[]
   const contributors = (topContributors ?? []) as any[]
+
+  // Fetch approved counts for contributors in one query
+  const contributorIds = contributors.map((c: any) => c.id)
+  const approvedCounts: Record<string, number> = {}
+  if (contributorIds.length > 0) {
+    const { data: approvedData } = await supabase
+      .from('recommendations')
+      .select('user_id')
+      .eq('is_approved', true)
+      .in('user_id', contributorIds)
+    ;(approvedData ?? []).forEach((r: any) => {
+      approvedCounts[r.user_id] = (approvedCounts[r.user_id] ?? 0) + 1
+    })
+  }
 
   const spotlight           = (featuredData?.[0] ?? fallbackData?.[0]) as Recommendation | undefined
   const spotlightIsFeatured = !!(featuredData?.[0])
@@ -208,11 +222,10 @@ export default async function HomePage() {
               {/* Stats */}
               <div className="flex flex-wrap gap-5 pt-2 justify-center md:justify-start">
                 {[
-                  { label: 'Members',       value: totalMembers, icon: Users,         color: 'text-primary',      bg: 'bg-primary/10'      },
-                  { label: 'Comics Shared', value: totalComics,  icon: BookOpen,      color: 'text-rose-500',     bg: 'bg-rose-500/10'     },
-                  { label: 'Reviews',       value: totalReviews, icon: MessageSquare, color: 'text-amber-500',    bg: 'bg-amber-500/10'    },
+                  { label: 'Comics Shared', value: totalComics,  icon: BookOpen,      color: 'text-rose-500',  bg: 'bg-rose-500/10'  },
+                  { label: 'Reviews',       value: totalReviews, icon: MessageSquare, color: 'text-amber-500', bg: 'bg-amber-500/10' },
                 ]
-                  .filter(({ value }) => value > 0)
+                  .filter(({ value }) => value >= 500)
                   .map(({ label, value, icon: Icon, color, bg }) => (
                     <div key={label} className="flex items-center gap-2 text-sm">
                       <div className={`w-8 h-8 rounded ${bg} flex items-center justify-center ${color}`}>
@@ -226,6 +239,16 @@ export default async function HomePage() {
                       </div>
                     </div>
                   ))}
+                {/* Always show community pill regardless of count */}
+                <div className="flex items-center gap-2 text-sm">
+                  <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary">
+                    <Users size={14} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground leading-tight">Growing</p>
+                    <p className="text-xs text-muted-foreground leading-tight">Community</p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -371,7 +394,7 @@ export default async function HomePage() {
                     username={contributor.username}
                     displayName={contributor.display_name || contributor.username}
                     avatarUrl={contributor.avatar_url}
-                    totalRecs={contributor.total_recommendations}
+                    totalRecs={approvedCounts[contributor.id] ?? 0}
                     rank={i}
                     isLoggedIn={!!user}
                     rankStyle={rankStyle}
