@@ -3,10 +3,13 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
   Globe, Lock, Bookmark, BookmarkCheck,
   ArrowLeft, Loader2, Trash2, Share2, BookOpen, LayoutGrid,
+  Pencil, X, Check,
 } from 'lucide-react'
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { cn } from '@/lib/utils'
@@ -48,6 +51,15 @@ const THEME_STYLES: Record<string, { gradient: string; border: string; text: str
   indigo:  { gradient: 'from-indigo-500/30 via-indigo-500/10',   border: 'border-indigo-500/30',  text: 'text-indigo-500'  },
 }
 
+const THEME_OPTIONS = [
+  { value: 'primary', label: 'Teal',   color: 'bg-primary'     },
+  { value: 'violet',  label: 'Violet', color: 'bg-violet-500'  },
+  { value: 'rose',    label: 'Rose',   color: 'bg-rose-500'    },
+  { value: 'amber',   label: 'Amber',  color: 'bg-amber-500'   },
+  { value: 'emerald', label: 'Green',  color: 'bg-emerald-500' },
+  { value: 'indigo',  label: 'Indigo', color: 'bg-indigo-500'  },
+]
+
 interface Props {
   collection: Collection
   isSaved:    boolean
@@ -61,37 +73,63 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
   const [removingId,  setRemovingId]  = useState<string | null>(null)
   const [items,       setItems]       = useState<CollectionItem[]>(collection.collection_items ?? [])
 
-  const theme  = THEME_STYLES[collection.theme_color] ?? THEME_STYLES.primary
+  // Edit modal state
+  const [showEdit, setShowEdit] = useState(false)
+  const [saving,   setSaving]   = useState(false)
+  const [editForm, setEditForm] = useState({
+    title:        collection.title,
+    description:  collection.description ?? '',
+    cover_url:    collection.cover_url ?? '',
+    theme_color:  collection.theme_color,
+    is_published: collection.is_published,
+  })
 
-  // Grab up to 6 covers from comics in collection
-  const covers = items
-    .map(i => i.recommendations?.cover_url)
-    .filter(Boolean)
-    .slice(0, 6) as string[]
+  // Local display state (updates after save)
+  const [currentTheme,     setCurrentTheme]     = useState(collection.theme_color)
+  const [currentTitle,     setCurrentTitle]     = useState(collection.title)
+  const [currentDesc,      setCurrentDesc]      = useState(collection.description)
+  const [currentPublished, setCurrentPublished] = useState(collection.is_published)
+
+  const theme  = THEME_STYLES[currentTheme] ?? THEME_STYLES.primary
+  const covers = items.map(i => i.recommendations?.cover_url).filter(Boolean).slice(0, 6) as string[]
 
   const handleSave = async () => {
     if (!isLoggedIn) { toast.error('Log in to save collections'); return }
     setSavingState(true)
     try {
-      const method = saved ? 'DELETE' : 'POST'
-      await fetch(`/api/collections/${collection.id}/save`, { method })
+      await fetch(`/api/collections/${collection.id}/save`, { method: saved ? 'DELETE' : 'POST' })
       setSaved(!saved)
       toast.success(saved ? 'Removed from saved' : 'Collection saved!')
-    } catch {
-      toast.error('Failed to update')
-    } finally {
-      setSavingState(false)
-    }
+    } catch { toast.error('Failed to update') }
+    finally { setSavingState(false) }
   }
 
   const handleShare = async () => {
-    const url = `${window.location.origin}/collections/${collection.id}`
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(`${window.location.origin}/collections/${collection.id}`)
       toast.success('Link copied!')
-    } catch {
-      toast.error('Failed to copy link')
-    }
+    } catch { toast.error('Failed to copy link') }
+  }
+
+  const handleEditSave = async () => {
+    if (!editForm.title.trim()) return
+    setSaving(true)
+    try {
+      const res  = await fetch(`/api/collections/${collection.id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(editForm),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setCurrentTitle(editForm.title)
+      setCurrentDesc(editForm.description || null)
+      setCurrentTheme(editForm.theme_color)
+      setCurrentPublished(editForm.is_published)
+      setShowEdit(false)
+      toast.success('Collection updated!')
+    } catch { toast.error('Failed to update collection') }
+    finally { setSaving(false) }
   }
 
   const handleRemoveItem = async (itemId: string, recId: string) => {
@@ -105,11 +143,8 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
       })
       setItems(prev => prev.filter(i => i.id !== itemId))
       toast.success('Removed from collection')
-    } catch {
-      toast.error('Failed to remove')
-    } finally {
-      setRemovingId(null)
-    }
+    } catch { toast.error('Failed to remove') }
+    finally { setRemovingId(null) }
   }
 
   return (
@@ -121,52 +156,95 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
         All Collections
       </Link>
 
+      {/* ── Edit modal ── */}
+      {showEdit && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-primary/5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
+                  <Pencil size={11} className="text-primary-foreground" />
+                </div>
+                <p className="text-xs font-black uppercase tracking-widest text-primary">Edit Collection</p>
+              </div>
+              <button onClick={() => setShowEdit(false)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Title <span className="text-destructive">*</span></label>
+                <Input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} className="h-9 text-sm" autoFocus />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Description <span className="text-muted-foreground/60">(optional)</span></label>
+                <Textarea value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} placeholder="What makes this collection special..." rows={2} className="resize-none text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Cover URL <span className="text-muted-foreground/60">(optional)</span></label>
+                <Input value={editForm.cover_url} onChange={e => setEditForm(f => ({ ...f, cover_url: e.target.value }))} placeholder="https://..." className="h-9 text-sm" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Theme Colour</label>
+                <div className="flex gap-2">
+                  {THEME_OPTIONS.map(t => (
+                    <button key={t.value} onClick={() => setEditForm(f => ({ ...f, theme_color: t.value }))}
+                      className={cn('w-7 h-7 rounded-full border-2 transition-all', t.color, editForm.theme_color === t.value ? 'border-foreground scale-110' : 'border-transparent hover:scale-105')}
+                      title={t.label}
+                    />
+                  ))}
+                </div>
+              </div>
+              <label className="flex items-center gap-3 cursor-pointer group">
+                <div className={cn('w-4 h-4 rounded border-2 flex items-center justify-center transition-colors shrink-0', editForm.is_published ? 'bg-primary border-primary' : 'border-border group-hover:border-primary/60')}
+                  onClick={() => setEditForm(f => ({ ...f, is_published: !f.is_published }))}>
+                  {editForm.is_published && <span className="text-primary-foreground text-[10px] font-black">✓</span>}
+                </div>
+                <div>
+                  <span className="text-sm font-medium">Published</span>
+                  <p className="text-xs text-muted-foreground">Others can discover and save this collection</p>
+                </div>
+              </label>
+              <div className="flex gap-2 pt-1">
+                <Button size="sm" onClick={handleEditSave} disabled={!editForm.title.trim() || saving} className="gap-2">
+                  {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                  Save Changes
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setShowEdit(false)}>Cancel</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header card */}
       <div className={cn('rounded-2xl border overflow-hidden', theme.border)}>
-
-        {/* Banner — mosaic of comic covers */}
+        {/* Banner */}
         <div className="h-36 md:h-48 relative overflow-hidden bg-muted">
           {covers.length > 0 ? (
             <div className="absolute inset-0 flex gap-0.5">
               {covers.map((url, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'relative overflow-hidden shrink-0',
-                    covers.length === 1 ? 'flex-1' :
-                    covers.length === 2 ? 'flex-1' :
-                    covers.length >= 3 && i === 0 ? 'w-2/5' : 'flex-1',
-                  )}
-                >
-                  <img
-                    src={url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    aria-hidden
-                  />
+                <div key={i} className={cn('relative overflow-hidden shrink-0',
+                  covers.length === 1 ? 'flex-1' :
+                  covers.length === 2 ? 'flex-1' :
+                  covers.length >= 3 && i === 0 ? 'w-2/5' : 'flex-1')}>
+                  <img src={url} alt="" className="w-full h-full object-cover" aria-hidden />
                 </div>
               ))}
             </div>
           ) : collection.cover_url ? (
-            <img src={collection.cover_url} alt={collection.title} className="absolute inset-0 w-full h-full object-cover" />
+            <img src={collection.cover_url} alt={currentTitle} className="absolute inset-0 w-full h-full object-cover" />
           ) : (
-            /* Fallback gradient */
             <div className={cn('absolute inset-0 bg-gradient-to-br to-transparent', theme.gradient)} />
           )}
-
-          {/* Overlay gradients for readability */}
           <div className={cn('absolute inset-0 bg-gradient-to-br opacity-60 to-transparent', theme.gradient)} />
           <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
-
-          {/* Status badge */}
           <div className="absolute top-3 right-3">
-            {collection.is_published
+            {currentPublished
               ? <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 backdrop-blur-sm"><Globe size={9} /> Public</span>
               : <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-muted/80 text-muted-foreground border border-border backdrop-blur-sm"><Lock size={9} /> Draft</span>
             }
           </div>
-
-          {/* Collection icon watermark */}
           <div className="absolute top-3 left-3">
             <div className="w-8 h-8 rounded-lg bg-background/60 backdrop-blur-sm border border-border flex items-center justify-center">
               <LayoutGrid size={14} className={theme.text} />
@@ -174,73 +252,36 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
           </div>
         </div>
 
-        {/* Info section */}
+        {/* Info */}
         <div className="px-5 pb-5 pt-4 space-y-4">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1 min-w-0">
-              <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight">{collection.title}</h1>
+              <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight">{currentTitle}</h1>
               <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <BookOpen size={10} />
-                  {items.length} comic{items.length !== 1 ? 's' : ''}
-                </span>
-                {collection.save_count > 0 && (
-                  <>
-                    <span>·</span>
-                    <span>{collection.save_count} saves</span>
-                  </>
-                )}
+                <span className="flex items-center gap-1"><BookOpen size={10} />{items.length} comic{items.length !== 1 ? 's' : ''}</span>
+                {collection.save_count > 0 && <><span>·</span><span>{collection.save_count} saves</span></>}
               </div>
             </div>
-
-            {/* Actions */}
             <div className="flex items-center gap-2 shrink-0">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleShare}
-                className="h-8 text-xs gap-1.5"
-              >
+              <Button size="sm" variant="outline" onClick={handleShare} className="h-8 text-xs gap-1.5">
                 <Share2 size={12} />
-                Share
+                <span className="hidden sm:inline">Share</span>
               </Button>
-
               {!isOwner && (
-                <Button
-                  size="sm"
-                  variant={saved ? 'default' : 'outline'}
-                  onClick={handleSave}
-                  disabled={savingState}
-                  className={cn('gap-1.5 h-8 text-xs', saved && 'bg-primary')}
-                >
-                  {savingState
-                    ? <Loader2 size={12} className="animate-spin" />
-                    : saved
-                    ? <BookmarkCheck size={12} />
-                    : <Bookmark size={12} />
-                  }
-                  {saved ? 'Saved' : 'Save'}
+                <Button size="sm" variant={saved ? 'default' : 'outline'} onClick={handleSave} disabled={savingState} className={cn('gap-1.5 h-8 text-xs', saved && 'bg-primary')}>
+                  {savingState ? <Loader2 size={12} className="animate-spin" /> : saved ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
+                  <span className="hidden sm:inline">{saved ? 'Saved' : 'Save'}</span>
                 </Button>
               )}
-
               {isOwner && (
-                <Link href={`/dashboard/collections/${collection.id}/edit`}>
-                  <Button variant="outline" size="sm" className="h-8 text-xs">
-                    Edit
-                  </Button>
-                </Link>
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShowEdit(true)}>
+                  <Pencil size={12} />
+                  <span className="hidden sm:inline">Edit</span>
+                </Button>
               )}
             </div>
           </div>
-
-          {/* Description */}
-          {collection.description && (
-            <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
-              {collection.description}
-            </p>
-          )}
-
-          {/* Curator */}
+          {currentDesc && <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">{currentDesc}</p>}
           {collection.profiles && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span>Curated by</span>
@@ -259,39 +300,23 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             <BookOpen size={20} className="text-muted-foreground opacity-40" />
           </div>
           <p className="font-black text-sm">No comics in this collection yet</p>
-          {isOwner && (
-            <p className="text-xs text-muted-foreground">
-              Add comics from any comic detail page using the "Add to Collection" button.
-            </p>
-          )}
+          {isOwner && <p className="text-xs text-muted-foreground">Add comics from any comic detail page using the "Add to Collection" button.</p>}
         </div>
       ) : (
         <div className="space-y-4">
-          <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-            Comics in this collection
-          </h2>
+          <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Comics in this collection</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {items.map((item) => (
               <div key={item.id} className="relative group/item">
                 <ComicCard recommendation={item.recommendations} />
                 {isOwner && (
-                  <button
-                    onClick={() => handleRemoveItem(item.id, item.recommendations.id)}
-                    disabled={removingId === item.id}
+                  <button onClick={() => handleRemoveItem(item.id, item.recommendations.id)} disabled={removingId === item.id}
                     className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-destructive"
-                    title="Remove from collection"
-                  >
-                    {removingId === item.id
-                      ? <Loader2 size={10} className="animate-spin" />
-                      : <Trash2 size={10} />
-                    }
+                    title="Remove from collection">
+                    {removingId === item.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
                   </button>
                 )}
-                {item.note && (
-                  <p className="text-[10px] text-muted-foreground mt-1 px-1 line-clamp-2 italic">
-                    "{item.note}"
-                  </p>
-                )}
+                {item.note && <p className="text-[10px] text-muted-foreground mt-1 px-1 line-clamp-2 italic">"{item.note}"</p>}
               </div>
             ))}
           </div>

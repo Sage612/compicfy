@@ -202,15 +202,15 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
         </div>
 
         {userId && !showCreate && (
-          <Button
-            size="sm"
-            onClick={() => atLimit ? toast.error('Upgrade to Pro for unlimited collections') : setShowCreate(true)}
-            className={cn('gap-1.5', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}
-          >
-            {atLimit ? <Crown size={14} /> : <Plus size={14} />}
-            {atLimit ? 'Upgrade for More' : 'New Collection'}
-          </Button>
-        )}
+            <Button
+                size="sm"
+                onClick={() => atLimit ? toast.error('Upgrade to Pro for unlimited collections') : setShowCreate(true)}
+                className={cn('gap-1.5 shrink-0', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}
+            >
+                {atLimit ? <Crown size={14} /> : <Plus size={14} />}
+                <span className="hidden sm:inline">{atLimit ? 'Upgrade for More' : 'New Collection'}</span>
+            </Button>
+            )}
       </div>
 
       {/* Create form */}

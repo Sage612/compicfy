@@ -9,7 +9,7 @@ export default function NotFound() {
       {/* Dynamic Background Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-[5%] -right-[5%] w-[45%] h-[45%] rounded-full bg-primary/5 blur-[100px]" />
-        <div className="absolute -bottom-[5%] -left-[5%] w-[45%] h-[45%] rounded-full bg-violet-500/5 blur-[100px]" />
+        <div className="absolute -bottom-[5%] -left-[5%] w-[45%] h-[45%] rounded-full bg-primary/4 blur-[100px]" />
       </div>
 
       {/* Stacked Comic Panels Illustration */}
@@ -43,7 +43,7 @@ export default function NotFound() {
       {/* Main Actions */}
       <div className="relative z-10 flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
         <Link href="/browse" className="w-full sm:w-auto">
-          <Button className="w-full gap-2 bg-gradient-to-r from-primary to-violet-600 border-0 shadow-lg shadow-primary/25 hover:scale-[1.03] transition-transform">
+          <Button className="w-full gap-2 bg-primary hover:bg-primary/90 border-0 shadow-lg shadow-primary/25 hover:scale-[1.03] transition-transform">
             <Radar size={16} />
             Browse Comics
           </Button>
