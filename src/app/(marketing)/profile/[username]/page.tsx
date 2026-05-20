@@ -4,7 +4,6 @@ import Link from 'next/link'
 import {
   CalendarDays, BookOpen, Star, ThumbsUp,
   Globe, BookMarked, Users, Pin, ArrowRight, PenLine,
-  MapPin,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
@@ -63,31 +62,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const GENRE_COLORS: Record<string, string> = {
-  Action:        'bg-red-500/10    text-red-500    border-red-500/20',
-  Adventure:     'bg-orange-500/10 text-orange-500 border-orange-500/20',
-  Comedy:        'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-  Drama:         'bg-orange-600/10 text-orange-600 border-orange-600/20',
-  Fantasy:       'bg-violet-500/10 text-violet-500 border-violet-500/20',
-  Horror:        'bg-zinc-500/10   text-zinc-400   border-zinc-500/20',
-  Mystery:       'bg-slate-500/10  text-slate-400  border-slate-500/20',
-  Romance:       'bg-pink-500/10   text-pink-500   border-pink-500/20',
-  'Sci-Fi':      'bg-cyan-500/10   text-cyan-500   border-cyan-500/20',
+  Action:         'bg-red-500/10    text-red-500    border-red-500/20',
+  Adventure:      'bg-orange-500/10 text-orange-500 border-orange-500/20',
+  Comedy:         'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+  Drama:          'bg-orange-600/10 text-orange-600 border-orange-600/20',
+  Fantasy:        'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  Horror:         'bg-zinc-500/10   text-zinc-400   border-zinc-500/20',
+  Mystery:        'bg-slate-500/10  text-slate-400  border-slate-500/20',
+  Romance:        'bg-pink-500/10   text-pink-500   border-pink-500/20',
+  'Sci-Fi':       'bg-cyan-500/10   text-cyan-500   border-cyan-500/20',
   'Slice of Life':'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-  Sports:        'bg-amber-500/10  text-amber-500  border-amber-500/20',
-  Supernatural:  'bg-purple-500/10 text-purple-500 border-purple-500/20',
-  Thriller:      'bg-red-700/10    text-red-600    border-red-700/20',
-  Isekai:        'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
-  'Martial Arts':'bg-rose-600/10   text-rose-600   border-rose-600/20',
-  'School Life': 'bg-sky-500/10    text-sky-500    border-sky-500/20',
-  Historical:    'bg-stone-500/10  text-stone-400  border-stone-500/20',
-  Psychological: 'bg-fuchsia-500/10 text-fuchsia-500 border-fuchsia-500/20',
-  Shounen:       'bg-blue-500/10   text-blue-500   border-blue-500/20',
-  Shoujo:        'bg-pink-400/10   text-pink-400   border-pink-400/20',
-  Seinen:        'bg-zinc-600/10   text-zinc-400   border-zinc-600/20',
-  Josei:         'bg-rose-400/10   text-rose-400   border-rose-400/20',
-  Yuri:          'bg-purple-400/10 text-purple-400 border-purple-400/20',
-  Yaoi:          'bg-indigo-400/10 text-indigo-400 border-indigo-400/20',
-  Mecha:         'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  Sports:         'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  Supernatural:   'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  Thriller:       'bg-red-700/10    text-red-600    border-red-700/20',
+  Isekai:         'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+  'Martial Arts': 'bg-rose-600/10   text-rose-600   border-rose-600/20',
+  'School Life':  'bg-sky-500/10    text-sky-500    border-sky-500/20',
+  Historical:     'bg-stone-500/10  text-stone-400  border-stone-500/20',
+  Psychological:  'bg-fuchsia-500/10 text-fuchsia-500 border-fuchsia-500/20',
+  Shounen:        'bg-blue-500/10   text-blue-500   border-blue-500/20',
+  Shoujo:         'bg-pink-400/10   text-pink-400   border-pink-400/20',
+  Seinen:         'bg-zinc-600/10   text-zinc-400   border-zinc-600/20',
+  Josei:          'bg-rose-400/10   text-rose-400   border-rose-400/20',
+  Yuri:           'bg-purple-400/10 text-purple-400 border-purple-400/20',
+  Yaoi:           'bg-indigo-400/10 text-indigo-400 border-indigo-400/20',
+  Mecha:          'bg-teal-500/10   text-teal-500   border-teal-500/20',
 }
 
 const DEFAULT_GENRE_COLOR = 'bg-muted text-muted-foreground border-border'
@@ -118,7 +117,6 @@ export default async function ProfilePage({ params }: Props) {
 
   const isGhost = profile.id === GHOST_ID
 
-  // Fetch viewer's genres for taste compatibility
   let viewerGenres: string[] = []
   if (viewer && viewer.id !== profile.id && !isGhost) {
     const { data: viewerProfile } = await supabase
@@ -200,14 +198,13 @@ export default async function ProfilePage({ params }: Props) {
       : Promise.resolve({ data: null }),
   ])
 
-  // Fetch completed series count separately
   let completedSeriesCount = 0
   if (!isGhost) {
     const { data: userListIds } = await (supabase as any)
       .from('reading_lists')
       .select('id')
       .eq('user_id', profile.id)
-    
+
     if (userListIds && (userListIds as any[]).length > 0) {
       const listIds = (userListIds as any[]).map((l: any) => l.id)
       const { count } = await supabase
@@ -241,15 +238,15 @@ export default async function ProfilePage({ params }: Props) {
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
 
-      {/* ── PROFILE CARD ─────────────────────────────────────────── */}
+      {/* ── PROFILE CARD ── */}
       <div className={`relative rounded-2xl overflow-hidden border ${
         isGhost  ? 'border-indigo-500/30' :
         showGold ? 'border-amber-500/30'  :
                    'border-border'
       } bg-card shadow-sm`}>
 
-        {/* ── Banner ── */}
-        <div className="relative h-32 md:h-40 overflow-hidden">
+        {/* Banner */}
+        <div className="relative h-28 md:h-36 overflow-hidden">
           <div className={`absolute inset-0 ${
             isGhost
               ? 'bg-gradient-to-br from-indigo-900/60 via-slate-800/40 to-violet-900/30'
@@ -276,14 +273,14 @@ export default async function ProfilePage({ params }: Props) {
             <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'radial-gradient(circle at 20% 60%, var(--color-primary) 0%, transparent 50%), radial-gradient(circle at 80% 30%, var(--color-primary) 0%, transparent 40%)' }} />
           )}
 
-          <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-card to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
         </div>
 
-        {/* ── Card body ── */}
-        <div className="px-5 pb-6 -mt-14 relative">
+        {/* Card body */}
+        <div className="px-5 pb-5 -mt-12 relative">
 
           {/* Avatar + action row */}
-          <div className="flex items-end justify-between gap-3 mb-4">
+          <div className="flex items-end justify-between gap-3 mb-3">
             <div className={`relative shrink-0 rounded-full p-[3px] ${
               isGhost  ? 'bg-gradient-to-br from-indigo-500 to-violet-600' :
               isAdmin  ? 'bg-gradient-to-br from-primary to-primary/60'    :
@@ -319,7 +316,7 @@ export default async function ProfilePage({ params }: Props) {
           </div>
 
           {/* Name + badges */}
-          <div className="space-y-1 mb-3">
+          <div className="mb-2">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-black tracking-tight leading-tight">
                 {profile.display_name || profile.username}
@@ -332,81 +329,81 @@ export default async function ProfilePage({ params }: Props) {
 
           {/* Bio */}
           {profile.bio && (
-            <p className="text-sm leading-relaxed text-muted-foreground mb-4 max-w-lg">{profile.bio}</p>
+            <p className="text-sm leading-relaxed text-muted-foreground mb-3 max-w-lg">{profile.bio}</p>
           )}
 
           {/* Website */}
           {profile.website && !isGhost && (
-            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mb-4">
+            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mb-3">
               <Globe size={11} />
               {profile.website.replace(/^https?:\/\//, '')}
             </a>
           )}
 
-          {/* Stats row */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          {/* ── Stats — single compact row ── */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-4 text-xs text-muted-foreground">
             {!isGhost && (
               <>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
+                <span className="flex items-center gap-1">
                   <Users size={11} className="text-primary/60" />
-                  <span className="font-black text-foreground">{followersCount ?? 0}</span>
-                  <span className="text-muted-foreground">followers</span>
-                </div>
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
-                  <Users size={11} className="text-primary/60" />
-                  <span className="font-black text-foreground">{followingCount ?? 0}</span>
-                  <span className="text-muted-foreground">following</span>
-                </div>
+                  <strong className="text-foreground font-black">{followersCount ?? 0}</strong> followers
+                </span>
+                <span className="text-border">·</span>
+                <span className="flex items-center gap-1">
+                  <strong className="text-foreground font-black">{followingCount ?? 0}</strong> following
+                </span>
+                <span className="text-border">·</span>
               </>
             )}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
+            <span className="flex items-center gap-1">
               <BookOpen size={11} className="text-primary/60" />
-              <span className="font-black text-foreground">{totalRecs}</span>
-              <span className="text-muted-foreground">{isGhost ? 'archived' : 'recs'}</span>
-            </div>
+              <strong className="text-foreground font-black">{totalRecs}</strong>
+              {isGhost ? ' archived' : ' recs'}
+            </span>
             {(profile.total_reviews ?? 0) > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
-                <Star size={11} className="text-amber-500/70" />
-                <span className="font-black text-foreground">{profile.total_reviews ?? 0}</span>
-                <span className="text-muted-foreground">reviews</span>
-              </div>
+              <>
+                <span className="text-border">·</span>
+                <span className="flex items-center gap-1">
+                  <Star size={11} className="text-amber-500/70" />
+                  <strong className="text-foreground font-black">{profile.total_reviews ?? 0}</strong> reviews
+                </span>
+              </>
             )}
             {(profile.total_votes_received ?? 0) > 0 && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs">
-                <ThumbsUp size={11} className="text-emerald-500/70" />
-                <span className="font-black text-foreground">{profile.total_votes_received ?? 0}</span>
-                <span className="text-muted-foreground">votes</span>
-              </div>
+              <>
+                <span className="text-border">·</span>
+                <span className="flex items-center gap-1">
+                  <ThumbsUp size={11} className="text-emerald-500/70" />
+                  <strong className="text-foreground font-black">{profile.total_votes_received ?? 0}</strong> votes
+                </span>
+              </>
             )}
             {!isGhost && (
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted/60 border border-border text-xs text-muted-foreground">
-                <CalendarDays size={11} className="text-primary/60" />
-                <span>Joined {formatDate(profile.member_since)}</span>
-              </div>
+              <>
+                <span className="text-border">·</span>
+                <span className="flex items-center gap-1">
+                  <CalendarDays size={11} className="text-primary/60" />
+                  Joined {formatDate(profile.member_since)}
+                </span>
+              </>
             )}
           </div>
 
-          {/* Favourite Genres */}
+          {/* ── Genres + Taste Identity — merged, compact ── */}
           {favoriteGenres.length > 0 && !isGhost && (
-            <div className="space-y-1.5 mb-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Favourite Genres</p>
+            <div className="mb-3 space-y-2">
+              {/* Genres */}
               <div className="flex flex-wrap gap-1.5">
                 {favoriteGenres.map((genre: string) => (
                   <Link key={genre} href={`/browse?genre=${encodeURIComponent(genre)}`}>
-                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all hover:scale-105 cursor-pointer ${GENRE_COLORS[genre] ?? DEFAULT_GENRE_COLOR}`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition-all hover:scale-105 cursor-pointer ${GENRE_COLORS[genre] ?? DEFAULT_GENRE_COLOR}`}>
                       {genre}
                     </span>
                   </Link>
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Taste Identity */}
-          {!isGhost && favoriteGenres.length > 0 && (
-            <div className="space-y-1.5 mb-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Taste Identity</p>
-              <TasteTags genres={favoriteGenres} />
+              {/* Taste tag inline below genres, no section header */}
+              <TasteTags genres={favoriteGenres} compact />
             </div>
           )}
 
@@ -448,7 +445,7 @@ export default async function ProfilePage({ params }: Props) {
 
           {/* Ghost lore */}
           {isGhost && (
-            <p className="text-xs text-indigo-400/70 italic leading-relaxed max-w-md">
+            <p className="text-xs text-indigo-400/70 italic leading-relaxed max-w-md mt-2">
               An archivist of forgotten recommendations. Comics submitted here live on even when their recommenders are gone.
             </p>
           )}
