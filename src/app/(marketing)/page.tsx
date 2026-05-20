@@ -225,7 +225,7 @@ export default async function HomePage() {
                   { label: 'Comics Shared', value: totalComics,  icon: BookOpen,      color: 'text-rose-500',  bg: 'bg-rose-500/10'  },
                   { label: 'Reviews',       value: totalReviews, icon: MessageSquare, color: 'text-amber-500', bg: 'bg-amber-500/10' },
                 ]
-                  .filter(({ value }) => value >= 500)
+                  .filter(({ value }) => value > 0)
                   .map(({ label, value, icon: Icon, color, bg }) => (
                     <div key={label} className="flex items-center gap-2 text-sm">
                       <div className={`w-8 h-8 rounded ${bg} flex items-center justify-center ${color}`}>
