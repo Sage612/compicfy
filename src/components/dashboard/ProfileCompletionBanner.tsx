@@ -81,7 +81,7 @@ export function ProfileCompletionBanner({ hasAvatar, hasBio, hasWebsite }: Props
           {items.map(({ label, done, icon: Icon, anchor }) => (
             <Link
               key={label}
-              href={`/dashboard/settings${anchor}`}
+              href={`/reader/dashboard/settings${anchor}`}
               className={cn(
                 'flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold transition-all flex-1',
                 done

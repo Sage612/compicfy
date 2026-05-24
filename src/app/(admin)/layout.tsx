@@ -15,7 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .single()
 
   if (!profile || !['admin', 'moderator'].includes(profile.role)) {
-    redirect('/dashboard')
+    redirect('/reader/dashboard')
   }
 
   const role = profile.role as 'admin' | 'moderator'

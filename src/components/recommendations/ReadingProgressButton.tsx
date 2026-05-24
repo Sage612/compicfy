@@ -257,7 +257,7 @@ export function ReadingProgressButton({ comicId, chapterCount, isLoggedIn }: Pro
             <div className="px-4 py-4 text-center space-y-2 border-b border-border/50">
               <p className="text-xs text-muted-foreground">You need a reading list first</p>
               <a
-                href="/dashboard/lists"
+                href="/reader/dashboard/lists"
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
               >
                 <Plus size={11} />

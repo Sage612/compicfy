@@ -6,6 +6,7 @@ import {
   House, BookOpen, ScrollText, Radar, Crown,
   Settings, LogOut, LayoutDashboard, Bell, CreditCard,
   Sparkles, X, ChevronRight, User as UserIcon, LayoutList,
+  Palette,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -14,20 +15,22 @@ import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import type { User } from '@supabase/supabase-js'
+import { getDashboardRoutes, getProfileRoute, type UserType } from '@/lib/utils/routes'
 
 export function MobileNav() {
   const pathname                            = usePathname()
   const router                              = useRouter()
-  const [user, setUser]                     = useState<User | null>(null)
-  const [isPro, setIsPro]                   = useState(false)
-  const [authReady, setAuthReady]           = useState(false)
-  const [visible, setVisible]               = useState(true)
+  const [user,         setUser]             = useState<User | null>(null)
+  const [isPro,        setIsPro]            = useState(false)
+  const [userType,     setUserType]         = useState<UserType>('reader')
+  const [authReady,    setAuthReady]        = useState(false)
+  const [visible,      setVisible]          = useState(true)
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
-  const [profileOpen, setProfileOpen]       = useState(false)
-  const [avatarUrl, setAvatarUrl]           = useState<string | null>(null)
-  const [displayName, setDisplayName]       = useState<string | null>(null)
-  const [username, setUsername]             = useState<string | null>(null)
-  const [showPro, setShowPro]               = useState<null | boolean>(null)
+  const [profileOpen,  setProfileOpen]      = useState(false)
+  const [avatarUrl,    setAvatarUrl]        = useState<string | null>(null)
+  const [displayName,  setDisplayName]      = useState<string | null>(null)
+  const [username,     setUsername]         = useState<string | null>(null)
+  const [showPro,      setShowPro]          = useState<null | boolean>(null)
   const lastScrollY                         = useRef(0)
   const supabase                            = createClient()
 
@@ -39,7 +42,7 @@ export function MobileNav() {
       if (currentUser) {
         const { data: profile } = await (supabase as any)
           .from('profiles')
-          .select('is_pro, pro_expires_at, role, avatar_url, display_name, username')
+          .select('is_pro, pro_expires_at, role, avatar_url, display_name, username, user_type')
           .eq('id', currentUser.id)
           .single()
 
@@ -47,6 +50,7 @@ export function MobileNav() {
           setAvatarUrl(profile.avatar_url)
           setDisplayName(profile.display_name || profile.username)
           setUsername(profile.username)
+          setUserType((profile.user_type as UserType) ?? 'reader')
           const proActive =
             profile.role === 'admin' ||
             (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
@@ -66,6 +70,7 @@ export function MobileNav() {
       if (!session?.user) {
         setUser(null); setIsPro(false); setAvatarUrl(null)
         setDisplayName(null); setUsername(null); setShowPro(true)
+        setUserType('reader')
       } else {
         setUser(session.user)
       }
@@ -77,7 +82,7 @@ export function MobileNav() {
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY
-      if (currentY < 60) setVisible(true)
+      if (currentY < 60)                           setVisible(true)
       else if (currentY > lastScrollY.current + 4) setVisible(false)
       else if (currentY < lastScrollY.current - 4) setVisible(true)
       lastScrollY.current = currentY
@@ -94,16 +99,18 @@ export function MobileNav() {
     router.refresh()
   }
 
-  const dashboardHref     = isPro ? '/pro/dashboard'           : '/dashboard'
-  const billingHref       = isPro ? '/pro/billing'             : '/dashboard/billing'
-  const settingsHref      = isPro ? '/pro/settings'            : '/dashboard/settings'
-  const notificationsHref = isPro ? '/pro/notifications'       : '/dashboard/notifications'
-  const recommendHref     = isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'
-  const dashboardLabel    = isPro ? ' Dashboard'            : 'Dashboard'
-  const billingLabel      = isPro ? ' Billing'              : 'Billing'
-  const initials          = displayName
+  const routes       = getDashboardRoutes(userType, isPro)
+  const profileRoute = username ? getProfileRoute(username, userType) : null
+  const isCreator    = userType === 'creator'
+
+  const initials = displayName
     ? displayName.slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() ?? 'U'
+
+  const dashboardLabel = isPro
+    ? isCreator ? 'Pro Studio'   : 'Pro Dashboard'
+    : isCreator ? 'Studio'       : 'Dashboard'
+  const billingLabel   = isPro ? 'Pro Billing' : 'Billing'
 
   if (!authReady) {
     return (
@@ -150,10 +157,26 @@ export function MobileNav() {
             <div className="flex items-center gap-3 px-3 py-3 mb-2">
               <Avatar className="h-10 w-10 shrink-0">
                 <AvatarImage src={avatarUrl ?? undefined} />
-                <AvatarFallback className="text-sm font-black bg-primary text-primary-foreground">{initials}</AvatarFallback>
+                <AvatarFallback className={cn(
+                  'text-sm font-black',
+                  isCreator ? 'bg-teal-500 text-white' : 'bg-primary text-primary-foreground'
+                )}>
+                  {initials}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="font-black text-sm truncate">{displayName ?? 'User'}</p>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <p className="font-black text-sm truncate">{displayName ?? 'User'}</p>
+                  <span className={cn(
+                    'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black border shrink-0',
+                    isCreator
+                      ? 'bg-teal-500/10 text-teal-600 border-teal-500/20'
+                      : 'bg-primary/10 text-primary border-primary/20'
+                  )}>
+                    {isCreator ? <Palette size={8} /> : <BookOpen size={8} />}
+                    {isCreator ? 'Creator' : 'Reader'}
+                  </span>
+                </div>
                 <p className="text-xs text-muted-foreground truncate">{user.email}</p>
               </div>
               <button onClick={() => setProfileOpen(false)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
@@ -161,21 +184,23 @@ export function MobileNav() {
               </button>
             </div>
 
-            {/* Nav items */}
+            {/* Nav items — type aware */}
             {[
-              username ? { href: `/profile/${username}`, label: 'View Profile', icon: UserIcon, accent: false } : null,
-              { href: dashboardHref,     label: dashboardLabel, icon: isPro ? Crown : LayoutDashboard, accent: isPro  },
-              { href: notificationsHref, label: 'Notifications', icon: Bell,                           accent: false },
-              { href: settingsHref,      label: 'Settings',      icon: Settings,                       accent: false },
-              { href: billingHref,       label: billingLabel,    icon: isPro ? Crown : CreditCard,      accent: isPro },
+              profileRoute ? { href: profileRoute,       label: 'View Profile',  icon: UserIcon,                          accent: false } : null,
+              {               href: routes.dashboard,    label: dashboardLabel,  icon: isCreator ? Palette : LayoutDashboard, accent: isPro  },
+              {               href: routes.notifications,label: 'Notifications', icon: Bell,                              accent: false },
+              {               href: routes.settings,     label: 'Settings',      icon: Settings,                          accent: false },
+              {               href: routes.billing,      label: billingLabel,    icon: isPro ? Crown : CreditCard,         accent: isPro },
             ].filter(Boolean).map((item) => {
               if (!item) return null
               const { href, label, icon: Icon, accent } = item
+              const accentColor = isCreator ? 'text-teal-600' : 'text-amber-600'
+              const accentIcon  = isCreator ? 'text-teal-500' : 'text-amber-500'
               return (
                 <Link key={href} href={href} onClick={() => setProfileOpen(false)}
-                  className={cn('flex items-center gap-3 px-3 py-3 rounded-xl transition-colors hover:bg-muted/60 active:bg-muted', accent && 'text-amber-600')}
+                  className={cn('flex items-center gap-3 px-3 py-3 rounded-xl transition-colors hover:bg-muted/60 active:bg-muted', accent && accentColor)}
                 >
-                  <Icon size={16} className={cn('shrink-0', accent ? 'text-amber-500' : 'text-muted-foreground')} />
+                  <Icon size={16} className={cn('shrink-0', accent ? accentIcon : 'text-muted-foreground')} />
                   <span className={cn('text-sm font-medium flex-1', accent && 'font-semibold')}>{label}</span>
                   <ChevronRight size={13} className="text-muted-foreground/40" />
                 </Link>
@@ -229,7 +254,7 @@ export function MobileNav() {
         )}
       </div>
 
-      {/* Floating pill nav */}
+      {/* ── FLOATING PILL NAV ── */}
       <nav className={cn(
         'fixed bottom-0 left-0 right-0 z-50 lg:hidden px-4 pb-4',
         'transition-transform duration-300 ease-in-out',
@@ -237,14 +262,13 @@ export function MobileNav() {
       )}>
         <div className="flex items-center justify-around h-14 bg-background/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg shadow-black/10 px-2">
 
-          {/* Logged in nav */}
           {user ? (
             <>
-              {/* Feed */}
-              <Link href="/feed" className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
-                <LayoutList size={19} strokeWidth={pathname.startsWith('/feed') ? 2.5 : 1.75}
-                  className={cn(pathname.startsWith('/feed') ? 'text-primary' : 'text-muted-foreground')} />
-                <span className={cn('text-[10px] font-semibold', pathname.startsWith('/feed') ? 'text-primary' : 'text-muted-foreground')}>Feed</span>
+              {/* Home */}
+              <Link href="/" className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
+                <House size={19} strokeWidth={pathname === '/' ? 2.5 : 1.75}
+                  className={cn(pathname === '/' ? 'text-primary' : 'text-muted-foreground')} />
+                <span className={cn('text-[10px] font-semibold', pathname === '/' ? 'text-primary' : 'text-muted-foreground')}>Home</span>
               </Link>
 
               {/* Browse */}
@@ -255,36 +279,52 @@ export function MobileNav() {
               </Link>
 
               {/* Rec FAB */}
-              <Link href={recommendHref} className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
-                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-md shadow-primary/30">
-                  <BookOpen size={18} className="text-primary-foreground" strokeWidth={2.5} />
+              <Link href={routes.newRec} className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
+                <div className={cn(
+                  'w-10 h-10 rounded-full flex items-center justify-center shadow-md',
+                  isCreator ? 'bg-teal-500 shadow-teal-500/30' : 'bg-primary shadow-primary/30'
+                )}>
+                  <BookOpen size={18} className="text-white" strokeWidth={2.5} />
                 </div>
-                <span className="text-[10px] font-bold text-primary">Rec</span>
+                <span className={cn('text-[10px] font-bold', isCreator ? 'text-teal-500' : 'text-primary')}>Rec</span>
               </Link>
 
-              {/* News */}
-              <Link href="/news" className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
-                <ScrollText size={19} strokeWidth={pathname.startsWith('/news') ? 2.5 : 1.75}
-                  className={cn(pathname.startsWith('/news') ? 'text-primary' : 'text-muted-foreground')} />
-                <span className={cn('text-[10px] font-semibold', pathname.startsWith('/news') ? 'text-primary' : 'text-muted-foreground')}>News</span>
+              {/* Feed */}
+              <Link href="/feed" className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
+                <LayoutList size={19} strokeWidth={pathname.startsWith('/feed') ? 2.5 : 1.75}
+                  className={cn(pathname.startsWith('/feed') ? 'text-primary' : 'text-muted-foreground')} />
+                <span className={cn('text-[10px] font-semibold', pathname.startsWith('/feed') ? 'text-primary' : 'text-muted-foreground')}>Feed</span>
               </Link>
 
               {/* Profile — avatar */}
               <button onClick={() => setProfileOpen(true)} className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
-                <div className={cn('w-7 h-7 rounded-full overflow-hidden ring-2 transition-all', profileOpen ? 'ring-primary' : 'ring-border')}>
+                <div className={cn('w-7 h-7 rounded-full overflow-hidden ring-2 transition-all',
+                  profileOpen
+                    ? isCreator ? 'ring-teal-500' : 'ring-primary'
+                    : 'ring-border'
+                )}>
                   <Avatar className="h-7 w-7">
                     <AvatarImage src={avatarUrl ?? undefined} />
-                    <AvatarFallback className={cn('text-[10px] font-black', profileOpen ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>
+                    <AvatarFallback className={cn(
+                      'text-[10px] font-black',
+                      profileOpen
+                        ? isCreator ? 'bg-teal-500 text-white' : 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground'
+                    )}>
                       {initials}
                     </AvatarFallback>
                   </Avatar>
                 </div>
-                <span className={cn('text-[10px] font-semibold', profileOpen ? 'text-primary' : 'text-muted-foreground')}>Profile</span>
+                <span className={cn('text-[10px] font-semibold',
+                  profileOpen
+                    ? isCreator ? 'text-teal-500' : 'text-primary'
+                    : 'text-muted-foreground'
+                )}>Profile</span>
               </button>
             </>
           ) : (
             <>
-              {/* Logged out nav */}
+              {/* Logged out */}
               <Link href="/" className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
                 <House size={19} strokeWidth={pathname === '/' ? 2.5 : 1.75}
                   className={cn(pathname === '/' ? 'text-primary' : 'text-muted-foreground')} />

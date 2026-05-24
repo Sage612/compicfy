@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.redirect(`${APP_URL}/pro/dashboard?welcome=true`)
+    return NextResponse.redirect(`${APP_URL}/pro/reader/dashboard?welcome=true`)
   } catch (error) {
     console.error('Flutterwave verify error:', error)
     return NextResponse.redirect(`${APP_URL}/pricing?error=verification_failed`)

@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { AvatarUpload } from './AvatarUpload'
 import { DeleteAccountSection } from '@/components/user/DeleteAccountSection'
 import { toast } from 'sonner'
-import { Loader2, X, User, Heart, Shield, Globe, Sun, Moon, Monitor, Palette, AlertTriangle } from 'lucide-react'
+import { Loader2, X, User, Heart, Shield, Globe, Sun, Moon, Monitor, Palette, AlertTriangle, PenLine, BookOpen } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
 import type { Profile } from '@/types/database.types'
 import { AdultContentToggle } from '@/components/user/AdultContentToggle'
@@ -20,10 +20,13 @@ import { cn } from '@/lib/utils'
 import { useTheme } from 'next-themes'
 
 const settingsSchema = z.object({
-  username:     z.string().min(3, 'At least 3 characters').max(30, 'Max 30 characters').regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers, underscores only'),
-  display_name: z.string().max(50, 'Max 50 characters').optional(),
-  bio:          z.string().max(500, 'Max 500 characters').optional(),
-  website:      z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  username:        z.string().min(3, 'At least 3 characters').max(30, 'Max 30 characters').regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers, underscores only'),
+  display_name:    z.string().max(50, 'Max 50 characters').optional(),
+  bio:             z.string().max(500, 'Max 500 characters').optional(),
+  website:         z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  patreon_url:     z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  kickstarter_url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  comic_url:       z.string().url('Must be a valid URL').optional().or(z.literal('')),
 })
 
 type SettingsFormValues = z.infer<typeof settingsSchema>
@@ -48,12 +51,13 @@ function FormSection({ icon: Icon, title, accent = 'bg-primary', children }: {
 }
 
 interface Props {
-  profile: Profile
-  userId:  string
-  isPro:   boolean
+  profile:        Profile
+  userId:         string
+  isPro:          boolean
+  defaultSection?: string
 }
 
-export function SettingsForm({ profile, userId, isPro }: Props) {
+export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) {
   const supabase     = createClient()
   const { setTheme } = useTheme()
 
@@ -67,10 +71,13 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
   const { register, handleSubmit, watch, formState: { errors } } = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
-      username:     profile.username,
-      display_name: profile.display_name || '',
-      bio:          profile.bio || '',
-      website:      profile.website || '',
+      username:        profile.username,
+      display_name:    profile.display_name || '',
+      bio:             profile.bio || '',
+      website:         profile.website || '',
+      patreon_url:     (profile as any).patreon_url || '',
+      kickstarter_url: (profile as any).kickstarter_url || '',
+      comic_url:       (profile as any).comic_url || '',
     },
   })
 
@@ -112,6 +119,9 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
         display_name:    data.display_name || null,
         bio:             data.bio || null,
         website:         data.website || null,
+        patreon_url:     data.patreon_url     || null,
+        kickstarter_url: data.kickstarter_url || null,
+        comic_url:       data.comic_url       || null,
         favorite_genres: selectedGenres,
         updated_at:      new Date().toISOString(),
       }
@@ -194,6 +204,57 @@ export function SettingsForm({ profile, userId, isPro }: Props) {
           </Label>
           <Input id="website" {...register('website')} placeholder="https://yoursite.com" type="url" className="h-10" />
           {errors.website && <p className="text-xs text-destructive">{errors.website.message}</p>}
+        </div>
+      </FormSection>
+
+      {/* Creator Links */}
+      <FormSection icon={PenLine} title="Creator Links" accent="bg-teal-500">
+        <p className="text-sm text-muted-foreground">
+          Are you a comic artist or creator? Add your links so readers can support you directly from your profile.
+        </p>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="comic_url" className="text-sm font-semibold flex items-center gap-1.5">
+              <BookOpen size={13} />
+              Comic / Webtoon URL
+            </Label>
+            <Input
+              id="comic_url"
+              {...register('comic_url')}
+              placeholder="https://webtoons.com/your-comic"
+              type="url"
+              className="h-10"
+            />
+            {errors.comic_url && <p className="text-xs text-destructive">{errors.comic_url.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="patreon_url" className="text-sm font-semibold flex items-center gap-1.5">
+              <span className="text-[13px]">🎨</span>
+              Patreon
+            </Label>
+            <Input
+              id="patreon_url"
+              {...register('patreon_url')}
+              placeholder="https://patreon.com/yourpage"
+              type="url"
+              className="h-10"
+            />
+            {errors.patreon_url && <p className="text-xs text-destructive">{errors.patreon_url.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="kickstarter_url" className="text-sm font-semibold flex items-center gap-1.5">
+              <span className="text-[13px]">🚀</span>
+              Kickstarter Campaign
+            </Label>
+            <Input
+              id="kickstarter_url"
+              {...register('kickstarter_url')}
+              placeholder="https://kickstarter.com/projects/your-campaign"
+              type="url"
+              className="h-10"
+            />
+            {errors.kickstarter_url && <p className="text-xs text-destructive">{errors.kickstarter_url.message}</p>}
+          </div>
         </div>
       </FormSection>
 

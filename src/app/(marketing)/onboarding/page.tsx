@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow'
+import { CreatorOnboardingFlow } from '@/components/onboarding/CreatorOnboardingFlow'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Welcome to Compicfy' }
@@ -16,17 +17,29 @@ export default async function OnboardingPage({ searchParams }: Props) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('username, display_name, onboarding_completed, favorite_genres')
+    .select('username, display_name, onboarding_completed, favorite_genres, user_type')
     .eq('id', user.id)
     .single()
 
-  // Already onboarded — skip straight to next or browse
   if ((profile as any)?.onboarding_completed) {
     const { next } = await searchParams
-    redirect(next ?? '/browse')
+    const userType  = (profile as any)?.user_type ?? 'reader'
+    redirect(next ?? (userType === 'creator' ? '/creator/dashboard' : '/browse'))
   }
 
   const { next } = await searchParams
+  const userType = (profile as any)?.user_type ?? 'reader'
+
+  if (userType === 'creator') {
+    return (
+      <CreatorOnboardingFlow
+        userId={user.id}
+        username={(profile as any)?.username ?? ''}
+        displayName={(profile as any)?.display_name ?? ''}
+        next={next ?? '/creator/dashboard'}
+      />
+    )
+  }
 
   return (
     <OnboardingFlow

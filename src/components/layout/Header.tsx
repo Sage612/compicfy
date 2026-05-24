@@ -9,68 +9,76 @@ import type { User } from '@supabase/supabase-js'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
   Sun, Moon, Monitor, Radar, ScrollText, LayoutGrid,
   LayoutDashboard, Settings, LogOut, BookOpen,
-  User as UserIcon, Bell,
-  ShoppingBag, Crown, CreditCard, Sparkles, LayoutList, BookMarked,
+  User as UserIcon, Bell, ShoppingBag, Crown, CreditCard,
+  Sparkles, LayoutList, BookMarked, Palette,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { GlobalSearch } from '@/components/layout/GlobalSearch'
 import { NotificationBell } from '@/components/user/NotificationBell'
+import { getDashboardRoutes, getProfileRoute, type UserType } from '@/lib/utils/routes'
 
 function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
-      <rect x="3"   y="18"    width="22"  height="5.5" rx="1.5" className="fill-primary-foreground/25" />
-      <rect x="3"   y="18"    width="10"  height="5.5" rx="1.5" className="fill-primary-foreground/55" />
-      <rect x="4.5" y="11.5"  width="19"  height="5.5" rx="1.5" className="fill-primary-foreground/45" />
-      <rect x="4.5" y="11.5"  width="9"   height="5.5" rx="1.5" className="fill-primary-foreground/75" />
-      <rect x="6"   y="5"     width="16"  height="5.5" rx="1.5" className="fill-primary-foreground"    />
-      <rect x="6"   y="5"     width="7.5" height="5.5" rx="1.5" className="fill-primary-foreground/65" />
+    <svg 
+      viewBox="0 0 44 44" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg" 
+      className={className} 
+      aria-hidden="true"
+    >
+      {/* Speech bubble body */}
+      <rect x="2" y="2" width="36" height="30" rx="8" className="fill-[#0ea5b0]" />
+      {/* Bubble tail */}
+      <path d="M9 32 L5 43 L20 33.5" className="fill-[#0ea5b0]" />
+      {/* C letterform (recommendation / comic) */}
+      <path 
+        d="M28 11.5 C25 9 19.5 9 16.5 12 C13.5 15 13.5 20.5 16.5 23.5 C19.5 26.5 25 26.5 28 24"
+        className="stroke-foreground" 
+        strokeWidth="3.5"
+        strokeLinecap="round" 
+        fill="none"
+      />
+      {/* Period after C */}
+      <circle cx="30" cy="24.5" r="2.2" className="fill-foreground" />
     </svg>
   )
 }
 
 export function Header() {
-  const pathname = usePathname()
-  const router   = useRouter()
+  const pathname            = usePathname()
+  const router              = useRouter()
   const { theme, setTheme } = useTheme()
 
-  const [mounted, setMounted]         = useState(false)
-  const [user, setUser]               = useState<User | null>(null)
-  const [avatarUrl, setAvatarUrl]     = useState<string | null>(null)
-  const [displayName, setDisplayName] = useState<string | null>(null)
-  const [username, setUsername]       = useState<string | null>(null)
-  const [visible, setVisible]         = useState(true)
-  const [isPro, setIsPro]             = useState(false)
-  const [role, setRole]               = useState<string>('user')
-  const [authReady, setAuthReady]     = useState(false)
-  const lastScrollY                   = useRef(0)
-  const supabase                      = createClient()
-  const [showPro, setShowPro]         = useState<null | boolean>(null)
+  const [mounted,      setMounted]      = useState(false)
+  const [user,         setUser]         = useState<User | null>(null)
+  const [avatarUrl,    setAvatarUrl]    = useState<string | null>(null)
+  const [displayName,  setDisplayName]  = useState<string | null>(null)
+  const [username,     setUsername]     = useState<string | null>(null)
+  const [visible,      setVisible]      = useState(true)
+  const [isPro,        setIsPro]        = useState(false)
+  const [role,         setRole]         = useState<string>('user')
+  const [userType,     setUserType]     = useState<UserType>('reader')
+  const [authReady,    setAuthReady]    = useState(false)
+  const [showPro,      setShowPro]      = useState<null | boolean>(null)
+  const lastScrollY                     = useRef(0)
+  const supabase                        = createClient()
 
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY
-      if (currentY < 60) {
-        setVisible(true)
-      } else if (currentY > lastScrollY.current + 4) {
-        setVisible(false)
-      } else if (currentY < lastScrollY.current - 4) {
-        setVisible(true)
-      }
+      if (currentY < 60)                        setVisible(true)
+      else if (currentY > lastScrollY.current + 4) setVisible(false)
+      else if (currentY < lastScrollY.current - 4) setVisible(true)
       lastScrollY.current = currentY
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -97,7 +105,7 @@ export function Header() {
       if (currentUser) {
         const { data: profile } = await (supabase as any)
           .from('profiles')
-          .select('avatar_url, display_name, username, is_pro, pro_expires_at, role')
+          .select('avatar_url, display_name, username, is_pro, pro_expires_at, role, user_type')
           .eq('id', currentUser.id)
           .single()
 
@@ -106,6 +114,7 @@ export function Header() {
           setDisplayName(profile.display_name || profile.username)
           setUsername(profile.username)
           setRole(profile.role)
+          setUserType((profile.user_type as UserType) ?? 'reader')
 
           const proActive =
             profile.role === 'admin' ||
@@ -133,6 +142,7 @@ export function Header() {
         setUsername(null)
         setIsPro(false)
         setRole('user')
+        setUserType('reader')
         setShowPro(true)
       }
       setAuthReady(true)
@@ -148,26 +158,28 @@ export function Header() {
     router.refresh()
   }
 
-  const dashboardHref     = isPro ? '/pro/dashboard'           : '/dashboard'
-  const listsHref         = isPro ? '/pro/lists'               : '/dashboard/lists'
-  const billingHref       = isPro ? '/pro/billing'             : '/dashboard/billing'
-  const settingsHref      = isPro ? '/pro/settings'            : '/dashboard/settings'
-  const notificationsHref = isPro ? '/pro/notifications'       : '/dashboard/notifications'
-  const recommendHref     = isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'
-  const dashboardLabel    = isPro ? ' Dashboard'               : 'Dashboard'
-  const billingLabel      = isPro ? ' Billing'                 : 'Billing'
-  const listsLabel        = isPro ? ' Lists'                   : 'Lists'
+  // All routes derived from single source of truth
+  const routes        = getDashboardRoutes(userType, isPro)
+  const profileRoute  = username ? getProfileRoute(username, userType) : null
+  const isCreator     = userType === 'creator'
+
+  const dashboardLabel = isPro
+    ? isCreator ? 'Pro Studio'  : 'Pro Dashboard'
+    : isCreator ? 'Studio'      : 'Dashboard'
+  const billingLabel   = isPro ? 'Pro Billing' : 'Billing'
+  const listsLabel     = isCreator ? 'My Works' : 'Lists'
+  const listsHref      = isCreator ? routes.works : (routes as any).lists
 
   const publicNavLinks = [
-    { href: '/browse',       label: 'Browse',      icon: Radar       },
-    { href: '/collections',  label: 'Collections', icon: LayoutGrid  },
-    { href: '/news',         label: 'News',        icon: ScrollText  },
-    { href: '/affiliate',    label: 'Shop',        icon: ShoppingBag },
+    { href: '/browse',      label: 'Browse',      icon: Radar       },
+    { href: '/collections', label: 'Collections', icon: LayoutGrid  },
+    { href: '/news',        label: 'News',        icon: ScrollText  },
+    { href: '/affiliate',   label: 'Shop',        icon: ShoppingBag },
   ]
 
   const authNavLinks = [
-    { href: '/feed',   label: 'Feed',    icon: LayoutList },
-    { href: listsHref, label: listsLabel, icon: BookMarked },
+    { href: '/feed',    label: 'Feed',    icon: LayoutList },
+    { href: listsHref,  label: listsLabel, icon: isCreator ? BookOpen : BookMarked },
   ]
 
   const themeOptions = [
@@ -199,21 +211,18 @@ export function Header() {
           'border border-border/60',
           'rounded-full shadow-lg shadow-black/10',
         )}>
-
-          {/* Logo */}
+          {/* Logo — always goes home */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shrink-0">
-              <LogoMark className="w-3.5 h-3.5" />
+            <div className="w-6 h-6 rounded-md bg-[#0ea5b0] flex items-center justify-center shrink-0">
+              <LogoMark className="w-4 h-4" />
             </div>
             <span className="font-black text-[13px] tracking-tight leading-none">
-              Compic<span className="text-primary">fy</span>
+              Compic<span className="text-[#0ea5b0]">fy</span>
             </span>
           </Link>
 
-          {/* Right side */}
           <div className="flex items-center gap-1">
             <GlobalSearch />
-
             {!authReady ? (
               <div className="flex items-center gap-1">
                 <div className="h-6 w-10 rounded-full bg-muted/50 animate-pulse" />
@@ -222,19 +231,12 @@ export function Header() {
             ) : !user ? (
               <div className="flex items-center gap-1">
                 <Link href="/login">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-3 text-xs font-medium text-muted-foreground hover:text-foreground rounded-full"
-                  >
+                  <Button variant="ghost" size="sm" className="h-7 px-3 text-xs font-medium text-muted-foreground hover:text-foreground rounded-full">
                     Log in
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button
-                    size="sm"
-                    className="h-7 px-3 text-xs font-semibold bg-primary hover:bg-primary/90 border-0 rounded-full"
-                  >
+                  <Button size="sm" className="h-7 px-3 text-xs font-semibold bg-primary hover:bg-primary/90 border-0 rounded-full">
                     Sign up
                   </Button>
                 </Link>
@@ -259,14 +261,13 @@ export function Header() {
           'border border-border/60',
           'rounded-full shadow-lg shadow-black/10',
         )}>
-
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0 group">
-            <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shrink-0">
-              <LogoMark className="w-3.5 h-3.5" />
+            <div className="w-6 h-6 rounded-md bg-[#0ea5b0] flex items-center justify-center shrink-0">
+              <LogoMark className="w-4 h-4" />
             </div>
             <span className="font-black text-[14px] tracking-tight leading-none">
-              Compic<span className="text-primary">fy</span>
+              Compic<span className="text-[#0ea5b0]">fy</span>
             </span>
           </Link>
 
@@ -319,22 +320,15 @@ export function Header() {
           <div className="flex items-center gap-1">
             <GlobalSearch />
 
-            {/* Theme toggle */}
             {mounted && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
-                    variant="ghost"
-                    size="icon"
+                    variant="ghost" size="icon"
                     className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground rounded-full"
                     aria-label="Toggle theme"
                   >
-                    {theme === 'light'
-                      ? <Sun size={14} />
-                      : theme === 'dark'
-                      ? <Moon size={14} />
-                      : <Monitor size={14} />
-                    }
+                    {theme === 'light' ? <Sun size={14} /> : theme === 'dark' ? <Moon size={14} /> : <Monitor size={14} />}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-32 rounded-xl p-1">
@@ -342,23 +336,17 @@ export function Header() {
                     <DropdownMenuItem
                       key={value}
                       onClick={() => setTheme(value)}
-                      className={cn(
-                        'gap-2 cursor-pointer rounded-lg text-sm',
-                        theme === value && 'text-primary font-medium'
-                      )}
+                      className={cn('gap-2 cursor-pointer rounded-lg text-sm', theme === value && 'text-primary font-medium')}
                     >
                       <Icon size={13} />
                       {label}
-                      {theme === value && (
-                        <span className="ml-auto text-primary text-xs">✓</span>
-                      )}
+                      {theme === value && <span className="ml-auto text-primary text-xs">✓</span>}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
 
-            {/* Auth area */}
             {!authReady ? (
               <div className="flex items-center gap-1.5">
                 <div className="h-7 w-14 rounded-full bg-muted/50 animate-pulse hidden sm:block" />
@@ -367,19 +355,12 @@ export function Header() {
             ) : !user ? (
               <div className="flex items-center gap-1.5 ml-1">
                 <Link href="/login">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-sm font-medium text-muted-foreground hover:text-foreground rounded-full"
-                  >
+                  <Button variant="ghost" size="sm" className="h-8 text-sm font-medium text-muted-foreground hover:text-foreground rounded-full">
                     Log in
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button
-                    size="sm"
-                    className="h-8 px-4 text-sm font-semibold bg-primary hover:bg-primary/90 border-0 rounded-full"
-                  >
+                  <Button size="sm" className="h-8 px-4 text-sm font-semibold bg-primary hover:bg-primary/90 border-0 rounded-full">
                     Sign up
                   </Button>
                 </Link>
@@ -387,14 +368,21 @@ export function Header() {
             ) : (
               <div className="flex items-center gap-1 ml-1">
 
-                {/* Rec a comic button */}
-                <Link href={recommendHref}>
+                {/* Rec button — label changes for creators */}
+                <Link href={routes.newRec}>
                   <Button
                     size="sm"
-                    className="h-8 px-3 gap-1.5 text-sm font-semibold bg-primary hover:bg-primary/90 border-0 rounded-full"
+                    className={cn(
+                      'h-8 px-3 gap-1.5 text-sm font-semibold border-0 rounded-full',
+                      isCreator
+                        ? 'bg-teal-500 hover:bg-teal-600 text-white'
+                        : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                    )}
                   >
-                    <BookOpen size={13} strokeWidth={2.5} />
-                    Rec a comic
+                    {isCreator
+                      ? <><Palette size={13} strokeWidth={2.5} />Add Work</>
+                      : <><BookOpen size={13} strokeWidth={2.5} />Rec a comic</>
+                    }
                   </Button>
                 </Link>
 
@@ -403,10 +391,16 @@ export function Header() {
                 {/* Avatar dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="ml-0.5 rounded-full ring-2 ring-transparent hover:ring-primary/30 focus-visible:ring-primary/30 transition-all outline-none">
+                    <button className={cn(
+                      'ml-0.5 rounded-full ring-2 ring-transparent transition-all outline-none',
+                      isCreator ? 'hover:ring-teal-500/30 focus-visible:ring-teal-500/30' : 'hover:ring-primary/30 focus-visible:ring-primary/30'
+                    )}>
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={avatarUrl ?? undefined} alt={displayName ?? 'User'} />
-                        <AvatarFallback className="text-xs font-black bg-primary text-primary-foreground">
+                        <AvatarFallback className={cn(
+                          'text-xs font-black',
+                          isCreator ? 'bg-teal-500 text-white' : 'bg-primary text-primary-foreground'
+                        )}>
                           {initials}
                         </AvatarFallback>
                       </Avatar>
@@ -415,29 +409,44 @@ export function Header() {
 
                   <DropdownMenuContent align="end" className="w-52 rounded-xl p-1">
                     <div className="px-2 py-2 border-b border-border mb-1">
-                      <p className="font-bold text-sm truncate leading-tight">
-                        {displayName ?? 'User'}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">
-                        {user.email}
-                      </p>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <p className="font-bold text-sm truncate leading-tight">{displayName ?? 'User'}</p>
+                        {/* User type pill */}
+                        <span className={cn(
+                          'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black border shrink-0',
+                          isCreator
+                            ? 'bg-teal-500/10 text-teal-600 border-teal-500/20'
+                            : 'bg-primary/10 text-primary border-primary/20'
+                        )}>
+                          {isCreator ? <Palette size={8} /> : <BookOpen size={8} />}
+                          {isCreator ? 'Creator' : 'Reader'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate leading-tight">{user.email}</p>
                     </div>
 
-                    {username && (
+                    {/* Profile link — type-aware */}
+                    {profileRoute && (
                       <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
-                        <Link href={`/profile/${username}`}>
+                        <Link href={profileRoute}>
                           <UserIcon size={13} className="text-muted-foreground shrink-0" />
                           View Profile
                         </Link>
                       </DropdownMenuItem>
                     )}
 
+                    {/* Dashboard link */}
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
                       <Link
-                        href={dashboardHref}
-                        className={cn(isPro && 'text-amber-600 font-semibold')}
+                        href={routes.dashboard}
+                        className={cn(
+                          isPro && isCreator && 'text-teal-600 font-semibold',
+                          isPro && !isCreator && 'text-amber-600 font-semibold'
+                        )}
                       >
-                        {isPro
+                        {isPro && isCreator
+                          ? <Palette size={13} className="text-teal-500 shrink-0" />
+                          : isPro
                           ? <Crown size={13} className="text-amber-500 shrink-0" />
                           : <LayoutDashboard size={13} className="text-muted-foreground shrink-0" />
                         }
@@ -448,14 +457,14 @@ export function Header() {
                     <DropdownMenuSeparator className="my-1" />
 
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
-                      <Link href={notificationsHref}>
+                      <Link href={routes.notifications}>
                         <Bell size={13} className="text-muted-foreground shrink-0" />
                         Notifications
                       </Link>
                     </DropdownMenuItem>
 
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
-                      <Link href={settingsHref}>
+                      <Link href={routes.settings}>
                         <Settings size={13} className="text-muted-foreground shrink-0" />
                         Settings
                       </Link>
@@ -463,10 +472,12 @@ export function Header() {
 
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
                       <Link
-                        href={billingHref}
-                        className={cn(isPro && 'text-amber-600 font-semibold')}
+                        href={routes.billing}
+                        className={cn(isPro && (isCreator ? 'text-teal-600 font-semibold' : 'text-amber-600 font-semibold'))}
                       >
-                        {isPro
+                        {isPro && isCreator
+                          ? <Palette size={13} className="text-teal-500 shrink-0" />
+                          : isPro
                           ? <Crown size={13} className="text-amber-500 shrink-0" />
                           : <CreditCard size={13} className="text-muted-foreground shrink-0" />
                         }
@@ -489,12 +500,7 @@ export function Header() {
                     <DropdownMenuSeparator className="my-1" />
 
                     <DropdownMenuItem asChild className="rounded-lg text-sm">
-                      <Link
-                        href="https://discord.gg/7WPGMb696N"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="gap-2 cursor-pointer"
-                      >
+                      <Link href="https://discord.gg/7WPGMb696N" target="_blank" rel="noopener noreferrer" className="gap-2 cursor-pointer">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" className="text-[#5865F2] shrink-0">
                           <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057.102 18.08.114 18.1.141 18.115a19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
                         </svg>

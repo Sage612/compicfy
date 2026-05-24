@@ -35,10 +35,10 @@ const mobileShared = [
 ]
 
 const mobileAdminOnly = [
-  { href: '/admin/users',      label: 'Users',  icon: Users      },
-  { href: '/admin/logs',       label: 'Logs',   icon: ScrollText },
-  { href: '/admin/test-email', label: 'Emails', icon: Mail       },
-  { href: '/pro/dashboard',    label: 'Pro',    icon: Crown,     isPro: true },
+  { href: '/admin/users',         label: 'Users',  icon: Users      },
+  { href: '/admin/logs',          label: 'Logs',   icon: ScrollText },
+  { href: '/admin/test-email',    label: 'Emails', icon: Mail       },
+  { href: '/pro/reader/dashboard', label: 'Pro',   icon: Crown,     isPro: true },
 ]
 
 export function AdminSidebar({ role }: Props) {
@@ -104,27 +104,27 @@ export function AdminSidebar({ role }: Props) {
         <>
           <div className="my-2 border-t border-border" />
           <Link
-            href="/pro/dashboard"
+            href="/pro/reader/dashboard"
             className={cn(
               'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150',
-              pathname.startsWith('/pro/dashboard')
+              pathname.startsWith('/pro/reader/dashboard')
                 ? 'bg-amber-500/15 text-amber-600'
                 : 'text-amber-500/70 hover:text-amber-600 hover:bg-amber-500/10'
             )}
           >
             <div className={cn(
               'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all',
-              pathname.startsWith('/pro/dashboard')
+              pathname.startsWith('/pro/reader/dashboard')
                 ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/30'
                 : 'bg-amber-500/10 group-hover:bg-amber-500/20'
             )}>
               <Crown
                 size={14}
-                className={pathname.startsWith('/pro/dashboard') ? 'text-white' : 'text-amber-500'}
+                className={pathname.startsWith('/pro/reader/dashboard') ? 'text-white' : 'text-amber-500'}
               />
             </div>
             <span className="truncate">Pro Dashboard</span>
-            {pathname.startsWith('/pro/dashboard') && (
+            {pathname.startsWith('/pro/reader/dashboard') && (
               <div className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
             )}
           </Link>

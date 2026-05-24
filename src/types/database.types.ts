@@ -17,10 +17,10 @@ export type Database = {
           total_recommendations: number
           total_reviews: number
           total_votes_received: number
+          total_saves: number
+          recommendation_count_this_month: number
           member_since: string
           last_seen: string
-          // Age/mature columns removed — dropped from DB via migration
-          // Remaining active adult content fields:
           adult_content_enabled: boolean | null
           adult_content_enabled_at: string | null
           email_notifications: boolean
@@ -40,6 +40,7 @@ export type Database = {
           appeal_text: string | null
           // Verified recommender badge
           verified_recommender: boolean
+          user_type: 'reader' | 'creator'
           created_at: string
           updated_at: string
         }
@@ -53,6 +54,8 @@ export type Database = {
           social_links?: Json
           favorite_genres?: string[]
           favorite_platforms?: string[]
+          total_saves?: number
+          recommendation_count_this_month?: number
           adult_content_enabled?: boolean | null
           adult_content_enabled_at?: string | null
           email_notifications?: boolean
@@ -69,6 +72,7 @@ export type Database = {
           appeal_status?: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text?: string | null
           verified_recommender?: boolean
+          user_type?: 'reader' | 'creator'
         }
         Update: {
           username?: string
@@ -79,6 +83,8 @@ export type Database = {
           social_links?: Json
           favorite_genres?: string[]
           favorite_platforms?: string[]
+          total_saves?: number
+          recommendation_count_this_month?: number
           adult_content_enabled?: boolean | null
           adult_content_enabled_at?: string | null
           email_notifications?: boolean
@@ -95,6 +101,7 @@ export type Database = {
           appeal_status?: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text?: string | null
           verified_recommender?: boolean
+          user_type?: 'reader' | 'creator'
           updated_at?: string
         }
       }

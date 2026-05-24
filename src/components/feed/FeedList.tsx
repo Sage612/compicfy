@@ -292,7 +292,7 @@ export function FeedList({
         </div>
         <p className="text-sm font-black">Nothing to discover yet</p>
         <p className="text-xs text-muted-foreground mt-1">Be the first to recommend a comic</p>
-        <Link href="/dashboard/recommendations/new" className="mt-6">
+        <Link href="/reader/dashboard/recommendations/new" className="mt-6">
           <Button size="sm" className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20">
             Submit a Recommendation
           </Button>

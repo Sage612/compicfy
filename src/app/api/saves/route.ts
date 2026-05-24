@@ -13,12 +13,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'recommendation_id required' }, { status: 400 })
     }
 
-    // ── Enforce 50 save limit for free users ──
+    // ── Enforce save limit for free users ──
     const { allowed, error: limitError } = await enforceSaveLimit(user.id)
     if (!allowed) return limitError!
 
     // Check if already saved
-    const { data: existing } = await supabase 
+    const { data: existing } = await supabase
       .from('saves')
       .select('id')
       .eq('user_id', user.id)
@@ -37,11 +37,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Increment total_saves on profile
-    await (supabase as any)
-      .from('profiles')
-      .update({ total_saves: (supabase as any).rpc('total_saves', {}) })
-      .eq('id', user.id)
+    // total_saves is maintained automatically by the sync_total_saves DB trigger
 
     return NextResponse.json({ saved: true })
   } catch (error) {
@@ -70,6 +66,8 @@ export async function DELETE(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
+
+    // total_saves is maintained automatically by the sync_total_saves DB trigger
 
     return NextResponse.json({ saved: false })
   } catch (error) {

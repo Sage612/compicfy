@@ -3,13 +3,27 @@ import { ShoppingBag } from 'lucide-react'
 
 function LogoMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} aria-hidden="true">
-      <rect x="3"   y="18"    width="22"  height="5.5" rx="1.5" className="fill-primary-foreground/25" />
-      <rect x="3"   y="18"    width="10"  height="5.5" rx="1.5" className="fill-primary-foreground/55" />
-      <rect x="4.5" y="11.5"  width="19"  height="5.5" rx="1.5" className="fill-primary-foreground/45" />
-      <rect x="4.5" y="11.5"  width="9"   height="5.5" rx="1.5" className="fill-primary-foreground/75" />
-      <rect x="6"   y="5"     width="16"  height="5.5" rx="1.5" className="fill-primary-foreground"    />
-      <rect x="6"   y="5"     width="7.5" height="5.5" rx="1.5" className="fill-primary-foreground/65" />
+    <svg 
+      viewBox="0 0 44 44" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg" 
+      className={className} 
+      aria-hidden="true"
+    >
+      {/* Speech bubble body */}
+      <rect x="2" y="2" width="36" height="30" rx="8" className="fill-[#0ea5b0]" />
+      {/* Bubble tail */}
+      <path d="M9 32 L5 43 L20 33.5" className="fill-[#0ea5b0]" />
+      {/* C letterform (recommendation / comic) */}
+      <path 
+        d="M28 11.5 C25 9 19.5 9 16.5 12 C13.5 15 13.5 20.5 16.5 23.5 C19.5 26.5 25 26.5 28 24"
+        className="stroke-foreground" 
+        strokeWidth="3.5"
+        strokeLinecap="round" 
+        fill="none"
+      />
+      {/* Period after C */}
+      <circle cx="30" cy="24.5" r="2.2" className="fill-foreground" />
     </svg>
   )
 }
@@ -24,27 +38,25 @@ const footerLinks = {
     { label: 'New Releases',  href: '/browse?sort=recent'   },
   ],
   Community: [
-    { label: 'About',                href: '/about'                         },
-    { label: 'FAQ',                  href: '/faq'                           },
-    { label: 'Community Guidelines', href: '/guidelines'                    },
-    { label: 'Recommend a Comic',    href: '/dashboard/recommendations/new' },
-    { label: 'Discord',              href: 'https://discord.gg/7WPGMb696N' },
+    { label: 'About',                href: '/about'                                  },
+    { label: 'FAQ',                  href: '/faq'                                    },
+    { label: 'Community Guidelines', href: '/guidelines'                             },
+    { label: 'Recommend a Comic',    href: '/reader/dashboard/recommendations/new'   },
+    { label: 'Discord',              href: 'https://discord.gg/7WPGMb696N'          },
   ],
   Legal: [
-    { label: 'Disclaimer',           href: '/disclaimer' },
-    { label: 'Terms',                href: '/terms'      },
-    { label: 'Privacy Policy',       href: '/privacy'    },
-    { label: 'Cookies',              href: '/cookies'    },
-    { label: 'DMCA',                 href: '/dmca'       },
-    // Added: was missing from footer
-    { label: 'Community Guidelines', href: '/guidelines' },
+    { label: 'Disclaimer',    href: '/disclaimer' },
+    { label: 'Terms',         href: '/terms'      },
+    { label: 'Privacy Policy',href: '/privacy'    },
+    { label: 'Cookies',       href: '/cookies'    },
+    { label: 'DMCA',          href: '/dmca'       },
   ],
 }
 
 export function Footer() {
   return (
     <footer className="relative overflow-hidden border-t border-border bg-background">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-32 bg-primary/4 blur-3xl pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-32 bg-[#0ea5b0]/4 blur-3xl pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-4 pt-14 pb-12 sm:pb-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-10">
@@ -52,11 +64,11 @@ export function Footer() {
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1 space-y-4">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <div className="w-7 h-7 rounded bg-primary flex items-center justify-center transition-all duration-200">
+              <div className="w-7 h-7 rounded bg-[#0ea5b0] flex items-center justify-center transition-all duration-200">
                 <LogoMark className="w-[18px] h-[18px]" />
               </div>
-              <span className="font-black text-[15px] tracking-tight text-foreground group-hover:text-primary transition-colors">
-                Compic<span className="text-primary">fy</span>
+              <span className="font-black text-[15px] tracking-tight text-foreground group-hover:text-[#0ea5b0] transition-colors">
+                Compic<span className="text-[#0ea5b0]">fy</span>
               </span>
             </Link>
 

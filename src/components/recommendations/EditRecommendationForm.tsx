@@ -126,7 +126,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       const result = await response.json()
       if (!response.ok) { toast.error(result.error || 'Failed to update'); return }
       toast.success('Recommendation updated! It will be reviewed before going live.')
-      router.push(isProPath ? '/pro/recommendations' : '/dashboard/recommendations')
+      router.push(isProPath ? '/pro/reader/dashboard/recommendations' : '/reader/dashboard/recommendations')
       router.refresh()
     } catch {
       toast.error('Something went wrong')
@@ -322,7 +322,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
         <Button
           type="button"
           variant="ghost"
-          onClick={() => router.push(isProPath ? '/pro/recommendations' : '/dashboard/recommendations')}
+          onClick={() => router.push(isProPath ? '/pro/reader/dashboard/recommendations' : '/reader/dashboard/recommendations')}
           disabled={submitting}
         >
           Cancel

@@ -82,7 +82,7 @@ const COMPICFY_SOURCE = {
 // ── Pre-fill URL builder ───────────────────────────────────────────
 
 function buildPrefillUrl(result: ExternalResult, isPro: boolean): string {
-  const base   = isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'
+  const base   = isPro ? '/pro/reader/dashboard/recommendations/new' : '/reader/dashboard/recommendations/new'
   const params = new URLSearchParams({
     title:       result.title             ?? '',
     author:      result.author            ?? '',
@@ -602,7 +602,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
                     Browse all comics
                   </Button>
                 </Link>
-                <Link href={isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'}>
+                <Link href={isPro ? '/pro/reader/dashboard/recommendations/new' : '/reader/dashboard/recommendations/new'}>
                   <Button size="sm" className="gap-1.5">
                     <BookOpen size={13} />
                     Add it yourself

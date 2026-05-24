@@ -19,12 +19,11 @@
   --popover-foreground: oklch(0.08 0 0);
 
   /*
-    Brand — Compicfy Teal/Cyan
-    Pushed from 0.58 → 0.55 lightness, chroma 0.16 → 0.20
-    Hue 196 → 192 (slightly more cyan, less grey-teal)
-    Matches the first swatch in Image 3 exactly.
+    Brand — Compicfy Teal/Cyan (Light Mode Variant)
+    #0891B2 -> oklch(0.55 0.18 196) 
+    Per logo spec: "Teal Deep #0891B2 - Light mode primary"
   */
-  --primary: oklch(0.55 0.20 192);
+  --primary: oklch(0.55 0.18 196);
   --primary-foreground: oklch(0.99 0 0);
 
   /* Secondary */
@@ -37,7 +36,7 @@
 
   /* Accent — teal tinted */
   --accent: oklch(0.94 0.05 192);
-  --accent-foreground: oklch(0.55 0.20 192);
+  --accent-foreground: oklch(0.55 0.18 196);
 
   /* Destructive */
   --destructive: oklch(0.55 0.22 27);
@@ -46,7 +45,7 @@
   /* Borders + inputs */
   --border: oklch(0.88 0 0);
   --input: oklch(0.88 0 0);
-  --ring: oklch(0.55 0.20 192);
+  --ring: oklch(0.55 0.18 196);
 
   --radius: 0.375rem;
 
@@ -55,7 +54,7 @@
   --pro-foreground: oklch(0.15 0 0);
 
   /* Charts */
-  --chart-1: oklch(0.55 0.20 192);
+  --chart-1: oklch(0.55 0.18 196);
   --chart-2: oklch(0.60 0.16 168);
   --chart-3: oklch(0.40 0.07 220);
   --chart-4: oklch(0.78 0.16 70);
@@ -64,12 +63,12 @@
   /* Sidebar */
   --sidebar: oklch(0.96 0 0);
   --sidebar-foreground: oklch(0.08 0 0);
-  --sidebar-primary: oklch(0.55 0.20 192);
+  --sidebar-primary: oklch(0.55 0.18 196);
   --sidebar-primary-foreground: oklch(0.99 0 0);
   --sidebar-accent: oklch(0.92 0 0);
   --sidebar-accent-foreground: oklch(0.12 0 0);
   --sidebar-border: oklch(0.88 0 0);
-  --sidebar-ring: oklch(0.55 0.20 192);
+  --sidebar-ring: oklch(0.55 0.18 196);
 }
 
 /* ── DARK MODE ── */
@@ -83,9 +82,9 @@
   --popover-foreground: oklch(0.95 0 0);
 
   /*
-    Dark mode primary — brighter so it pops on near-black backgrounds.
-    0.68 → 0.72 lightness, same chroma boost.
-    This matches the second (brighter cyan) swatch in Image 3.
+    Dark mode primary — #0ea5b0
+    Per logo spec: "Primary Teal #0EA5B0"
+    Brighter so it pops on near-black backgrounds.
   */
   --primary: oklch(0.72 0.19 192);
   --primary-foreground: oklch(0.08 0 0);

@@ -37,7 +37,6 @@ export const profileSchema = z.object({
   bio: z.string().max(500).optional(),
   website: z.string().url().optional().or(z.literal('')),
   favorite_genres: z.array(z.string()).max(10).optional(),
-  show_mature_content: z.boolean().default(false),
 })
 
 export const newsSchema = z.object({

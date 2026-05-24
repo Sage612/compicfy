@@ -187,7 +187,7 @@ export function AddToListButton({ recommendationId, userId }: Props) {
           ) : lists.length === 0 ? (
             <div className="p-4 text-center space-y-2">
               <p className="text-xs text-muted-foreground">No lists yet</p>
-              <Link href="/dashboard/lists" className="text-xs text-primary block hover:underline">
+              <Link href="/reader/dashboard/lists" className="text-xs text-primary block hover:underline">
                 Create your first list →
               </Link>
             </div>
@@ -270,7 +270,7 @@ export function AddToListButton({ recommendationId, userId }: Props) {
 
               <div className="border-t border-border">
                 <Link
-                  href="/dashboard/lists"
+                  href="/reader/dashboard/lists"
                   className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Plus size={12} />

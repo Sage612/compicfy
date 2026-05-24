@@ -489,7 +489,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres, n
                 </div>
               </div>
               <Button
-                onClick={() => handleComplete('/dashboard/recommendations/new')}
+               onClick={() => handleComplete('/reader/dashboard/recommendations/new')}
                 disabled={saving}
                 variant="outline"
                 size="sm"

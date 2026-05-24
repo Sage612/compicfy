@@ -28,7 +28,7 @@ const base = (content: string) => `
     <div style="text-align:center;margin-top:24px;">
       <p style="color:#6b7280;font-size:12px;margin:0;">
         © ${new Date().getFullYear()} ${SITE_NAME} ·
-        <a href="${SITE_URL}/dashboard/notifications" style="color:${BRAND};text-decoration:none;">
+        <a href="${SITE_URL}/reader/dashboard/notifications" style="color:${BRAND};text-decoration:none;">
           Manage notifications
         </a>
       </p>
@@ -57,7 +57,7 @@ export const templates = {
     ${divider()}
     <div style="margin-bottom:20px;">
       ${btn('Browse Comics', `${SITE_URL}/browse`)}
-      <a href="${SITE_URL}/dashboard/recommendations/new" style="display:inline-block;margin-left:12px;color:${BRAND};text-decoration:none;font-size:14px;font-weight:600;">Submit a Recommendation →</a>
+      <a href="${SITE_URL}/reader/dashboard/recommendations/new" style="display:inline-block;margin-left:12px;color:${BRAND};text-decoration:none;font-size:14px;font-weight:600;">Submit a Recommendation →</a>
     </div>
     ${p(`If you have any questions, join our Discord community we'd love to chat.`)}
   `),
@@ -83,7 +83,7 @@ export const templates = {
     </div>
     ${p(`You can submit an appeal if you believe this decision should be reconsidered.`)}
     ${divider()}
-    ${btn('Submit an Appeal', `${SITE_URL}/dashboard/recommendations`)}
+    ${btn('Submit an Appeal', `${SITE_URL}/reader/dashboard/recommendations`)}
   `),
 
   accountBanned: (username: string, reason: string) => base(`
@@ -97,7 +97,7 @@ export const templates = {
     </div>
     ${p(`If you believe this was a mistake, you can submit a ban appeal from your dashboard.`)}
     ${divider()}
-    ${btn('Submit a Ban Appeal', `${SITE_URL}/dashboard`)}
+    ${btn('Submit a Ban Appeal', `${SITE_URL}/reader/dashboard`)}
   `),
 
   accountUnbanned: (username: string) => base(`
@@ -107,7 +107,7 @@ export const templates = {
     ${h1(`Welcome back, @${username}!`)}
     ${p(`Your ${SITE_NAME} account suspension has been lifted. You can now log in and continue using the platform.`)}
     ${divider()}
-    ${btn('Go to Dashboard', `${SITE_URL}/dashboard`)}
+    ${btn('Go to Dashboard', `${SITE_URL}/reader/dashboard`)}
   `),
 
   accountSuspended: (username: string, reason: string, duration_hours: number) => base(`
@@ -121,7 +121,7 @@ export const templates = {
     </div>
     ${p(`If you believe this was an error, please reach out to our support team.`)}
     ${divider()}
-    ${btn('View Dashboard', `${SITE_URL}/dashboard`)}
+    ${btn('View Dashboard', `${SITE_URL}/reader/dashboard`)}
   `),
 
   accountUnsuspended: (username: string) => base(`
@@ -131,7 +131,7 @@ export const templates = {
     ${h1(`Good news, @${username}!`)}
     ${p(`Your account suspension has been lifted. You now have full access to ${SITE_NAME} again. Welcome back!`)}
     ${divider()}
-    ${btn('Go to Dashboard', `${SITE_URL}/dashboard`)}
+    ${btn('Go to Dashboard', `${SITE_URL}/reader/dashboard`)}
   `),
 
   appealResolved: (username: string, type: string, outcome: string, title?: string) => base(`
@@ -147,7 +147,7 @@ export const templates = {
       : p(`After review, our team has decided to uphold the original decision.`)
     }
     ${divider()}
-    ${btn('Go to Dashboard', `${SITE_URL}/dashboard`)}
+    ${btn('Go to Dashboard', `${SITE_URL}/reader/dashboard`)}
   `),
 
   newFollower: (username: string, followerUsername: string, followerDisplayName: string) => base(`
@@ -157,7 +157,7 @@ export const templates = {
     ${h1(`@${followerUsername} is now following you!`)}
     ${p(`<strong style="color:#f9fafb;">${followerDisplayName}</strong> just followed you on ${SITE_NAME}. They'll see your recommendations in their feed.`)}
     ${divider()}
-    ${btn('View Their Profile', `${SITE_URL}/profile/${followerUsername}`)}
+    ${btn('View Their Profile', `${SITE_URL}/reader/${followerUsername}`)}
   `),
 
   newVote: (username: string, voterUsername: string, title: string, recId: string, voteType: 'up' | 'down') => base(`

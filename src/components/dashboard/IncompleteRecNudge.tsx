@@ -77,8 +77,8 @@ export function IncompleteRecNudge() {
   // Edit route depends on whether user is pro or not
   const editHref = (id: string) =>
     isPro
-      ? `/pro/recommendations/${id}/edit`
-      : `/dashboard/recommendations/${id}/edit`
+      ? `/pro/reader/dashboard/recommendations/${id}/edit`
+      : `/reader/dashboard/recommendations/${id}/edit`
 
   if (loading || !visible || drafts.length === 0) return null
 
@@ -116,7 +116,7 @@ export function IncompleteRecNudge() {
           ))}
           {drafts.length > 3 && (
             <Link
-              href={isPro ? '/pro/recommendations' : '/dashboard/recommendations'}
+              href={isPro ? '/pro/reader/dashboard/recommendations' : '/reader/dashboard/recommendations'}
               className="text-xs font-semibold text-amber-600 hover:underline"
             >
               +{drafts.length - 3} more

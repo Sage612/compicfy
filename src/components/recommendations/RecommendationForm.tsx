@@ -244,7 +244,7 @@ export function RecommendationForm({ userId }: Props) {
 
       if (!response.ok) { toast.error(result.error || 'Failed to submit'); return }
       toast.success(result.recommendation.is_approved ? 'Recommendation published!' : 'Recommendation submitted for review!')
-      router.push(isPro ? '/pro/recommendations' : '/dashboard/recommendations')
+      router.push(isPro ? '/pro/reader/dashboard/recommendations' : '/reader/dashboard/recommendations')
       router.refresh()
     } catch (error) {
       console.error(error)

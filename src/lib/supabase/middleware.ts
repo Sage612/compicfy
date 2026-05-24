@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { ROUTE_REDIRECTS } from '@/lib/utils/routes'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -26,9 +27,14 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
 
-  // 1. GUARD: /blocked and /suspended are protected — only real offenders get in
+  if (ROUTE_REDIRECTS[pathname]) {
+    const url = request.nextUrl.clone()
+    url.pathname = ROUTE_REDIRECTS[pathname]
+    return NextResponse.redirect(url, { status: 301 })
+  }
+
+  // ── 1. /blocked and /suspended guards ────────────────────────────────────
   if (pathname.startsWith('/blocked') || pathname.startsWith('/suspended')) {
-    // Not logged in → send to login
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
@@ -40,7 +46,6 @@ export async function updateSession(request: NextRequest) {
       .single()
 
     if (pathname.startsWith('/blocked')) {
-      // Not actually banned → send home
       if (!profile?.is_banned) {
         return NextResponse.redirect(new URL('/', request.url))
       }
@@ -52,26 +57,24 @@ export async function updateSession(request: NextRequest) {
         : null
       const isStillSuspended =
         profile?.is_suspended && (!suspendedUntil || suspendedUntil > new Date())
-
-      // Not actually suspended → send home
       if (!isStillSuspended) {
         return NextResponse.redirect(new URL('/', request.url))
       }
     }
 
-    // They ARE banned/suspended — let them through
     return supabaseResponse
   }
 
-  // 2. Logged-in User Checks (Bans, Suspensions, Admin Roles)
+  // ── 2. Logged-in user checks ──────────────────────────────────────────────
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, is_banned, ban_reason, is_suspended, suspended_until, suspension_reason')
+      .select('role, is_banned, ban_reason, is_suspended, suspended_until, suspension_reason, user_type')
       .eq('id', user.id)
       .single()
 
     if (profile) {
+      // Ban check
       if (profile.is_banned) {
         const url = request.nextUrl.clone()
         url.pathname = '/blocked'
@@ -79,6 +82,7 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url)
       }
 
+      // Suspension check
       if (profile.is_suspended) {
         const suspendedUntil = profile.suspended_until ? new Date(profile.suspended_until) : null
         const isStillSuspended = !suspendedUntil || suspendedUntil > new Date()
@@ -97,16 +101,44 @@ export async function updateSession(request: NextRequest) {
         }
       }
 
+      // Admin route guard
       if (pathname.startsWith('/admin')) {
         if (!['admin', 'moderator'].includes(profile.role)) {
-          return NextResponse.redirect(new URL('/dashboard', request.url))
+          return NextResponse.redirect(new URL('/reader/dashboard', request.url))
         }
+      }
+
+      // Creator trying to access reader routes → redirect to creator dashboard
+      if (pathname.startsWith('/reader/') && profile.user_type === 'creator') {
+        return NextResponse.redirect(new URL('/creator/dashboard', request.url))
+      }
+
+      // Reader trying to access creator routes → redirect to reader dashboard
+      if (pathname.startsWith('/creator/') && profile.user_type === 'reader') {
+        return NextResponse.redirect(new URL('/reader/dashboard', request.url))
+      }
+
+      // Pro creator trying to access pro reader routes → redirect
+      if (pathname.startsWith('/pro/reader/') && profile.user_type === 'creator') {
+        return NextResponse.redirect(new URL('/pro/creator/dashboard', request.url))
+      }
+
+      // Pro reader trying to access pro creator routes → redirect
+      if (pathname.startsWith('/pro/creator/') && profile.user_type === 'reader') {
+        return NextResponse.redirect(new URL('/pro/reader/dashboard', request.url))
       }
     }
   }
 
-  // 3. Protected Routes
-  const protectedPaths = ['/dashboard', '/admin', '/pro', '/feed', '/onboarding']
+  // ── 3. Protected route auth check ────────────────────────────────────────
+  const protectedPaths = [
+    '/reader',
+    '/creator',
+    '/admin',
+    '/pro',
+    '/feed',
+    '/onboarding',
+  ]
   const isProtectedPath = protectedPaths.some(p => pathname.startsWith(p))
 
   if (isProtectedPath && !user) {

@@ -279,7 +279,7 @@ export function ComicGridClient({
                   </div>
                   <p className="text-sm font-black">No comics yet</p>
                   <p className="text-xs text-muted-foreground mt-1">Be the first to add a recommendation</p>
-                  <Link href={isPro ? '/pro/recommendations/new' : '/dashboard/recommendations/new'} className="mt-5">
+                  <Link href={isPro ? '/pro/reader/dashboard/recommendations/new' : '/reader/dashboard/recommendations/new'} className="mt-5">
                     <Button size="sm" className="gap-2">
                       <BookOpen size={14} />
                       Submit one now
