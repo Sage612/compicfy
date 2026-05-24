@@ -14,16 +14,13 @@ function LogoMark({ className }: { className?: string }) {
       <rect x="2" y="2" width="36" height="30" rx="8" className="fill-[#0ea5b0]" />
       {/* Bubble tail */}
       <path d="M9 32 L5 43 L20 33.5" className="fill-[#0ea5b0]" />
-      {/* C letterform (recommendation / comic) */}
+      {/* C letterform - Always dark per brand guidelines */}
       <path 
         d="M28 11.5 C25 9 19.5 9 16.5 12 C13.5 15 13.5 20.5 16.5 23.5 C19.5 26.5 25 26.5 28 24"
-        className="stroke-foreground" 
-        strokeWidth="3.5"
-        strokeLinecap="round" 
-        fill="none"
+        stroke="#111111" strokeWidth="3.5" strokeLinecap="round" fill="none"
       />
-      {/* Period after C */}
-      <circle cx="30" cy="24.5" r="2.2" className="fill-foreground" />
+      {/* Period after C - Always dark per brand guidelines */}
+      <circle cx="30" cy="24.5" r="2.2" fill="#111111" />
     </svg>
   )
 }
@@ -61,12 +58,10 @@ export function Footer() {
       <div className="relative max-w-7xl mx-auto px-4 pt-14 pb-12 sm:pb-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-10">
 
-          {/* Brand column */}
+          {/* Brand column - No background box, tail is visible */}
           <div className="col-span-2 md:col-span-1 space-y-4">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <div className="w-7 h-7 rounded bg-[#0ea5b0] flex items-center justify-center transition-all duration-200">
-                <LogoMark className="w-[18px] h-[18px]" />
-              </div>
+              <LogoMark className="w-7 h-7" />
               <span className="font-black text-[15px] tracking-tight text-foreground group-hover:text-[#0ea5b0] transition-colors">
                 Compic<span className="text-[#0ea5b0]">fy</span>
               </span>

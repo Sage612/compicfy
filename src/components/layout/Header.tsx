@@ -38,16 +38,13 @@ function LogoMark({ className }: { className?: string }) {
       <rect x="2" y="2" width="36" height="30" rx="8" className="fill-[#0ea5b0]" />
       {/* Bubble tail */}
       <path d="M9 32 L5 43 L20 33.5" className="fill-[#0ea5b0]" />
-      {/* C letterform (recommendation / comic) */}
+      {/* C letterform - Always dark per brand guidelines */}
       <path 
         d="M28 11.5 C25 9 19.5 9 16.5 12 C13.5 15 13.5 20.5 16.5 23.5 C19.5 26.5 25 26.5 28 24"
-        className="stroke-foreground" 
-        strokeWidth="3.5"
-        strokeLinecap="round" 
-        fill="none"
+        stroke="#111111" strokeWidth="3.5" strokeLinecap="round" fill="none"
       />
-      {/* Period after C */}
-      <circle cx="30" cy="24.5" r="2.2" className="fill-foreground" />
+      {/* Period after C - Always dark per brand guidelines */}
+      <circle cx="30" cy="24.5" r="2.2" fill="#111111" />
     </svg>
   )
 }
@@ -158,7 +155,6 @@ export function Header() {
     router.refresh()
   }
 
-  // All routes derived from single source of truth
   const routes        = getDashboardRoutes(userType, isPro)
   const profileRoute  = username ? getProfileRoute(username, userType) : null
   const isCreator     = userType === 'creator'
@@ -211,11 +207,9 @@ export function Header() {
           'border border-border/60',
           'rounded-full shadow-lg shadow-black/10',
         )}>
-          {/* Logo — always goes home */}
+          {/* Logo — No background box, tail is visible */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div className="w-6 h-6 rounded-md bg-[#0ea5b0] flex items-center justify-center shrink-0">
-              <LogoMark className="w-4 h-4" />
-            </div>
+            <LogoMark className="w-6 h-6" />
             <span className="font-black text-[13px] tracking-tight leading-none">
               Compic<span className="text-[#0ea5b0]">fy</span>
             </span>
@@ -261,11 +255,9 @@ export function Header() {
           'border border-border/60',
           'rounded-full shadow-lg shadow-black/10',
         )}>
-          {/* Logo */}
+          {/* Logo — No background box, tail is visible */}
           <Link href="/" className="flex items-center gap-2 shrink-0 group">
-            <div className="w-6 h-6 rounded-md bg-[#0ea5b0] flex items-center justify-center shrink-0">
-              <LogoMark className="w-4 h-4" />
-            </div>
+            <LogoMark className="w-7 h-7" />
             <span className="font-black text-[14px] tracking-tight leading-none">
               Compic<span className="text-[#0ea5b0]">fy</span>
             </span>
@@ -368,7 +360,7 @@ export function Header() {
             ) : (
               <div className="flex items-center gap-1 ml-1">
 
-                {/* Rec button — label changes for creators */}
+                {/* Rec button */}
                 <Link href={routes.newRec}>
                   <Button
                     size="sm"
@@ -411,7 +403,6 @@ export function Header() {
                     <div className="px-2 py-2 border-b border-border mb-1">
                       <div className="flex items-center gap-1.5 mb-0.5">
                         <p className="font-bold text-sm truncate leading-tight">{displayName ?? 'User'}</p>
-                        {/* User type pill */}
                         <span className={cn(
                           'inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black border shrink-0',
                           isCreator
@@ -425,7 +416,6 @@ export function Header() {
                       <p className="text-xs text-muted-foreground truncate leading-tight">{user.email}</p>
                     </div>
 
-                    {/* Profile link — type-aware */}
                     {profileRoute && (
                       <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
                         <Link href={profileRoute}>
@@ -435,7 +425,6 @@ export function Header() {
                       </DropdownMenuItem>
                     )}
 
-                    {/* Dashboard link */}
                     <DropdownMenuItem asChild className="cursor-pointer gap-2 rounded-lg text-sm">
                       <Link
                         href={routes.dashboard}
