@@ -12,31 +12,30 @@ import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
 const PRO_READER_ITEMS = [
-  { href: '/pro/reader/dashboard',                     label: 'Pro',       icon: LayoutDashboard, exact: true  },
-  { href: '/pro/reader/dashboard/analytics',           label: 'Analytics', icon: BarChart2                    },
-  { href: '/pro/reader/dashboard/analytics',           label: 'Views',     icon: Eye                          },
-  { href: '/pro/reader/dashboard/export',              label: 'Export',    icon: Download                     },
-  { href: '/pro/reader/dashboard/leaderboard',         label: 'Ranks',     icon: Trophy                       },
-  { href: '/pro/reader/dashboard/recommendations/new', label: 'Submit',    icon: Plus,  exact: true, isSubmit: true },
-  { href: '/pro/reader/dashboard/recommendations',     label: 'My Recs',   icon: BookOpen                     },
-  { href: '/pro/reader/dashboard/saved',               label: 'Saved',     icon: Bookmark                     },
-  { href: '/pro/reader/dashboard/lists',               label: 'Lists',     icon: BookMarked                   },
-  { href: '/pro/reader/dashboard/reviews',             label: 'Reviews',   icon: Star                         },
-  { href: '/pro/reader/dashboard/notifications',       label: 'Alerts',    icon: Bell                         },
-  { href: '/pro/reader/dashboard/settings',            label: 'Settings',  icon: Settings                     },
-  { href: '/pro/reader/dashboard/billing',             label: 'Billing',   icon: CreditCard                   },
+  { href: '/pro/reader/dashboard',                     label: 'Home',      icon: LayoutDashboard, exact: true,  isSubmit: false },
+  { href: '/pro/reader/dashboard/recommendations/new', label: 'Submit',    icon: Plus,            exact: true,  isSubmit: true  },
+  { href: '/pro/reader/dashboard/recommendations',     label: 'My Recs',   icon: BookOpen,        exact: false, isSubmit: false },
+  { href: '/pro/reader/dashboard/saved',               label: 'Saved',     icon: Bookmark,        exact: false, isSubmit: false },
+  { href: '/pro/reader/dashboard/lists',               label: 'Lists',     icon: BookMarked,      exact: false, isSubmit: false },
+  { href: '/pro/reader/dashboard/analytics',           label: 'Analytics', icon: BarChart2,       exact: false, isSubmit: false },
+  { href: '/pro/reader/dashboard/export',              label: 'Export',    icon: Download,        exact: false, isSubmit: false },
+  { href: '/pro/reader/dashboard/leaderboard',         label: 'Ranks',     icon: Trophy,          exact: false, isSubmit: false },
+  { href: '/pro/reader/dashboard/reviews',             label: 'Reviews',   icon: Star,            exact: false, isSubmit: false },
+  { href: '/pro/reader/dashboard/notifications',       label: 'Alerts',    icon: Bell,            exact: false, isSubmit: false },
+  { href: '/pro/reader/dashboard/settings',            label: 'Settings',  icon: Settings,        exact: false, isSubmit: false },
+  { href: '/pro/reader/dashboard/billing',             label: 'Billing',   icon: CreditCard,      exact: false, isSubmit: false },
 ]
 
 const PRO_CREATOR_ITEMS = [
-  { href: '/pro/creator/dashboard',                    label: 'Studio',    icon: LayoutDashboard, exact: true  },
-  { href: '/pro/creator/dashboard/analytics',          label: 'Analytics', icon: BarChart2                    },
-  { href: '/pro/creator/dashboard/audience',           label: 'Audience',  icon: Users                        },
-  { href: '/pro/creator/dashboard/works/new',          label: 'Add Work',  icon: Plus, exact: true, isSubmit: true },
-  { href: '/pro/creator/dashboard/works',              label: 'Works',     icon: BookOpen                     },
-  { href: '/pro/creator/dashboard/links',              label: 'Links',     icon: LinkIcon                     },
-  { href: '/pro/creator/dashboard/notifications',      label: 'Alerts',    icon: Bell                         },
-  { href: '/pro/creator/dashboard/settings',           label: 'Settings',  icon: Settings                     },
-  { href: '/pro/creator/dashboard/billing',            label: 'Billing',   icon: CreditCard                   },
+  { href: '/pro/creator/dashboard',               label: 'Studio',    icon: LayoutDashboard, exact: true,  isSubmit: false },
+  { href: '/pro/creator/dashboard/works/new',     label: 'Add Work',  icon: Plus,            exact: true,  isSubmit: true  },
+  { href: '/pro/creator/dashboard/works',         label: 'Works',     icon: BookOpen,        exact: false, isSubmit: false },
+  { href: '/pro/creator/dashboard/audience',      label: 'Audience',  icon: Users,           exact: false, isSubmit: false },
+  { href: '/pro/creator/dashboard/analytics',     label: 'Analytics', icon: BarChart2,       exact: false, isSubmit: false },
+  { href: '/pro/creator/dashboard/links',         label: 'Links',     icon: LinkIcon,        exact: false, isSubmit: false },
+  { href: '/pro/creator/dashboard/notifications', label: 'Alerts',    icon: Bell,            exact: false, isSubmit: false },
+  { href: '/pro/creator/dashboard/settings',      label: 'Settings',  icon: Settings,        exact: false, isSubmit: false },
+  { href: '/pro/creator/dashboard/billing',       label: 'Billing',   icon: CreditCard,      exact: false, isSubmit: false },
 ]
 
 interface Props {
@@ -44,9 +43,9 @@ interface Props {
 }
 
 export function ProMobileNav({ userType: userTypeProp }: Props = {}) {
-  const pathname                  = usePathname()
-  const [userType, setUserType]   = useState<'reader' | 'creator'>(userTypeProp ?? 'reader')
-  const supabase                  = createClient()
+  const pathname                = usePathname()
+  const [userType, setUserType] = useState<'reader' | 'creator'>(userTypeProp ?? 'reader')
+  const supabase                = createClient()
 
   useEffect(() => {
     if (userTypeProp) return
@@ -65,13 +64,15 @@ export function ProMobileNav({ userType: userTypeProp }: Props = {}) {
 
   const items       = userType === 'creator' ? PRO_CREATOR_ITEMS : PRO_READER_ITEMS
   const isCreator   = userType === 'creator'
-  const activeColor = isCreator ? 'text-teal-500'    : 'text-amber-500'
-  const activeBg    = isCreator ? 'bg-teal-500/20 text-teal-500 shadow-teal-500/20'  : 'bg-amber-500/20 text-amber-500 shadow-amber-500/20'
+  const activeColor = isCreator ? 'text-teal-500'   : 'text-amber-500'
+  const activeBg    = isCreator
+    ? 'bg-teal-500/20 text-teal-500 shadow-teal-500/20'
+    : 'bg-amber-500/20 text-amber-500 shadow-amber-500/20'
   const submitColor = isCreator ? 'text-teal-500/80'  : 'text-amber-500/80'
   const submitBg    = isCreator ? 'bg-teal-500/15 hover:bg-teal-500/25' : 'bg-amber-500/15 hover:bg-amber-500/25'
   const idleColor   = isCreator ? 'text-teal-500/60'  : 'text-amber-500/60'
-  const idleBg      = isCreator ? 'bg-teal-500/5 hover:bg-teal-500/10' : 'bg-amber-500/5 hover:bg-amber-500/10'
-  const dotColor    = isCreator ? 'bg-teal-500'       : 'bg-amber-500'
+  const idleBg      = isCreator ? 'bg-teal-500/5 hover:bg-teal-500/10'  : 'bg-amber-500/5 hover:bg-amber-500/10'
+  const dotColor    = isCreator ? 'bg-teal-500'        : 'bg-amber-500'
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden touch-land:flex lg:hidden bg-background/95 backdrop-blur-lg border-t border-border">
@@ -84,7 +85,7 @@ export function ProMobileNav({ userType: userTypeProp }: Props = {}) {
               key={`${href}-${label}`}
               href={href}
               className={cn(
-                'relative flex flex-col items-center gap-1 px-3 py-1.5 min-w-[64px] flex-none rounded-xl transition-all duration-150',
+                'relative flex flex-col items-center gap-1 px-3 py-1.5 min-w-[56px] flex-none rounded-xl transition-all duration-150',
                 isActive ? activeColor : isSubmit ? submitColor : idleColor
               )}
             >

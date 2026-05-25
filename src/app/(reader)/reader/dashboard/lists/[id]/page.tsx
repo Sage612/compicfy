@@ -5,31 +5,60 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Reading List' }
 
-export default async function ReaderListDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
+export default async function ReaderListDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id }   = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
   const { data: list } = await supabase
     .from('reading_lists')
-    .select('*')
+    .select('id, name, description, is_public, created_at')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
 
   if (!list) notFound()
 
+  const { data: allLists } = await supabase
+    .from('reading_lists')
+    .select('id, name')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
   const { data: items } = await supabase
     .from('reading_list_items')
-    .select('id, recommendation_id, notes, added_at, recommendations(id, title, cover_url)')
-    .eq('reading_list_id', id)
+    .select(`
+      id,
+      list_id,
+      status,
+      progress_chapter,
+      notes,
+      last_read_at,
+      added_at,
+      recommendations (
+        id,
+        title,
+        cover_url,
+        type,
+        status,
+        genres,
+        upvotes,
+        chapter_count
+      )
+    `)
+    .eq('list_id', id)
     .order('added_at', { ascending: false })
 
   return (
     <ReadingListDetail
       list={list as any}
-      initialItems={items ?? []}
+      initialItems={(items ?? []) as any}
+      allLists={allLists ?? []}
       backHref="/reader/dashboard/lists"
     />
   )
