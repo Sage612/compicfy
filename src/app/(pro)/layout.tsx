@@ -4,8 +4,6 @@ import { Header } from '@/components/layout/Header'
 import { ProSidebar } from '@/components/pro/ProSidebar'
 import { ProMobileNav } from '@/components/pro/ProMobileNav'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
-import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
-
 type Profile = {
   role: string
   is_pro: boolean
@@ -42,7 +40,6 @@ export default async function ProLayout({ children }: { children: React.ReactNod
 
         <main className="dashboard-main flex-1 min-w-0 overflow-auto">
           <div className="px-4 pt-4">
-            <IncompleteRecNudge />
           </div>
           {children}
         </main>
