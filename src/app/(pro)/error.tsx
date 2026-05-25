@@ -33,7 +33,7 @@ export default function ProError({
           <RotateCcw size={14} />
           Try Again
         </Button>
-        <Link href="/pro/dashboard">
+        <Link href="/pro/reader/dashboard">
           <Button variant="outline" className="gap-2 border-amber-500/30 hover:border-amber-500/60">
             <Crown size={14} className="text-amber-500" />
             Pro Dashboard
