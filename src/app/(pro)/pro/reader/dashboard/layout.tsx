@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
+import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 import {
   Crown, BookOpen, Bookmark, BookMarked, Bell,
   Settings, CreditCard, Star, BarChart2, Download, Trophy,
@@ -80,6 +81,7 @@ export default async function ProReaderDashboardLayout({
 
         <main className="dashboard-main flex-1 min-w-0 overflow-auto">
           <div className="px-4 pt-4">
+            <IncompleteRecNudge />
           </div>
           {children}
         </main>
