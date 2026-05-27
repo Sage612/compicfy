@@ -1,0 +1,405 @@
+===== src/app/(pro)/pro/reader/dashboard/recommendations/page.tsx =====
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { BookOpen, Plus, Eye, ThumbsUp, Clock, CheckCircle2, XCircle, AlertCircle } from 'lucide-react'
+import { timeAgo } from '@/lib/utils/format'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'My Recommendations' }
+
+export default async function ProReaderRecommendationsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: recs } = await supabase
+    .from('recommendations')
+    .select('id, title, cover_url, type, is_approved, upvotes, view_count, created_at, rejection_reason, appeal_status')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight">My Recommendations</h1>
+          <p className="text-sm text-muted-foreground mt-1">{recs?.length ?? 0} total · unlimited on Pro</p>
+        </div>
+        <Link href="/pro/reader/dashboard/recommendations/new">
+          <Button size="sm" className="gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white">
+            <Plus size={13} />Submit New
+          </Button>
+        </Link>
+      </div>
+
+      {!recs?.length ? (
+        <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center"><BookOpen size={24} className="text-amber-500" /></div>
+          <p className="font-black text-sm">No recommendations yet</p>
+          <Link href="/pro/reader/dashboard/recommendations/new">
+            <Button size="sm" className="gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white"><Plus size={13} />Submit your first</Button>
+          </Link>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {(recs as any[]).map(rec => {
+            const isApproved = rec.is_approved
+            const isPending  = !rec.is_approved && rec.appeal_status !== 'rejected'
+            return (
+              <div key={rec.id} className="flex items-center gap-3 p-4 rounded-2xl border border-border bg-card hover:border-amber-500/30 transition-colors">
+                <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
+                  {rec.cover_url ? <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><BookOpen size={12} className="text-muted-foreground opacity-40" /></div>}
+                </div>
+                <div className="flex-1 min-w-0 space-y-1">
+                  <p className="font-black text-sm line-clamp-1">{rec.title}</p>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${isApproved ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : isPending ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
+                      {isApproved ? <CheckCircle2 size={9} /> : isPending ? <Clock size={9} /> : <XCircle size={9} />}
+                      {isApproved ? 'Live' : isPending ? 'Pending' : 'Rejected'}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">{timeAgo(rec.created_at)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-[10px] text-muted-foreground shrink-0">
+                  <span className="flex items-center gap-1"><ThumbsUp size={9} className="text-emerald-500" />{rec.upvotes}</span>
+                  <span className="flex items-center gap-1"><Eye size={9} className="text-blue-500" />{rec.view_count}</span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {isApproved && <Link href={`/comic/${rec.id}`}><Button variant="ghost" size="sm" className="h-7 text-xs gap-1"><Eye size={11} />View</Button></Link>}
+                  <Link href={`/pro/reader/dashboard/recommendations/${rec.id}/edit`}><Button variant="outline" size="sm" className="h-7 text-xs">Edit</Button></Link>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+===== src/app/(pro)/pro/reader/dashboard/recommendations/new/page.tsx =====
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { RecommendationForm } from '@/components/recommendations/RecommendationForm'
+import { Suspense } from 'react'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Submit Recommendation' }
+
+export default async function ProReaderNewRecPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-black tracking-tight">Submit a Recommendation</h1>
+        <p className="text-sm text-muted-foreground mt-1">Unlimited submissions on Pro.</p>
+      </div>
+      <Suspense fallback={<div className="h-96 bg-muted/30 animate-pulse rounded-2xl" />}>
+        <RecommendationForm userId={user.id} />
+      </Suspense>
+    </div>
+  )
+}
+===== src/app/(pro)/pro/reader/dashboard/settings/page.tsx =====
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { SettingsForm } from '@/components/user/SettingsForm'
+import type { Profile } from '@/types/database.types'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Pro Settings' }
+
+export default async function ProReaderSettingsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+  if (!profile) redirect('/login')
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-black tracking-tight">Settings</h1>
+        <p className="text-sm text-muted-foreground mt-1">Manage your profile and preferences.</p>
+      </div>
+      <SettingsForm profile={profile as Profile} userId={user.id} isPro={true} />
+    </div>
+  )
+}
+===== src/app/(pro)/pro/reader/dashboard/reviews/page.tsx =====
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import Link from 'next/link'
+import { Star, BookOpen, ExternalLink } from 'lucide-react'
+import { formatDate } from '@/lib/utils/format'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'My Reviews' }
+
+export default async function ProReaderReviewsPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: reviews } = await supabase
+    .from('reviews')
+    .select('id, content, rating, created_at, contains_spoilers, recommendations(id, title, cover_url, type)')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-black tracking-tight">My Reviews</h1>
+        <p className="text-sm text-muted-foreground mt-1">{reviews?.length ?? 0} reviews written</p>
+      </div>
+      {!reviews?.length ? (
+        <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+            <Star size={24} className="text-amber-500" />
+          </div>
+          <p className="font-black text-sm">No reviews yet</p>
+          <Link href="/browse" className="text-xs text-primary font-semibold hover:underline">Browse comics →</Link>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {(reviews as any[]).map(review => {
+            const rec = Array.isArray(review.recommendations) ? review.recommendations[0] : review.recommendations
+            return (
+              <div key={review.id} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-12 h-16 rounded-lg overflow-hidden bg-muted shrink-0">
+                    {rec?.cover_url ? <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-muted-foreground opacity-40" /></div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <Link href={`/comic/${rec?.id}`} className="font-black text-sm hover:text-primary transition-colors line-clamp-1">{rec?.title ?? 'Unknown'}</Link>
+                      <Link href={`/comic/${rec?.id}`}><ExternalLink size={12} className="text-muted-foreground shrink-0 mt-0.5" /></Link>
+                    </div>
+                    {review.rating && (
+                      <div className="flex items-center gap-0.5 mt-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} size={11} className={i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'} />
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(review.created_at)}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground leading-relaxed">{review.content}</p>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+===== src/app/(pro)/pro/reader/dashboard/lists/[id]/page.tsx =====
+import { createClient } from '@/lib/supabase/server'
+import { redirect, notFound } from 'next/navigation'
+import { ReadingListDetail } from '@/components/user/ReadingListDetail'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = { title: 'Reading List' }
+
+export default async function ProReaderListDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id }   = await params
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { data: list } = await supabase
+    .from('reading_lists')
+    .select('id, name, description, is_public, created_at')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!list) notFound()
+
+  const { data: allLists } = await supabase
+    .from('reading_lists')
+    .select('id, name')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  const { data: items } = await supabase
+    .from('reading_list_items')
+    .select(`
+      id,
+      list_id,
+      status,
+      progress_chapter,
+      notes,
+      last_read_at,
+      added_at,
+      recommendations (
+        id,
+        title,
+        cover_url,
+        type,
+        status,
+        genres,
+        upvotes,
+        chapter_count
+      )
+    `)
+    .eq('list_id', id)
+    .order('added_at', { ascending: false })
+
+  return (
+    <ReadingListDetail
+      list={list as any}
+      initialItems={(items ?? []) as any}
+      allLists={allLists ?? []}
+      backHref="/pro/reader/dashboard/lists"
+    />
+  )
+}
+===== src/components/dashboard/IncompleteRecNudge.tsx =====
+'use client'
+
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { PenLine, X, ChevronRight } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { cn } from '@/lib/utils'
+
+interface DraftRec {
+  id:    string
+  title: string
+}
+
+const SESSION_KEY = 'compicfy_nudge_dismissed'
+
+export function IncompleteRecNudge() {
+  const [drafts,  setDrafts]  = useState<DraftRec[]>([])
+  const [visible, setVisible] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [isPro,   setIsPro]   = useState(false)
+
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && sessionStorage.getItem(SESSION_KEY)) {
+        setLoading(false)
+        return
+      }
+    } catch {}
+
+    const run = async () => {
+      try {
+        // Check pro status so we can build the correct edit link
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        if (user) {
+          const { data: profile } = await (supabase as any)
+            .from('profiles')
+            .select('is_pro, pro_expires_at, role')
+            .eq('id', user.id)
+            .single()
+
+          if (profile) {
+            setIsPro(
+              profile.role === 'admin' ||
+              (profile.is_pro &&
+                (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+            )
+          }
+        }
+
+        const res = await fetch('/api/recommendations/drafts', { cache: 'no-store' })
+        if (!res.ok) return
+
+        const data = await res.json()
+        const list: DraftRec[] = data.drafts ?? []
+
+        if (list.length > 0) {
+          setDrafts(list)
+          setVisible(true)
+        }
+      } catch (err) {
+        console.warn('[IncompleteRecNudge] failed:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    run()
+  }, [])
+
+  const dismiss = () => {
+    try { sessionStorage.setItem(SESSION_KEY, '1') } catch {}
+    setVisible(false)
+  }
+
+  // Edit route depends on whether user is pro or not
+  const editHref = (id: string) =>
+    isPro
+      ? `/pro/reader/dashboard/recommendations/${id}/edit`
+      : `/reader/dashboard/recommendations/${id}/edit`
+
+  if (loading || !visible || drafts.length === 0) return null
+
+  return (
+    <div className={cn(
+      'flex items-start gap-3 px-4 py-3 rounded-2xl border',
+      'border-amber-500/25 bg-amber-500/5'
+    )}>
+      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+        <PenLine size={14} className="text-white" />
+      </div>
+
+      <div className="flex-1 min-w-0 space-y-1">
+        <p className="text-sm font-black text-amber-600 leading-tight">
+          {drafts.length === 1
+            ? '1 recommendation is missing your take'
+            : `${drafts.length} recommendations are missing your take`}
+        </p>
+        <p className="text-xs text-muted-foreground leading-snug">
+          The &quot;why do you recommend it?&quot; field is empty.
+          Recs with a personal reason get{' '}
+          <span className="font-semibold text-foreground">far more votes</span>, takes 30 seconds.
+        </p>
+
+        <div className="flex flex-wrap gap-2 pt-1">
+          {drafts.slice(0, 3).map(draft => (
+            <Link
+              key={draft.id}
+              href={editHref(draft.id)}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 hover:underline"
+            >
+              {draft.title.length > 28 ? draft.title.slice(0, 28) + '…' : draft.title}
+              <ChevronRight size={11} />
+            </Link>
+          ))}
+          {drafts.length > 3 && (
+            <Link
+              href={isPro ? '/pro/reader/dashboard/recommendations' : '/reader/dashboard/recommendations'}
+              className="text-xs font-semibold text-amber-600 hover:underline"
+            >
+              +{drafts.length - 3} more
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <button
+        onClick={dismiss}
+        className="text-muted-foreground hover:text-foreground transition-colors shrink-0 mt-0.5"
+        aria-label="Dismiss"
+      >
+        <X size={14} />
+      </button>
+    </div>
+  )
+}
