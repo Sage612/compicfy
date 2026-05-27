@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { Suspense } from 'react'
-import { FilterBarNew } from '@/components/recommendations/FilterBarNew'
-import { FeaturedCarouselNew } from '@/components/recommendations/FeaturedCarouselNew'
-import { HorizontalSectionNew } from '@/components/recommendations/HorizontalSectionNew'
+import { FilterBar } from '@/components/recommendations/FilterBar'
+import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
+import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
 import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
 import { BrowseRecButton } from '@/components/recommendations/BrowseRecButton'
-import { BookOpen, Sparkles, TrendingUp, Clock, Crown, Heart, Diamond, Zap } from 'lucide-react'
+import { BookOpen, Radar, Sparkles, TrendingUp, Clock, Crown, Heart, Diamond, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import type { Recommendation } from '@/types/database.types'
@@ -27,39 +27,25 @@ const PAGE_SIZE    = 24
 const SAFE_RATINGS = '("adult","mature")'
 
 // ─────────────────────────────────────────────────────────────
-// Data fetching functions (unchanged, only renamed for clarity)
+// ALL your existing data fetching functions remain untouched.
+// (getFeatured, getTrending, getRecent, getNewThisWeek,
+//  getAdminPicks, getCommunityFavourites, getHiddenGems,
+//  getYouMightLike, getInitialGrid, getInteractionCount,
+//  hasActiveFilters)
 // ─────────────────────────────────────────────────────────────
 
 async function getFeatured(s: SupabaseClient) {
-  const { data } = await s
-    .from('recommendations')
-    .select('*')
-    .eq('is_approved', true)
-    .not('content_rating', 'in', SAFE_RATINGS)
-    .order('daily_votes', { ascending: false })
-    .limit(12)
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('daily_votes', { ascending: false }).limit(12)
   return (data as Recommendation[]) ?? []
 }
 
 async function getTrending(s: SupabaseClient) {
-  const { data } = await s
-    .from('recommendations')
-    .select('*')
-    .eq('is_approved', true)
-    .not('content_rating', 'in', SAFE_RATINGS)
-    .order('daily_votes', { ascending: false })
-    .limit(12)
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('daily_votes', { ascending: false }).limit(12)
   return (data as Recommendation[]) ?? []
 }
 
 async function getRecent(s: SupabaseClient) {
-  const { data } = await s
-    .from('recommendations')
-    .select('*')
-    .eq('is_approved', true)
-    .not('content_rating', 'in', SAFE_RATINGS)
-    .order('created_at', { ascending: false })
-    .limit(12)
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('created_at', { ascending: false }).limit(12)
   return (data as Recommendation[]) ?? []
 }
 
@@ -77,36 +63,17 @@ async function getNewThisWeek(s: SupabaseClient) {
 }
 
 async function getAdminPicks(s: SupabaseClient) {
-  const { data } = await s
-    .from('recommendations')
-    .select('*')
-    .eq('is_approved', true)
-    .eq('is_featured', true)
-    .not('content_rating', 'in', SAFE_RATINGS)
-    .order('featured_at', { ascending: false })
-    .limit(12)
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).eq('is_featured', true).not('content_rating', 'in', SAFE_RATINGS).order('featured_at', { ascending: false }).limit(12)
   return (data as Recommendation[]) ?? []
 }
 
 async function getCommunityFavourites(s: SupabaseClient) {
-  const { data } = await s
-    .from('recommendations')
-    .select('*')
-    .eq('is_approved', true)
-    .not('content_rating', 'in', SAFE_RATINGS)
-    .order('score', { ascending: false })
-    .limit(12)
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('score', { ascending: false }).limit(12)
   return (data as Recommendation[]) ?? []
 }
 
 async function getHiddenGems(s: SupabaseClient) {
-  const { data } = await s
-    .from('recommendations')
-    .select('*')
-    .eq('is_approved', true)
-    .not('content_rating', 'in', SAFE_RATINGS)
-    .order('save_count', { ascending: false })
-    .limit(12)
+  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('save_count', { ascending: false }).limit(12)
   return (data as Recommendation[]) ?? []
 }
 
@@ -131,11 +98,7 @@ async function getInitialGrid(s: SupabaseClient, params: SearchParams) {
     p_limit:  PAGE_SIZE,
     p_offset: 0,
   })
-  const { count } = await s
-    .from('recommendations')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_approved', true)
-    .not('content_rating', 'in', SAFE_RATINGS)
+  const { count } = await s.from('recommendations').select('*', { count: 'exact', head: true }).eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS)
   return { items: (data as Recommendation[]) ?? [], total: count ?? 0 }
 }
 
@@ -202,7 +165,7 @@ export default async function BrowsePage({ searchParams }: Props) {
   if (params.status) clientParams.status = params.status
   if (params.sort)   clientParams.sort   = params.sort
 
-  // Define sections for easier mapping
+  // Sections with icons (only show if data exists and not filtering)
   const sections = [
     { id: 'trending', title: 'Trending Today', icon: TrendingUp, data: trending, viewAll: '/browse?sort=trending' },
     { id: 'newWeek', title: 'New This Week', icon: Clock, data: newThisWeek, viewAll: '/browse?sort=recent' },
@@ -214,82 +177,104 @@ export default async function BrowsePage({ searchParams }: Props) {
   ].filter(s => s.data && s.data.length > 0)
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-background/80">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+    <div className="min-h-screen bg-background">
+      {/* Modern hero gradient */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-background to-background pb-8">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+        <div className="max-w-7xl mx-auto px-4 py-8 space-y-6 relative z-10">
+          {/* Header with glass card effect */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-primary">
+                <Radar size={20} className="animate-pulse" />
+                <span className="text-xs font-mono font-bold uppercase tracking-wider">Discover</span>
+              </div>
+              <h1 className="text-4xl sm:text-5xl font-black tracking-tight bg-gradient-to-r from-foreground to-foreground/60 bg-clip-text text-transparent">
+                Browse Comics
+              </h1>
+              <p className="text-sm text-muted-foreground max-w-lg">
+                Community-driven recommendations for manga, manhwa, manhua, and webtoons.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {adultEnabled && (
+                <Link href="/browse/adult">
+                  <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 h-9">
+                    🔞 Adult
+                  </Button>
+                </Link>
+              )}
+              <BrowseRecButton isLoggedIn={!!user} recommendHref={recommendHref} />
+            </div>
+          </div>
 
-        {/* Header with glassmorphism */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-0 bg-background/60 backdrop-blur-xl z-30 py-4 -mt-4 px-4 -mx-4 sm:px-0 sm:mx-0 rounded-b-2xl border-b border-border/50">
-          <div className="space-y-1">
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              Discover Comics
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {isFiltering ? 'Filtered results' : 'Handpicked by the community · updated daily'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {adultEnabled && (
-              <Link href="/browse/adult">
-                <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5">
-                  🔞 Adult
-                </Button>
-              </Link>
-            )}
-            <BrowseRecButton isLoggedIn={!!user} recommendHref={recommendHref} />
-          </div>
+          {/* Featured carousel - full width inside container */}
+          {!isFiltering && featured.length > 0 && (
+            <Suspense fallback={<div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />}>
+              <FeaturedCarousel recommendations={featured} />
+            </Suspense>
+          )}
         </div>
+      </div>
 
-        {/* Featured Hero Carousel (only when not filtering) */}
-        {!isFiltering && featured.length > 0 && (
-          <Suspense fallback={<div className="h-[320px] md:h-[420px] rounded-3xl bg-gradient-to-br from-muted to-muted/50 animate-pulse" />}>
-            <FeaturedCarouselNew recommendations={featured} />
-          </Suspense>
-        )}
-
-        {/* Horizontal Sections with modern cards */}
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-10">
+        {/* Horizontal sections with card-like containers */}
         {!isFiltering && sections.map((section) => (
-          <Suspense key={section.id} fallback={<div className="h-64 rounded-2xl bg-muted/30 animate-pulse" />}>
-            <HorizontalSectionNew
-              title={section.title}
-              icon={section.icon}
-              recommendations={section.data}
-              viewAllHref={section.viewAll}
-            />
-          </Suspense>
+          <section key={section.id} className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <section.icon size={20} className="text-primary" />
+                <h2 className="text-xl font-bold tracking-tight">{section.title}</h2>
+              </div>
+              {section.viewAll && (
+                <Link
+                  href={section.viewAll}
+                  className="text-xs text-muted-foreground hover:text-primary transition-colors"
+                >
+                  View all →
+                </Link>
+              )}
+            </div>
+            <Suspense fallback={<div className="h-64 rounded-2xl bg-muted/30 animate-pulse" />}>
+              <HorizontalSection
+                title=""
+                recommendations={section.data}
+                viewAllHref={section.viewAll}
+              />
+            </Suspense>
+          </section>
         ))}
 
-        {/* All Comics section with sticky filter bar */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="h-6 w-1 rounded-full bg-primary" />
-            <h2 className="text-xl font-black tracking-tight">All Comics</h2>
-            <div className="flex-1" />
-            {!isFiltering && (
-              <span className="text-xs text-muted-foreground bg-card px-3 py-1 rounded-full border">
-                {total} titles
-              </span>
-            )}
+        {/* All Comics divider with style */}
+        <div className="relative my-8">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-border" />
           </div>
-
-          {/* Sticky filter bar */}
-          <div className="sticky top-16 z-20 bg-background/80 backdrop-blur-md rounded-2xl border border-border/50 p-1">
-            <Suspense fallback={<div className="h-12 bg-muted/30 rounded-xl animate-pulse" />}>
-              <FilterBarNew adult={false} />
-            </Suspense>
+          <div className="relative flex justify-center">
+            <span className="bg-background px-4 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground">
+              All Comics
+            </span>
           </div>
-
-          {/* Comic Grid */}
-          <ComicGridClient
-            initialItems={items}
-            initialTotal={total}
-            searchParams={clientParams}
-            apiPath="/api/recommendations"
-            userId={user?.id ?? null}
-            interactionCount={interactionCount}
-            isPro={isPro}
-          />
         </div>
+
+        {/* Sticky filter bar - modern pill style (FilterBar component unchanged) */}
+        <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-md rounded-xl border border-border/50 p-2 -mt-2">
+          <Suspense fallback={<div className="h-12 bg-muted/30 rounded-lg animate-pulse" />}>
+            <FilterBar adult={false} />
+          </Suspense>
+        </div>
+
+        {/* Comic Grid */}
+        <ComicGridClient
+          initialItems={items}
+          initialTotal={total}
+          searchParams={clientParams}
+          apiPath="/api/recommendations"
+          userId={user?.id ?? null}
+          interactionCount={interactionCount}
+          isPro={isPro}
+        />
       </div>
     </div>
   )
-}
+        }
