@@ -5,7 +5,7 @@ import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
 import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
 import { BrowseRecButton } from '@/components/recommendations/BrowseRecButton'
-import { BookOpen, Radar } from 'lucide-react'
+import { BookOpen, Radar, Sparkles, Compass } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import type { Recommendation } from '@/types/database.types'
@@ -158,87 +158,139 @@ export default async function BrowsePage({ searchParams }: Props) {
   if (params.sort)   clientParams.sort   = params.sort
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <div className="min-h-screen bg-background pb-20">
+      
+      {/* ── MODERN HERO / HEADER COMPLEX SECTION ──────────────────────── */}
+      <div className="relative border-b border-border/40 bg-gradient-to-b from-muted/20 via-background to-background pt-10 pb-8 mb-6">
+        {/* Decorative subtle abstract light rings */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+        <div className="absolute top-10 left-10 w-72 h-72 bg-violet-500/5 rounded-full blur-[100px] pointer-events-none" />
 
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded bg-primary flex items-center justify-center shrink-0">
-            <Radar size={16} className="text-primary-foreground" />
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 bg-muted/20 border border-border/40 rounded-3xl p-6 md:p-8 backdrop-blur-xl">
+            <div className="flex items-start gap-4 min-w-0">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-primary via-primary to-violet-500 flex items-center justify-center shrink-0 shadow-lg shadow-primary/10 ring-4 ring-background">
+                <Compass size={22} className="text-primary-foreground animate-pulse" />
+              </div>
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-none bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                    Browse Comics
+                  </h1>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/10 text-primary border border-primary/20">
+                    <Sparkles size={10} /> v2.0
+                  </span>
+                </div>
+                <p className="text-muted-foreground text-xs sm:text-sm max-w-xl font-medium leading-relaxed">
+                  Explore aggregate platform data across core mediums curated by community readers.
+                </p>
+              </div>
+            </div>
+
+            {/* Premium CTA Action Tray */}
+            <div className="flex items-center gap-2 shrink-0 self-end md:self-center bg-background/50 p-2 border border-border/40 rounded-2xl backdrop-blur-sm shadow-inner">
+              {adultEnabled && (
+                <Link href="/browse/adult">
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="gap-1.5 border border-destructive/20 text-destructive hover:bg-destructive/10 h-9 px-3 rounded-xl transition-all"
+                  >
+                    <span>🔞</span>
+                    <span className="text-[11px] font-bold tracking-wider hidden lg:inline uppercase">Mature Mode</span>
+                  </Button>
+                </Link>
+              )}
+              <BrowseRecButton isLoggedIn={!!user} recommendHref={recommendHref} />
+            </div>
           </div>
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-3xl font-black tracking-tight leading-tight">Browse Comics</h1>
-            <p className="text-muted-foreground text-xs leading-snug mt-0.5 hidden sm:block">
-              Community recommendations · manga, manhwa, manhua &amp; webtoons
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {adultEnabled && (
-            <Link href="/browse/adult">
-              <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 h-8 px-2.5">🔞</Button>
-            </Link>
-          )}
-          {/* BrowseRecButton handles auth state — shows modal for guests, links for logged in */}
-          <BrowseRecButton isLoggedIn={!!user} recommendHref={recommendHref} />
         </div>
       </div>
 
-      {/* Featured Carousel */}
-      {!isFiltering && featured.length > 0 && (
-        <Suspense fallback={<div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />}>
-          <FeaturedCarousel recommendations={featured} />
-        </Suspense>
-      )}
-
-      {/* Horizontal Sections */}
-      {!isFiltering && (
-        <div className="space-y-10">
-          <HorizontalSection title="Trending Today"  emoji="🔥" recommendations={trending}     viewAllHref="/browse?sort=trending" />
-          {newThisWeek.length > 0 && (
-            <HorizontalSection title="New This Week" emoji="🆕" recommendations={newThisWeek}  viewAllHref="/browse?sort=recent"   />
-          )}
-          <HorizontalSection title="Recently Added"       emoji="✨" recommendations={recent}        viewAllHref="/browse?sort=recent"   />
-          {adminPicks.length > 0   && <HorizontalSection title="Admin Picks"          emoji="👑" recommendations={adminPicks}     />}
-          <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse?sort=score"    />
-          {hiddenGems.length > 0   && <HorizontalSection title="Hidden Gems"          emoji="💎" recommendations={hiddenGems}     />}
-          {youMightLike.length > 0 && (
-            <HorizontalSection
-              title={user ? 'You Might Like' : 'Popular Picks'}
-              emoji="🎯"
-              recommendations={youMightLike}
-            />
-          )}
-        </div>
-      )}
-
-      {/* All Comics divider */}
-      {!isFiltering && (
-        <div className="relative flex items-center gap-4 py-2">
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card shrink-0">
-            <BookOpen size={13} className="text-muted-foreground" />
-            <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">All Comics</span>
+      {/* ── MAIN LAYOUT WRAPPER ───────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-4 space-y-12">
+        
+        {/* Featured Carousel Frame */}
+        {!isFiltering && featured.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <span className="text-xs font-black uppercase tracking-widest text-muted-foreground/60">Featured Masterpieces</span>
+              <div className="flex-1 h-px bg-border/40" />
+            </div>
+            <Suspense fallback={<div className="h-[280px] sm:h-[360px] rounded-3xl bg-muted/40 border border-border/30 animate-pulse" />}>
+              <div className="p-1 rounded-3xl border border-border/30 bg-muted/10">
+                <FeaturedCarousel recommendations={featured} />
+              </div>
+            </Suspense>
           </div>
-          <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />
+        )}
+
+        {/* Horizontal Scroll Content Segments */}
+        {!isFiltering && (
+          <div className="space-y-12">
+            <HorizontalSection title="Trending Today"  emoji="🔥" recommendations={trending}     viewAllHref="/browse?sort=trending" />
+            
+            {newThisWeek.length > 0 && (
+              <HorizontalSection title="New This Week" emoji="🆕" recommendations={newThisWeek}  viewAllHref="/browse?sort=recent"   />
+            )}
+            
+            <HorizontalSection title="Recently Added"       emoji="✨" recommendations={recent}        viewAllHref="/browse?sort=recent"   />
+            
+            {adminPicks.length > 0 && (
+              <HorizontalSection title="Admin Picks"          emoji="👑" recommendations={adminPicks}     />
+            )}
+            
+            <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse?sort=score"    />
+            
+            {hiddenGems.length > 0 && (
+              <HorizontalSection title="Hidden Gems"          emoji="💎" recommendations={hiddenGems}     />
+            )}
+            
+            {youMightLike.length > 0 && (
+              <HorizontalSection
+                title={user ? 'You Might Like' : 'Popular Picks'}
+                emoji="🎯"
+                recommendations={youMightLike}
+              />
+            )}
+          </div>
+        )}
+
+        {/* ── CORE COMPACT GRID CONTROL DIVIDER ───────────────────────── */}
+        {!isFiltering && (
+          <div className="relative flex items-center gap-4 pt-4">
+            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border/60 to-border" />
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border/60 bg-muted/20 backdrop-blur-sm shrink-0">
+              <BookOpen size={12} className="text-primary" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-foreground">Complete Archive</span>
+            </div>
+            <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border/60 to-border" />
+          </div>
+        )}
+
+        {/* Interactive Discovery Filtering Deck */}
+        <div className="space-y-6">
+          <div className="bg-muted/10 rounded-2xl border border-border/40 p-4 shadow-sm backdrop-blur-md">
+            <Suspense fallback={<div className="h-16 bg-muted/20 rounded-xl animate-pulse" />}>
+              <FilterBar adult={false} />
+            </Suspense>
+          </div>
+
+          {/* Client Dynamic Hydration Render Matrix */}
+          <div className="px-0.5">
+            <ComicGridClient
+              initialItems={items}
+              initialTotal={total}
+              searchParams={clientParams}
+              apiPath="/api/recommendations"
+              userId={user?.id ?? null}
+              interactionCount={interactionCount}
+              isPro={isPro}
+            />
+          </div>
         </div>
-      )}
 
-      {/* Filter Bar */}
-      <Suspense fallback={<div className="h-24 bg-muted/30 rounded-xl animate-pulse" />}>
-        <FilterBar adult={false} />
-      </Suspense>
-
-      {/* Comic Grid */}
-      <ComicGridClient
-        initialItems={items}
-        initialTotal={total}
-        searchParams={clientParams}
-        apiPath="/api/recommendations"
-        userId={user?.id ?? null}
-        interactionCount={interactionCount}
-        isPro={isPro}
-      />
+      </div>
     </div>
   )
 }
