@@ -4,60 +4,59 @@ import { NextResponse } from 'next/server'
 
 const DELETED_USER_ID = '00000000-0000-0000-0000-000000000000'
 
-type RecommendationUpdate = {
-  user_id: string
-}
-
 export async function DELETE(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { password } = await req.json()
-    if (!password) return NextResponse.json({ error: 'Password required' }, { status: 400 })
+    // Detect auth provider
+    const provider = user.identities?.[0]?.provider ?? 'email'
+    const isOAuth  = provider !== 'email'
 
-    // Verify password by re-authenticating
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email:    user.email!,
-      password: password,
-    })
-    if (authError) {
-      return NextResponse.json({ error: 'Incorrect password' }, { status: 401 })
+    const body = await req.json().catch(() => ({}))
+
+    if (!isOAuth) {
+      // Email users must provide password
+      const { password } = body
+      if (!password) return NextResponse.json({ error: 'Password required' }, { status: 400 })
+
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email:    user.email!,
+        password,
+      })
+      if (authError) return NextResponse.json({ error: 'Incorrect password' }, { status: 401 })
     }
+    // OAuth users (Google etc.) — no password check needed, they already proved identity via OAuth
 
-    const updateData: RecommendationUpdate = { user_id: DELETED_USER_ID }
+    // Reassign recommendations to ghost
     await (supabase as any)
       .from('recommendations')
-      .update(updateData)
+      .update({ user_id: DELETED_USER_ID })
       .eq('user_id', user.id)
 
+    // Best-effort storage cleanup
     try {
-      // Delete avatar
       await supabase.storage.from('avatars').remove([`${user.id}/avatar`])
-
-      // Delete all their cover images
       const { data: covers } = await supabase.storage.from('covers').list(user.id)
       if (covers?.length) {
         await supabase.storage.from('covers').remove(covers.map(f => `${user.id}/${f.name}`))
       }
-    } catch {
-      // Storage cleanup is best-effort — don't fail the whole deletion
-    }
+    } catch { /* non-critical */ }
 
-      await supabase.from('profiles').delete().eq('id', user.id)
-      
+    // Delete profile
+    await supabase.from('profiles').delete().eq('id', user.id)
+
+    // Delete auth user via admin client
     const adminClient = createAdminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
-
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id)
     if (deleteError) throw deleteError
 
     await supabase.auth.signOut()
-
     return NextResponse.json({ success: true })
   } catch (err: any) {
     console.error('[DELETE /api/account]', err)

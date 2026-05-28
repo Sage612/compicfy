@@ -207,7 +207,7 @@ export default async function CreatorProfilePage({ params }: Props) {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400 text-xs font-semibold hover:bg-teal-500/20 transition-colors"
             >
               <BookOpen size={11} />
-              Read Comic
+              Read their Comic
               <ExternalLink size={10} />
             </a>
           )}
@@ -218,7 +218,7 @@ export default async function CreatorProfilePage({ params }: Props) {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-600 text-xs font-semibold hover:bg-orange-500/20 transition-colors"
             >
-              🎨 Patreon
+              Support on Patreon
               <ExternalLink size={10} />
             </a>
           )}
@@ -229,7 +229,7 @@ export default async function CreatorProfilePage({ params }: Props) {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 text-xs font-semibold hover:bg-emerald-500/20 transition-colors"
             >
-              🚀 Kickstarter
+               Back their book
               <ExternalLink size={10} />
             </a>
           )}
