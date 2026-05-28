@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
+import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 import { DashboardNav } from '@/components/layout/DashboardNav'
 import { DashboardMobileNav } from '@/components/layout/DashboardMobileNav'
 
@@ -22,12 +23,14 @@ export default async function CreatorDashboardLayout({
 
   if (!profile) redirect('/login')
 
-  if (profile.user_type === 'reader') redirect('/reader/dashboard')
-
   const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
-  const isPro   = profile?.is_pro &&
-    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
 
+  // Admin can access any dashboard — skip user_type redirect
+  if (!isAdmin && profile.user_type === 'reader') redirect('/reader/dashboard')
+
+  const isPro = profile?.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+
+  // Admin stays here even if pro — QA access
   if (isPro && !isAdmin) redirect('/pro/creator/dashboard')
 
   return (
@@ -37,12 +40,13 @@ export default async function CreatorDashboardLayout({
         <aside className="dashboard-sidebar hidden md:flex flex-col w-56 shrink-0 border-r border-border p-3 gap-1">
           <DashboardNav />
         </aside>
-
         <main className="dashboard-main flex-1 min-w-0 overflow-auto pb-24 md:pb-0">
+          <div className="px-4 pt-4">
+            <IncompleteRecNudge />
+          </div>
           {children}
         </main>
       </div>
-
       <DashboardMobileNav />
       {isAdmin && <AdminFloatingButton />}
     </div>

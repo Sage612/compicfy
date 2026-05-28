@@ -22,7 +22,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
       <Header />
-      <main className="flex-1 pt-20 pb-24 lg:pb-0 overflow-x-hidden">
+      <main className="flex-1 pt-20 pb-24 lg:pb-0 lg:pl-12 overflow-x-hidden">
         {children}
       </main>
       <ConditionalFooter />
