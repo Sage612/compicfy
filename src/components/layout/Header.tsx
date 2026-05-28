@@ -13,10 +13,9 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-  Sun, Moon, Monitor, Radar, ScrollText, LayoutGrid,
-  LayoutDashboard, Settings, LogOut, BookOpen,
-  User as UserIcon, Bell, ShoppingBag, Crown, CreditCard,
-  Sparkles, LayoutList, BookMarked, Palette,
+ LayoutDashboard, Settings, LogOut, BookOpen,
+  User as UserIcon, Bell, Crown, CreditCard,
+  Sparkles, Palette, Sun, Moon, Monitor,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
@@ -24,6 +23,7 @@ import { cn } from '@/lib/utils'
 import { GlobalSearch } from '@/components/layout/GlobalSearch'
 import { NotificationBell } from '@/components/user/NotificationBell'
 import { getDashboardRoutes, getProfileRoute, type UserType } from '@/lib/utils/routes'
+import { NavRail } from '@/components/layout/NavRail'
 
 function LogoMark({ className }: { className?: string }) {
   return (
@@ -166,18 +166,6 @@ export function Header() {
   const listsLabel     = isCreator ? 'My Works' : 'Lists'
   const listsHref      = isCreator ? routes.works : (routes as any).lists
 
-  const publicNavLinks = [
-    { href: '/browse',      label: 'Browse',      icon: Radar       },
-    { href: '/collections', label: 'Collections', icon: LayoutGrid  },
-    { href: '/news',        label: 'News',        icon: ScrollText  },
-    { href: '/affiliate',   label: 'Shop',        icon: ShoppingBag },
-  ]
-
-  const authNavLinks = [
-    { href: '/feed',    label: 'Feed',    icon: LayoutList },
-    { href: listsHref,  label: listsLabel, icon: isCreator ? BookOpen : BookMarked },
-  ]
-
   const themeOptions = [
     { value: 'light',  label: 'Light',  icon: Sun     },
     { value: 'dark',   label: 'Dark',   icon: Moon    },
@@ -188,11 +176,7 @@ export function Header() {
     ? displayName.slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() ?? 'U'
 
-  const allNavLinks = [
-    ...publicNavLinks,
-    ...(authReady && user ? authNavLinks : []),
-  ]
-
+  
   return (
     <>
       {/* ── MOBILE HEADER ── */}
@@ -263,50 +247,8 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Center nav */}
-          <nav className="flex items-center gap-0.5">
-            {allNavLinks.map(({ href, label, icon: Icon }) => {
-              const isActive = pathname === href || pathname.startsWith(href + '/')
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    'relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full transition-all duration-150',
-                    isActive
-                      ? 'text-foreground bg-primary/10'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                  )}
-                >
-                  {isActive && (
-                    <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-3 h-px bg-primary rounded-full" />
-                  )}
-                  <Icon size={13} strokeWidth={isActive ? 2.5 : 1.75} />
-                  {label}
-                </Link>
-              )
-            })}
-
-            {/* Pro link */}
-            {showPro === null ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 opacity-0 pointer-events-none select-none text-sm font-semibold">
-                <Crown size={13} />Pro
-              </span>
-            ) : showPro === true ? (
-              <Link
-                href="/pricing"
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-full transition-all duration-150',
-                  pathname === '/pricing'
-                    ? 'bg-amber-500/15 text-amber-600'
-                    : 'text-amber-500 hover:bg-amber-500/10'
-                )}
-              >
-                <Crown size={13} className="fill-amber-500 shrink-0" />
-                Pro
-              </Link>
-            ) : null}
-          </nav>
+          {/* Center — empty, nav moved to rail */}
+          <div className="flex-1" />
 
           {/* Right side */}
           <div className="flex items-center gap-1">
@@ -513,6 +455,17 @@ export function Header() {
           </div>
         </div>
       </header>
+
+              {/* Nav Rail — desktop only, rendered here to share auth state */}
+              {authReady && (
+                <NavRail
+                  isLoggedIn={!!user}
+                  isPro={isPro}
+                  isCreator={isCreator}
+                  listsHref={listsHref}
+                  listsLabel={listsLabel}
+                />
+              )}
     </>
   )
 }
