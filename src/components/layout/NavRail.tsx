@@ -6,44 +6,47 @@ import { useState, useRef } from 'react'
 import {
   Radar, LayoutGrid, ScrollText, ShoppingBag,
   LayoutList, BookMarked, BookOpen, Crown,
-  ChevronRight,
-  Home,
+  ChevronRight, House,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface NavItem {
-  href:     string
-  label:    string
-  icon:     React.ElementType
-  authOnly?: boolean
-  proOnly?:  boolean
-  accent?:   string
+  href:    string
+  label:   string
+  icon:    React.ElementType
+  accent?: string
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/',        label: 'Home',        icon: Home,  accent: 'text-primary'     },
-  { href: '/browse',      label: 'Browse',      icon: Radar,       accent: 'text-rose-500'    },
-  { href: '/collections', label: 'Collections', icon: LayoutGrid,  accent: 'text-violet-500'  },
-  { href: '/news',        label: 'News',        icon: ScrollText,  accent: 'text-blue-500'    },
-  { href: '/affiliate',   label: 'Shop',        icon: ShoppingBag, accent: 'text-amber-500'   },
-]
-
-const AUTH_ITEMS: NavItem[] = [
-  { href: '/feed',        label: 'Feed',        icon: LayoutList,  accent: 'text-primary'     },
+  { href: '/',            label: 'Home',        icon: House,       accent: 'text-primary'    },
+  { href: '/browse',      label: 'Browse',      icon: Radar,       accent: 'text-primary'   },
+  { href: '/collections', label: 'Collections', icon: LayoutGrid,  accent: 'text-primary' },
+  { href: '/news',        label: 'News',        icon: ScrollText,  accent: 'text-primary'   },
+  { href: '/affiliate',   label: 'Shop',        icon: ShoppingBag, accent: 'text-primary'  },
 ]
 
 interface Props {
-  isLoggedIn:  boolean
-  isPro:       boolean
-  isCreator:   boolean
-  listsHref:   string
-  listsLabel:  string
+  isLoggedIn: boolean
+  isPro:      boolean
+  isCreator:  boolean
+  listsHref:  string
+  listsLabel: string
 }
 
 export function NavRail({ isLoggedIn, isPro, isCreator, listsHref, listsLabel }: Props) {
   const pathname        = usePathname()
   const [open, setOpen] = useState(false)
   const closeTimer      = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Hide on dashboard and admin pages — they have their own sidebars
+  const isDashboard =
+    pathname.startsWith('/reader/dashboard') ||
+    pathname.startsWith('/creator/dashboard') ||
+    pathname.startsWith('/pro/reader/dashboard') ||
+    pathname.startsWith('/pro/creator/dashboard') ||
+    pathname.startsWith('/admin')
+
+  if (isDashboard) return null
 
   const handleMouseEnter = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current)
@@ -54,58 +57,46 @@ export function NavRail({ isLoggedIn, isPro, isCreator, listsHref, listsLabel }:
     closeTimer.current = setTimeout(() => setOpen(false), 120)
   }
 
-  const items = [
+  const items: NavItem[] = [
     ...NAV_ITEMS,
     ...(isLoggedIn ? [
-      ...AUTH_ITEMS,
-      {
-        href:   listsHref,
-        label:  listsLabel,
-        icon:   isCreator ? BookOpen : BookMarked,
-        accent: isCreator ? 'text-teal-500' : 'text-teal-500',
-      },
+      { href: '/feed',   label: 'Feed',      icon: LayoutList,                         accent: 'text-primary'  },
+      { href: listsHref, label: listsLabel,  icon: isCreator ? BookOpen : BookMarked,  accent: 'text-teal-500' },
     ] : []),
-    ...(!isPro ? [{
-      href:   '/pricing',
-      label:  'Go Pro',
-      icon:   Crown,
-      accent: 'text-amber-500',
-    }] : []),
+    ...(!isPro ? [
+      { href: '/pricing', label: 'Go Pro', icon: Crown, accent: 'text-amber-500' },
+    ] : []),
   ]
 
   return (
     <>
-      {/* Backdrop — subtle, only on open */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40 lg:block hidden"
-          onMouseEnter={handleMouseLeave}
-        />
-      )}
+      {/* Always-visible 48px collapsed strip */}
+      <div className="hidden lg:block fixed left-0 top-16 bottom-0 w-12 z-40 bg-background border-r border-border/40" />
 
-      {/* Rail */}
+      {/* Expanding rail — floats over content */}
       <div
         className={cn(
           'fixed left-0 top-16 bottom-0 z-50',
           'hidden lg:flex flex-col',
           'transition-all duration-200 ease-out',
           open ? 'w-52' : 'w-12',
-          'bg-background/98 backdrop-blur-xl border-r border-border/60 shadow-2xl shadow-black/20',
+          'bg-background backdrop-blur-xl border-r border-border/60',
+          open && 'shadow-2xl shadow-black/20',
           'overflow-hidden',
         )}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Expand hint when collapsed */}
+        {/* Expand hint */}
         {!open && (
-          <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-30">
+          <div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-20">
             <ChevronRight size={10} className="text-muted-foreground" />
           </div>
         )}
 
         <nav className="flex flex-col gap-0.5 p-1.5 flex-1 overflow-y-auto pt-3">
           {items.map(({ href, label, icon: Icon, accent }) => {
-            const isActive = pathname === href || pathname.startsWith(href + '/')
+            const isActive  = href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(href + '/')
             const isPricing = href === '/pricing'
 
             return (
@@ -122,12 +113,10 @@ export function NavRail({ isLoggedIn, isPro, isCreator, listsHref, listsLabel }:
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
                 )}
               >
-                {/* Active indicator */}
                 {isActive && (
                   <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-primary" />
                 )}
 
-                {/* Icon — always visible */}
                 <div className={cn(
                   'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all',
                   isActive
@@ -139,7 +128,6 @@ export function NavRail({ isLoggedIn, isPro, isCreator, listsHref, listsLabel }:
                   <Icon size={14} className={isActive ? 'text-primary-foreground' : ''} />
                 </div>
 
-                {/* Label — only visible when expanded */}
                 <span className={cn(
                   'text-sm font-medium whitespace-nowrap transition-all duration-150',
                   open ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2 pointer-events-none',
@@ -147,7 +135,6 @@ export function NavRail({ isLoggedIn, isPro, isCreator, listsHref, listsLabel }:
                   {label}
                 </span>
 
-                {/* Pro crown badge */}
                 {isPricing && open && (
                   <Crown size={10} className="ml-auto text-amber-500 fill-amber-500 shrink-0" />
                 )}
@@ -156,7 +143,6 @@ export function NavRail({ isLoggedIn, isPro, isCreator, listsHref, listsLabel }:
           })}
         </nav>
 
-        {/* Bottom: expand label */}
         {open && (
           <div className="px-4 pb-4 pt-2 border-t border-border/50">
             <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
@@ -165,10 +151,6 @@ export function NavRail({ isLoggedIn, isPro, isCreator, listsHref, listsLabel }:
           </div>
         )}
       </div>
-
-      
-   {/* Always-visible collapsed strip placeholder */}
-      <div className="hidden lg:block fixed left-0 top-16 bottom-0 w-12 z-40 bg-background border-r border-border/40" />
     </>
   )
 }
