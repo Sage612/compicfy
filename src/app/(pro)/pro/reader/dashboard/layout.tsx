@@ -5,11 +5,12 @@ import { ProMobileNav } from '@/components/pro/ProMobileNav'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
 import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 import { ProReaderSidebar } from '@/components/pro/ProReaderSidebar'
+import type { ReactNode } from 'react'
 
 export default async function ProReaderDashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: ReactNode
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -40,7 +41,10 @@ export default async function ProReaderDashboardLayout({
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
       <div className="flex flex-1 pt-20">
-        <ProReaderSidebar />
+        {/* Sidebar wrapper restored here to keep layout responsive */}
+        <aside className="dashboard-sidebar hidden md:flex flex-col w-60 shrink-0 border-r border-border p-3">
+          <ProReaderSidebar />
+        </aside>
         <main className="dashboard-main flex-1 min-w-0 overflow-auto pb-24 md:pb-0">
           <div className="px-4 pt-4 max-w-5xl mx-auto">
             <IncompleteRecNudge />
