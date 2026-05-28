@@ -167,6 +167,8 @@ export function NavRail({ isLoggedIn, isPro, isCreator, listsHref, listsLabel }:
       </div>
 
       
+   {/* Always-visible collapsed strip placeholder */}
+      <div className="hidden lg:block fixed left-0 top-16 bottom-0 w-12 z-40 bg-background border-r border-border/40" />
     </>
   )
 }
