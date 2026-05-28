@@ -23,13 +23,18 @@ export default async function ProCreatorDashboardLayout({
 
   if (!profile) redirect('/login')
 
+  // ── Check admin FIRST — admin bypasses everything ──
   const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
 
-  // Admin can QA all dashboards — skip user_type redirect
-  if (!isAdmin && profile.user_type === 'reader') redirect('/pro/reader/dashboard')
+  if (!isAdmin) {
+    // Non-admin: enforce user_type
+    if (profile.user_type !== 'creator') redirect('/pro/reader/dashboard')
 
-  const isPro = isAdmin || (profile?.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  if (!isPro) redirect('/pricing?reason=pro_required')
+    // Non-admin: must be pro
+    const isPro = profile?.is_pro &&
+      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+    if (!isPro) redirect('/pricing?reason=pro_required')
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

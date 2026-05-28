@@ -23,15 +23,18 @@ export default async function CreatorDashboardLayout({
 
   if (!profile) redirect('/login')
 
+  // ── Check admin FIRST — admin bypasses everything ──
   const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
 
-  // Admin can access any dashboard — skip user_type redirect
-  if (!isAdmin && profile.user_type === 'reader') redirect('/reader/dashboard')
+  if (!isAdmin) {
+    // Non-admin: enforce user_type
+    if (profile.user_type !== 'creator') redirect('/reader/dashboard')
 
-  const isPro = profile?.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
-
-  // Admin stays here even if pro — QA access
-  if (isPro && !isAdmin) redirect('/pro/creator/dashboard')
+    // Non-admin creator: if pro, send to pro creator
+    const isPro = profile?.is_pro &&
+      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+    if (isPro) redirect('/pro/creator/dashboard')
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

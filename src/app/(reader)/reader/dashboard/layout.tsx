@@ -24,17 +24,20 @@ export default async function ReaderDashboardLayout({
 
   if (!profile) redirect('/login')
 
+  // ── Check admin FIRST — admin bypasses everything ──
   const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
 
-  // Admin can access any dashboard — skip user_type redirect
-  if (!isAdmin && profile.user_type === 'creator') redirect('/creator/dashboard')
+  if (!isAdmin) {
+    // Non-admin: enforce user_type
+    if (profile.user_type === 'creator') redirect('/creator/dashboard')
 
-  const isPro        = profile?.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
-  const isPrivileged = isAdmin || isPro
-  const recCount     = profile?.recommendation_count_this_month ?? 0
+    // Non-admin reader: if pro, send to pro reader
+    const isPro = profile?.is_pro &&
+      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+    if (isPro) redirect('/pro/reader/dashboard')
+  }
 
-  // Admin stays here even if pro — they need to be able to QA all dashboards
-  if (isPro && !isAdmin) redirect('/pro/reader/dashboard')
+  const recCount = profile?.recommendation_count_this_month ?? 0
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -44,7 +47,7 @@ export default async function ReaderDashboardLayout({
           <DashboardNav />
         </aside>
         <main className="dashboard-main flex-1 min-w-0 overflow-auto pb-24 md:pb-0">
-          {!isPrivileged && recCount >= 20 && (
+          {!isAdmin && recCount >= 20 && (
             <div className="px-4 pt-4">
               <UpgradeBanner
                 current={recCount}
