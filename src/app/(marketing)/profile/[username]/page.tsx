@@ -105,6 +105,12 @@ export default async function ProfilePage({ params }: Props) {
 
   if (!profileData) notFound()
 
+  // Redirect creators to their creator profile
+  if ((profileData as any).user_type === 'creator') {
+    const { redirect } = await import('next/navigation')
+    redirect(`/creator/${username}`)
+  }
+
   const profile: ProfileData = {
     ...(profileData as any),
     is_pro:                   (profileData as any).is_pro ?? false,
@@ -308,7 +314,11 @@ export default async function ProfilePage({ params }: Props) {
                 <FollowButton profileId={profile.id} initialFollowing={isFollowing} isLoggedIn={!!viewer} />
               )}
               {isOwner && (
-                <Link href="/dashboard/settings">
+                <Link href={
+                  (profileData as any)?.user_type === 'creator'
+                    ? '/creator/dashboard/settings'
+                    : '/reader/dashboard/settings'
+                }>
                   <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">Edit Profile</Button>
                 </Link>
               )}

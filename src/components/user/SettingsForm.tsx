@@ -207,10 +207,11 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
         </div>
       </FormSection>
 
-      {/* Creator Links */}
+      {/* Creator Links — creators only */}
+      {(profile as any).user_type === 'creator' && (
       <FormSection icon={PenLine} title="Creator Links" accent="bg-teal-500">
         <p className="text-sm text-muted-foreground">
-          Are you a comic artist or creator? Add your links so readers can support you directly from your profile.
+          Add your links so readers can find and support your work directly from your profile.
         </p>
         <div className="space-y-4">
           <div className="space-y-1.5">
@@ -256,7 +257,8 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
             {errors.kickstarter_url && <p className="text-xs text-destructive">{errors.kickstarter_url.message}</p>}
           </div>
         </div>
-      </FormSection>
+     </FormSection>
+      )}
 
       {/* Theme Preference — all users */}
       <FormSection icon={Palette} title="Theme Preference" accent="bg-primary">
