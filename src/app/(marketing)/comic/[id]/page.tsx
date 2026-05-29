@@ -297,7 +297,7 @@ export default async function ComicDetailPage({ params }: Props) {
           </p>
           <div className="flex justify-center gap-3">
             <Link href="/browse"><Button variant="outline">Back to Browse</Button></Link>
-            <Link href="/dashboard/settings"><Button>Go to Settings</Button></Link>
+            <Link href="/reader/dashboard/settings"><Button>Go to Settings</Button></Link>
           </div>
         </div>
       )
@@ -334,19 +334,24 @@ export default async function ComicDetailPage({ params }: Props) {
     : (profile?.display_name || profile?.username || 'unknown')
 
  // Determine correct submission route for current user
-  let submitRoute = '/dashboard/recommendations/new'
+  let submitRoute = '/reader/dashboard/recommendations/new'
   if (user) {
     const { data: currentUserProfile } = await supabase
       .from('profiles')
-      .select('role, is_pro, pro_expires_at')
+      .select('role, is_pro, pro_expires_at, user_type')
       .eq('id', user.id)
       .single()
     const isAdminOrMod = ['admin', 'moderator'].includes((currentUserProfile as any)?.role ?? '')
-    const isPro = (currentUserProfile as any)?.is_pro &&
+    const isPro        = (currentUserProfile as any)?.is_pro &&
       (!(currentUserProfile as any)?.pro_expires_at ||
         new Date((currentUserProfile as any).pro_expires_at) > new Date())
+    const isCreator    = (currentUserProfile as any)?.user_type === 'creator'
     if (isAdminOrMod || isPro) {
-      submitRoute = '/pro/recommendations/new'
+      submitRoute = isCreator
+        ? '/pro/creator/dashboard/works/new'
+        : '/pro/reader/dashboard/recommendations/new'
+    } else if (isCreator) {
+      submitRoute = '/creator/dashboard/works/new'
     }
   }
 
