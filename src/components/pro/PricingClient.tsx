@@ -341,8 +341,8 @@ export function PricingClient({ user, profile }: Props) {
                 { emoji: '⚡', text: 'Server costs & infrastructure'         },
                 { emoji: '🔨', text: 'New features & improvements'           },
                 { emoji: '🛡️', text: 'Moderation & keeping the community healthy' },
-                { emoji: '📱', text: 'Mobile app development'                },
-                { emoji: '🤝', text: 'Supporting independent creators'       },
+               { emoji: '🏆', text: 'Funding community events'                   },
+                { emoji: '🌐', text: 'Expanding community spaces & discussion hubs' },
                 { emoji: '🚀', text: 'Making Compicfy the best it can be'    },
               ].map(({ emoji, text }) => (
                 <div key={text} className="flex items-center gap-2.5 text-sm text-muted-foreground">
