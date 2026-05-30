@@ -22,7 +22,7 @@ export default async function CreatorWorksPage() {
         initialRecs={(recs as any[]) ?? []}
         userId={user.id}
         newRecHref="/creator/dashboard/works/new"
-        editRecHref={(id) => `/creator/dashboard/works/${id}/edit`}
+        baseEditHref="/creator/dashboard/works"
         isPro={false}
         accentColor="teal"
       />
