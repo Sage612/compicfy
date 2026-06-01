@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { GlobalSearch } from '@/components/layout/GlobalSearch'
 import { NotificationBell } from '@/components/user/NotificationBell'
+import { MobileTabBar } from '@/components/layout/MobileTabBar'
 import { getDashboardRoutes, getProfileRoute, type UserType } from '@/lib/utils/routes'
 import { NavRail } from '@/components/layout/NavRail'
 
@@ -466,6 +467,7 @@ export function Header() {
                   listsLabel={listsLabel}
                 />
               )}
+              <MobileTabBar isPro={isPro} />
     </>
   )
 }
