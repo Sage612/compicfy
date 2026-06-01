@@ -27,10 +27,10 @@ const TYPES = [
 ]
 
 const SORTS = [
-  { value: 'score',    label: '🏆', full: 'Top Rated' },
-  { value: 'trending', label: '🔥', full: 'Trending'  },
-  { value: 'recent',   label: '✨', full: 'Newest'    },
-  { value: 'top',      label: '👑', full: 'All Time'  },
+  { value: 'score',    emoji: '🏆', full: 'Top Rated' },
+  { value: 'trending', emoji: '🔥', full: 'Trending'  },
+  { value: 'recent',   emoji: '✨', full: 'Newest'    },
+  { value: 'top',      emoji: '👑', full: 'All Time'  },
 ]
 
 const STATUSES = [
@@ -154,11 +154,7 @@ export function FilterBar({ adult = false }: Props) {
 
           <SheetContent
             side="bottom"
-            className="
-              inset-x-0 left-0 right-0 w-full
-              h-auto max-h-[80vh] overflow-y-auto
-              rounded-t-2xl px-4
-            "
+            className="inset-x-0 left-0 right-0 w-full h-auto max-h-[80vh] overflow-y-auto rounded-t-2xl px-4"
           >
             <SheetHeader className="mb-5">
               <SheetTitle className="text-left">Filters</SheetTitle>
@@ -194,12 +190,39 @@ export function FilterBar({ adult = false }: Props) {
       )}
 
       {/* ── Row 2: Sort pills ── */}
+      {/* Mobile: horizontally scrollable with full labels */}
       <div className="flex items-center gap-2 w-full">
         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
           Sort
         </span>
-        <div className="flex gap-1.5 flex-wrap">
-          {SORTS.map(({ value, label, full }) => (
+
+        {/* Mobile scroll container */}
+        <div className="relative flex-1 md:hidden">
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-4 z-10 bg-gradient-to-r from-background to-transparent" />
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-4 z-10 bg-gradient-to-l from-background to-transparent" />
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-1">
+            {SORTS.map(({ value, emoji, full }) => (
+              <button
+                key={value}
+                onClick={() => updateParam('sort', value)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap shrink-0',
+                  'text-xs font-semibold border transition-all duration-150 active:scale-95',
+                  currentSort === value
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
+                    : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
+                )}
+              >
+                <span>{emoji}</span>
+                <span>{full}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop: wrap freely */}
+        <div className="hidden md:flex gap-1.5 flex-wrap">
+          {SORTS.map(({ value, emoji, full }) => (
             <button
               key={value}
               onClick={() => updateParam('sort', value)}
@@ -210,8 +233,8 @@ export function FilterBar({ adult = false }: Props) {
                   : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
               )}
             >
-              <span>{label}</span>
-              <span className="hidden sm:inline text-xs">{full}</span>
+              <span>{emoji}</span>
+              <span>{full}</span>
             </button>
           ))}
         </div>

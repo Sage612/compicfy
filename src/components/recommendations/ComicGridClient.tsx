@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { ComicCardSkeleton } from '@/components/recommendations/ComicCardSkeleton'
 import { Button } from '@/components/ui/button'
-import { BookOpen, Loader2, Plus, Sparkles, LayoutGrid, Lock, Search, Telescope } from 'lucide-react'
+import { BookOpen, Loader2, Sparkles, LayoutGrid, Lock, Search, Telescope } from 'lucide-react'
 import Link from 'next/link'
 import type { Recommendation } from '@/types/database.types'
 import { cn } from '@/lib/utils'
@@ -57,6 +57,9 @@ export function ComicGridClient({
   const [forYouLoading, setForYouLoading] = useState(false)
   const forYouFetched = useRef(false)
   const prevKeyRef    = useRef(sessionKey)
+
+  // Sentinel ref for infinite scroll
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
     setHydrated(true)
@@ -112,7 +115,7 @@ export function ComicGridClient({
     setForYouLoading(true)
     try {
       const params = new URLSearchParams({
-        limit: '48',
+        limit:           '48',
         content_ratings: contentRatings.join(','),
       })
       const res  = await fetch(`/api/recommendations/personalized?${params}`)
@@ -133,6 +136,7 @@ export function ComicGridClient({
   const hasMore = items.length < total
 
   const loadMore = useCallback(async () => {
+    if (loading || !hasMore) return
     setLoading(true)
     try {
       const nextPage = page + 1
@@ -146,7 +150,26 @@ export function ComicGridClient({
     } finally {
       setLoading(false)
     }
-  }, [page, searchParams, apiPath])
+  }, [page, searchParams, apiPath, loading, hasMore])
+
+  // ── Infinite scroll via IntersectionObserver ──
+  useEffect(() => {
+    if (activeTab !== 'all') return
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          loadMore()
+        }
+      },
+      { rootMargin: '200px' } // start loading 200px before hitting the bottom
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [activeTab, hasMore, loading, loadMore])
 
   const activeQuery  = searchParams.q      ?? ''
   const activeType   = searchParams.type   ?? ''
@@ -296,21 +319,17 @@ export function ComicGridClient({
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {items.map(rec => <ComicCard key={rec.id} recommendation={rec} />)}
               </div>
-              {hasMore && (
-                <div className="flex justify-center pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={loadMore}
-                    disabled={loading}
-                    className="gap-2 min-w-[160px] rounded-xl border-border hover:border-primary/50 transition-colors"
-                  >
-                    {loading
-                      ? <><Loader2 size={14} className="animate-spin" /> Loading...</>
-                      : <><Plus size={14} /> Load More</>
-                    }
-                  </Button>
-                </div>
-              )}
+
+              {/* Infinite scroll sentinel */}
+              <div ref={sentinelRef} className="flex justify-center py-4">
+                {loading && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 size={14} className="animate-spin" />
+                    Loading more…
+                  </div>
+                )}
+              </div>
+
               {!hasMore && items.length > PAGE_SIZE && (
                 <p className="text-center text-xs text-muted-foreground py-2">
                   That's all {total} comics 🎉

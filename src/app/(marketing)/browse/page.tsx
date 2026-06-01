@@ -73,10 +73,12 @@ async function getYouMightLike(s: SupabaseClient, userId: string | null) {
   const { data } = await (s as any).rpc('get_personalized_recommendations', {
     p_user_id:         userId,
     p_exclude_id:      null,
-    p_limit:           12,
+    p_limit:           20, // fetch extra to cover filtered-out own comics
     p_content_ratings: ['all_ages', 'teen'],
   })
-  return (data as Recommendation[]) ?? []
+  let results = (data as Recommendation[]) ?? []
+  if (userId) results = results.filter(r => r.user_id !== userId)
+  return results.slice(0, 12)
 }
 
 async function getInitialGrid(s: SupabaseClient, params: SearchParams) {
