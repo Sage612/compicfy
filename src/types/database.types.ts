@@ -153,6 +153,13 @@ export type Database = {
           ai_model: string | null
           reviewed_by: string | null
           reviewed_at: string | null
+          // External database IDs
+          mangaupdates_id: string | null
+          anilist_id: string | null
+          mal_id: string | null
+          mangadex_id: string | null
+          mangabaka_id: string | null
+          kuroiru_id: string | null
           // Rejection & appeal fields
           rejection_reason: string | null
           appeal_status: 'none' | 'pending' | 'approved' | 'rejected' | null
@@ -198,6 +205,12 @@ export type Database = {
           ai_model?: string | null
           reviewed_by?: string | null
           reviewed_at?: string | null
+          mangaupdates_id?: string | null
+          anilist_id?: string | null
+          mal_id?: string | null
+          mangadex_id?: string | null
+          mangabaka_id?: string | null
+          kuroiru_id?: string | null
           rejection_reason?: string | null
           appeal_status?: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text?: string | null
@@ -238,6 +251,12 @@ export type Database = {
           ai_model?: string | null
           reviewed_by?: string | null
           reviewed_at?: string | null
+          mangaupdates_id?: string | null
+          anilist_id?: string | null
+          mal_id?: string | null
+          mangadex_id?: string | null
+          mangabaka_id?: string | null
+          kuroiru_id?: string | null
           rejection_reason?: string | null
           appeal_status?: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text?: string | null

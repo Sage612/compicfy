@@ -38,7 +38,7 @@ export default async function CreatorAudiencePage() {
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
       <div>
         <h1 className="text-2xl font-black tracking-tight">Audience</h1>
-        <p className="text-sm text-muted-foreground mt-1">People who follow your work.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">People who follow your work.</p>
       </div>
 
       <div className="grid grid-cols-3 gap-3">

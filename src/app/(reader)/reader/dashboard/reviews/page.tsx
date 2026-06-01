@@ -20,11 +20,9 @@ export default async function ReaderReviewsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">My Reviews</h1>
-          <p className="text-sm text-muted-foreground mt-1">{reviews?.length ?? 0} reviews written</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-black tracking-tight">My Reviews</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">{reviews?.length ?? 0} reviews written</p>
       </div>
 
       {!reviews?.length ? (

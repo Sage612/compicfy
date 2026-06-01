@@ -39,9 +39,14 @@ export default async function ProCreatorAudiencePage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Audience</h1>
-        <p className="text-sm text-muted-foreground mt-1">Deep insights into your readership — Pro exclusive.</p>
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
+          <Users size={17} className="text-teal-500" />
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-xl font-black tracking-tight truncate">Audience</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Deep insights — Pro exclusive</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3">

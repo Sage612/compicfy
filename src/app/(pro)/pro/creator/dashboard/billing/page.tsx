@@ -31,7 +31,7 @@ export default async function ProCreatorBillingPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-black tracking-tight">Billing</h1>
-        <p className="text-sm text-muted-foreground mt-1">Manage your Pro Creator subscription.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Manage your Pro Creator subscription.</p>
       </div>
 
       <div className="relative overflow-hidden rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-500/10 via-cyan-500/5 to-transparent p-6 space-y-4">

@@ -26,14 +26,14 @@ export default async function ReaderSavedPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">Saved Comics</h1>
-          <p className="text-sm text-muted-foreground mt-1">{comics.length} saved</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-black tracking-tight truncate">Saved Comics</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{comics.length} saved</p>
         </div>
-        <Link href="/browse">
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <Radar size={13} />Browse More
+        <Link href="/browse" className="shrink-0">
+          <Button size="sm" className="gap-1.5">
+            <Radar size={13} />Browse
           </Button>
         </Link>
       </div>

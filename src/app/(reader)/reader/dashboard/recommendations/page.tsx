@@ -22,7 +22,7 @@ export default async function ReaderRecommendationsPage() {
         initialRecs={(recs as any[]) ?? []}
         userId={user.id}
         newRecHref="/reader/dashboard/recommendations/new"
-        baseEditHref="/reader/dashboard/recommendations"
+        editBasePath="/reader/dashboard/recommendations"
         isPro={false}
         accentColor="primary"
       />

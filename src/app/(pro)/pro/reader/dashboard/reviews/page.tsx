@@ -24,14 +24,12 @@ export default async function ProReaderReviewsPage() {
 
       {/* Header with icon */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-          <Star size={20} className="text-amber-500" />
+        <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+          <Star size={17} className="text-amber-500" />
         </div>
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">My Reviews</h1>
-          <p className="text-sm text-muted-foreground">
-            {reviews?.length ?? 0} review{reviews?.length !== 1 ? 's' : ''} written
-          </p>
+        <div className="min-w-0">
+          <h1 className="text-xl font-black tracking-tight truncate">My Reviews</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">{reviews?.length ?? 0} written</p>
         </div>
       </div>
 

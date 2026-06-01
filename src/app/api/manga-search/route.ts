@@ -14,7 +14,7 @@ interface MangaResult {
   year: number | null
   chapters: number | null
   score: number | null
-  source: 'jikan' | 'mangadex' | 'anilist' | 'mangaupdates'
+  source: 'jikan' | 'anilist' | 'mangaupdates'
 }
 
 // ── Jikan (MyAnimeList) ──────────────────────────────────────────
@@ -43,61 +43,6 @@ async function searchJikan(query: string): Promise<MangaResult[]> {
       score: item.score ?? null,
       source: 'jikan' as const,
     }))
-  } catch {
-    return []
-  }
-}
-
-// ── MangaDex ─────────────────────────────────────────────────────
-async function searchMangaDex(query: string): Promise<MangaResult[]> {
-  try {
-    const res = await fetch(
-      `https://api.mangadex.org/manga?title=${encodeURIComponent(query)}&limit=5&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=safe&contentRating[]=suggestive`,
-      { next: { revalidate: 3600 } }
-    )
-    if (!res.ok) return []
-    const data = await res.json()
-
-    return (data.data ?? []).map((item: any) => {
-      const attr = item.attributes
-      const authorRel = item.relationships?.find((r: any) => r.type === 'author')
-      const artistRel = item.relationships?.find((r: any) => r.type === 'artist')
-      const coverRel = item.relationships?.find((r: any) => r.type === 'cover_art')
-      const coverFile = coverRel?.attributes?.fileName
-      const coverUrl = coverFile
-        ? `https://uploads.mangadex.org/covers/${item.id}/${coverFile}.512.jpg`
-        : ''
-
-      const title =
-        attr.title?.en ||
-        attr.title?.['ja-ro'] ||
-        Object.values(attr.title ?? {})[0] ||
-        ''
-
-      const description =
-        attr.description?.en ||
-        Object.values(attr.description ?? {})[0] ||
-        ''
-
-      return {
-        id: `mangadex-${item.id}`,
-        title: String(title),
-        alternativeTitles: Object.values(attr.altTitles?.[0] ?? {}),
-        author: authorRel?.attributes?.name ?? '',
-        artist: artistRel?.attributes?.name ?? authorRel?.attributes?.name ?? '',
-        description: String(description).slice(0, 2000),
-        genres: attr.tags
-          ?.filter((t: any) => t.attributes?.group === 'genre')
-          .map((t: any) => t.attributes?.name?.en ?? '') ?? [],
-        type: 'manga',
-        status: mapStatus(attr.status),
-        coverUrl,
-        year: attr.year ?? null,
-        chapters: attr.lastChapter ? parseInt(attr.lastChapter) : null,
-        score: null,
-        source: 'mangadex' as const,
-      }
-    })
   } catch {
     return []
   }
@@ -344,17 +289,16 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Run all four in parallel with individual fallbacks
-    const [jikan, mangadex, anilist, mangaupdates] = await Promise.allSettled([
+    // Run three sources in parallel (MangaDex removed for form auto-fill)
+    // MangaDex is only used for chapter checking, not search
+    const [jikan, anilist, mangaupdates] = await Promise.allSettled([
       searchJikan(query),
-      searchMangaDex(query),
       searchAniList(query),
       searchMangaUpdates(query),
     ])
 
     const all: MangaResult[] = [
       ...(jikan.status         === 'fulfilled' ? jikan.value         : []),
-      ...(mangadex.status      === 'fulfilled' ? mangadex.value      : []),
       ...(anilist.status       === 'fulfilled' ? anilist.value       : []),
       ...(mangaupdates.status  === 'fulfilled' ? mangaupdates.value  : []),
     ]

@@ -20,12 +20,12 @@ export default async function ProReaderListsPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
-          <BookMarked size={20} className="text-teal-500" />
+        <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+          <BookMarked size={17} className="text-amber-500" />
         </div>
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
-          <p className="text-sm text-muted-foreground">Unlimited lists on Pro</p>
+        <div className="min-w-0">
+          <h1 className="text-xl font-black tracking-tight truncate">Reading Lists</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Unlimited on Pro</p>
         </div>
       </div>
       <ReadingListsClient

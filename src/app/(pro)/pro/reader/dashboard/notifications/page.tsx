@@ -34,12 +34,12 @@ export default async function ProReaderNotificationsPage() {
 
       {/* Header Matrix Layout Block */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
-          <Bell size={20} className="text-blue-500" />
+        <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+          <Bell size={17} className="text-amber-500" />
         </div>
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">Notifications</h1>
-          <p className="text-sm text-muted-foreground">Your activity and alerts</p>
+        <div className="min-w-0">
+          <h1 className="text-xl font-black tracking-tight truncate">Notifications</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Your activity and alerts</p>
         </div>
       </div>
 

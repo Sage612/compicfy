@@ -20,7 +20,7 @@ export default async function ReaderNotificationsPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-black tracking-tight">Notifications</h1>
-        <p className="text-sm text-muted-foreground mt-1">Stay up to date with your activity.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Stay up to date with your activity.</p>
       </div>
       <NotificationsClient initialNotifications={notifications ?? []} />
     </div>

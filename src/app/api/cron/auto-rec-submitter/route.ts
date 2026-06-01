@@ -8,12 +8,11 @@ const MANHUA_COUNT = 6   // 30%
 const MANGA_COUNT  = 4   // 20%
 
 // ── Smart switching config ────────────────────────────────────────
-// If MU returns 0 new results for a type N times in a row → switch to MAL
-// After MAL_RUN_LIMIT MAL runs → try MU again
-const MU_ZERO_THRESHOLD = 3   // consecutive MU zeros before switching
-const MAL_RUN_LIMIT     = 5   // MAL runs before re-checking MU
+// MU → MangaBaka → MAL → back to MU
+const MU_ZERO_THRESHOLD = 3
+const MB_RUN_LIMIT      = 5   // MangaBaka runs before switching to MAL
+const MAL_RUN_LIMIT     = 5   // MAL runs before back to MU
 
-// ── Sort rotation — cycles every 10 pages per type ───────────────
 const SORT_ORDERS = ['rating', 'subscribers', 'year', 'votes'] as const
 type SortOrder = typeof SORT_ORDERS[number]
 
@@ -24,6 +23,61 @@ function resolveSortOrder(page: number): SortOrder {
 
 function resolveLocalPage(page: number): number {
   return ((page - 1) % 10) + 1
+}
+
+// ── Logging helper ────────────────────────────────────────────────
+interface SubmissionLog {
+  title: string
+  type: string
+  status: 'submitted' | 'skipped' | 'failed'
+  source: string
+  genres: string[]
+  platforms: string[]
+  author?: string | null
+  artist?: string | null
+  chapters?: number | null
+  year?: number | null
+  reason?: string
+  error?: string
+  external_ids?: {
+    mangaupdates_id?: string | null
+    mangabaka_id?: string | null
+    mangadex_id?: string | null
+    anilist_id?: string | null
+    mal_id?: string | null
+  }
+  timestamp: string
+}
+
+async function logSubmission(
+  supabase: any,
+  log: SubmissionLog
+) {
+  try {
+    await supabase.from('activity_logs').insert({
+      user_id: null,
+      action: 'auto_rec_submit',
+      entity_type: 'recommendations',
+      details: {
+        title: log.title,
+        type: log.type,
+        status: log.status,
+        source: log.source,
+        genres: log.genres,
+        platforms: log.platforms,
+        author: log.author,
+        artist: log.artist,
+        chapters: log.chapters,
+        year: log.year,
+        reason: log.reason,
+        error: log.error,
+        external_ids: log.external_ids,
+        timestamp: log.timestamp,
+      },
+    })
+  } catch (err) {
+    console.error('Failed to log submission:', err)
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -55,13 +109,125 @@ function sanitizeGenres(genres: string[]): string[] {
   return genres.map((g) => g.trim()).filter(Boolean).slice(0, 5)
 }
 
-function resolvePlatforms(type: string): string[] {
-  switch (type) {
-    case 'manhwa':  return ['Webtoon', 'Tapas', 'Tappytoon']
-    case 'manhua':  return ['Mangatoon', 'Webcomics', 'INKR']
-    case 'webtoon': return ['Webtoon', 'Tapas']
-    default:        return ['Mangaplus', 'Viz Media', 'INKR']
+// ── Platform extraction helpers ───────────────────────────────────
+
+function extractPlatformsFromMU(detail: any, record: any): string[] {
+  const platforms = new Set<string>()
+
+  // MangaUpdates stores platforms in associated field
+  const associated = detail?.associated ?? record?.associated ?? []
+  associated.forEach((a: any) => {
+    const relType = a.relation_type?.toLowerCase() ?? ''
+    const name = a.title?.toLowerCase() ?? ''
+
+    // Extract from relation_type
+    if (relType.includes('official')) {
+      if (relType.includes('english')) {
+        if (name.includes('viz') || relType.includes('viz')) platforms.add('Viz Media')
+        if (name.includes('mangaplus') || relType.includes('mangaplus')) platforms.add('Mangaplus')
+        if (name.includes('webtoon') || relType.includes('webtoon')) platforms.add('Webtoon')
+        if (name.includes('tapas') || relType.includes('tapas')) platforms.add('Tapas')
+        if (name.includes('tappytoon')) platforms.add('Tappytoon')
+        if (name.includes('inkr')) platforms.add('INKR')
+      }
+    }
+  })
+
+  // MangaUpdates may also have publication details
+  const pubEnglish = detail?.publication_html?.english ?? ''
+  if (pubEnglish) {
+    if (pubEnglish.includes('Viz')) platforms.add('Viz Media')
+    if (pubEnglish.includes('MangaPlus')) platforms.add('Mangaplus')
+    if (pubEnglish.includes('Webtoon')) platforms.add('Webtoon')
   }
+
+  return Array.from(platforms).slice(0, 5)
+}
+
+function extractPlatformsFromMangaBaka(detail: any): string[] {
+  const platforms = new Set<string>()
+
+  // MangaBaka may have source or platform field
+  const source = detail?.source ?? detail?.source_name ?? ''
+  if (source) {
+    const s = source.toLowerCase()
+    if (s.includes('webtoon')) platforms.add('Webtoon')
+    if (s.includes('tapas')) platforms.add('Tapas')
+    if (s.includes('tappytoon')) platforms.add('Tappytoon')
+    if (s.includes('mangaplus')) platforms.add('Mangaplus')
+    if (s.includes('inkr')) platforms.add('INKR')
+  }
+
+  // MangaBaka may have external_links
+  const links = detail?.external_links ?? detail?.links ?? []
+  if (Array.isArray(links)) {
+    links.forEach((link: any) => {
+      const url = (link.url ?? link.link ?? '').toLowerCase()
+      if (url.includes('webtoon.com')) platforms.add('Webtoon')
+      if (url.includes('tapas.io')) platforms.add('Tapas')
+      if (url.includes('tappytoon')) platforms.add('Tappytoon')
+      if (url.includes('mangaplus')) platforms.add('Mangaplus')
+      if (url.includes('viz.com') || url.includes('vizsignature')) platforms.add('Viz Media')
+    })
+  }
+
+  return Array.from(platforms).slice(0, 5)
+}
+
+function extractPlatformsFromMangaDex(detail: any): string[] {
+  const platforms = new Set<string>()
+
+  // MangaDex stores links in relationships or attributes
+  const links = detail?.attributes?.links ?? detail?.links ?? {}
+  
+  if (typeof links === 'object') {
+    Object.entries(links).forEach(([key, value]: [string, any]) => {
+      const url = (value ?? '').toString().toLowerCase()
+      if (url.includes('webtoon')) platforms.add('Webtoon')
+      if (url.includes('tapas')) platforms.add('Tapas')
+      if (url.includes('viz.com') || url.includes('vizsignature')) platforms.add('Viz Media')
+      if (url.includes('mangaplus')) platforms.add('Mangaplus')
+    })
+  }
+
+  return Array.from(platforms).slice(0, 5)
+}
+
+function extractPlatformsFromAniList(item: any): string[] {
+  const platforms = new Set<string>()
+
+  // AniList stores external links
+  const externalLinks = item.externalLinks ?? []
+  externalLinks.forEach((link: any) => {
+    const site = (link.site ?? '').toLowerCase()
+    const url = (link.url ?? '').toLowerCase()
+
+    if (site.includes('official') || site.includes('web') || site.includes('eng')) {
+      if (url.includes('webtoon')) platforms.add('Webtoon')
+      if (url.includes('tapas')) platforms.add('Tapas')
+      if (url.includes('viz.com')) platforms.add('Viz Media')
+      if (url.includes('mangaplus')) platforms.add('Mangaplus')
+    }
+  })
+
+  return Array.from(platforms).slice(0, 5)
+}
+
+function extractPlatformsFromJikan(item: any): string[] {
+  const platforms = new Set<string>()
+
+  // Jikan stores external links
+  const externalLinks = item.external ?? []
+  externalLinks.forEach((link: any) => {
+    const url = (link.url ?? '').toLowerCase()
+
+    if (url.includes('webtoon')) platforms.add('Webtoon')
+    if (url.includes('tapas')) platforms.add('Tapas')
+    if (url.includes('viz.com')) platforms.add('Viz Media')
+    if (url.includes('mangaplus')) platforms.add('Mangaplus')
+  })
+
+  return Array.from(platforms).slice(0, 5)
 }
 
 // ── Normalised shape ──────────────────────────────────────────────
@@ -80,22 +246,24 @@ interface SeriesData {
   chapter_count:      number | null
   official_platforms: string[]
   mangaupdates_id:    string | null
+  mangabaka_id:       string | null
+  mangadex_id:        string | null
   anilist_id:         string | null
   mal_id:             string | null
-  mangadex_id:        string | null
-  source:             'mangaupdates' | 'anilist' | 'jikan'
+  source:             'mangaupdates' | 'mangabaka' | 'mangadex' | 'anilist' | 'jikan'
 }
 
 // ── Per-type state stored in activity_logs ────────────────────────
 interface TypeState {
-  page:           number   // current MU page for this type
-  mu_zero_streak: number   // consecutive runs where MU gave 0 new results
-  source_mode:    'mu' | 'mal'  // which source is active
-  mal_run_count:  number   // how many MAL runs done in current MAL stint
+  page:           number
+  mu_zero_streak: number
+  source_mode:    'mu' | 'mb' | 'mal'
+  mb_run_count:   number
+  mal_run_count:  number
 }
 
 function defaultTypeState(): TypeState {
-  return { page: 0, mu_zero_streak: 0, source_mode: 'mu', mal_run_count: 0 }
+  return { page: 0, mu_zero_streak: 0, source_mode: 'mu', mb_run_count: 0, mal_run_count: 0 }
 }
 
 // ── MangaUpdates fetcher ──────────────────────────────────────────
@@ -169,11 +337,15 @@ async function fetchMangaUpdatesByType(
           detail?.image?.url?.original ??
           detail?.image?.url?.thumb    ??
           record.image?.url?.original  ??
-          record.image?.url?.thumb     ?? null
+          record.image?.url?.thumb     ??
+          null
 
         const year = detail?.year
           ? parseInt(detail.year)
           : record.year ? parseInt(record.year) : null
+
+        // Extract platforms from MangaUpdates
+        const platforms = extractPlatformsFromMU(detail, record)
 
         return {
           title:              detail?.title ?? record.title ?? '',
@@ -187,15 +359,136 @@ async function fetchMangaUpdatesByType(
           artist:             artists[0] ?? authors[0] ?? firstCredit,
           year_released:      year,
           chapter_count:      detail?.latest_chapter ?? record.latest_chapter ?? null,
-          official_platforms: resolvePlatforms(muType),
-          mangaupdates_id:    String(seriesId),
+          official_platforms: platforms.length > 0 ? platforms : ['INKR'],
+          mangaupdates_id:    seriesId ? String(seriesId) : null,
+          mangabaka_id:       null,
+          mangadex_id:        null,
           anilist_id:         null,
           mal_id:             null,
-          mangadex_id:        null,
           source:             'mangaupdates' as const,
         } satisfies SeriesData
       })
       .filter((s) => s.title.length > 0)
+  } catch {
+    return []
+  }
+}
+
+// ── MangaBaka fetcher ────────────────────────────────────────────
+
+async function fetchMangaBakaByType(
+  limit:  number,
+  page:   number,
+  mbType: 'manhwa' | 'manhua' | 'manga'
+): Promise<SeriesData[]> {
+  try {
+    // MangaBaka API structure
+    const res = await fetch(
+      `https://api.mangabaka.dev/series?type=${mbType}&sort=trending&page=${page}&limit=${limit}`,
+      { next: { revalidate: 0 } }
+    )
+    if (!res.ok) return []
+
+    const data = await res.json()
+    const items = data.data ?? data.results ?? []
+
+    return items
+      .map((item: any): SeriesData | null => {
+        const id = item.id ?? item.series_id
+        if (!id) return null
+
+        const title = item.title ?? item.name ?? ''
+        if (!title) return null
+
+        const description = item.description ?? item.synopsis ?? ''
+        const cleanDesc = description.replace(/<[^>]*>/g, '').trim().slice(0, 2000) || 'No description available.'
+
+        const genres = sanitizeGenres((item.genres ?? []).map((g: any) => g.name ?? g))
+        const altTitles = (item.alt_titles ?? item.alternative_titles ?? []).filter((t: any) => t && t !== title)
+
+        // Extract platforms from MangaBaka
+        const platforms = extractPlatformsFromMangaBaka(item)
+
+        return {
+          title,
+          alternative_titles: altTitles.slice(0, 5),
+          description: cleanDesc,
+          type: mbType,
+          status: mapStatus(item.status ?? 'ongoing'),
+          genres: genres.length > 0 ? genres : ['Action'],
+          cover_url: item.cover_url ?? item.image_url ?? null,
+          author: item.author ?? null,
+          artist: item.artist ?? null,
+          year_released: item.year ?? item.year_published ?? null,
+          chapter_count: item.chapters ?? item.total_chapters ?? null,
+          official_platforms: platforms.length > 0 ? platforms : ['INKR'],
+          mangaupdates_id: null,
+          mangabaka_id: id ? String(id) : null,
+          mangadex_id: null,
+          anilist_id: null,
+          mal_id: null,
+          source: 'mangabaka' as const,
+        }
+      })
+      .filter((s: SeriesData | null): s is SeriesData => s !== null && s.title.length > 0)
+  } catch {
+    return []
+  }
+}
+
+// ── MangaDex fetcher (fallback) ──────────────────────────────────
+
+async function fetchMangaDexByType(
+  limit:  number,
+  page:   number,
+  mdType: 'manhwa' | 'manhua' | 'manga'
+): Promise<SeriesData[]> {
+  try {
+    const res = await fetch(
+      `https://api.mangadex.org/manga?limit=${limit}&offset=${(page - 1) * limit}&contentRating[]=safe&contentRating[]=suggestive&includes[]=author&includes[]=artist&includes[]=cover_art&order[rating]=desc`,
+      { next: { revalidate: 0 } }
+    )
+    if (!res.ok) return []
+
+    const data = await res.json()
+    const items = data.data ?? []
+
+    return items
+      .map((item: any): SeriesData | null => {
+        const attr = item.attributes ?? {}
+        const titleEn = attr.title?.en || Object.values(attr.title ?? {})[0] || ''
+        if (!titleEn) return null
+
+        const description = attr.description?.en ?? ''
+        const cleanDesc = description.replace(/<[^>]*>/g, '').trim().slice(0, 2000) || 'No description available.'
+
+        const genres = sanitizeGenres(attr.tags?.map((t: any) => t.attributes?.name?.en ?? '') ?? [])
+
+        // Extract platforms from MangaDex
+        const platforms = extractPlatformsFromMangaDex(item)
+
+        return {
+          title: String(titleEn),
+          alternative_titles: (Object.values(attr.altTitles ?? {}).filter(Boolean) as string[]).slice(0, 5),
+          description: cleanDesc,
+          type: mdType,
+          status: mapStatus(attr.status ?? ''),
+          genres: genres.length > 0 ? genres : ['Action'],
+          cover_url: attr.links?.['cover_art'] ?? null,
+          author: null,
+          artist: null,
+          year_released: attr.year ?? null,
+          chapter_count: attr.lastChapter ? parseInt(attr.lastChapter) : null,
+          official_platforms: platforms.length > 0 ? platforms : ['INKR'],
+          mangaupdates_id: null,
+          mangabaka_id: null,
+          mangadex_id: item.id ? String(item.id) : null,
+          anilist_id: null,
+          mal_id: null,
+          source: 'mangadex' as const,
+        }
+      })
+      .filter((s: SeriesData | null): s is SeriesData => s !== null && s.title.length > 0)
   } catch {
     return []
   }
@@ -210,13 +503,11 @@ async function fetchAniListByFormat(limit: number, format: 'MANHWA' | 'MANHUA' |
         Page(perPage: $perPage) {
           media(type: MANGA, sort: TRENDING_DESC, format: $format, status_in: [RELEASING, FINISHED]) {
             id
-            title { romaji english native }
+            title { english romaji native }
             description(asHtml: false)
             genres
             coverImage { extraLarge large }
-            staff(perPage: 10) {
-              edges { role node { name { full } } }
-            }
+            externalLinks { url site }
             startDate { year }
             chapters
             status
@@ -236,50 +527,47 @@ async function fetchAniListByFormat(limit: number, format: 'MANHWA' | 'MANHUA' |
     const data  = await res.json()
     const items = data?.data?.Page?.media ?? []
 
-    return items.map((item: any): SeriesData => {
-      const author = item.staff?.edges?.find((e: any) =>
-        e.role?.toLowerCase().includes('story') || e.role?.toLowerCase().includes('author')
-      )?.node?.name?.full ?? null
+    return items
+      .map((item: any): SeriesData | null => {
+        const title = item.title?.english || item.title?.romaji || ''
+        if (!title) return null
 
-      const artist = item.staff?.edges?.find((e: any) =>
-        e.role?.toLowerCase().includes('art') || e.role?.toLowerCase().includes('illustrat')
-      )?.node?.name?.full ?? author
+        const platforms = extractPlatformsFromAniList(item)
 
-      const type = mapAniListFormat(item.format)
-
-      return {
-        title:              item.title?.english || item.title?.romaji || '',
-        alternative_titles: [item.title?.romaji, item.title?.native].filter(Boolean),
-        description:        item.description?.replace(/<[^>]*>/g, '').trim().slice(0, 2000) || 'No description available.',
-        type,
-        status:             mapAniListStatus(item.status),
-        genres:             sanitizeGenres(item.genres ?? []),
-        cover_url:          item.coverImage?.extraLarge || item.coverImage?.large || null,
-        author,
-        artist,
-        year_released:      item.startDate?.year ?? null,
-        chapter_count:      item.chapters ?? null,
-        official_platforms: resolvePlatforms(type),
-        mangaupdates_id:    null,
-        anilist_id:         String(item.id),
-        mal_id:             null,
-        mangadex_id:        null,
-        source:             'anilist' as const,
-      }
-    }).filter((s: SeriesData) => s.title.length > 0)
+        return {
+          title,
+          alternative_titles: [item.title?.romaji, item.title?.native].filter(Boolean),
+          description: item.description?.replace(/<[^>]*>/g, '').trim().slice(0, 2000) || 'No description available.',
+          type: mapAniListFormat(item.format),
+          status: mapAniListStatus(item.status),
+          genres: sanitizeGenres(item.genres ?? []),
+          cover_url: item.coverImage?.extraLarge || item.coverImage?.large || null,
+          author: null,
+          artist: null,
+          year_released: item.startDate?.year ?? null,
+          chapter_count: item.chapters ?? null,
+          official_platforms: platforms.length > 0 ? platforms : ['INKR'],
+          mangaupdates_id: null,
+          mangabaka_id: null,
+          mangadex_id: null,
+          anilist_id: item.id ? String(item.id) : null,
+          mal_id: null,
+          source: 'anilist' as const,
+        }
+      })
+      .filter((s: SeriesData | null): s is SeriesData => s !== null && s.title.length > 0)
   } catch {
     return []
   }
 }
 
-// ── Jikan (MAL) fetcher — paginated so MAL runs don't repeat ─────
+// ── Jikan (MAL) fallback ────────────────────────────────────────
 
 async function fetchJikanByType(
   limit:   number,
   page:    number,
   malType: 'manhwa' | 'manhua' | 'manga'
 ): Promise<SeriesData[]> {
-  // Jikan type param: manga | manhwa | manhua
   try {
     const res = await fetch(
       `https://api.jikan.moe/v4/top/manga?limit=${limit}&type=${malType}&page=${page}`,
@@ -289,28 +577,35 @@ async function fetchJikanByType(
 
     const data = await res.json()
 
-    return (data.data ?? []).map((item: any): SeriesData => {
-      const internalType: 'manga' | 'manhwa' | 'manhua' = malType
-      return {
-        title:              item.title_english || item.title || '',
-        alternative_titles: [item.title, item.title_japanese].filter(Boolean),
-        description:        item.synopsis?.replace(/\[Written by MAL Rewrite\]/g, '').trim().slice(0, 2000) || 'No description available.',
-        type:               internalType,
-        status:             mapStatus(item.status ?? ''),
-        genres:             sanitizeGenres(item.genres?.map((g: any) => g.name) ?? []),
-        cover_url:          item.images?.jpg?.large_image_url ?? item.images?.jpg?.image_url ?? null,
-        author:             item.authors?.[0]?.name?.replace(', ', ' ') ?? null,
-        artist:             item.authors?.[1]?.name?.replace(', ', ' ') ?? item.authors?.[0]?.name?.replace(', ', ' ') ?? null,
-        year_released:      item.published?.prop?.from?.year ?? null,
-        chapter_count:      item.chapters ?? null,
-        official_platforms: resolvePlatforms(internalType),
-        mangaupdates_id:    null,
-        anilist_id:         null,
-        mal_id:             String(item.mal_id),
-        mangadex_id:        null,
-        source:             'jikan' as const,
-      }
-    }).filter((s: SeriesData) => s.title.length > 0)
+    return (data.data ?? [])
+      .map((item: any): SeriesData | null => {
+        const title = item.title_english || item.title || ''
+        if (!title) return null
+
+        const platforms = extractPlatformsFromJikan(item)
+
+        return {
+          title,
+          alternative_titles: [item.title, item.title_japanese].filter(Boolean),
+          description: item.synopsis?.replace(/\[Written by MAL Rewrite\]/g, '').trim().slice(0, 2000) || 'No description available.',
+          type: malType,
+          status: mapStatus(item.status ?? ''),
+          genres: sanitizeGenres(item.genres?.map((g: any) => g.name) ?? []),
+          cover_url: item.images?.jpg?.large_image_url ?? item.images?.jpg?.image_url ?? null,
+          author: item.authors?.[0]?.name?.replace(', ', ' ') ?? null,
+          artist: item.authors?.[1]?.name?.replace(', ', ' ') ?? item.authors?.[0]?.name?.replace(', ', ' ') ?? null,
+          year_released: item.published?.prop?.from?.year ?? null,
+          chapter_count: item.chapters ?? null,
+          official_platforms: platforms.length > 0 ? platforms : ['INKR'],
+          mangaupdates_id: null,
+          mangabaka_id: null,
+          mangadex_id: null,
+          anilist_id: null,
+          mal_id: item.mal_id ? String(item.mal_id) : null,
+          source: 'jikan' as const,
+        }
+      })
+      .filter((s: SeriesData | null): s is SeriesData => s !== null && s.title.length > 0)
   } catch {
     return []
   }
@@ -333,16 +628,16 @@ function dedupeAgainst(existing: SeriesData[], incoming: SeriesData[]): SeriesDa
   return incoming.filter((s) => !seen.has(s.title.toLowerCase()))
 }
 
-// ── Smart fetch for a single type ────────────────────────────────
-// Returns { results, nextState } so we can update the log correctly
+// ── Smart fetch for a single type (MU → MB → MAL rotation) ───────
 
 async function fetchForType(
   state:      TypeState,
   count:      number,
   muType:     'manhwa' | 'manhua' | 'manga',
+  mdType:     'manhwa' | 'manhua' | 'manga',
   aniFormat:  'MANHWA' | 'MANHUA' | 'MANGA',
   malType:    'manhwa' | 'manhua' | 'manga',
-  dbTitles:   Set<string>   // already in DB — for counting "new" MU results
+  dbTitles:   Set<string>
 ): Promise<{ results: SeriesData[]; nextState: TypeState; usedSource: string }> {
 
   let nextState = { ...state }
@@ -350,87 +645,122 @@ async function fetchForType(
   let usedSource: string = state.source_mode
 
   if (state.source_mode === 'mu') {
-    // ── MU mode ──────────────────────────────────────────────────
     const nextPage = state.page + 1
     nextState.page = nextPage
 
     const muRaw   = dedupeWithin(await fetchMangaUpdatesByType(count + 5, nextPage, muType))
-    // Count how many are actually new (not already in DB)
     const muFresh = muRaw.filter(s => !dbTitles.has(s.title.toLowerCase()))
 
     if (muFresh.length === 0) {
-      // MU gave nothing new — increment zero streak
       nextState.mu_zero_streak = state.mu_zero_streak + 1
 
       if (nextState.mu_zero_streak >= MU_ZERO_THRESHOLD) {
-        // Switch to MAL
-        nextState.source_mode  = 'mal'
-        nextState.mal_run_count = 0
-        usedSource = 'mal (switched from mu)'
+        nextState.source_mode = 'mb'
+        nextState.mb_run_count = 0
+        usedSource = 'mb (switched from mu)'
       }
 
-      // Fall through to MAL/AniList regardless for this run
-      const malPage = state.mal_run_count + 1
-      const malRaw  = dedupeWithin(await fetchJikanByType(count + 5, malPage, malType))
-      results       = malRaw.slice(0, count)
+      const mbPage = state.mb_run_count + 1
+      const mbRaw  = dedupeWithin(await fetchMangaBakaByType(count + 5, mbPage, muType))
+      results = mbRaw.slice(0, count)
 
-      // Fill shortfall with AniList
+      if (results.length < count) {
+        const mdRaw = dedupeWithin(await fetchMangaDexByType(count + 5, mbPage, mdType))
+        const fresh = dedupeAgainst(results, mdRaw)
+        results.push(...fresh.slice(0, count - results.length))
+      }
+
       if (results.length < count) {
         const aniRaw = dedupeWithin(await fetchAniListByFormat(count + 5, aniFormat))
-        const fresh  = dedupeAgainst(results, aniRaw)
+        const fresh = dedupeAgainst(results, aniRaw)
         results.push(...fresh.slice(0, count - results.length))
       }
     } else {
-      // MU gave fresh results — reset zero streak, use MU
       nextState.mu_zero_streak = 0
       results = muFresh.slice(0, count)
 
-      // Fill shortfall with AniList if needed
       if (results.length < count) {
         const aniRaw = dedupeWithin(await fetchAniListByFormat(count + 5, aniFormat))
         const fresh  = dedupeAgainst(results, aniRaw)
         results.push(...fresh.slice(0, count - results.length))
       }
     }
-  } else {
-    // ── MAL mode ─────────────────────────────────────────────────
-    const malPage = state.mal_run_count + 1
-    nextState.mal_run_count = malPage
+  } else if (state.source_mode === 'mb') {
+    const mbPage = state.mb_run_count + 1
+    nextState.mb_run_count = mbPage
 
-    if (malPage >= MAL_RUN_LIMIT) {
-      // Time to check if MU has new stuff again
+    if (mbPage >= MB_RUN_LIMIT) {
       const muCheckPage = state.page + 1
       const muRaw       = dedupeWithin(await fetchMangaUpdatesByType(count + 5, muCheckPage, muType))
       const muFresh     = muRaw.filter(s => !dbTitles.has(s.title.toLowerCase()))
 
       if (muFresh.length > 0) {
-        // MU is back — switch back
         nextState.source_mode   = 'mu'
         nextState.page          = muCheckPage
         nextState.mu_zero_streak = 0
+        nextState.mb_run_count  = 0
+        results = muFresh.slice(0, count)
+        usedSource = 'mu (switched back from mb)'
+      } else {
+        nextState.source_mode  = 'mal'
+        nextState.mal_run_count = 0
+        nextState.mu_zero_streak = MU_ZERO_THRESHOLD
+        usedSource = 'mal (switched from mb, mu still dry)'
+
+        const malRaw = dedupeWithin(await fetchJikanByType(count + 5, 1, malType))
+        results = malRaw.slice(0, count)
+      }
+    } else {
+      usedSource = `mb (run ${mbPage}/${MB_RUN_LIMIT})`
+      const mbRaw = dedupeWithin(await fetchMangaBakaByType(count + 5, mbPage, muType))
+      results = mbRaw.slice(0, count)
+    }
+
+    if (results.length < count) {
+      const mdRaw = dedupeWithin(await fetchMangaDexByType(count + 5, 1, mdType))
+      const fresh = dedupeAgainst(results, mdRaw)
+      results.push(...fresh.slice(0, count - results.length))
+    }
+
+    if (results.length < count) {
+      const aniRaw = dedupeWithin(await fetchAniListByFormat(count + 5, aniFormat))
+      const fresh = dedupeAgainst(results, aniRaw)
+      results.push(...fresh.slice(0, count - results.length))
+    }
+  } else {
+    // MAL mode
+    const malPage = state.mal_run_count + 1
+    nextState.mal_run_count = malPage
+
+    if (malPage >= MAL_RUN_LIMIT) {
+      const muCheckPage = state.page + 1
+      const muRaw       = dedupeWithin(await fetchMangaUpdatesByType(count + 5, muCheckPage, muType))
+      const muFresh     = muRaw.filter(s => !dbTitles.has(s.title.toLowerCase()))
+
+      if (muFresh.length > 0) {
+        nextState.source_mode   = 'mu'
+        nextState.page          = muCheckPage
+        nextState.mu_zero_streak = 0
+        nextState.mb_run_count  = 0
         nextState.mal_run_count  = 0
-        results    = muFresh.slice(0, count)
+        results = muFresh.slice(0, count)
         usedSource = 'mu (switched back from mal)'
       } else {
-        // MU still dry — reset MAL run counter and keep going with MAL
-        nextState.mal_run_count  = 0
-        nextState.mu_zero_streak = MU_ZERO_THRESHOLD // stays at threshold
-        usedSource = 'mal (mu still dry)'
+        nextState.mal_run_count = 0
+        usedSource = 'mal (mu still dry, resetting)'
 
         const malRaw = dedupeWithin(await fetchJikanByType(count + 5, malPage, malType))
         results = malRaw.slice(0, count)
       }
     } else {
-      // Still in MAL stint
       usedSource = `mal (run ${malPage}/${MAL_RUN_LIMIT})`
       const malRaw = dedupeWithin(await fetchJikanByType(count + 5, malPage, malType))
       results = malRaw.slice(0, count)
     }
 
-    // Fill shortfall with AniList in either case
     if (results.length < count) {
       const aniRaw = dedupeWithin(await fetchAniListByFormat(count + 5, aniFormat))
-      const fresh  = dedupeAgainst(results, aniRaw)
+      const fresh = dedupeAgainst(results, aniRaw)
       results.push(...fresh.slice(0, count - results.length))
     }
   }
@@ -459,7 +789,7 @@ export async function GET(req: Request) {
   const { data: lastLog } = await supabase
     .from('activity_logs')
     .select('details')
-    .eq('action', 'auto_rec_submit')
+    .eq('action', 'auto_rec_submit_summary')
     .eq('user_id', systemUserId)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -467,28 +797,30 @@ export async function GET(req: Request) {
 
   const lastDetails = (lastLog?.details as any) ?? {}
 
-  // Parse per-type states — falls back to default if first run
+  // Parse per-type states
   const manhwaState: TypeState = {
-    page:           lastDetails.manhwa?.page           ?? 0,
-    mu_zero_streak: lastDetails.manhwa?.mu_zero_streak ?? 0,
-    source_mode:    lastDetails.manhwa?.source_mode    ?? 'mu',
-    mal_run_count:  lastDetails.manhwa?.mal_run_count  ?? 0,
+    page:           lastDetails.states?.manhwa?.page           ?? 0,
+    mu_zero_streak: lastDetails.states?.manhwa?.mu_zero_streak ?? 0,
+    source_mode:    lastDetails.states?.manhwa?.source_mode    ?? 'mu',
+    mb_run_count:   lastDetails.states?.manhwa?.mb_run_count   ?? 0,
+    mal_run_count:  lastDetails.states?.manhwa?.mal_run_count  ?? 0,
   }
   const manhuaState: TypeState = {
-    page:           lastDetails.manhua?.page           ?? 0,
-    mu_zero_streak: lastDetails.manhua?.mu_zero_streak ?? 0,
-    source_mode:    lastDetails.manhua?.source_mode    ?? 'mu',
-    mal_run_count:  lastDetails.manhua?.mal_run_count  ?? 0,
+    page:           lastDetails.states?.manhua?.page           ?? 0,
+    mu_zero_streak: lastDetails.states?.manhua?.mu_zero_streak ?? 0,
+    source_mode:    lastDetails.states?.manhua?.source_mode    ?? 'mu',
+    mb_run_count:   lastDetails.states?.manhua?.mb_run_count   ?? 0,
+    mal_run_count:  lastDetails.states?.manhua?.mal_run_count  ?? 0,
   }
   const mangaState: TypeState = {
-    page:           lastDetails.manga?.page           ?? 0,
-    mu_zero_streak: lastDetails.manga?.mu_zero_streak ?? 0,
-    source_mode:    lastDetails.manga?.source_mode    ?? 'mu',
-    mal_run_count:  lastDetails.manga?.mal_run_count  ?? 0,
+    page:           lastDetails.states?.manga?.page           ?? 0,
+    mu_zero_streak: lastDetails.states?.manga?.mu_zero_streak ?? 0,
+    source_mode:    lastDetails.states?.manga?.source_mode    ?? 'mu',
+    mb_run_count:   lastDetails.states?.manga?.mb_run_count   ?? 0,
+    mal_run_count:  lastDetails.states?.manga?.mal_run_count  ?? 0,
   }
 
-  // 4. Build a set of existing DB titles (lowercase) for "new result" detection
-  //    Only need titles from auto-submitter entries to keep query fast
+  // 4. Build a set of existing DB titles
   const { data: existingRecs } = await supabase
     .from('recommendations')
     .select('title')
@@ -498,11 +830,11 @@ export async function GET(req: Request) {
     (existingRecs ?? []).map((r: any) => r.title.toLowerCase())
   )
 
-  // 5. Fetch each type using smart switching — runs independently per type
+  // 5. Fetch each type (MU → MB → MAL rotation)
   const [manhwaResult, manhuaResult, mangaResult] = await Promise.all([
-    fetchForType(manhwaState, MANHWA_COUNT, 'manhwa', 'MANHWA', 'manhwa', dbTitles),
-    fetchForType(manhuaState, MANHUA_COUNT, 'manhua', 'MANHUA', 'manhua', dbTitles),
-    fetchForType(mangaState,  MANGA_COUNT,  'manga',  'MANGA',  'manga',  dbTitles),
+    fetchForType(manhwaState, MANHWA_COUNT, 'manhwa', 'manhwa', 'MANHWA', 'manhwa', dbTitles),
+    fetchForType(manhuaState, MANHUA_COUNT, 'manhua', 'manhua', 'MANHUA', 'manhua', dbTitles),
+    fetchForType(mangaState,  MANGA_COUNT,  'manga',  'manga',  'MANGA',  'manga',  dbTitles),
   ])
 
   // 6. Combine with global dedupe
@@ -513,19 +845,30 @@ export async function GET(req: Request) {
   ])
 
   if (series.length === 0) {
-    return NextResponse.json({ error: 'All sources failed to return data.' }, { status: 502 })
+    return NextResponse.json({ error: 'All sources failed to return data.', submitted: 0, skipped: 0, failed: 0 }, { status: 502 })
   }
 
-  // 7. Process each series
-  const report = {
-    submitted: [] as { title: string; type: string; source: string }[],
-    skipped:   [] as { title: string; reason: string }[],
-    failed:    [] as { title: string; error: string }[],
-  }
+  // 7. Process each series with detailed logging
+  const logs: SubmissionLog[] = []
+  let submitted = 0
+  let skipped = 0
+  let failed = 0
 
   for (const s of series) {
+    const timestamp = new Date().toISOString()
+
     if (!s.title.trim()) {
-      report.skipped.push({ title: '(empty)', reason: 'Empty title from source' })
+      logs.push({
+        title: '(empty)',
+        type: 'other',
+        status: 'skipped',
+        source: 'unknown',
+        genres: [],
+        platforms: [],
+        reason: 'Empty title from source',
+        timestamp,
+      })
+      skipped++
       continue
     }
 
@@ -537,10 +880,28 @@ export async function GET(req: Request) {
         .maybeSingle()
 
       if (existing) {
-        report.skipped.push({
-          title:  s.title,
-          reason: `Duplicate — already exists as "${existing.title}" (id: ${existing.id})`,
+        logs.push({
+          title: s.title,
+          type: s.type,
+          status: 'skipped',
+          source: s.source,
+          genres: s.genres,
+          platforms: s.official_platforms,
+          author: s.author,
+          artist: s.artist,
+          chapters: s.chapter_count,
+          year: s.year_released,
+          reason: `Duplicate — already exists as "${existing.title}"`,
+          external_ids: {
+            mangaupdates_id: s.mangaupdates_id,
+            mangabaka_id: s.mangabaka_id,
+            mangadex_id: s.mangadex_id,
+            anilist_id: s.anilist_id,
+            mal_id: s.mal_id,
+          },
+          timestamp,
         })
+        skipped++
         continue
       }
 
@@ -567,49 +928,124 @@ export async function GET(req: Request) {
           is_ai_generated:    true,
           ai_model:           'auto-submitter',
           mangaupdates_id:    s.mangaupdates_id,
+          mangabaka_id:       s.mangabaka_id,
+          mangadex_id:        s.mangadex_id,
           anilist_id:         s.anilist_id,
           mal_id:             s.mal_id,
-          mangadex_id:        s.mangadex_id,
         } as any)
 
       if (insertError) {
-        report.failed.push({ title: s.title, error: insertError.message })
+        logs.push({
+          title: s.title,
+          type: s.type,
+          status: 'failed',
+          source: s.source,
+          genres: s.genres,
+          platforms: s.official_platforms,
+          author: s.author,
+          artist: s.artist,
+          chapters: s.chapter_count,
+          year: s.year_released,
+          error: insertError.message,
+          external_ids: {
+            mangaupdates_id: s.mangaupdates_id,
+            mangabaka_id: s.mangabaka_id,
+            mangadex_id: s.mangadex_id,
+            anilist_id: s.anilist_id,
+            mal_id: s.mal_id,
+          },
+          timestamp,
+        })
+        failed++
         continue
       }
 
-      report.submitted.push({ title: s.title, type: s.type, source: s.source })
+      logs.push({
+        title: s.title,
+        type: s.type,
+        status: 'submitted',
+        source: s.source,
+        genres: s.genres,
+        platforms: s.official_platforms,
+        author: s.author,
+        artist: s.artist,
+        chapters: s.chapter_count,
+        year: s.year_released,
+        external_ids: {
+          mangaupdates_id: s.mangaupdates_id,
+          mangabaka_id: s.mangabaka_id,
+          mangadex_id: s.mangadex_id,
+          anilist_id: s.anilist_id,
+          mal_id: s.mal_id,
+        },
+        timestamp,
+      })
+      submitted++
     } catch (err: any) {
-      report.failed.push({ title: s.title, error: err?.message ?? 'Unknown error' })
+      logs.push({
+        title: s.title,
+        type: s.type,
+        status: 'failed',
+        source: s.source,
+        genres: s.genres,
+        platforms: s.official_platforms,
+        author: s.author,
+        artist: s.artist,
+        chapters: s.chapter_count,
+        year: s.year_released,
+        error: err?.message ?? 'Unknown error',
+        external_ids: {
+          mangaupdates_id: s.mangaupdates_id,
+          mangabaka_id: s.mangabaka_id,
+          mangadex_id: s.mangadex_id,
+          anilist_id: s.anilist_id,
+          mal_id: s.mal_id,
+        },
+        timestamp,
+      })
+      failed++
     }
   }
 
-  // 8. Log run — store full state for each type so next run picks up correctly
+  // 8. Bulk log all submissions
+  try {
+    for (const log of logs) {
+      await logSubmission(supabase, log)
+    }
+  } catch (err) {
+    console.error('Failed to log submissions:', err)
+  }
+
+  // 9. Log the run summary
   await supabase.from('activity_logs').insert({
     user_id:     systemUserId,
-    action:      'auto_rec_submit',
+    action:      'auto_rec_submit_summary',
     entity_type: 'recommendations',
     details: {
-      submitted_count: report.submitted.length,
-      skipped_count:   report.skipped.length,
-      failed_count:    report.failed.length,
-      // Full state stored per type
-      manhwa: manhwaResult.nextState,
-      manhua: manhuaResult.nextState,
-      manga:  mangaResult.nextState,
-      // Human-readable source info for debugging
+      submitted_count: submitted,
+      skipped_count:   skipped,
+      failed_count:    failed,
+      total_processed: series.length,
       sources: {
         manhwa: manhwaResult.usedSource,
         manhua: manhuaResult.usedSource,
         manga:  mangaResult.usedSource,
       },
+      states: {
+        manhwa: manhwaResult.nextState,
+        manhua: manhuaResult.nextState,
+        manga:  mangaResult.nextState,
+      },
+      timestamp: new Date().toISOString(),
     },
   } as any)
 
   return NextResponse.json({
-    submitted_count: report.submitted.length,
-    skipped_count:   report.skipped.length,
-    failed_count:    report.failed.length,
-    sources:  {
+    submitted,
+    skipped,
+    failed,
+    total: series.length,
+    sources: {
       manhwa: manhwaResult.usedSource,
       manhua: manhuaResult.usedSource,
       manga:  mangaResult.usedSource,
@@ -619,6 +1055,6 @@ export async function GET(req: Request) {
       manhua: manhuaResult.nextState,
       manga:  mangaResult.nextState,
     },
-    report,
+    logs_count: logs.length,
   })
 }

@@ -23,7 +23,7 @@ export default async function CreatorSettingsPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-black tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1">Manage your creator profile and preferences.</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Manage your creator profile and preferences.</p>
       </div>
       <SettingsForm profile={profile as Profile} userId={user.id} isPro={isPro} defaultSection="creator-links" />
     </div>

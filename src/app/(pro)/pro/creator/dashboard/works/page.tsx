@@ -22,7 +22,7 @@ export default async function ProCreatorWorksPage() {
         initialRecs={(recs as any[]) ?? []}
         userId={user.id}
         newRecHref="/pro/creator/dashboard/works/new"
-        baseEditHref="/pro/creator/dashboard/works"
+        editBasePath="/pro/creator/dashboard/works"
         isPro={true}
         accentColor="teal"
       />

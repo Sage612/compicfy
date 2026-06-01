@@ -62,12 +62,12 @@ export default async function ProReaderLeaderboardPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-          <Trophy size={20} className="text-amber-500" />
+        <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+          <Trophy size={17} className="text-amber-500" />
         </div>
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">Leaderboard</h1>
-          <p className="text-sm text-muted-foreground">Top contributors ranked by votes received</p>
+        <div className="min-w-0">
+          <h1 className="text-xl font-black tracking-tight truncate">Leaderboard</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Top contributors by votes</p>
         </div>
       </div>
 
