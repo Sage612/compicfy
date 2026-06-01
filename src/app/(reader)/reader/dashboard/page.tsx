@@ -1,18 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
+import { CurrentlyReadingSection } from '@/components/recommendations/CurrentlyReadingSection'
+import { Button } from '@/components/ui/button'
 import {
   BookOpen, Bookmark, Plus, Settings, Flame, ArrowRight,
   BookMarked, ChevronRight, LayoutList, Users, UserPlus, Radar, Star,
-  AlertCircle,
 } from 'lucide-react'
+import Link from 'next/link'
 import { formatDate, timeAgo } from '@/lib/utils/format'
-import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
-import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
-import { CurrentlyReadingSection } from '@/components/recommendations/CurrentlyReadingSection'
-import { cn } from '@/lib/utils'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Dashboard' }
@@ -25,8 +22,6 @@ const TYPE_COLORS: Record<string, string> = {
   comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
 }
 
-const FREE_REC_LIMIT = 50
-
 export default async function ReaderDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -34,20 +29,13 @@ export default async function ReaderDashboardPage() {
 
   const { data: profileData } = await supabase
     .from('profiles').select('*').eq('id', user.id).single()
+
   if (!profileData) redirect('/login')
   const profile = profileData as any
 
-  const isAdmin = ['admin', 'moderator'].includes(profile.role ?? '')
-  const isPro   = isAdmin || (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-
-  const recCount   = profile.recommendation_count_this_month ?? 0
-  const remaining  = Math.max(0, FREE_REC_LIMIT - recCount)
-  const pct        = Math.min(100, (recCount / FREE_REC_LIMIT) * 100)
-  const nearLimit  = !isPro && remaining <= 10 && remaining > 0
-  const atLimit    = !isPro && remaining === 0
-
   const { data: followData } = await supabase
     .from('follows').select('following_id').eq('follower_id', user.id)
+
   const followingIds = (followData ?? []).map((f: any) => f.following_id)
 
   const [
@@ -68,11 +56,14 @@ export default async function ReaderDashboardPage() {
       .eq('reading_lists.user_id', user.id).eq('status', 'reading')
       .order('added_at', { ascending: false }).limit(6),
     followingIds.length > 0
-      ? supabase.from('recommendations')
-          .select('id, title, cover_url, type, created_at, user_id, profiles!recommendations_user_id_fkey(username, display_name, avatar_url)')
-          .in('user_id', followingIds).eq('is_approved', true)
+      ? supabase
+          .from('recommendations')
+          .select(`id, title, cover_url, type, created_at, user_id, profiles!recommendations_user_id_fkey(username, display_name, avatar_url)`)
+          .in('user_id', followingIds)
+          .eq('is_approved', true)
           .not('content_rating', 'in', '("adult","mature")')
-          .order('created_at', { ascending: false }).limit(4)
+          .order('created_at', { ascending: false })
+          .limit(4)
       : Promise.resolve({ data: [] }),
     supabase.from('reading_lists').select('id, name').eq('user_id', user.id).order('created_at', { ascending: false }),
   ])
@@ -103,9 +94,6 @@ export default async function ReaderDashboardPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
 
-      {/* Nudge — homeOnly so it ONLY shows here, not on sub-pages */}
-      <IncompleteRecNudge homeOnly />
-
       {/* Welcome banner */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 md:p-8">
         <div className="absolute inset-0 pointer-events-none">
@@ -117,94 +105,52 @@ export default async function ReaderDashboardPage() {
             <div className="absolute -inset-1 rounded-full bg-primary opacity-20 blur-sm" />
             <Avatar className="relative h-16 w-16 border-2 border-background">
               <AvatarImage src={profile.avatar_url ?? undefined} />
-              <AvatarFallback className="text-xl bg-primary text-primary-foreground font-bold">{initials}</AvatarFallback>
+              <AvatarFallback className="text-xl bg-primary text-primary-foreground font-bold">
+                {initials}
+              </AvatarFallback>
             </Avatar>
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-black truncate">Hey, {profile.display_name || profile.username}! 👋</h1>
-            <p className="text-sm text-muted-foreground">Reader · Member since {formatDate(profile.member_since)}</p>
+            <h1 className="text-xl font-black truncate">
+              Hey, {profile.display_name || profile.username}! 👋
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Reader · Member since {formatDate(profile.member_since)}
+            </p>
           </div>
           <div className="flex gap-2 shrink-0">
             <Link href="/reader/dashboard/settings">
-              <Button variant="outline" size="sm" className="gap-1.5"><Settings size={13} />Settings</Button>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <Settings size={13} />
+                Settings
+              </Button>
             </Link>
             <Link href="/reader/dashboard/recommendations/new">
-              <Button size="sm" className="gap-1.5"><BookOpen size={13} />Recommend</Button>
+              <Button size="sm" className="gap-1.5">
+                <BookOpen size={13} />
+                Recommend
+              </Button>
             </Link>
           </div>
         </div>
       </div>
 
-      <ProfileCompletionBanner hasAvatar={!!profile.avatar_url} hasBio={!!profile.bio} hasWebsite={!!profile.website} />
-
-      {/* ── Psychology: Monthly rec counter ── */}
-      {!isPro && (
-        <div className={cn(
-          'rounded-2xl border p-4 space-y-3',
-          atLimit ? 'border-red-500/30 bg-red-500/5' : nearLimit ? 'border-amber-500/30 bg-amber-500/5' : 'border-border bg-card'
-        )}>
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              {(atLimit || nearLimit) && (
-                <AlertCircle size={15} className={atLimit ? 'text-red-500' : 'text-amber-500'} />
-              )}
-              <p className="text-sm font-black">
-                {atLimit
-                  ? "You've reached your monthly limit"
-                  : nearLimit
-                  ? `Only ${remaining} submissions left this month`
-                  : 'Monthly Submissions'}
-              </p>
-            </div>
-            <span className={cn(
-              'text-xs font-black tabular-nums',
-              atLimit ? 'text-red-500' : nearLimit ? 'text-amber-500' : 'text-muted-foreground'
-            )}>
-              {recCount} / {FREE_REC_LIMIT}
-            </span>
-          </div>
-
-          {/* Progress bar */}
-          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-            <div
-              className={cn(
-                'h-full rounded-full transition-all duration-500',
-                atLimit ? 'bg-red-500' : nearLimit ? 'bg-amber-500' : 'bg-primary'
-              )}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-
-          {atLimit ? (
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
-                Pro readers like <span className="font-semibold text-foreground">@Ghost</span> have no limits — ever.
-              </p>
-              <Link href="/pricing" className="shrink-0">
-                <Button size="sm" className="h-7 text-xs gap-1 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white hover:opacity-90">
-                  Go Pro
-                </Button>
-              </Link>
-            </div>
-          ) : nearLimit ? (
-            <p className="text-xs text-muted-foreground">
-              Resets next month · <Link href="/pricing" className="text-amber-500 font-semibold hover:underline">Upgrade for unlimited →</Link>
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {remaining} remaining · resets monthly · <Link href="/pricing" className="text-primary/70 hover:text-primary font-medium">Go Pro for unlimited</Link>
-            </p>
-          )}
-        </div>
-      )}
+      <ProfileCompletionBanner
+        hasAvatar={!!profile.avatar_url}
+        hasBio={!!profile.bio}
+        hasWebsite={!!profile.website}
+      />
 
       {/* Stats */}
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Your Stats</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {stats.map(({ label, value, icon: Icon, href, bg, text }) => (
-            <Link key={label} href={href}
-              className="group relative overflow-hidden p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200">
+            <Link
+              key={label}
+              href={href}
+              className="group relative overflow-hidden p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200"
+            >
               <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-3`}>
                 <Icon size={18} className={text} />
               </div>
@@ -243,7 +189,11 @@ export default async function ReaderDashboardPage() {
           <CurrentlyReadingSection initialItems={[]} lists={listsForTracker ?? []} listsHref="/reader/dashboard/lists" />
         </div>
       ) : (
-        <CurrentlyReadingSection initialItems={currentlyReading ?? []} lists={listsForTracker ?? []} listsHref="/reader/dashboard/lists" />
+        <CurrentlyReadingSection
+          initialItems={currentlyReading ?? []}
+          lists={listsForTracker ?? []}
+          listsHref="/reader/dashboard/lists"
+        />
       )}
 
       {/* Following feed */}
@@ -251,9 +201,12 @@ export default async function ReaderDashboardPage() {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">From People You Follow</h2>
           {!isFollowingNobody && (
-            <Link href="/feed" className="text-xs text-primary hover:underline flex items-center gap-1">View all <ChevronRight size={12} /></Link>
+            <Link href="/feed" className="text-xs text-primary hover:underline flex items-center gap-1">
+              View all <ChevronRight size={12} />
+            </Link>
           )}
         </div>
+
         {isFollowingNobody ? (
           <div className="relative overflow-hidden rounded-2xl border border-dashed border-primary/20 bg-primary/5 p-6 text-center space-y-4">
             <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
@@ -264,8 +217,12 @@ export default async function ReaderDashboardPage() {
               <p className="text-xs text-muted-foreground mt-1">Their recommendations will appear here.</p>
             </div>
             <div className="flex gap-3 justify-center">
-              <Link href="/feed?tab=discover"><Button size="sm" className="gap-1.5"><Users size={13} />Discover Readers</Button></Link>
-              <Link href="/browse"><Button size="sm" variant="outline" className="gap-1.5"><Radar size={13} />Browse Comics</Button></Link>
+              <Link href="/feed?tab=discover">
+                <Button size="sm" className="gap-1.5"><Users size={13} />Discover Readers</Button>
+              </Link>
+              <Link href="/browse">
+                <Button size="sm" variant="outline" className="gap-1.5"><Radar size={13} />Browse Comics</Button>
+              </Link>
             </div>
           </div>
         ) : feedItems.length > 0 ? (
@@ -275,11 +232,13 @@ export default async function ReaderDashboardPage() {
               const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
               return (
                 <Link key={rec.id} href={`/comic/${rec.id}`}
-                  className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/30 transition-colors">
+                  className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/30 transition-colors"
+                >
                   <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                     {rec.cover_url
                       ? <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      : <div className="w-full h-full flex items-center justify-center"><BookOpen size={12} className="text-muted-foreground opacity-40" /></div>}
+                      : <div className="w-full h-full flex items-center justify-center"><BookOpen size={12} className="text-muted-foreground opacity-40" /></div>
+                    }
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-black line-clamp-1 group-hover:text-primary transition-colors">{rec.title}</p>

@@ -2,10 +2,15 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
+import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 import { DashboardNav } from '@/components/layout/DashboardNav'
 import { DashboardMobileNav } from '@/components/layout/DashboardMobileNav'
 
-export default async function CreatorDashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function CreatorDashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -18,11 +23,16 @@ export default async function CreatorDashboardLayout({ children }: { children: R
 
   if (!profile) redirect('/login')
 
+  // ── Check admin FIRST — admin bypasses everything ──
   const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
 
   if (!isAdmin) {
+    // Non-admin: enforce user_type
     if (profile.user_type !== 'creator') redirect('/reader/dashboard')
-    const isPro = profile?.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+
+    // Non-admin creator: if pro, send to pro creator
+    const isPro = profile?.is_pro &&
+      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
     if (isPro) redirect('/pro/creator/dashboard')
   }
 
@@ -34,6 +44,9 @@ export default async function CreatorDashboardLayout({ children }: { children: R
           <DashboardNav />
         </aside>
         <main className="dashboard-main flex-1 min-w-0 overflow-auto pb-24 md:pb-0">
+          <div className="px-4 pt-4">
+            <IncompleteRecNudge />
+          </div>
           {children}
         </main>
       </div>

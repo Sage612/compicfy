@@ -13,25 +13,13 @@ interface DraftRec {
 
 const SESSION_KEY = 'compicfy_nudge_dismissed'
 
-interface Props {
-  /** Only render on the dashboard home page — pass true on home, omit elsewhere */
-  homeOnly?: boolean
-}
-
-export function IncompleteRecNudge({ homeOnly = false }: Props) {
+export function IncompleteRecNudge() {
   const [drafts,  setDrafts]  = useState<DraftRec[]>([])
   const [visible, setVisible] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isPro,   setIsPro]   = useState(false)
 
   useEffect(() => {
-    // When homeOnly is false (layout renders it), never show — bail immediately
-    // This prevents the nudge from showing on every sub-page via the layout
-    if (!homeOnly) {
-      setLoading(false)
-      return
-    }
-
     try {
       if (typeof window !== 'undefined' && sessionStorage.getItem(SESSION_KEY)) {
         setLoading(false)
@@ -41,6 +29,7 @@ export function IncompleteRecNudge({ homeOnly = false }: Props) {
 
     const run = async () => {
       try {
+        // Check pro status so we can build the correct edit link
         const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
 
@@ -78,13 +67,14 @@ export function IncompleteRecNudge({ homeOnly = false }: Props) {
     }
 
     run()
-  }, [homeOnly])
+  }, [])
 
   const dismiss = () => {
     try { sessionStorage.setItem(SESSION_KEY, '1') } catch {}
     setVisible(false)
   }
 
+  // Edit route depends on whether user is pro or not
   const editHref = (id: string) =>
     isPro
       ? `/pro/reader/dashboard/recommendations/${id}/edit`
@@ -94,7 +84,7 @@ export function IncompleteRecNudge({ homeOnly = false }: Props) {
 
   return (
     <div className={cn(
-      'flex items-start gap-3 px-4 py-3 rounded-2xl border mb-4',
+      'flex items-start gap-3 px-4 py-3 rounded-2xl border',
       'border-amber-500/25 bg-amber-500/5'
     )}>
       <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
@@ -112,6 +102,7 @@ export function IncompleteRecNudge({ homeOnly = false }: Props) {
           Recs with a personal reason get{' '}
           <span className="font-semibold text-foreground">far more votes</span>, takes 30 seconds.
         </p>
+
         <div className="flex flex-wrap gap-2 pt-1">
           {drafts.slice(0, 3).map(draft => (
             <Link
