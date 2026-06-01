@@ -2,16 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
-import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
 import { DashboardNav } from '@/components/layout/DashboardNav'
 import { DashboardMobileNav } from '@/components/layout/DashboardMobileNav'
 
-export default async function ReaderDashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default async function ReaderDashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -24,20 +19,16 @@ export default async function ReaderDashboardLayout({
 
   if (!profile) redirect('/login')
 
-  // ── Check admin FIRST — admin bypasses everything ──
   const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
 
   if (!isAdmin) {
-    // Non-admin: enforce user_type
     if (profile.user_type === 'creator') redirect('/creator/dashboard')
-
-    // Non-admin reader: if pro, send to pro reader
-    const isPro = profile?.is_pro &&
-      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+    const isPro = profile?.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
     if (isPro) redirect('/pro/reader/dashboard')
   }
 
   const recCount = profile?.recommendation_count_this_month ?? 0
+  const isPro    = isAdmin || (profile?.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -47,8 +38,8 @@ export default async function ReaderDashboardLayout({
           <DashboardNav />
         </aside>
         <main className="dashboard-main flex-1 min-w-0 overflow-auto pb-24 md:pb-0">
-          {!isAdmin && recCount >= 20 && (
-            <div className="px-4 pt-4">
+          {!isPro && recCount >= 20 && (
+            <div className="px-4 pt-4 max-w-4xl mx-auto">
               <UpgradeBanner
                 current={recCount}
                 limit={50}
@@ -58,9 +49,6 @@ export default async function ReaderDashboardLayout({
               />
             </div>
           )}
-          <div className="px-4 pt-4">
-            <IncompleteRecNudge />
-          </div>
           {children}
         </main>
       </div>
