@@ -112,7 +112,7 @@ export function ReadingListDetail({
   }, {} as Record<string, number>)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 py-6 max-w-3xl mx-auto">
 
       {/* Back link */}
       <Link
