@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Search, Loader2, BookOpen, X, ArrowRight,
-  Database, Globe, Plus,
-  TrendingUp, Star, Radar,
+  Database, Globe, Plus, TrendingUp, Star, Radar,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -15,33 +14,33 @@ import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 // ── Types ─────────────────────────────────────────────────────────
 
 interface DBResult {
-  source: 'compicfy'
-  id: string
-  title: string
-  type: string
+  source:    'compicfy'
+  id:        string
+  title:     string
+  type:      string
   cover_url: string | null
-  author: string | null
-  genres: string[]
-  status: string
-  upvotes: number
-  score: number
+  author:    string | null
+  genres:    string[]
+  status:    string
+  upvotes:   number
+  score:     number
 }
 
 interface ExternalResult {
-  source: 'jikan' | 'mangadex' | 'anilist' | 'mangaupdates'
-  id: string
-  title: string
-  type: string
-  coverUrl: string
-  author: string
-  genres: string[]
-  status: string
-  year: number | null
-  chapters: number | null
-  score: number | null
-  description: string
+  source:            'jikan' | 'mangadex' | 'anilist' | 'mangaupdates'
+  id:                string
+  title:             string
+  type:              string
+  coverUrl:          string
+  author:            string
+  artist:            string
+  genres:            string[]
+  status:            string
+  year:              number | null
+  chapters:          number | null
+  score:             number | null
+  description:       string
   alternativeTitles: string[]
-  artist: string
 }
 
 // ── Constants ─────────────────────────────────────────────────────
@@ -68,32 +67,26 @@ const TYPE_COLORS: Record<string, string> = {
   other:   'bg-zinc-500/10   text-zinc-400   border-zinc-500/20',
 }
 
-// Single source label and color for all external sources
-const EXTERNAL_SOURCE = {
-  label: 'External Database',
-  color: 'bg-primary/10 text-primary border-primary/20',
-}
-
-const COMPICFY_SOURCE = {
-  label: 'Compicfy',
-  color: 'bg-primary/10 text-primary border-primary/20',
-}
+const TYPE_FILTERS = ['all', 'manhwa', 'manga', 'manhua', 'webtoon', 'comic'] as const
+type TypeFilter = typeof TYPE_FILTERS[number]
 
 // ── Pre-fill URL builder ───────────────────────────────────────────
 
 function buildPrefillUrl(result: ExternalResult, isPro: boolean): string {
-  const base   = isPro ? '/pro/reader/dashboard/recommendations/new' : '/reader/dashboard/recommendations/new'
+  const base   = isPro
+    ? '/pro/reader/dashboard/recommendations/new'
+    : '/reader/dashboard/recommendations/new'
   const params = new URLSearchParams({
-    title:       result.title             ?? '',
-    author:      result.author            ?? '',
-    artist:      result.artist            ?? '',
+    title:       result.title                        ?? '',
+    author:      result.author                       ?? '',
+    artist:      result.artist                       ?? '',
     description: result.description?.slice(0, 2000) ?? '',
-    type:        result.type              ?? 'manga',
-    status:      result.status            ?? 'ongoing',
-    cover_url:   result.coverUrl          ?? '',
+    type:        result.type                         ?? 'manga',
+    status:      result.status                       ?? 'ongoing',
+    cover_url:   result.coverUrl                     ?? '',
     ...(result.year     ? { year_released: String(result.year)     } : {}),
     ...(result.chapters ? { chapter_count: String(result.chapters) } : {}),
-    genres:      (result.genres ?? []).slice(0, 5).join(','),
+    genres: (result.genres ?? []).slice(0, 5).join(','),
   })
   return `${base}?${params.toString()}`
 }
@@ -105,21 +98,21 @@ function DBCard({ result }: { result: DBResult }) {
   return (
     <Link
       href={`/comic/${result.id}`}
-      className="group flex gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200"
+      className="group flex gap-3 p-3.5 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200"
     >
-      <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
+      <div className="w-12 h-[68px] rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
         {result.cover_url
           ? <img src={result.cover_url} alt={result.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-          : <div className="w-full h-full flex items-center justify-center"><BookOpen size={16} className="text-muted-foreground opacity-40" /></div>
+          : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-muted-foreground opacity-40" /></div>
         }
       </div>
-      <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
+      <div className="flex-1 min-w-0 space-y-1 py-0.5">
         <div className="flex items-start justify-between gap-2">
           <p className="font-black text-sm line-clamp-2 leading-snug group-hover:text-primary transition-colors">{result.title}</p>
-          <ArrowRight size={13} className="text-muted-foreground/30 group-hover:text-primary shrink-0 mt-0.5 transition-colors" />
+          <ArrowRight size={12} className="text-muted-foreground/30 group-hover:text-primary shrink-0 mt-0.5 transition-colors" />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border', COMPICFY_SOURCE.color)}>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-primary/10 text-primary border-primary/20">
             <Database size={8} />
             Compicfy
           </span>
@@ -129,17 +122,12 @@ function DBCard({ result }: { result: DBResult }) {
           <span className="text-[10px] text-muted-foreground capitalize">{result.status}</span>
         </div>
         {result.author && <p className="text-xs text-muted-foreground truncate">by {result.author}</p>}
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-          {result.upvotes > 0 && (
-            <span className="flex items-center gap-1">
-              <TrendingUp size={9} className="text-emerald-500" />
-              {result.upvotes} upvotes
-            </span>
-          )}
-          {result.genres?.slice(0, 3).map(g => (
-            <span key={g} className="opacity-60">{g}</span>
-          ))}
-        </div>
+        {result.upvotes > 0 && (
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <TrendingUp size={9} className="text-emerald-500" />
+            {result.upvotes} upvotes
+          </span>
+        )}
       </div>
     </Link>
   )
@@ -169,19 +157,19 @@ function ExternalCard({
   }
 
   return (
-    <div className="group flex gap-4 p-4 rounded-2xl border border-border bg-card/60 hover:border-primary/30 hover:shadow-md transition-all duration-200">
-      <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
+    <div className="group flex gap-3 p-3.5 rounded-2xl border border-border bg-card/60 hover:border-primary/30 hover:shadow-md transition-all duration-200">
+      <div className="w-12 h-[68px] rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
         {result.coverUrl
           ? <img src={result.coverUrl} alt={result.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-          : <div className="w-full h-full flex items-center justify-center"><BookOpen size={16} className="text-muted-foreground opacity-40" /></div>
+          : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-muted-foreground opacity-40" /></div>
         }
       </div>
-      <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
+      <div className="flex-1 min-w-0 space-y-1 py-0.5">
         <p className="font-black text-sm line-clamp-2 leading-snug">{result.title}</p>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border', EXTERNAL_SOURCE.color)}>
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-primary/10 text-primary border-primary/20">
             <Globe size={8} />
-            {EXTERNAL_SOURCE.label}
+            External
           </span>
           <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize', typeColor)}>
             {result.type}
@@ -200,7 +188,7 @@ function ExternalCard({
             {result.description}
           </p>
         )}
-        <div className="pt-1">
+        <div className="pt-0.5">
           <Link href={prefillUrl} onClick={handleRecommendClick}>
             <Button
               size="sm"
@@ -208,7 +196,7 @@ function ExternalCard({
               className="h-7 gap-1.5 text-[11px] border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all"
             >
               <Plus size={10} />
-              Recommend this to Compicfy
+              Recommend to Compicfy
             </Button>
           </Link>
         </div>
@@ -237,7 +225,11 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
   const [hasSearched,     setHasSearched]     = useState(!!initialQuery)
   const [suggestions,     setSuggestions]     = useState<DBResult[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [activeTab,       setActiveTab]       = useState<'all' | 'compicfy' | 'web'>('all')
+
+  // Source tab: all / compicfy / web
+  const [activeTab,  setActiveTab]  = useState<'all' | 'compicfy' | 'web'>('all')
+  // Type filter: all / manhwa / manga / manhua / webtoon / comic
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
   const [showAuthModal,  setShowAuthModal]  = useState(false)
   const [authPrefillUrl, setAuthPrefillUrl] = useState('')
@@ -247,12 +239,25 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
   const suggDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef    = useRef<HTMLDivElement>(null)
 
-  const isLoading        = loadingDB || loadingExternal
+  const isLoading = loadingDB || loadingExternal
+
   const filteredExternal = externalResults.filter(r =>
     !dbResults.some(d => d.title.toLowerCase() === r.title.toLowerCase())
   )
-  const totalResults = dbResults.length + filteredExternal.length
 
+  // Apply type filter across both result sets
+  const visibleDB = typeFilter === 'all'
+    ? dbResults
+    : dbResults.filter(r => r.type === typeFilter)
+
+  const visibleExternal = typeFilter === 'all'
+    ? filteredExternal
+    : filteredExternal.filter(r => r.type === typeFilter)
+
+  const totalResults = dbResults.length + filteredExternal.length
+  const visibleTotal = visibleDB.length + visibleExternal.length
+
+  // Close suggestions on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -287,6 +292,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
     setHasSearched(true)
     setQuery(trimmed)
     setActiveTab('all')
+    setTypeFilter('all')
 
     const url = new URL(window.location.href)
     url.searchParams.set('q', trimmed)
@@ -325,6 +331,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
     setHasSearched(false)
     setShowSuggestions(false)
     setQuery('')
+    setTypeFilter('all')
     const url = new URL(window.location.href)
     url.searchParams.delete('q')
     window.history.replaceState({}, '', url.toString())
@@ -347,23 +354,34 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
     setShowAuthModal(true)
   }
 
-  const visibleTabs = [
-    { key: 'all',      label: 'All',               count: totalResults            },
-    ...(dbResults.length > 0        ? [{ key: 'compicfy', label: 'Compicfy',          count: dbResults.length        }] : []),
-    ...(filteredExternal.length > 0 ? [{ key: 'web',      label: 'External Database', count: filteredExternal.length }] : []),
+  const sourceTabs = [
+    { key: 'all',      label: 'All',      count: totalResults            },
+    ...(dbResults.length > 0        ? [{ key: 'compicfy', label: 'Compicfy', count: dbResults.length        }] : []),
+    ...(filteredExternal.length > 0 ? [{ key: 'web',      label: 'External', count: filteredExternal.length }] : []),
   ]
+
+  // Only show type filters that have at least one result
+  const availableTypes = TYPE_FILTERS.filter(t => {
+    if (t === 'all') return true
+    const inDB  = dbResults.some(r => r.type === t)
+    const inExt = filteredExternal.some(r => r.type === t)
+    return inDB || inExt
+  })
 
   return (
     <div className="min-h-screen">
 
-      {/* Search hero */}
+      {/* ── Sticky search bar ── */}
+      {/* Uses position:sticky + top-[var(--header-h)] so it always sits just below the header.
+          When not yet searched it renders as a centred hero instead. */}
       <div className={cn(
-        'sticky top-14 z-30 transition-all duration-300',
+        'z-30 transition-all duration-300',
         hasSearched
-          ? 'bg-background/95 backdrop-blur-lg border-b border-border py-3 px-4 shadow-sm'
+          ? 'sticky top-14 bg-background/95 backdrop-blur-lg border-b border-border py-3 px-4 shadow-sm'
           : 'py-16 px-4'
       )}>
         <div className={cn('mx-auto', hasSearched ? 'max-w-3xl' : 'max-w-xl text-center')}>
+
           {!hasSearched && (
             <div className="mb-8 space-y-3">
               <h1 className="text-4xl font-black tracking-tight">
@@ -376,9 +394,10 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
             </div>
           )}
 
+          {/* Search input */}
           <div className="relative w-full" ref={containerRef}>
             <div className={cn(
-              'flex items-center gap-2 sm:gap-3 transition-all w-full min-w-0',
+              'flex items-center gap-2 sm:gap-3 transition-all w-full',
               hasSearched
                 ? 'px-3 sm:px-4 py-2 rounded-full bg-muted/60'
                 : 'px-4 sm:px-5 py-3.5 rounded-full bg-muted/50 shadow-lg shadow-primary/5'
@@ -399,10 +418,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
               />
               {isLoading && <Loader2 size={14} className="animate-spin text-muted-foreground shrink-0" />}
               {inputValue && !isLoading && (
-                <button
-                  onClick={handleClear}
-                  className="text-muted-foreground hover:text-foreground transition-colors p-1 shrink-0"
-                >
+                <button onClick={handleClear} className="text-muted-foreground hover:text-foreground transition-colors p-1 shrink-0">
                   <X size={14} />
                 </button>
               )}
@@ -416,35 +432,32 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
               </Button>
             </div>
 
-            {/* Live suggestions */}
+            {/* Live suggestions dropdown */}
             {showSuggestions && suggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-border bg-card shadow-2xl shadow-black/20 overflow-hidden z-50">
                 <div className="py-1.5">
-                  {suggestions.map((s) => {
-                    const typeColor = TYPE_COLORS[s.type] ?? TYPE_COLORS.other
-                    return (
-                      <button
-                        key={s.id}
-                        onClick={() => handleSuggestionClick(s)}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors text-left"
-                      >
-                        <div className="w-7 h-10 rounded-lg overflow-hidden bg-muted shrink-0">
-                          {s.cover_url
-                            ? <img src={s.cover_url} alt={s.title} className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center"><BookOpen size={10} className="text-muted-foreground opacity-40" /></div>
-                          }
+                  {suggestions.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => handleSuggestionClick(s)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-muted/50 transition-colors text-left"
+                    >
+                      <div className="w-7 h-10 rounded-lg overflow-hidden bg-muted shrink-0">
+                        {s.cover_url
+                          ? <img src={s.cover_url} alt={s.title} className="w-full h-full object-cover" />
+                          : <div className="w-full h-full flex items-center justify-center"><BookOpen size={10} className="text-muted-foreground opacity-40" /></div>
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold truncate">{s.title}</p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize border', TYPE_COLORS[s.type] ?? TYPE_COLORS.other)}>{s.type}</span>
+                          {s.author && <span className="text-[10px] text-muted-foreground truncate">{s.author}</span>}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold truncate">{s.title}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className={cn('text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize border', typeColor)}>{s.type}</span>
-                            {s.author && <span className="text-[10px] text-muted-foreground truncate">{s.author}</span>}
-                          </div>
-                        </div>
-                        <ArrowRight size={11} className="text-muted-foreground/30 shrink-0" />
-                      </button>
-                    )
-                  })}
+                      </div>
+                      <ArrowRight size={11} className="text-muted-foreground/30 shrink-0" />
+                    </button>
+                  ))}
                   <button
                     onClick={handleSearch}
                     className="w-full flex items-center gap-3 px-4 py-2.5 border-t border-border hover:bg-primary/5 transition-colors text-left mt-1"
@@ -459,7 +472,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
             )}
           </div>
 
-          {/* Quick browse */}
+          {/* Quick browse — hero only */}
           {!hasSearched && (
             <div className="mt-6 space-y-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
@@ -481,103 +494,141 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
         </div>
       </div>
 
-      {/* Results */}
+      {/* ── Results ── */}
       {hasSearched && (
-        <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+        <div className="max-w-3xl mx-auto px-4 py-5 space-y-4">
 
+          {/* Source tabs + type filter row */}
           {!isLoading && totalResults > 0 && (
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <p className="text-sm text-muted-foreground">
-                <span className="font-black text-foreground">{totalResults}</span> results for{' '}
-                <span className="font-semibold">"{query}"</span>
-              </p>
-              <div className="flex gap-1">
-                {visibleTabs.map(tab => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                    className={cn(
-                      'px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
-                      activeTab === tab.key
-                        ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                        : 'border-border text-muted-foreground hover:border-primary/50'
-                    )}
-                  >
-                    {tab.label} {tab.count > 0 && `(${tab.count})`}
-                  </button>
-                ))}
+            <div className="space-y-3">
+
+              {/* Top row: count + source tabs */}
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-black text-foreground">{visibleTotal}</span>
+                  {visibleTotal !== totalResults && (
+                    <span className="text-muted-foreground"> of {totalResults}</span>
+                  )}{' '}
+                  results for <span className="font-semibold">"{query}"</span>
+                </p>
+                <div className="flex gap-1">
+                  {sourceTabs.map(tab => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setActiveTab(tab.key as typeof activeTab)}
+                      className={cn(
+                        'px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+                        activeTab === tab.key
+                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                          : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                      )}
+                    >
+                      {tab.label}{tab.count > 0 && ` (${tab.count})`}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Type filter pills — only shown when >1 type available */}
+              {availableTypes.length > 2 && (
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                  {availableTypes.map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setTypeFilter(t)}
+                      className={cn(
+                        'px-3 py-1 rounded-full text-xs font-semibold border transition-all whitespace-nowrap shrink-0',
+                        typeFilter === t
+                          ? t === 'all'
+                            ? 'bg-foreground text-background border-foreground'
+                            : cn(TYPE_COLORS[t], 'border-current opacity-100')
+                          : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                      )}
+                    >
+                      {t === 'all' ? 'All types' : t.charAt(0).toUpperCase() + t.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Loading skeleton */}
+          {isLoading && (
+            <div className="space-y-2.5">
+              {[1,2,3,4,5].map(i => (
+                <div key={i} className="h-24 rounded-2xl bg-muted/40 animate-pulse" />
+              ))}
             </div>
           )}
 
           {/* DB results */}
-          {(activeTab === 'all' || activeTab === 'compicfy') && (
-            <div className="space-y-3">
-              {dbResults.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
-                    <Database size={10} className="text-primary" />
-                  </div>
-                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">In Compicfy</p>
-                  <div className="flex-1 h-px bg-border" />
+          {!isLoading && (activeTab === 'all' || activeTab === 'compicfy') && visibleDB.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Database size={10} className="text-primary" />
                 </div>
-              )}
-              {loadingDB ? (
-                <div className="space-y-3">
-                  {[1,2,3].map(i => <div key={i} className="h-28 rounded-2xl bg-muted/40 animate-pulse" />)}
-                </div>
-              ) : dbResults.length > 0 ? (
-                <div className="space-y-2">
-                  {dbResults.map(r => <DBCard key={r.id} result={r} />)}
-                </div>
-              ) : hasSearched && !loadingDB && activeTab === 'compicfy' ? (
-                <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
-                  <Database size={24} className="text-muted-foreground/30 mx-auto" />
-                  <p className="text-sm font-semibold">Not in Compicfy yet</p>
-                  <p className="text-xs text-muted-foreground">Check the External Database tab to find it and add it</p>
-                </div>
-              ) : null}
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">In Compicfy</p>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+              {visibleDB.map(r => <DBCard key={r.id} result={r} />)}
             </div>
           )}
 
           {/* External results */}
-          {(activeTab === 'all' || activeTab === 'web') && (
-            <div className="space-y-3">
-              {filteredExternal.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
-                    <Globe size={10} className="text-primary" />
-                  </div>
-                  <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                    From External Databases
-                  </p>
-                  <div className="flex-1 h-px bg-border" />
-                  {loadingExternal && <Loader2 size={11} className="animate-spin text-muted-foreground" />}
+          {!isLoading && (activeTab === 'all' || activeTab === 'web') && visibleExternal.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
+                  <Globe size={10} className="text-primary" />
                 </div>
-              )}
-              {loadingExternal && filteredExternal.length === 0 ? (
-                <div className="space-y-3">
-                  {[1,2,3].map(i => <div key={i} className="h-28 rounded-2xl bg-muted/40 animate-pulse" />)}
-                </div>
-              ) : filteredExternal.length > 0 ? (
-                <div className="space-y-2">
-                  {filteredExternal.map(r => (
-                    <ExternalCard
-                      key={r.id}
-                      result={r}
-                      isPro={isPro}
-                      isLoggedIn={isLoggedIn}
-                      onAuthRequired={handleAuthRequired}
-                    />
-                  ))}
-                </div>
-              ) : !loadingExternal && activeTab === 'web' ? (
-                <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
-                  <Globe size={24} className="text-muted-foreground/30 mx-auto" />
-                  <p className="text-sm font-semibold">Nothing found in external databases either</p>
-                  <p className="text-xs text-muted-foreground">Try a different title or spelling</p>
-                </div>
-              ) : null}
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                  From External Databases
+                </p>
+                <div className="flex-1 h-px bg-border" />
+                {loadingExternal && <Loader2 size={11} className="animate-spin text-muted-foreground" />}
+              </div>
+              {visibleExternal.map(r => (
+                <ExternalCard
+                  key={r.id}
+                  result={r}
+                  isPro={isPro}
+                  isLoggedIn={isLoggedIn}
+                  onAuthRequired={handleAuthRequired}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Compicfy tab empty */}
+          {!isLoading && activeTab === 'compicfy' && visibleDB.length === 0 && (
+            <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
+              <Database size={24} className="text-muted-foreground/30 mx-auto" />
+              <p className="text-sm font-semibold">Not in Compicfy yet</p>
+              <p className="text-xs text-muted-foreground">Check the External tab to find it and add it</p>
+            </div>
+          )}
+
+          {/* External tab empty */}
+          {!isLoading && activeTab === 'web' && visibleExternal.length === 0 && (
+            <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
+              <Globe size={24} className="text-muted-foreground/30 mx-auto" />
+              <p className="text-sm font-semibold">Nothing found in external databases</p>
+              <p className="text-xs text-muted-foreground">Try a different title or spelling</p>
+            </div>
+          )}
+
+          {/* Type filter empty state */}
+          {!isLoading && totalResults > 0 && visibleTotal === 0 && typeFilter !== 'all' && (
+            <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
+              <p className="text-sm font-semibold">No {typeFilter} results for "{query}"</p>
+              <button
+                onClick={() => setTypeFilter('all')}
+                className="text-xs text-primary font-semibold hover:underline"
+              >
+                Show all types →
+              </button>
             </div>
           )}
 
@@ -585,9 +636,9 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
           {!isLoading && totalResults === 0 && (
             <div className="text-center py-20 space-y-4">
               <div className="relative w-28 h-28 mx-auto mb-2">
-                <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
-                <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
-                <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-primary/20 bg-card flex items-center justify-center shadow-lg">
+                <div className="absolute top-0 left-2 w-16 h-[88px] rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
+                <div className="absolute top-2 left-5 w-16 h-[88px] rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
+                <div className="absolute top-4 left-8 w-16 h-[88px] rounded-xl border-2 border-primary/20 bg-card flex items-center justify-center shadow-lg">
                   <Search size={18} className="text-muted-foreground opacity-40" />
                 </div>
               </div>
