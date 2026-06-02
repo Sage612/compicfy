@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
   House, Layers, Newspaper, ShoppingBag, Crown,
-  Users, HelpCircle, TrendingUp, Sparkles, Flame,
+  Users, HelpCircle, TrendingUp, Sparkles, Flame, BookOpen, Mail,
 } from 'lucide-react'
 
 // Discord SVG icon
@@ -41,9 +41,8 @@ const DASHBOARD_PREFIXES = [
   '/admin',
 ]
 
-// Routes where this bar should NOT render at all
-// (dashboard has its own DashboardMobileNav)
-const HIDDEN_PREFIXES = [
+// Routes where this bar should render only with Home button
+const HOME_ONLY_PREFIXES = [
   ...DASHBOARD_PREFIXES,
   '/admin',
 ]
@@ -67,12 +66,11 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Don't render on dashboard/admin pages
-  const isOnDashboard = HIDDEN_PREFIXES.some(p => pathname.startsWith(p))
-  if (isOnDashboard) return null
+  // Check if on dashboard/admin pages
+  const isOnDashboard = HOME_ONLY_PREFIXES.some(p => pathname.startsWith(p))
 
-  // Should "Home" chip appear?
-  const showHome = DASHBOARD_PREFIXES.some(p => pathname.startsWith(p))
+  // Show Home button only when on dashboard/admin
+  const showHome = isOnDashboard
 
   const tabs: TabItem[] = [
     // Home — only on dashboard/admin routes
@@ -82,27 +80,37 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
       icon:  <House size={13} strokeWidth={2} />,
     }] : []),
 
-    { label: 'Collections', href: '/collections',          icon: <Layers    size={13} strokeWidth={2} /> },
-    { label: 'News',        href: '/news',                 icon: <Newspaper size={13} strokeWidth={2} /> },
-    { label: 'Trending',    href: '/browse?sort=trending', icon: <Flame     size={13} strokeWidth={2} /> },
-    { label: 'New Releases',href: '/browse?sort=recent',   icon: <TrendingUp size={13} strokeWidth={2} /> },
-    { label: 'Shop & Merch',href: '/affiliate',            icon: <ShoppingBag size={13} strokeWidth={2} /> },
-    {
-      label:    'Discord',
-      href:     'https://discord.gg/7WPGMb696N',
-      icon:     <DiscordIcon size={13} />,
-      external: true,
-      accent:   'text-[#5865F2]',
-    },
-    { label: 'About',       href: '/about',      icon: <Users      size={13} strokeWidth={2} /> },
-    { label: 'FAQ',         href: '/faq',        icon: <HelpCircle size={13} strokeWidth={2} /> },
-    // Pricing — only for non-pro users
-    ...(!isPro ? [{
-      label:  'Go Pro',
-      href:   '/pricing',
-      icon:   <Sparkles size={13} strokeWidth={2} />,
-      accent: 'text-amber-500',
-    }] : []),
+    // All other tabs — only when NOT on dashboard/admin
+    ...(!isOnDashboard ? [
+      { label: 'Collections', href: '/collections',          icon: <Layers    size={13} strokeWidth={2} /> },
+      { label: 'News',        href: '/news',                 icon: <Newspaper size={13} strokeWidth={2} /> },
+      { label: 'Trending',    href: '/browse?sort=trending', icon: <Flame     size={13} strokeWidth={2} /> },
+      { label: 'New Releases',href: '/browse?sort=recent',   icon: <TrendingUp size={13} strokeWidth={2} /> },
+      { label: 'Shop & Merch',href: '/affiliate',            icon: <ShoppingBag size={13} strokeWidth={2} /> },
+      {
+        label:    'Discord',
+        href:     'https://discord.gg/7WPGMb696N',
+        icon:     <DiscordIcon size={13} />,
+        external: true,
+        accent:   'text-[#5865F2]',
+      },
+      { label: 'About',       href: '/about',            icon: <Users       size={13} strokeWidth={2} /> },
+      { label: 'Guidelines',  href: '/guidelines',       icon: <BookOpen    size={13} strokeWidth={2} /> },
+      { label: 'FAQ',         href: '/faq',              icon: <HelpCircle  size={13} strokeWidth={2} /> },
+      {
+        label:    'Support',
+        href:     'mailto:support@compicfy.cloud',
+        icon:     <Mail size={13} strokeWidth={2} />,
+        external: true,
+      },
+      // Pricing — only for non-pro users
+      ...(!isPro ? [{
+        label:  'Go Pro',
+        href:   '/pricing',
+        icon:   <Sparkles size={13} strokeWidth={2} />,
+        accent: 'text-amber-500',
+      }] : []),
+    ] : []),
   ]
 
   return (
