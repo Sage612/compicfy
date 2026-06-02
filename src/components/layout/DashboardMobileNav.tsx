@@ -72,18 +72,22 @@ export function DashboardMobileNav() {
               href={href}
               className={cn(
                 'relative flex flex-col items-center gap-1 px-3 py-1.5 min-w-[56px] flex-none rounded-xl transition-all duration-150',
-                isActive ? activeColor : isSubmit ? submitColor : 'text-foreground/60 hover:text-foreground'
+                isActive ? activeColor : isSubmit ? submitColor : 'text-foreground/70 hover:text-foreground'
               )}
             >
               <div className={cn(
-                'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150 text-white',
-                isActive ? `${activeBg} shadow-sm` : isSubmit ? submitBg : 'hover:bg-accent/60'
+                'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150',
+                isActive 
+                  ? `${activeBg} shadow-sm text-white` 
+                  : isSubmit 
+                    ? `${submitBg} text-foreground/80` 
+                    : 'bg-muted/80 text-foreground/70 hover:bg-muted hover:text-foreground'
               )}>
                 <Icon size={17} />
               </div>
               <span className={cn(
                 'text-[9px] font-semibold whitespace-nowrap leading-none',
-                isActive ? activeColor : isSubmit ? submitColor : 'text-foreground/60'
+                isActive ? activeColor : isSubmit ? submitColor : 'text-foreground/70'
               )}>
                 {label}
               </span>
