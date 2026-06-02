@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const BATCH_SIZE        = 10
-const COOLDOWN_HOURS    = 48
-const API_DELAY_MS      = 600
+const BATCH_SIZE         = 10
+const COOLDOWN_HOURS     = 48
+const API_DELAY_MS       = 600
 const REQUEST_TIMEOUT_MS = 8000
 
 // ── Fetch with timeout ────────────────────────────────────────────
@@ -21,9 +21,7 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQU
   }
 }
 
-// ── Exact match only ──────────────────────────────────────────────
-// Returns an ID only if the candidate title is an exact match
-// (case-insensitive, punctuation-stripped). No partial matches.
+// ── Normalize ─────────────────────────────────────────────────────
 function normalize(str: string): string {
   return str
     .toLowerCase()
@@ -32,34 +30,42 @@ function normalize(str: string): string {
     .trim()
 }
 
+// ── Exact match only ──────────────────────────────────────────────
+// Pass 1: exact title + (author OR artist) match  → most confident
+// Pass 2: exact title only                         → accepted
+// No match: returns null — never stores a wrong ID
 function exactMatch(
-  query: string,
-  candidates: { id: string; title: string; author?: string }[],
+  query:       string,
+  candidates:  { id: string; title: string; author?: string; artist?: string }[],
   authorHint?: string | null,
+  artistHint?: string | null,
 ): string | null {
   const nq = normalize(query)
+  const na = authorHint ? normalize(authorHint) : null
+  const nr = artistHint ? normalize(artistHint) : null
 
-  // Pass 1 — exact title + author match (most confident)
-  if (authorHint) {
-    const na = normalize(authorHint)
+  // Pass 1 — exact title + author or artist confirmation
+  if (na || nr) {
     for (const c of candidates) {
-      if (normalize(c.title) === nq && c.author && normalize(c.author).includes(na)) {
-        return c.id
-      }
+      if (normalize(c.title) !== nq) continue
+      const ca = c.author ? normalize(c.author) : ''
+      const cr = c.artist ? normalize(c.artist) : ''
+      const authorMatch = na && (ca.includes(na) || na.includes(ca))
+      const artistMatch = nr && (cr.includes(nr) || nr.includes(cr))
+      if (authorMatch || artistMatch) return c.id
     }
   }
 
-  // Pass 2 — exact title match only
+  // Pass 2 — exact title only
   for (const c of candidates) {
     if (normalize(c.title) === nq) return c.id
   }
 
-  // No match — return nothing rather than a wrong ID
   return null
 }
 
 // ── MangaUpdates ──────────────────────────────────────────────────
-async function findMangaUpdatesID(title: string, author?: string | null): Promise<string | null> {
+async function findMangaUpdatesID(title: string, author?: string | null, artist?: string | null): Promise<string | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     const res = await fetchWithTimeout('https://api.mangaupdates.com/v1/series/search', {
@@ -73,8 +79,9 @@ async function findMangaUpdatesID(title: string, author?: string | null): Promis
       id:     String(r.record?.series_id ?? ''),
       title:  r.record?.title ?? '',
       author: r.record?.author ?? '',
+      artist: r.record?.artist ?? '',
     }))
-    return exactMatch(title, candidates, author)
+    return exactMatch(title, candidates, author, artist)
   } catch (err) {
     console.error(`MU error for "${title}":`, err)
     return null
@@ -82,22 +89,23 @@ async function findMangaUpdatesID(title: string, author?: string | null): Promis
 }
 
 // ── MangaDex ──────────────────────────────────────────────────────
-async function findMangaDexID(title: string, author?: string | null): Promise<string | null> {
+async function findMangaDexID(title: string, author?: string | null, artist?: string | null): Promise<string | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     const res = await fetchWithTimeout(
-      `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=10&includes[]=author`,
+      `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=10&includes[]=author&includes[]=artist`,
     )
     if (!res.ok) return null
     const data       = await res.json()
     const candidates = (data.data ?? []).map((r: any) => {
-      const attr      = r.attributes ?? {}
-      const titleEn   = attr.title?.en || Object.values(attr.title ?? {})[0] || ''
-      const authorRel = r.relationships?.find((rel: any) => rel.type === 'author')
-      const authorName = authorRel?.attributes?.name ?? ''
-      return { id: String(r.id ?? ''), title: String(titleEn), author: authorName }
+      const attr       = r.attributes ?? {}
+      const titleEn    = attr.title?.en || Object.values(attr.title ?? {})[0] || ''
+      const rels       = r.relationships ?? []
+      const authorName = rels.find((rel: any) => rel.type === 'author')?.attributes?.name ?? ''
+      const artistName = rels.find((rel: any) => rel.type === 'artist')?.attributes?.name ?? ''
+      return { id: String(r.id ?? ''), title: String(titleEn), author: authorName, artist: artistName }
     })
-    return exactMatch(title, candidates, author)
+    return exactMatch(title, candidates, author, artist)
   } catch (err) {
     console.error(`MD error for "${title}":`, err)
     return null
@@ -105,10 +113,10 @@ async function findMangaDexID(title: string, author?: string | null): Promise<st
 }
 
 // ── AniList ───────────────────────────────────────────────────────
-async function findAniListID(title: string, author?: string | null): Promise<string | null> {
+async function findAniListID(title: string, author?: string | null, artist?: string | null): Promise<string | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
-    const gql = `query($search:String){Page(perPage:10){media(search:$search,type:MANGA,sort:SEARCH_MATCH){id title{english romaji native}staff(perPage:5){edges{role node{name{full}}}}}}}`
+    const gql = `query($search:String){Page(perPage:10){media(search:$search,type:MANGA,sort:SEARCH_MATCH){id title{english romaji native}staff(perPage:10){edges{role node{name{full}}}}}}}`
     const res = await fetchWithTimeout('https://graphql.anilist.co', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -117,16 +125,17 @@ async function findAniListID(title: string, author?: string | null): Promise<str
     if (!res.ok) return null
     const data       = await res.json()
     const candidates = (data?.data?.Page?.media ?? []).map((r: any) => {
-      const staff      = r.staff?.edges ?? []
-      const storyStaff = staff.find((e: any) => e.role?.toLowerCase().includes('story'))
-      const authorName = storyStaff?.node?.name?.full ?? ''
+      const edges      = r.staff?.edges ?? []
+      const authorName = edges.find((e: any) => e.role?.toLowerCase().includes('story'))?.node?.name?.full ?? ''
+      const artistName = edges.find((e: any) => e.role?.toLowerCase().includes('art'))?.node?.name?.full ?? ''
       return {
         id:     String(r.id ?? ''),
         title:  r.title?.english || r.title?.romaji || r.title?.native || '',
         author: authorName,
+        artist: artistName,
       }
     })
-    return exactMatch(title, candidates, author)
+    return exactMatch(title, candidates, author, artist)
   } catch (err) {
     console.error(`AL error for "${title}":`, err)
     return null
@@ -134,7 +143,7 @@ async function findAniListID(title: string, author?: string | null): Promise<str
 }
 
 // ── Jikan (MAL) ───────────────────────────────────────────────────
-async function findJikanID(title: string, author?: string | null): Promise<string | null> {
+async function findJikanID(title: string, author?: string | null, artist?: string | null): Promise<string | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     const res = await fetchWithTimeout(
@@ -142,12 +151,19 @@ async function findJikanID(title: string, author?: string | null): Promise<strin
     )
     if (!res.ok) return null
     const data       = await res.json()
-    const candidates = (data.data ?? []).map((r: any) => ({
-      id:     String(r.mal_id ?? ''),
-      title:  r.title_english || r.title || '',
-      author: (r.authors ?? []).map((a: any) => a.name).join(' '),
-    }))
-    return exactMatch(title, candidates, author)
+    // Jikan returns authors array with roles 'Story' and 'Art'
+    const candidates = (data.data ?? []).map((r: any) => {
+      const authors    = r.authors ?? []
+      const authorName = authors.find((a: any) => a.type === 'Story')?.name ?? authors[0]?.name ?? ''
+      const artistName = authors.find((a: any) => a.type === 'Art')?.name ?? ''
+      return {
+        id:     String(r.mal_id ?? ''),
+        title:  r.title_english || r.title || '',
+        author: authorName,
+        artist: artistName,
+      }
+    })
+    return exactMatch(title, candidates, author, artist)
   } catch (err) {
     console.error(`Jikan error for "${title}":`, err)
     return null
@@ -155,7 +171,7 @@ async function findJikanID(title: string, author?: string | null): Promise<strin
 }
 
 // ── MangaBaka ─────────────────────────────────────────────────────
-async function findMangaBakaID(title: string, author?: string | null): Promise<string | null> {
+async function findMangaBakaID(title: string, author?: string | null, artist?: string | null): Promise<string | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     const res = await fetchWithTimeout(
@@ -167,8 +183,9 @@ async function findMangaBakaID(title: string, author?: string | null): Promise<s
       id:     String(r.id ?? r.series_id ?? ''),
       title:  r.title ?? r.name ?? '',
       author: r.author ?? '',
+      artist: r.artist ?? '',
     }))
-    return exactMatch(title, candidates, author)
+    return exactMatch(title, candidates, author, artist)
   } catch (err) {
     console.error(`MB error for "${title}":`, err)
     return null
@@ -176,7 +193,7 @@ async function findMangaBakaID(title: string, author?: string | null): Promise<s
 }
 
 // ── Kuroiru ───────────────────────────────────────────────────────
-async function findKuroiruID(title: string, author?: string | null): Promise<string | null> {
+async function findKuroiruID(title: string, author?: string | null, artist?: string | null): Promise<string | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     const res = await fetchWithTimeout(
@@ -188,8 +205,9 @@ async function findKuroiruID(title: string, author?: string | null): Promise<str
       id:     String(r.id ?? r.slug ?? ''),
       title:  r.title ?? r.name ?? '',
       author: r.author ?? '',
+      artist: r.artist ?? '',
     }))
-    return exactMatch(title, candidates, author)
+    return exactMatch(title, candidates, author, artist)
   } catch (err) {
     console.error(`Kuroiru error for "${title}":`, err)
     return null
@@ -197,26 +215,30 @@ async function findKuroiruID(title: string, author?: string | null): Promise<str
 }
 
 // ── Main ID finder — sequential ───────────────────────────────────
-async function findExternalIds(title: string, author?: string | null): Promise<Record<string, string | undefined>> {
+async function findExternalIds(
+  title:   string,
+  author?: string | null,
+  artist?: string | null,
+): Promise<Record<string, string | undefined>> {
   const ids: Record<string, string | undefined> = {}
 
-  const muId = await findMangaUpdatesID(title, author)
-  if (muId) ids.mangaupdates_id = muId
+  const muId  = await findMangaUpdatesID(title, author, artist)
+  if (muId)  ids.mangaupdates_id = muId
 
-  const mbId = await findMangaBakaID(title, author)
-  if (mbId) ids.mangabaka_id = mbId
+  const mbId  = await findMangaBakaID(title, author, artist)
+  if (mbId)  ids.mangabaka_id = mbId
 
-  const mdId = await findMangaDexID(title, author)
-  if (mdId) ids.mangadex_id = mdId
+  const mdId  = await findMangaDexID(title, author, artist)
+  if (mdId)  ids.mangadex_id = mdId
 
-  const alId = await findAniListID(title, author)
-  if (alId) ids.anilist_id = alId
+  const alId  = await findAniListID(title, author, artist)
+  if (alId)  ids.anilist_id = alId
 
-  const malId = await findJikanID(title, author)
+  const malId = await findJikanID(title, author, artist)
   if (malId) ids.mal_id = malId
 
-  const kId = await findKuroiruID(title, author)
-  if (kId) ids.kuroiru_id = kId
+  const kId   = await findKuroiruID(title, author, artist)
+  if (kId)   ids.kuroiru_id = kId
 
   return ids
 }
@@ -226,6 +248,7 @@ interface IDCheckLog {
   comic_id:          string
   comic_title:       string
   comic_author?:     string
+  comic_artist?:     string
   databases_checked: string[]
   ids_found:         Record<string, string | undefined>
   status:            'found_all' | 'found_some' | 'found_none' | 'skipped_complete'
@@ -271,7 +294,7 @@ export async function GET(req: Request) {
 
   const { data: comics, error } = await supabase
     .from('recommendations')
-    .select('id, title, author, mangaupdates_id, mangabaka_id, mangadex_id, anilist_id, mal_id, kuroiru_id, last_id_check')
+    .select('id, title, author, artist, mangaupdates_id, mangabaka_id, mangadex_id, anilist_id, mal_id, kuroiru_id, last_id_check')
     .eq('is_approved', true)
     .or(`last_id_check.is.null,last_id_check.lt.${cooloffCutoff}`)
     .limit(BATCH_SIZE)
@@ -306,10 +329,10 @@ export async function GET(req: Request) {
         continue
       }
 
-      const ids        = await findExternalIds(comic.title, comic.author)
+      const ids        = await findExternalIds(comic.title, comic.author, comic.artist)
       const totalFound = Object.values(ids).filter(Boolean).length
 
-      // Merge: only overwrite nulls — never overwrite an existing ID
+      // Merge: never overwrite an existing confirmed ID
       const mergedIds = {
         mangaupdates_id: comic.mangaupdates_id || ids.mangaupdates_id,
         mangabaka_id:    comic.mangabaka_id    || ids.mangabaka_id,
@@ -321,8 +344,8 @@ export async function GET(req: Request) {
 
       const newIdCount = countExternalIds(mergedIds)
       let status: IDCheckLog['status'] = 'found_none'
-      if (newIdCount === 6)      status = 'found_all'
-      else if (totalFound > 0)   status = 'found_some'
+      if (newIdCount === 6)    status = 'found_all'
+      else if (totalFound > 0) status = 'found_some'
 
       if (totalFound > 0) {
         await supabase.from('recommendations')
@@ -338,9 +361,15 @@ export async function GET(req: Request) {
       }
 
       logs.push({
-        comic_id: comic.id, comic_title: comic.title, comic_author: comic.author,
+        comic_id:          comic.id,
+        comic_title:       comic.title,
+        comic_author:      comic.author,
+        comic_artist:      comic.artist,
         databases_checked: ['MU', 'MB', 'MD', 'AL', 'Jikan', 'Kuroiru'],
-        ids_found: mergedIds, status, total_ids_found: newIdCount, timestamp,
+        ids_found:         mergedIds,
+        status,
+        total_ids_found:   newIdCount,
+        timestamp,
       })
 
     } catch (err: any) {
