@@ -23,6 +23,7 @@ export async function GET(request: Request) {
         p_comic_id:        comicId,
         p_limit:           limit + 20, // fetch extra to cover filtered-out items
         p_content_ratings: contentRatings,
+        p_user_id:         user?.id ?? null,
       })
 
       if (error) {
