@@ -53,7 +53,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <Link href="/" className="inline-flex items-center gap-2.5 group">
           <LogoMark className="w-8 h-8" />
           <span className="font-black text-[15px] tracking-tight text-foreground group-hover:text-[#0ea5b0] transition-colors">
-            Compic<span className="text-[#0ea5b0]">fy</span>
+            ComPic<span className="text-[#0ea5b0]">fy</span>
           </span>
         </Link>
       </header>

@@ -196,7 +196,7 @@ export function Header() {
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <LogoMark className="w-6 h-6" />
             <span className="font-black text-[13px] tracking-tight leading-none">
-              Compic<span className="text-[#0ea5b0]">fy</span>
+              ComPic<span className="text-[#0ea5b0]">fy</span>
             </span>
           </Link>
 
