@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 const BATCH_SIZE         = 5
-const COOLDOWN_HOURS     = 1
+const COOLDOWN_HOURS     = 5
 const API_DELAY_MS       = 600
 const REQUEST_TIMEOUT_MS = 8000
 

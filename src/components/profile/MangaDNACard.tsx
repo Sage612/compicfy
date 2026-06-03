@@ -11,9 +11,10 @@ interface Props {
   genres:      string[]
   isPro:       boolean
   isOwner:     boolean
+  /** When true, renders as a compact divider bar only (no label, no legend) */
+  dividerMode?: boolean
 }
 
-// ── Genre colour map ──────────────────────────────────────────────
 const GENRE_COLORS: Record<string, string> = {
   Action:          '#ef4444',
   Adventure:       '#f97316',
@@ -42,15 +43,12 @@ const GENRE_COLORS: Record<string, string> = {
   Mecha:           '#14b8a6',
 }
 
-const DEFAULT_COLOR = '#7c3aed'
+const DEFAULT_COLOR = '#1dc9a0'
 
 function computeGenreDistribution(genres: string[]): { name: string; pct: number; color: string }[] {
   if (!genres.length) return []
-
-  // Equal weight per genre (no rec data here — profile genres only)
-  const pct = Math.floor(100 / genres.length)
+  const pct       = Math.floor(100 / genres.length)
   const remainder = 100 - pct * genres.length
-
   return genres.slice(0, 6).map((name, i) => ({
     name,
     pct:   i === 0 ? pct + remainder : pct,
@@ -60,27 +58,20 @@ function computeGenreDistribution(genres: string[]): { name: string; pct: number
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
 
-export function MangaDNACard({ username, displayName, avatarUrl, genres, isPro, isOwner }: Props) {
+export function MangaDNACard({ username, displayName, avatarUrl, genres, isPro, isOwner, dividerMode = false }: Props) {
   const [copied, setCopied] = useState(false)
-
   const distribution = computeGenreDistribution(genres)
-
   if (distribution.length === 0) return null
 
-  // Build OG image URL
-  const genresParam = distribution
-    .map(g => `${encodeURIComponent(g.name)}:${g.pct}`)
-    .join(',')
-
-  const ogParams = new URLSearchParams({
+  const genresParam = distribution.map(g => `${encodeURIComponent(g.name)}:${g.pct}`).join(',')
+  const ogParams    = new URLSearchParams({
     username,
     name:   displayName,
     genres: genresParam,
     ...(avatarUrl ? { avatar: avatarUrl } : {}),
   })
-
-  const shareUrl    = `${SITE_URL}/profile/${username}`
-  const ogImageUrl  = `${SITE_URL}/api/og/dna?${ogParams.toString()}`
+  const shareUrl   = `${SITE_URL}/profile/${username}`
+  const ogImageUrl = `${SITE_URL}/api/og/dna?${ogParams.toString()}`
 
   const handleShare = async () => {
     try {
@@ -96,11 +87,52 @@ export function MangaDNACard({ username, displayName, avatarUrl, genres, isPro, 
         toast.success('Profile link copied!')
         setTimeout(() => setCopied(false), 2000)
       }
-    } catch {
-      // User cancelled share — ignore
-    }
+    } catch { /* user cancelled */ }
   }
 
+  /* ── Divider mode: bar + inline legend, used inside profile card ── */
+  if (dividerMode) {
+    return (
+      <div className="space-y-1">
+        <div className="h-1.5 rounded-full overflow-hidden flex gap-px">
+          {distribution.map((g, i) => (
+            <div
+              key={i}
+              title={`${g.name}: ${g.pct}%`}
+              style={{ flex: g.pct, backgroundColor: g.color }}
+              className="transition-opacity duration-300 hover:opacity-70"
+            />
+          ))}
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 flex-wrap">
+            {distribution.slice(0, 3).map((g, i) => (
+              <span key={i} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
+                {g.name} <span className="font-bold" style={{ color: g.color }}>{g.pct}%</span>
+              </span>
+            ))}
+            {distribution.length > 3 && (
+              <span className="text-[10px] text-muted-foreground/50">+{distribution.length - 3} more</span>
+            )}
+          </div>
+          {isOwner && (
+            <button
+              onClick={handleShare}
+              className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            >
+              {copied
+                ? <><Check size={9} className="text-emerald-500" /> Copied</>
+                : <><Share2 size={9} /> Share</>
+              }
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  /* ── Full mode: original standalone usage ── */
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -119,8 +151,6 @@ export function MangaDNACard({ username, displayName, avatarUrl, genres, isPro, 
           </button>
         )}
       </div>
-
-      {/* Multicolour bar */}
       <div className="h-2 rounded-full overflow-hidden flex gap-px">
         {distribution.map((g, i) => (
           <div
@@ -131,27 +161,15 @@ export function MangaDNACard({ username, displayName, avatarUrl, genres, isPro, 
           />
         ))}
       </div>
-
-      {/* Genre breakdown */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
         {distribution.map((g, i) => (
           <div key={i} className="flex items-center gap-2 min-w-0">
-            <div
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: g.color }}
-            />
+            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
             <span className="text-[11px] text-muted-foreground truncate">{g.name}</span>
-            <span
-              className="text-[11px] font-black ml-auto shrink-0"
-              style={{ color: g.color }}
-            >
-              {g.pct}%
-            </span>
+            <span className="text-[11px] font-black ml-auto shrink-0" style={{ color: g.color }}>{g.pct}%</span>
           </div>
         ))}
       </div>
-
-      {/* Pro upsell — show to non-pro owners only */}
       {isOwner && !isPro && (
         <a
           href={ogImageUrl}
