@@ -144,7 +144,7 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
                 target={tab.external ? '_blank' : undefined}
                 rel={tab.external ? 'noopener noreferrer' : undefined}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap shrink-0',
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0',
                   'text-[11px] font-semibold border transition-all duration-200 active:scale-95',
                   isActive
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'

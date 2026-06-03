@@ -62,42 +62,34 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const GENRE_COLORS: Record<string, string> = {
-  Action:          'bg-red-500/10    text-red-500    border-red-500/20',
-  Adventure:       'bg-orange-500/10 text-orange-500 border-orange-500/20',
-  Comedy:          'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-  Drama:           'bg-orange-600/10 text-orange-600 border-orange-600/20',
-  Fantasy:         'bg-violet-500/10 text-violet-500 border-violet-500/20',
-  Horror:          'bg-zinc-500/10   text-zinc-400   border-zinc-500/20',
-  Mystery:         'bg-slate-500/10  text-slate-400  border-slate-500/20',
-  Romance:         'bg-pink-500/10   text-pink-500   border-pink-500/20',
-  'Sci-Fi':        'bg-cyan-500/10   text-cyan-500   border-cyan-500/20',
-  'Slice of Life': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-  Sports:          'bg-amber-500/10  text-amber-500  border-amber-500/20',
-  Supernatural:    'bg-purple-500/10 text-purple-500 border-purple-500/20',
-  Thriller:        'bg-red-700/10    text-red-600    border-red-700/20',
-  Isekai:          'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
-  'Martial Arts':  'bg-rose-600/10   text-rose-600   border-rose-600/20',
-  'School Life':   'bg-sky-500/10    text-sky-500    border-sky-500/20',
-  Historical:      'bg-stone-500/10  text-stone-400  border-stone-500/20',
-  Psychological:   'bg-fuchsia-500/10 text-fuchsia-500 border-fuchsia-500/20',
-  Shounen:         'bg-blue-500/10   text-blue-500   border-blue-500/20',
-  Shoujo:          'bg-pink-400/10   text-pink-400   border-pink-400/20',
-  Seinen:          'bg-zinc-600/10   text-zinc-400   border-zinc-600/20',
-  Josei:           'bg-rose-400/10   text-rose-400   border-rose-400/20',
-  Yuri:            'bg-purple-400/10 text-purple-400 border-purple-400/20',
-  Yaoi:            'bg-indigo-400/10 text-indigo-400 border-indigo-400/20',
-  Mecha:           'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  Action:         'bg-red-500/10    text-red-500    border-red-500/20',
+  Adventure:      'bg-orange-500/10 text-orange-500 border-orange-500/20',
+  Comedy:         'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+  Drama:          'bg-orange-600/10 text-orange-600 border-orange-600/20',
+  Fantasy:        'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  Horror:         'bg-zinc-500/10   text-zinc-400   border-zinc-500/20',
+  Mystery:        'bg-slate-500/10  text-slate-400  border-slate-500/20',
+  Romance:        'bg-pink-500/10   text-pink-500   border-pink-500/20',
+  'Sci-Fi':       'bg-cyan-500/10   text-cyan-500   border-cyan-500/20',
+  'Slice of Life':'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+  Sports:         'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  Supernatural:   'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  Thriller:       'bg-red-700/10    text-red-600    border-red-700/20',
+  Isekai:         'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+  'Martial Arts': 'bg-rose-600/10   text-rose-600   border-rose-600/20',
+  'School Life':  'bg-sky-500/10    text-sky-500    border-sky-500/20',
+  Historical:     'bg-stone-500/10  text-stone-400  border-stone-500/20',
+  Psychological:  'bg-fuchsia-500/10 text-fuchsia-500 border-fuchsia-500/20',
+  Shounen:        'bg-blue-500/10   text-blue-500   border-blue-500/20',
+  Shoujo:         'bg-pink-400/10   text-pink-400   border-pink-400/20',
+  Seinen:         'bg-zinc-600/10   text-zinc-400   border-zinc-600/20',
+  Josei:          'bg-rose-400/10   text-rose-400   border-rose-400/20',
+  Yuri:           'bg-purple-400/10 text-purple-400 border-purple-400/20',
+  Yaoi:           'bg-indigo-400/10 text-indigo-400 border-indigo-400/20',
+  Mecha:          'bg-teal-500/10   text-teal-500   border-teal-500/20',
 }
 
 const DEFAULT_GENRE_COLOR = 'bg-muted text-muted-foreground border-border'
-
-function getRoleBadgeLabel(role: string, isPro: boolean, isAdmin: boolean, verifiedRecommender: boolean): string | null {
-  if (isAdmin)              return 'Admin'
-  if (role === 'moderator') return 'Mod'
-  if (verifiedRecommender)  return 'Verified'
-  if (isPro)                return 'Pro'
-  return null
-}
 
 export default async function ProfilePage({ params }: Props) {
   const { username } = await params
@@ -113,6 +105,7 @@ export default async function ProfilePage({ params }: Props) {
 
   if (!profileData) notFound()
 
+  // Redirect creators to their creator profile
   if ((profileData as any).user_type === 'creator') {
     const { redirect } = await import('next/navigation')
     redirect(`/creator/${username}`)
@@ -234,7 +227,6 @@ export default async function ProfilePage({ params }: Props) {
   const totalRecs       = totalRecsCount ?? 0
   const gridRecs        = recommendations.slice(0, 6)
   const hasMore         = totalRecs > 6
-  const cardRecs        = recommendations.slice(0, 2)
 
   const lists: ReadingList[] = isGhost ? [] : await Promise.all(
     (listsData ?? []).map(async (list: any) => {
@@ -248,77 +240,74 @@ export default async function ProfilePage({ params }: Props) {
 
   const initials       = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
   const favoriteGenres = Array.isArray(profile.favorite_genres) ? profile.favorite_genres : []
-  const roleBadgeLabel = getRoleBadgeLabel(profile.role, isPro, isAdmin, profile.verified_recommender ?? false)
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
 
-      {/* ══════════════════════════════════════
-          PROFILE CARD — Concept E
-      ══════════════════════════════════════ */}
+      {/* ── PROFILE CARD ── */}
       <div className={`relative rounded-2xl overflow-hidden border ${
         isGhost  ? 'border-indigo-500/30' :
         showGold ? 'border-amber-500/30'  :
                    'border-border'
       } bg-card shadow-sm`}>
 
-        {isGhost && (
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 15% 60%, #4f46e5 0%, transparent 45%), radial-gradient(circle at 85% 25%, #7c3aed 0%, transparent 40%), radial-gradient(circle at 50% 90%, #2563eb 0%, transparent 35%)' }} />
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(rgba(99,102,241,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.4) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-          </div>
-        )}
+        {/* Banner */}
+        <div className="relative h-28 md:h-36 overflow-hidden">
+          <div className={`absolute inset-0 ${
+            isGhost
+              ? 'bg-gradient-to-br from-indigo-900/60 via-slate-800/40 to-violet-900/30'
+              : showGold
+              ? 'bg-gradient-to-br from-amber-500/30 via-orange-500/15 to-transparent'
+              : 'bg-gradient-to-br from-primary/20 via-primary/5 to-transparent'
+          }`} />
 
-        <div className="px-5 pt-5 pb-5 space-y-4 relative">
+          {isGhost && (
+            <>
+              <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 15% 60%, #4f46e5 0%, transparent 45%), radial-gradient(circle at 85% 25%, #7c3aed 0%, transparent 40%), radial-gradient(circle at 50% 90%, #2563eb 0%, transparent 35%)' }} />
+              <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(rgba(99,102,241,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.4) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+            </>
+          )}
 
-          {/* ── Row 1: Avatar + name + action ── */}
-          <div className="flex items-center gap-3">
-            <div className={`relative shrink-0 rounded-full p-[2.5px] ${
+          {showGold && !isGhost && (
+            <>
+              <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #f59e0b 0%, transparent 50%), radial-gradient(circle at 80% 30%, #ea580c 0%, transparent 40%)' }} />
+              <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
+            </>
+          )}
+
+          {!isGhost && !showGold && (
+            <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'radial-gradient(circle at 20% 60%, var(--color-primary) 0%, transparent 50%), radial-gradient(circle at 80% 30%, var(--color-primary) 0%, transparent 40%)' }} />
+          )}
+
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
+        </div>
+
+        {/* Card body */}
+        <div className="px-5 pb-5 -mt-12 relative">
+
+          {/* Avatar + action row */}
+          <div className="flex items-end justify-between gap-3 mb-3">
+            <div className={`relative shrink-0 rounded-full p-[3px] ${
               isGhost  ? 'bg-gradient-to-br from-indigo-500 to-violet-600' :
               isAdmin  ? 'bg-gradient-to-br from-primary to-primary/60'    :
               showGold ? 'bg-gradient-to-br from-amber-400 to-orange-500'  :
-                         'bg-[#1dc9a0]'
-            } shadow-md`}>
+                         'bg-gradient-to-br from-border to-border'
+            } shadow-lg`}>
               <ProAvatar
                 src={profile.avatar_url}
                 fallback={initials}
-                size="lg"
+                size="xl"
                 isPro={isPro}
                 isAdmin={isAdmin}
                 className="border-2 border-card"
               />
             </div>
 
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <h1 className="text-base font-black tracking-tight leading-tight truncate">
-                  {profile.display_name || profile.username}
-                </h1>
-                {roleBadgeLabel && !isGhost && (
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
-                    isAdmin  ? 'bg-primary/15 text-primary border border-primary/30'                  :
-                    showGold ? 'bg-amber-500/15 text-amber-600 border border-amber-500/30'            :
-                               'bg-[#1dc9a0]/15 text-[#1dc9a0] border border-[#1dc9a0]/30'
-                  }`}>
-                    {roleBadgeLabel}
-                  </span>
-                )}
-                <ProBadge role={profile.role} isPro={isPro} />
-                {profile.verified_recommender && <VerifiedBadge />}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                @{profile.username}
-                {!isGhost && (
-                  <span className="ml-2 opacity-60">· {totalRecs} recs · {followersCount ?? 0} followers</span>
-                )}
-              </p>
-            </div>
-
-            <div className="shrink-0">
+            <div className="flex items-center gap-2 pb-1 shrink-0">
               {isGhost && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-xs font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
-                  Archivist
+                  The Archivist
                 </div>
               )}
               {!isOwner && !isGhost && viewer && (
@@ -336,94 +325,124 @@ export default async function ProfilePage({ params }: Props) {
             </div>
           </div>
 
-          {/* ── Bio + website ── */}
-          {(profile.bio || profile.website) && !isGhost && (
-            <div className="space-y-1">
-              {profile.bio && (
-                <p className="text-sm leading-relaxed text-muted-foreground max-w-lg">{profile.bio}</p>
-              )}
-              {profile.website && (
-                <a href={profile.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
-                  <Globe size={11} />
-                  {profile.website.replace(/^https?:\/\//, '')}
-                </a>
-              )}
+          {/* Name + badges */}
+          <div className="mb-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-xl font-black tracking-tight leading-tight">
+                {profile.display_name || profile.username}
+              </h1>
+              <ProBadge role={profile.role} isPro={isPro} />
+              {profile.verified_recommender && <VerifiedBadge />}
             </div>
+            <p className="text-sm text-muted-foreground">@{profile.username}</p>
+          </div>
+
+          {/* Bio */}
+          {profile.bio && (
+            <p className="text-sm leading-relaxed text-muted-foreground mb-3 max-w-lg">{profile.bio}</p>
           )}
 
-          {isGhost && (
-            <p className="text-xs text-indigo-400/70 italic leading-relaxed max-w-md">
-              An archivist of forgotten recommendations. Comics submitted here live on even when their recommenders are gone.
-            </p>
+          {/* Website */}
+          {profile.website && !isGhost && (
+            <a href={profile.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mb-3">
+              <Globe size={11} />
+              {profile.website.replace(/^https?:\/\//, '')}
+            </a>
           )}
 
-          {/* ── DNA bar as divider ── */}
-          {!isGhost && favoriteGenres.length > 0 && (
-            <MangaDNACard
-              username={profile.username}
-              displayName={profile.display_name || profile.username}
-              avatarUrl={profile.avatar_url}
-              genres={favoriteGenres}
-              isPro={isPro || isAdmin}
-              isOwner={isOwner}
-              dividerMode
-            />
-          )}
-
-          {/* ── Secondary stats ── */}
-          {!isGhost && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Users size={10} className="text-primary/60" />
-                <strong className="text-foreground">{followingCount ?? 0}</strong> following
-              </span>
-              {(profile.total_reviews ?? 0) > 0 && (
+          {/* ── Stats — single compact row ── */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-4 text-xs text-muted-foreground">
+            {!isGhost && (
+              <>
                 <span className="flex items-center gap-1">
-                  <Star size={10} className="text-amber-500/70" />
-                  <strong className="text-foreground">{profile.total_reviews ?? 0}</strong> reviews
+                  <Users size={11} className="text-primary/60" />
+                  <strong className="text-foreground font-black">{followersCount ?? 0}</strong> followers
                 </span>
-              )}
-              {(profile.total_votes_received ?? 0) > 0 && (
+                <span className="text-border">·</span>
                 <span className="flex items-center gap-1">
-                  <ThumbsUp size={10} className="text-emerald-500/70" />
-                  <strong className="text-foreground">{profile.total_votes_received ?? 0}</strong> votes received
+                  <strong className="text-foreground font-black">{followingCount ?? 0}</strong> following
                 </span>
-              )}
-              <span className="flex items-center gap-1">
-                <CalendarDays size={10} className="text-primary/60" />
-                Joined {formatDate(profile.member_since)}
-              </span>
+                <span className="text-border">·</span>
+              </>
+            )}
+            <span className="flex items-center gap-1">
+              <BookOpen size={11} className="text-primary/60" />
+              <strong className="text-foreground font-black">{totalRecs}</strong>
+              {isGhost ? ' archived' : ' recs'}
+            </span>
+            {(profile.total_reviews ?? 0) > 0 && (
+              <>
+                <span className="text-border">·</span>
+                <span className="flex items-center gap-1">
+                  <Star size={11} className="text-amber-500/70" />
+                  <strong className="text-foreground font-black">{profile.total_reviews ?? 0}</strong> reviews
+                </span>
+              </>
+            )}
+            {(profile.total_votes_received ?? 0) > 0 && (
+              <>
+                <span className="text-border">·</span>
+                <span className="flex items-center gap-1">
+                  <ThumbsUp size={11} className="text-emerald-500/70" />
+                  <strong className="text-foreground font-black">{profile.total_votes_received ?? 0}</strong> votes
+                </span>
+              </>
+            )}
+            {!isGhost && (
+              <>
+                <span className="text-border">·</span>
+                <span className="flex items-center gap-1">
+                  <CalendarDays size={11} className="text-primary/60" />
+                  Joined {formatDate(profile.member_since)}
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* ── Genres + Taste Identity — merged, compact ── */}
+          {favoriteGenres.length > 0 && !isGhost && (
+            <div className="mb-3 space-y-2">
+              {/* Genres */}
+              <div className="flex flex-wrap gap-1.5">
+                {favoriteGenres.map((genre: string) => (
+                  <Link key={genre} href={`/browse?genre=${encodeURIComponent(genre)}`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition-all hover:scale-105 cursor-pointer ${GENRE_COLORS[genre] ?? DEFAULT_GENRE_COLOR}`}>
+                      {genre}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+              {/* Taste tag inline below genres, no section header */}
+              <TasteTags genres={favoriteGenres} compact />
             </div>
           )}
 
-          {/* ── Genre pills ── */}
-          {favoriteGenres.length > 0 && !isGhost && (
-            <div className="flex flex-wrap gap-1.5">
-              {favoriteGenres.map((genre: string) => (
-                <Link key={genre} href={`/browse?genre=${encodeURIComponent(genre)}`}>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition-all hover:scale-105 cursor-pointer ${GENRE_COLORS[genre] ?? DEFAULT_GENRE_COLOR}`}>
-                    {genre}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-
-          {/* ── Taste tags ── */}
-          {favoriteGenres.length > 0 && !isGhost && (
-            <TasteTags genres={favoriteGenres} compact />
-          )}
-
-          {/* ── Taste Compatibility ── */}
+          {/* Taste Compatibility */}
           {!isGhost && !isOwner && viewer && viewerGenres.length > 0 && favoriteGenres.length > 0 && (
-            <TasteCompatibility
-              viewerGenres={viewerGenres}
-              profileGenres={favoriteGenres}
-              profileName={profile.display_name || profile.username}
-            />
+            <div className="mb-3">
+              <TasteCompatibility
+                viewerGenres={viewerGenres}
+                profileGenres={favoriteGenres}
+                profileName={profile.display_name || profile.username}
+              />
+            </div>
           )}
 
-          {/* ── Achievement Badges ── */}
+          {/* Manga DNA */}
+          {!isGhost && favoriteGenres.length > 0 && (
+            <div className="mb-3">
+              <MangaDNACard
+                username={profile.username}
+                displayName={profile.display_name || profile.username}
+                avatarUrl={profile.avatar_url}
+                genres={favoriteGenres}
+                isPro={isPro || isAdmin}
+                isOwner={isOwner}
+              />
+            </div>
+          )}
+
+          {/* Achievement Badges */}
           <ProfileBadges
             approvedRecs={totalRecs}
             totalReviews={profile.total_reviews ?? 0}
@@ -434,59 +453,16 @@ export default async function ProfilePage({ params }: Props) {
             isGhost={isGhost}
           />
 
-          {/* ── Compact latest recs list ── */}
-          {!isGhost && cardRecs.length > 0 && (
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                  Latest
-                </p>
-                {totalRecs > 2 && (
-                  <Link
-                    href={`/profile/${profile.username}/recommendations`}
-                    className="text-[10px] font-semibold text-primary hover:underline flex items-center gap-0.5"
-                  >
-                    See all {totalRecs} <ArrowRight size={9} />
-                  </Link>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                {cardRecs.map((rec) => (
-                  <Link
-                    key={rec.id}
-                    href={`/comic/${rec.id}`}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl bg-muted/40 hover:bg-muted/80 border border-border/50 hover:border-primary/20 transition-all group"
-                  >
-                    <div className="w-7 h-10 rounded-md overflow-hidden bg-muted shrink-0 border border-border/60">
-                      {rec.cover_url
-                        ? <img src={rec.cover_url} alt={rec.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" loading="lazy" />
-                        : <div className="w-full h-full flex items-center justify-center"><BookOpen size={10} className="text-muted-foreground opacity-30" /></div>
-                      }
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black truncate group-hover:text-primary transition-colors leading-tight">
-                        {rec.title}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground truncate">
-                        {rec.status === 'ongoing' ? 'Ongoing' : rec.status === 'completed' ? 'Complete' : rec.status} · {rec.genres?.slice(0, 2).join(' · ')}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0 text-[10px] font-bold text-emerald-500/80">
-                      <ThumbsUp size={9} />
-                      {rec.upvotes ?? 0}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
+          {/* Ghost lore */}
+          {isGhost && (
+            <p className="text-xs text-indigo-400/70 italic leading-relaxed max-w-md mt-2">
+              An archivist of forgotten recommendations. Comics submitted here live on even when their recommenders are gone.
+            </p>
           )}
         </div>
       </div>
 
-      {/* ══════════════════════════════════════
-          Everything below unchanged
-      ══════════════════════════════════════ */}
-
+      {/* ── MANGA SHELF ── */}
       <ProfileShelf
         recommendations={recommendations}
         totalRecs={totalRecs}
@@ -496,6 +472,7 @@ export default async function ProfilePage({ params }: Props) {
         showGold={showGold}
       />
 
+      {/* ── PINNED ── */}
       {pinnedRec && (
         <section className="space-y-3">
           <div className="flex items-center gap-2">
@@ -519,8 +496,8 @@ export default async function ProfilePage({ params }: Props) {
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-primary/10 text-primary border-primary/20 capitalize">{pinnedRec.type}</span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize ${
                       pinnedRec.status === 'ongoing'   ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' :
-                      pinnedRec.status === 'completed' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'         :
-                      pinnedRec.status === 'hiatus'    ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'      :
+                      pinnedRec.status === 'completed' ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' :
+                      pinnedRec.status === 'hiatus'    ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' :
                       'bg-muted text-muted-foreground border-border'
                     }`}>{pinnedRec.status}</span>
                   </div>
@@ -541,6 +518,7 @@ export default async function ProfilePage({ params }: Props) {
         </section>
       )}
 
+      {/* ── RECOMMENDATIONS ── */}
       {gridRecs.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
@@ -590,6 +568,7 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       )}
 
+      {/* ── PUBLIC READING LISTS ── */}
       {!isGhost && lists.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">

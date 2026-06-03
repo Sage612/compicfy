@@ -291,7 +291,7 @@ export function FilterBar({ adult = false }: Props) {
           <span className="text-xs text-muted-foreground font-medium">Genre:</span>
           <button
             onClick={() => updateParam('genre', '')}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold border border-primary/20 hover:bg-primary/20 transition-colors"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary text-xs font-semibold border border-primary/20 hover:bg-primary/20 transition-colors"
           >
             {currentGenre}
             <X size={10} />

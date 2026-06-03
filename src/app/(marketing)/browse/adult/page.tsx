@@ -292,7 +292,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
       {!isFiltering && (
         <div className="relative flex items-center gap-4 py-2">
           <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card shrink-0">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card shrink-0">
             <BookOpen size={13} className="text-muted-foreground" />
             <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">All 18+ Comics</span>
           </div>
