@@ -197,16 +197,16 @@ export function FilterBar({ adult = false }: Props) {
         </span>
 
         {/* Mobile scroll container */}
-        <div className="relative flex-1 md:hidden">
+        <div className="relative flex-1 md:hidden overflow-hidden">
           <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-4 z-10 bg-gradient-to-r from-background to-transparent" />
           <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-4 z-10 bg-gradient-to-l from-background to-transparent" />
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-1">
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-1 w-full pb-0.5">
             {SORTS.map(({ value, emoji, full }) => (
               <button
                 key={value}
                 onClick={() => updateParam('sort', value)}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full whitespace-nowrap shrink-0',
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap shrink-0',
                   'text-xs font-semibold border transition-all duration-150 active:scale-95',
                   currentSort === value
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
@@ -321,7 +321,7 @@ function MobileFilters({
               data-active={currentType === value}
               onClick={() => updateParam('type', value)}
               className={cn(
-                'px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all',
+                'px-3.5 py-2 rounded-lg text-sm font-semibold border transition-all',
                 TYPE_COLORS[value] ?? TYPE_COLORS[''],
                 currentType !== value && 'border-border text-muted-foreground'
               )}
@@ -340,7 +340,7 @@ function MobileFilters({
               key={value}
               onClick={() => updateParam('status', value)}
               className={cn(
-                'px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all',
+                'px-3.5 py-2 rounded-lg text-sm font-semibold border transition-all',
                 currentStatus === value
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'border-border text-muted-foreground'
@@ -360,7 +360,7 @@ function MobileFilters({
               key={genre}
               onClick={() => updateParam('genre', currentGenre === genre ? '' : genre)}
               className={cn(
-                'px-3.5 py-2 rounded-xl text-sm font-semibold border transition-all',
+                'px-3.5 py-2 rounded-lg text-sm font-semibold border transition-all',
                 currentGenre === genre
                   ? 'bg-primary text-primary-foreground border-primary'
                   : 'border-border text-muted-foreground'
