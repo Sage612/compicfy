@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
@@ -49,6 +49,7 @@ const HOME_ONLY_PREFIXES = [
 
 export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
   const pathname  = usePathname()
+  const searchParams = useSearchParams()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(true)
   const lastScrollY = useRef(0)
@@ -131,11 +132,19 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
           className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar"
         >
           {tabs.map((tab) => {
-            const isActive = !tab.external && (
-              tab.href === '/'
-                ? pathname === '/'
-                : pathname.startsWith(tab.href.split('?')[0]) && tab.href.split('?')[0] !== '/'
-            )
+            const isActive = !tab.external && (() => {
+              if (tab.href === '/') return pathname === '/'
+              const [tabPath, tabQuery] = tab.href.split('?')
+              if (tabPath !== pathname) return false
+              if (tabQuery) {
+                const tabParams = new URLSearchParams(tabQuery)
+                for (const [key, val] of tabParams.entries()) {
+                  if (searchParams.get(key) !== val) return false
+                }
+                return true
+              }
+              return true
+            })()
 
             return (
               <Link
