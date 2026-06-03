@@ -187,7 +187,7 @@ export function Header() {
         !visible && '-translate-y-full'
       )}>
         <div className={cn(
-          'flex items-center justify-between gap-3 h-12 px-4',
+          'flex items-center justify-between gap-2 h-12 px-3',
           'bg-background/90 backdrop-blur-md',
           'border border-border/60',
           'rounded-full shadow-lg shadow-black/10',
@@ -210,12 +210,12 @@ export function Header() {
             ) : !user ? (
               <div className="flex items-center gap-1">
                 <Link href="/login">
-                  <Button variant="ghost" size="sm" className="h-7 px-3 text-xs font-medium text-muted-foreground hover:text-foreground rounded-full">
+                  <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg">
                     Log in
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button size="sm" className="h-7 px-3 text-xs font-semibold bg-primary hover:bg-primary/90 border-0 rounded-full">
+                  <Button size="sm" className="h-7 px-2.5 text-xs font-semibold bg-primary hover:bg-primary/90 border-0 rounded-lg">
                     Sign up
                   </Button>
                 </Link>
