@@ -251,7 +251,7 @@ export function AdminRecommendations() {
       )
     }
     if (successCount > 0) {
-      toast.success(`✅ ${successCount} recommendation${successCount > 1 ? 's' : ''} approved`)
+      toast.success(` ${successCount} recommendation${successCount > 1 ? 's' : ''} approved`)
       setRecs(prev => prev.filter(r => !selected.has(r.id)))
       setSelected(new Set())
     }
@@ -285,7 +285,7 @@ export function AdminRecommendations() {
       )
     }
     if (successCount > 0) {
-      toast.success(`❌ ${successCount} recommendation${successCount > 1 ? 's' : ''} rejected`)
+      toast.success(` ${successCount} recommendation${successCount > 1 ? 's' : ''} rejected`)
       setRecs(prev => prev.filter(r => !selected.has(r.id)))
       setSelected(new Set())
     }

@@ -279,7 +279,12 @@ export function NotificationBell({ userId }: { userId: string }) {
                     <p className={cn('text-xs leading-snug', !notif.is_read ? 'font-semibold' : 'text-muted-foreground')}>
                       {notif.title}
                     </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {(notif as any).content && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">
+                        {(notif as any).content}
+                      </p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground/60 mt-0.5">
                       {timeAgo(notif.created_at)}
                     </p>
                   </div>
