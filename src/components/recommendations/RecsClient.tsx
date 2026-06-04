@@ -167,16 +167,17 @@ export function RecsClient({
       {/* Header — single line */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
+          {/* Icon only for Pro */}
           {isPro && (
             <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', accent.header)}>
               <BookOpen size={17} />
             </div>
           )}
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 flex-nowrap">
-              <h1 className="text-xl font-black tracking-tight truncate">My Recs</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-black tracking-tight truncate">My Recommendations</h1>
               {isPro && (
-                <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full border shrink-0 whitespace-nowrap', accent.tab)}>
+                <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full border shrink-0', accent.tab)}>
                   PRO
                 </span>
               )}
