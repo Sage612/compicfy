@@ -20,7 +20,7 @@ const GENRE_COLORS: Record<string, string> = {
   Adventure:       '#f97316',
   Comedy:          '#eab308',
   Drama:           '#ea580c',
-  Fantasy:         '#8b5cf6',
+  Fantasy:         '#3b82f6',
   Horror:          '#6b7280',
   Mystery:         '#64748b',
   Romance:         '#ec4899',

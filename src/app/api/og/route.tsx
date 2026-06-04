@@ -13,12 +13,12 @@ export async function GET(request: NextRequest) {
 
   const typeColors: Record<string, string> = {
     manga:   '#f43f5e',
-    manhwa:  '#8b5cf6',
+    manhwa:  '#3b82f6',
     manhua:  '#f59e0b',
     webtoon: '#14b8a6',
     comic:   '#3b82f6',
   }
-  const accentColor = type ? (typeColors[type] ?? '#7c3aed') : '#7c3aed'
+  const accentColor = type ? (typeColors[type] ?? '#3b82f6') : '#3b82f6'
   const shortDesc   = description.slice(0, 120) + (description.length > 120 ? '…' : '')
 
   return new ImageResponse(
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
                 width:          '40px',
                 height:         '40px',
                 borderRadius:   '10px',
-                background:     `linear-gradient(135deg, ${accentColor}, #7c3aed)`,
+                background:     `linear-gradient(135deg, ${accentColor}, #3b82f6)`,
                 display:        'flex',
                 alignItems:     'center',
                 justifyContent: 'center',
@@ -254,7 +254,7 @@ export async function GET(request: NextRequest) {
               transform:     'rotate(6deg)',
             }}>
               <div style={{ width: '180px', height: '8px', borderRadius: '4px', background: '#f43f5e', display: 'flex' }} />
-              <div style={{ width: '160px', height: '8px', borderRadius: '4px', background: '#8b5cf6', display: 'flex' }} />
+              <div style={{ width: '160px', height: '8px', borderRadius: '4px', background: '#3b82f6', display: 'flex' }} />
               <div style={{ width: '140px', height: '8px', borderRadius: '4px', background: '#14b8a6', display: 'flex' }} />
               <div style={{ width: '120px', height: '8px', borderRadius: '4px', background: '#f59e0b', display: 'flex' }} />
             </div>

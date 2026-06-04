@@ -17,13 +17,12 @@ interface Props {
 // Type accent colors — same system as ComicCard
 const TYPE_COLORS: Record<string, string> = {
   manga:   '#f43f5e',
-  manhwa:  '#8b5cf6',
+  manhwa:  '#3b82f6',
   manhua:  '#f59e0b',
   webtoon: '#14b8a6',
-  comic:   '#3b82f6',
+  comic:   '#6366f1',
   other:   '#6b7280',
 }
-
 const STATUS_CONFIG = {
   ongoing:   { color: 'bg-emerald-500', label: 'Ongoing'   },
   completed: { color: 'bg-sky-500',     label: 'Completed' },

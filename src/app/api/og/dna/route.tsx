@@ -9,7 +9,7 @@ const GENRE_COLORS: Record<string, string> = {
   Adventure:       '#f97316',
   Comedy:          '#eab308',
   Drama:           '#ea580c',
-  Fantasy:         '#8b5cf6',
+  Fantasy:         '#3b82f6',
   Horror:          '#6b7280',
   Mystery:         '#64748b',
   Romance:         '#ec4899',
@@ -32,7 +32,7 @@ const GENRE_COLORS: Record<string, string> = {
   Mecha:           '#14b8a6',
 }
 
-const DEFAULT_COLOR = '#7c3aed'
+const DEFAULT_COLOR = '#3b82f6'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
           width:        '600px',
           height:       '600px',
           borderRadius: '50%',
-          background:   'radial-gradient(ellipse, #7c3aed18 0%, transparent 70%)',
+          background:   'radial-gradient(ellipse, #3b82f618 0%, transparent 70%)',
           filter:       'blur(80px)',
           display:      'flex',
         }} />
