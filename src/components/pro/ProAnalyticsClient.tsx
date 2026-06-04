@@ -39,7 +39,7 @@ interface Props {
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
-  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhwa:  'bg-blue-500/10 text-blue-500 border-blue-500/20',
   manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
   webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
   comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
@@ -199,7 +199,7 @@ export function ProAnalyticsClient({ recommendations, analytics }: Props) {
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
           <BarChart2 size={16} className="text-white" />
         </div>
         <div>

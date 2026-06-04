@@ -16,7 +16,7 @@ const PRO_LIMIT  = 18  // 3×6
 
 const TYPE_SPINE: Record<string, string> = {
   manga:   'bg-rose-500',
-  manhwa:  'bg-violet-500',
+  manhwa:  'bg-blue-500',
   manhua:  'bg-amber-500',
   webtoon: 'bg-teal-500',
   comic:   'bg-blue-500',

@@ -44,7 +44,7 @@ interface Collection {
 
 const THEME_STYLES: Record<string, { gradient: string; border: string; text: string }> = {
   primary: { gradient: 'from-primary/30 via-primary/10',         border: 'border-primary/30',     text: 'text-primary'     },
-  violet:  { gradient: 'from-violet-500/30 via-violet-500/10',   border: 'border-violet-500/30',  text: 'text-violet-500'  },
+  violet:  { gradient: 'from-violet-500/30 via-violet-500/10',   border: 'border-blue-500/30',  text: 'text-violet-500'  },
   rose:    { gradient: 'from-rose-500/30 via-rose-500/10',       border: 'border-rose-500/30',    text: 'text-rose-500'    },
   amber:   { gradient: 'from-amber-500/30 via-amber-500/10',     border: 'border-amber-500/30',   text: 'text-amber-500'   },
   emerald: { gradient: 'from-emerald-500/30 via-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-500' },

@@ -60,7 +60,7 @@ const PLATFORMS = [
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/20   text-rose-400   border-rose-500/30',
-  manhwa:  'bg-violet-500/20 text-violet-400 border-violet-500/30',
+  manhwa:  'bg-blue-500/20 text-blue-400 border-blue-500/30',
   manhua:  'bg-amber-500/20  text-amber-400  border-amber-500/30',
   webtoon: 'bg-teal-500/20   text-teal-400   border-teal-500/30',
   comic:   'bg-blue-500/20   text-blue-400   border-blue-500/30',

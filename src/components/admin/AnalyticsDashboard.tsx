@@ -54,7 +54,7 @@ type TabValue = typeof TABS[number]['value']
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
-  manhwa:  'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  manhwa:  'bg-blue-500/10 text-blue-500 border-blue-500/20',
   manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
   webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
   comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
@@ -280,7 +280,7 @@ export function AnalyticsDashboard() {
   const renderOverview = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Total Users"   value={data.totalUsers.toLocaleString()}           icon={Users}     gradient="bg-gradient-to-br from-violet-500 to-purple-600"  subtext={`+${data.newUsersLast7Days} this week`} />
+        <StatCard label="Total Users"   value={data.totalUsers.toLocaleString()}           icon={Users}     gradient="bg-gradient-to-br from-blue-500 to-blue-600"  subtext={`+${data.newUsersLast7Days} this week`} />
         <StatCard label="Comics"        value={data.totalRecommendations.toLocaleString()} icon={BookOpen}  gradient="bg-gradient-to-br from-blue-500 to-indigo-600"    />
         <StatCard label="Total Votes"   value={data.totalVotes.toLocaleString()}           icon={ThumbsUp}  gradient="bg-gradient-to-br from-emerald-500 to-teal-600"   subtext={`${data.avgVotesPerComic} avg/comic`} />
         <StatCard label="Saves"         value={data.totalSaves.toLocaleString()}           icon={Bookmark}  gradient="bg-gradient-to-br from-amber-500 to-orange-500"   subtext={`${data.avgSavesPerComic} avg/comic`} />
@@ -344,7 +344,7 @@ export function AnalyticsDashboard() {
             ? `${Math.round((data.totalUpvotes / data.totalDownvotes) * 10) / 10}:1`
             : '∞'}
           icon={TrendingUp}
-          gradient="bg-gradient-to-br from-violet-500 to-purple-600"
+          gradient="bg-gradient-to-br from-blue-500 to-blue-600"
         />
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

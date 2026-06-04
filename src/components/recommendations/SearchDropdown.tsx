@@ -16,7 +16,7 @@ interface SearchResult {
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/15 text-rose-500',
-  manhwa:  'bg-violet-500/15 text-violet-500',
+  manhwa:  'bg-blue-500/15 text-blue-500',
   manhua:  'bg-amber-500/15 text-amber-500',
   webtoon: 'bg-teal-500/15 text-teal-500',
   comic:   'bg-blue-500/15 text-blue-500',

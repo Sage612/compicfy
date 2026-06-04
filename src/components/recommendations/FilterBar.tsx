@@ -43,7 +43,7 @@ const STATUSES = [
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'data-[active=true]:bg-rose-500   data-[active=true]:border-rose-500   data-[active=true]:text-white',
-  manhwa:  'data-[active=true]:bg-violet-500 data-[active=true]:border-violet-500 data-[active=true]:text-white',
+  manhwa:  'data-[active=true]:bg-blue-500 data-[active=true]:border-blue-500 data-[active=true]:text-white',
   manhua:  'data-[active=true]:bg-amber-500  data-[active=true]:border-amber-500  data-[active=true]:text-white',
   webtoon: 'data-[active=true]:bg-teal-500   data-[active=true]:border-teal-500   data-[active=true]:text-white',
   comic:   'data-[active=true]:bg-blue-500   data-[active=true]:border-blue-500   data-[active=true]:text-white',

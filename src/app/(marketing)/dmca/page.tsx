@@ -220,7 +220,7 @@ export default function DMCAPage() {
           {/* Infringing content */}
           <div className="rounded-2xl border border-border bg-card overflow-hidden">
             <div className="flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-violet-500/10 to-purple-500/5 border-b border-border">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shrink-0">
                 <span className="text-sm">📌</span>
               </div>
               <p className="text-xs font-black uppercase tracking-widest text-violet-600">Infringing Content</p>
