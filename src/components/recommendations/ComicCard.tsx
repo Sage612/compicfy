@@ -18,7 +18,7 @@ const TYPE_ACCENTS: Record<string, {
   glow:  string
 }> = {
   manga:   { bar: 'bg-rose-500',   badge: 'text-rose-400   bg-rose-500/10   border-rose-500/20',   glow: 'hover:shadow-rose-500/10'   },
-  manhwa:  { bar: 'bg-blue-500', badge: 'text-blue-400 bg-blue-500/10 border-blue-500/20', glow: 'hover:shadow-violet-500/10' },
+  manhwa:  { bar: 'bg-teal-500', badge: 'text-blue-400 bg-blue-500/10 border-blue-500/20', glow: 'hover:shadow-teal-500/10' },
   manhua:  { bar: 'bg-amber-500',  badge: 'text-amber-400  bg-amber-500/10  border-amber-500/20',  glow: 'hover:shadow-amber-500/10'  },
   webtoon: { bar: 'bg-teal-500',   badge: 'text-teal-400   bg-teal-500/10   border-teal-500/20',   glow: 'hover:shadow-teal-500/10'   },
   comic:   { bar: 'bg-blue-500',   badge: 'text-blue-400   bg-blue-500/10   border-blue-500/20',   glow: 'hover:shadow-blue-500/10'   },
