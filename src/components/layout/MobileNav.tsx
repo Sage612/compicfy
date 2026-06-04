@@ -283,7 +283,7 @@ export function MobileNav() {
                 <div className={cn(
                   'w-10 h-10 rounded-full flex items-center justify-center shadow-md',
                   isCreator
-                    ? 'bg-teal-500 shadow-teal-500/30'
+                    ? 'bg-teal-600 dark:bg-teal-500 shadow-teal-500/30'
                     : 'bg-primary shadow-primary/30'
                 )}>
                   <BookOpen size={18} className={isCreator ? 'text-white dark:text-black' : 'text-primary-foreground'} strokeWidth={2.5} />
