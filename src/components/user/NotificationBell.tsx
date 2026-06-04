@@ -123,8 +123,9 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   useEffect(() => {
     fetchNotifications()
+    const channelName = `notifications:${userId}:${Date.now()}`
     const channel = supabase
-      .channel('notifications')
+      .channel(channelName)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'notifications',
         filter: `user_id=eq.${userId}`,
