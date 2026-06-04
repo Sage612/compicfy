@@ -282,11 +282,15 @@ export function MobileNav() {
               <Link href={routes.newRec} className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
                 <div className={cn(
                   'w-10 h-10 rounded-full flex items-center justify-center shadow-md',
-                  isCreator ? 'bg-teal-500 shadow-teal-500/30' : 'bg-primary shadow-primary/30'
+                  isCreator
+                    ? 'bg-teal-500 shadow-teal-500/30'
+                    : 'bg-primary shadow-primary/30'
                 )}>
-                  <BookOpen size={18} className="text-white" strokeWidth={2.5} />
+                  <BookOpen size={18} className={isCreator ? 'text-white dark:text-black' : 'text-primary-foreground'} strokeWidth={2.5} />
                 </div>
-                <span className={cn('text-[10px] font-bold', isCreator ? 'text-teal-500' : 'text-primary')}>Rec</span>
+                <span className={cn('text-[10px] font-bold', isCreator ? 'text-teal-500' : 'text-primary')}>
+                  {isCreator ? 'Work' : 'Rec'}
+                </span>
               </Link>
 
               {/* Feed */}
