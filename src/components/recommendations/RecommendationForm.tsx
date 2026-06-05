@@ -52,7 +52,7 @@ type FormValues = z.infer<typeof formSchema>
 
 const TYPES = [
   { value: 'manga',   label: 'Manga',   desc: 'Japanese', activeClass: 'bg-rose-500   border-rose-500   text-white' },
-  { value: 'manhwa',  label: 'Manhwa',  desc: 'Korean',   activeClass: 'bg-blue-500 border-blue-500 text-white' },
+  { value: 'manhwa',  label: 'Manhwa',  desc: 'Korean',   activeClass: 'bg-teal-500   border-teal-500 text-white' },
   { value: 'manhua',  label: 'Manhua',  desc: 'Chinese',  activeClass: 'bg-amber-500  border-amber-500  text-white' },
   { value: 'webtoon', label: 'Webtoon', desc: 'Vertical', activeClass: 'bg-teal-500   border-teal-500   text-white' },
   { value: 'comic',   label: 'Comic',   desc: 'Western',  activeClass: 'bg-blue-500   border-blue-500   text-white' },

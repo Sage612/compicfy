@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import {
   Plus, Globe, Lock, Loader2,
   Trash2, Crown, Share2,
-  X, LayoutGrid, BookOpen,
+  X, Layers, BookOpen,
   Bookmark, BookmarkCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -283,7 +283,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <LayoutGrid size={16} className="text-primary" />
+            <Layers size={16} className="text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight">Collections</h1>
@@ -409,7 +409,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       {!loading && collections.length === 0 && (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <LayoutGrid size={20} className="text-primary opacity-60" />
+            <Layers size={20} className="text-primary opacity-60" />
           </div>
           <div>
             <p className="font-black text-sm">No collections yet</p>

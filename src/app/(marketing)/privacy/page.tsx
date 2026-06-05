@@ -60,7 +60,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     n: '13', title: 'International Data Transfers',
-    body: 'Compicfy is operated from Nigeria and uses infrastructure providers (Supabase, Vercel) that may process data in the United States or European Union. By using Compicfy, you consent to the transfer of your information to these countries, which may have different data protection laws than your jurisdiction.',
+    body: 'Compicfy is operated from Some where around the World and uses infrastructure providers that may process data in the United States or European Union. By using Compicfy, you consent to the transfer of your information to these countries, which may have different data protection laws than your jurisdiction.',
   },
   {
     n: '14', title: 'Affiliate Disclosure',

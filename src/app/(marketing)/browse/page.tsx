@@ -118,7 +118,7 @@ export default async function BrowsePage({ searchParams }: Props) {
   let adultEnabled     = false
   let interactionCount = 0
   let isPro            = false
-  let recommendHref    = '/dashboard/recommendations/new'
+  let recommendHref    = 'reader/dashboard/recommendations/new'
 
   if (user) {
     const [profileRes, interactions] = await Promise.all([
@@ -133,7 +133,7 @@ export default async function BrowsePage({ searchParams }: Props) {
             profile?.role === 'moderator' ||
             (profile?.is_pro && (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
 
-    if (isPro) recommendHref = '/pro/recommendations/new'
+    if (isPro) recommendHref = '/pro/reader/recommendations/new'
   }
 
   const [

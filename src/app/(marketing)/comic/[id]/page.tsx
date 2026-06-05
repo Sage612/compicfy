@@ -221,7 +221,7 @@ function ComicJsonLd({
 
 const TYPE_STYLES: Record<string, { gradient: string; badge: string; glow: string; border: string }> = {
   manga:   { gradient: 'from-rose-500   to-pink-600',   badge: 'bg-rose-500/15   text-rose-500   border-rose-500/25',   glow: 'bg-rose-500/20',   border: 'border-rose-500/30'   },
-  manhwa:  { gradient: 'from-teal-500   to-cyan-600',   badge: 'bg-blue-500/15   text-blue-500   border-blue-500/25',   glow: 'bg-teal-500/20',   border: 'border-teal-500/30'   },
+  manhwa:  { gradient: 'from-teal-500   to-cyan-600',   badge: 'bg-teal-500/15   text-teal-500   border-teal-500/25',   glow: 'bg-teal-500/20',   border: 'border-teal-500/30'   },
   manhua:  { gradient: 'from-amber-500  to-orange-500', badge: 'bg-amber-500/15  text-amber-500  border-amber-500/25',  glow: 'bg-amber-500/20',  border: 'border-amber-500/30'  },
   webtoon: { gradient: 'from-teal-500   to-cyan-600',   badge: 'bg-teal-500/15   text-teal-500   border-teal-500/25',   glow: 'bg-teal-500/20',   border: 'border-teal-500/30'   },
   comic:   { gradient: 'from-blue-500   to-indigo-600', badge: 'bg-blue-500/15   text-blue-500   border-blue-500/25',   glow: 'bg-blue-500/20',   border: 'border-blue-500/30'   },

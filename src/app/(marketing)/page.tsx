@@ -213,7 +213,7 @@ export default async function HomePage() {
                   <Link href={submitRoute}>
                     <Button size="lg" variant="outline" className="gap-2 h-12 px-6 font-semibold">
                       <BookOpen size={17} />
-                      Share a Rec?
+                      Submit a Recommendation
                     </Button>
                   </Link>
                 )}
