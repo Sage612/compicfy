@@ -143,20 +143,21 @@ function StackedCover({
 }
 
 interface Props {
-  userId:    string | null
-  isProUser: boolean
-  ownOnly?:  boolean
-  basePath?: string
+  userId:               string | null
+  isProUser:            boolean
+  ownOnly?:             boolean
+  basePath?:            string
+  savedCollectionIds?:  string[]
 }
 
-export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath = '/collections' }: Props) {
+export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath = '/collections', savedCollectionIds = [] }: Props) {
   const [collections, setCollections] = useState<Collection[]>([])
   const [loading,     setLoading]     = useState(true)
   const [showCreate,  setShowCreate]  = useState(false)
   const [creating,    setCreating]    = useState(false)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
   const [savingId,    setSavingId]    = useState<string | null>(null)
-  const [savedIds,    setSavedIds]    = useState<Set<string>>(new Set())
+  const [savedIds,    setSavedIds]    = useState<Set<string>>(() => new Set(savedCollectionIds))
 
   const [form, setForm] = useState({
     title:        '',
