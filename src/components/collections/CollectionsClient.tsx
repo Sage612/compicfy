@@ -8,11 +8,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
   Plus, Globe, Lock, Loader2,
-  Trash2, Crown, Sparkles,
-  ArrowRight, X, LayoutGrid, BookOpen,
-  Bookmark, Share2, Pencil,
+  Trash2, Crown, Share2,
+  X, LayoutGrid, BookOpen,
+  Bookmark, BookmarkCheck,
 } from 'lucide-react'
-import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 
 interface CoverPreview {
@@ -30,55 +29,50 @@ interface Collection {
   save_count:   number
   view_count:   number
   created_at:   string
-  profiles:     { username: string; display_name: string | null } | null
+  profiles: {
+    username:     string
+    display_name: string | null
+    avatar_url:   string | null
+  } | null
   collection_items: { count: number; recommendations?: CoverPreview }[]
 }
 
 const FREE_LIMIT = 3
 
 const THEME_OPTIONS = [
-  { value: 'primary', label: 'Teal',   color: 'bg-primary'       },
-  { value: 'violet',  label: 'Violet', color: 'bg-violet-500'    },
-  { value: 'rose',    label: 'Rose',   color: 'bg-rose-500'      },
-  { value: 'amber',   label: 'Amber',  color: 'bg-amber-500'     },
-  { value: 'emerald', label: 'Green',  color: 'bg-emerald-500'   },
-  { value: 'indigo',  label: 'Indigo', color: 'bg-indigo-500'    },
+  { value: 'primary', label: 'Teal',   color: 'bg-primary'     },
+  { value: 'violet',  label: 'Violet', color: 'bg-violet-500'  },
+  { value: 'rose',    label: 'Rose',   color: 'bg-rose-500'    },
+  { value: 'amber',   label: 'Amber',  color: 'bg-amber-500'   },
+  { value: 'emerald', label: 'Green',  color: 'bg-emerald-500' },
+  { value: 'indigo',  label: 'Indigo', color: 'bg-indigo-500'  },
 ]
 
-const THEME_STYLES: Record<string, string> = {
-  primary: 'from-primary/30 via-primary/10',
-  violet:  'from-violet-500/30 via-violet-500/10',
-  rose:    'from-rose-500/30 via-rose-500/10',
-  amber:   'from-amber-500/30 via-amber-500/10',
-  emerald: 'from-emerald-500/30 via-emerald-500/10',
-  indigo:  'from-indigo-500/30 via-indigo-500/10',
+const THEME_GRAD: Record<string, string> = {
+  primary: 'from-primary/60 via-primary/20 to-primary/5',
+  violet:  'from-violet-500/60 via-violet-500/20 to-violet-500/5',
+  rose:    'from-rose-500/60 via-rose-500/20 to-rose-500/5',
+  amber:   'from-amber-500/60 via-amber-500/20 to-amber-500/5',
+  emerald: 'from-emerald-500/60 via-emerald-500/20 to-emerald-500/5',
+  indigo:  'from-indigo-500/60 via-indigo-500/20 to-indigo-500/5',
 }
 
 const THEME_BORDER: Record<string, string> = {
-  primary: 'border-primary/30 hover:border-primary/50',
-  violet:  'border-violet-500/30 hover:border-violet-500/50',
-  rose:    'border-rose-500/30 hover:border-rose-500/50',
-  amber:   'border-amber-500/30 hover:border-amber-500/50',
-  emerald: 'border-emerald-500/30 hover:border-emerald-500/50',
-  indigo:  'border-indigo-500/30 hover:border-indigo-500/50',
+  primary: 'border-primary/30',
+  violet:  'border-violet-500/30',
+  rose:    'border-rose-500/30',
+  amber:   'border-amber-500/30',
+  emerald: 'border-emerald-500/30',
+  indigo:  'border-indigo-500/30',
 }
 
 const THEME_ACCENT: Record<string, string> = {
   primary: 'text-primary',
-  violet:  'text-violet-500',
-  rose:    'text-rose-500',
-  amber:   'text-amber-500',
-  emerald: 'text-emerald-500',
-  indigo:  'text-indigo-500',
-}
-
-const THEME_BG: Record<string, string> = {
-  primary: 'bg-primary/20',
-  violet:  'bg-violet-500/20',
-  rose:    'bg-rose-500/20',
-  amber:   'bg-amber-500/20',
-  emerald: 'bg-emerald-500/20',
-  indigo:  'bg-indigo-500/20',
+  violet:  'text-violet-400',
+  rose:    'text-rose-400',
+  amber:   'text-amber-400',
+  emerald: 'text-emerald-400',
+  indigo:  'text-indigo-400',
 }
 
 function itemCount(c: Collection): number {
@@ -92,62 +86,51 @@ function getCoverPreviews(c: Collection): string[] {
     .slice(0, 4) as string[]
 }
 
-interface Props {
-  userId:    string | null
-  isProUser: boolean
-  ownOnly?:  boolean
-  basePath?: string
-}
-
-// ─── Mobile stacked cover component ───────────────────────────────────────────
-function MobileStackedCover({
+// ── Stacked cover for mobile card ───────────────────────────────────────────
+function StackedCover({
   covers,
   themeGrad,
-  themeBg,
   coverUrl,
 }: {
-  covers: string[]
+  covers:    string[]
   themeGrad: string
-  themeBg: string
-  coverUrl: string | null
+  coverUrl:  string | null
 }) {
   if (covers.length === 0) {
-    // Theme gradient fallback
+    // Fallback: cover_url or theme gradient
     return (
-      <div className={cn('w-full h-full bg-gradient-to-br to-transparent', themeGrad)}>
-        <div className={cn('absolute inset-0', themeBg)} />
+      <div className="absolute inset-0">
+        {coverUrl ? (
+          <img src={coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
+        ) : (
+          <div className={cn('absolute inset-0 bg-gradient-to-br', themeGrad)} />
+        )}
       </div>
     )
   }
 
-  // Single dominant cover — full bleed
   const dominant = covers[0]
-  const stack    = covers.slice(1, 4) // up to 3 smaller stacked behind
+  const stack    = covers.slice(1, 4)
 
   return (
     <div className="absolute inset-0">
-      {/* Dominant cover — full bleed */}
-      <img
-        src={dominant}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        aria-hidden
-      />
+      {/* Dominant — full bleed */}
+      <img src={dominant} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
 
-      {/* Stacked thumbnails — bottom-right corner */}
+      {/* Stacked thumbnails bottom-right */}
       {stack.length > 0 && (
-        <div className="absolute bottom-2 right-2 flex items-end gap-[-4px]">
+        <div className="absolute bottom-14 right-2 flex items-end">
           {stack.map((url, i) => (
             <div
               key={i}
-              className="relative rounded-md overflow-hidden border-2 border-card shadow-lg"
+              className="relative rounded-lg overflow-hidden border-2 border-black/40 shadow-xl"
               style={{
-                width:     28 - i * 4,
-                height:    38 - i * 5,
-                marginLeft: i === 0 ? 0 : -8,
-                zIndex:    stack.length - i,
-                opacity:   1 - i * 0.15,
-                transform: `rotate(${i % 2 === 0 ? 3 : -2}deg) translateY(${i * 2}px)`,
+                width:      32 - i * 4,
+                height:     44 - i * 5,
+                marginLeft: i === 0 ? 0 : -10,
+                zIndex:     stack.length - i,
+                opacity:    1 - i * 0.12,
+                transform:  `rotate(${i % 2 === 0 ? 5 : -4}deg) translateY(${i * 2}px)`,
               }}
             >
               <img src={url} alt="" className="w-full h-full object-cover" aria-hidden />
@@ -155,11 +138,15 @@ function MobileStackedCover({
           ))}
         </div>
       )}
-
-      {/* Gradient overlay for text readability */}
-      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent" />
     </div>
   )
+}
+
+interface Props {
+  userId:    string | null
+  isProUser: boolean
+  ownOnly?:  boolean
+  basePath?: string
 }
 
 export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath = '/collections' }: Props) {
@@ -225,7 +212,8 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
     }
   }
 
-  const handleTogglePublish = async (id: string, current: boolean) => {
+  const handleTogglePublish = async (id: string, current: boolean, e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
     try {
       await fetch(`/api/collections/${id}`, {
         method:  'PATCH',
@@ -239,7 +227,8 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
     }
   }
 
-  const handleDelete = async (id: string, title: string) => {
+  const handleDelete = async (id: string, title: string, e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
     if (!confirm(`Delete "${title}"? This cannot be undone.`)) return
     setDeletingId(id)
     try {
@@ -254,8 +243,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
   }
 
   const handleSave = async (id: string, e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault(); e.stopPropagation()
     if (!userId) { toast.error('Log in to save collections'); return }
     const isSaved = savedIds.has(id)
     setSavingId(id)
@@ -266,6 +254,9 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
         isSaved ? next.delete(id) : next.add(id)
         return next
       })
+      setCollections(prev => prev.map(c =>
+        c.id === id ? { ...c, save_count: c.save_count + (isSaved ? -1 : 1) } : c
+      ))
       toast.success(isSaved ? 'Removed from saved' : 'Collection saved!')
     } catch {
       toast.error('Failed to update')
@@ -275,8 +266,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
   }
 
   const handleShare = async (id: string, e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault(); e.stopPropagation()
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/collections/${id}`)
       toast.success('Link copied!')
@@ -357,7 +347,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                 />
               </div>
             </div>
-
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">Description <span className="text-muted-foreground/60">(optional)</span></label>
               <Textarea
@@ -368,7 +357,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                 className="resize-none text-sm"
               />
             </div>
-
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">Theme Colour</label>
               <div className="flex gap-2">
@@ -376,20 +364,17 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                   <button
                     key={t.value}
                     onClick={() => setForm(f => ({ ...f, theme_color: t.value }))}
-                    className={cn(
-                      'w-7 h-7 rounded-full border-2 transition-all',
-                      t.color,
-                      form.theme_color === t.value ? 'border-foreground scale-110' : 'border-transparent hover:scale-105'
-                    )}
+                    className={cn('w-7 h-7 rounded-full border-2 transition-all', t.color,
+                      form.theme_color === t.value ? 'border-foreground scale-110' : 'border-transparent hover:scale-105')}
                     title={t.label}
                   />
                 ))}
               </div>
             </div>
-
             <label className="flex items-center gap-3 cursor-pointer group">
               <div
-                className={cn('w-4 h-4 rounded border-2 flex items-center justify-center transition-colors shrink-0', form.is_published ? 'bg-primary border-primary' : 'border-border group-hover:border-primary/60')}
+                className={cn('w-4 h-4 rounded border-2 flex items-center justify-center transition-colors shrink-0',
+                  form.is_published ? 'bg-primary border-primary' : 'border-border group-hover:border-primary/60')}
                 onClick={() => setForm(f => ({ ...f, is_published: !f.is_published }))}
               >
                 {form.is_published && <span className="text-primary-foreground text-[10px] font-black">✓</span>}
@@ -399,7 +384,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                 <p className="text-xs text-muted-foreground">Others can discover and save this collection</p>
               </div>
             </label>
-
             <div className="flex gap-2 pt-1">
               <Button size="sm" onClick={handleCreate} disabled={!form.title.trim() || creating} className="gap-2">
                 {creating ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
@@ -434,168 +418,150 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
           </div>
           {userId && (
             <Button size="sm" onClick={() => setShowCreate(true)} className="gap-2">
-              <Plus size={14} />
-              Create First Collection
+              <Plus size={14} /> Create First Collection
             </Button>
           )}
         </div>
       )}
 
-      {/* ── Grid ────────────────────────────────────────────────────────────── */}
+      {/* ── MOBILE: Pinterest staggered full-cover cards ─────────────────── */}
       {!loading && collections.length > 0 && (
         <>
-          {/* ── MOBILE: Pinterest-style staggered 2-col masonry ── */}
-          <div className="sm:hidden">
-            <div className="columns-2 gap-3 space-y-0">
-              {collections.map((col, idx) => {
-                const isOwner     = col.user_id === userId
-                const count       = itemCount(col)
-                const themeGrad   = THEME_STYLES[col.theme_color] ?? THEME_STYLES.primary
-                const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
-                const themeAccent = THEME_ACCENT[col.theme_color] ?? THEME_ACCENT.primary
-                const themeBg     = THEME_BG[col.theme_color]     ?? THEME_BG.primary
-                const covers      = getCoverPreviews(col)
-                const isSaved     = savedIds.has(col.id)
+          <div className="sm:hidden columns-2 gap-3">
+            {collections.map((col, idx) => {
+              const isOwner     = col.user_id === userId
+              const count       = itemCount(col)
+              const themeGrad   = THEME_GRAD[col.theme_color]   ?? THEME_GRAD.primary
+              const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
+              const themeAccent = THEME_ACCENT[col.theme_color] ?? THEME_ACCENT.primary
+              const covers      = getCoverPreviews(col)
+              const isSaved     = savedIds.has(col.id)
+              const avatar      = col.profiles?.avatar_url
+              const username    = col.profiles?.username
 
-                // Stagger heights: alternate taller/shorter cards for Pinterest effect
-                const coverHeight = idx % 3 === 0 ? 'h-44' : idx % 3 === 1 ? 'h-36' : 'h-52'
+              // Pinterest stagger: 3 rotating heights
+              const cardH = idx % 3 === 0 ? 'h-52' : idx % 3 === 1 ? 'h-40' : 'h-64'
 
-                return (
-                  <div
-                    key={col.id}
-                    className={cn(
-                      'break-inside-avoid mb-3 rounded-2xl border bg-card overflow-hidden transition-all duration-200',
-                      col.is_published ? themeBorder : 'border-dashed border-border opacity-70'
+              return (
+                <div
+                  key={col.id}
+                  className={cn(
+                    'break-inside-avoid mb-3 rounded-2xl border overflow-hidden relative cursor-pointer',
+                    cardH,
+                    col.is_published ? themeBorder : 'border-dashed border-border/60 opacity-75'
+                  )}
+                >
+                  {/* ── Cover fills entire card ── */}
+                  <StackedCover covers={covers} themeGrad={themeGrad} coverUrl={col.cover_url} />
+
+                  {/* ── Full dark scrim from bottom ── */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+
+                  {/* ── Top row: status badge + comic count ── */}
+                  <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
+                    {col.is_published
+                      ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
+                      : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Draft</span>
+                    }
+                    {count > 0 && (
+                      <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', themeAccent)}>
+                        <BookOpen size={7} /> {count}
+                      </span>
                     )}
-                  >
-                    {/* Cover area */}
-                    <Link href={`${basePath}/${col.id}`}>
-                      <div className={cn('relative overflow-hidden', coverHeight)}>
-                        <MobileStackedCover
-                          covers={covers}
-                          themeGrad={themeGrad}
-                          themeBg={themeBg}
-                          coverUrl={col.cover_url}
-                        />
+                  </div>
 
-                        {/* Status badge */}
-                        <div className="absolute top-2 left-2 z-10">
-                          {col.is_published
-                            ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 backdrop-blur-sm"><Globe size={7} /> Public</span>
-                            : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-muted/80 text-muted-foreground border border-border backdrop-blur-sm"><Lock size={7} /> Draft</span>
-                          }
-                        </div>
+                  {/* ── Bottom: title + avatar/username + actions ── */}
+                  <Link href={`${basePath}/${col.id}`} className="absolute inset-0 z-10" aria-label={col.title} />
 
-                        {/* Comic count */}
-                        {count > 0 && (
-                          <div className="absolute bottom-2 left-2 z-10">
-                            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-background/80 backdrop-blur-sm border border-border', themeAccent)}>
-                              <BookOpen size={7} />
-                              {count}
-                            </span>
+                  <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-2">
+                    {/* Title */}
+                    <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">
+                      {col.title}
+                    </p>
+
+                    {/* Avatar + username (non-owner only) */}
+                    {!isOwner && username && (
+                      <div className="flex items-center gap-1.5">
+                        {avatar ? (
+                          <img src={avatar} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
+                            <span className="text-[7px] text-white font-bold">{username[0].toUpperCase()}</span>
                           </div>
                         )}
+                        <span className="text-[9px] text-white/70 truncate">@{username}</span>
                       </div>
-                    </Link>
+                    )}
 
-                    {/* Card body */}
-                    <div className="p-3 space-y-2.5">
-                      {/* Title */}
-                      <Link href={`${basePath}/${col.id}`} className={cn('font-black text-xs leading-snug hover:text-primary transition-colors line-clamp-2 block', themeAccent === 'text-primary' ? '' : '')}>
-                        {col.title}
-                      </Link>
-
-                      {/* Description — only if short enough to not dominate */}
-                      {col.description && (
-                        <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">{col.description}</p>
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-1.5 relative z-30">
+                      {isOwner ? (
+                        /* Owner: Share + Publish toggle + Delete */
+                        <>
+                          <button
+                            onClick={(e) => handleShare(col.id, e)}
+                            className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10"
+                          >
+                            <Share2 size={9} />
+                            Share
+                          </button>
+                          <button
+                            onClick={(e) => handleTogglePublish(col.id, col.is_published, e)}
+                            className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
+                            title={col.is_published ? 'Unpublish' : 'Publish'}
+                          >
+                            {col.is_published ? <Lock size={10} /> : <Globe size={10} />}
+                          </button>
+                          <button
+                            onClick={(e) => handleDelete(col.id, col.title, e)}
+                            disabled={deletingId === col.id}
+                            className="w-6 h-6 rounded-lg bg-white/15 hover:bg-red-500/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
+                          >
+                            {deletingId === col.id ? <Loader2 size={9} className="animate-spin" /> : <Trash2 size={9} />}
+                          </button>
+                        </>
+                      ) : (
+                        /* Non-owner: Save (with count) + Share */
+                        <>
+                          <button
+                            onClick={(e) => handleSave(col.id, e)}
+                            disabled={savingId === col.id}
+                            className={cn(
+                              'flex items-center gap-1 px-2 h-6 rounded-lg backdrop-blur-sm text-[9px] font-semibold transition-colors border',
+                              isSaved
+                                ? 'bg-primary/70 text-white border-primary/40'
+                                : 'bg-white/15 hover:bg-white/25 text-white border-white/10'
+                            )}
+                          >
+                            {savingId === col.id
+                              ? <Loader2 size={9} className="animate-spin" />
+                              : <Bookmark size={9} className={isSaved ? 'fill-white' : ''} />
+                            }
+                            {col.save_count > 0 ? col.save_count : isSaved ? 'Saved' : 'Save'}
+                          </button>
+                          <button
+                            onClick={(e) => handleShare(col.id, e)}
+                            className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
+                          >
+                            <Share2 size={9} />
+                          </button>
+                        </>
                       )}
-
-                      {/* Creator (non-owner) */}
-                      {!isOwner && col.profiles && (
-                        <Link href={`/profile/${col.profiles.username}`} className="text-[9px] text-muted-foreground/60 hover:text-primary transition-colors block truncate">
-                          @{col.profiles.username}
-                        </Link>
-                      )}
-
-                      {/* Saves meta */}
-                      {col.save_count > 0 && (
-                        <span className="flex items-center gap-1 text-[9px] text-muted-foreground/50">
-                          <Sparkles size={8} className="text-amber-500/60" />
-                          {col.save_count} saved
-                        </span>
-                      )}
-
-                      {/* ── Actions row ── */}
-                      <div className="flex items-center gap-1.5 pt-0.5">
-                        {isOwner ? (
-                          /* Owner: Share + Edit + Delete */
-                          <>
-                            <button
-                              onClick={(e) => handleShare(col.id, e)}
-                              className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-[10px] font-semibold"
-                            >
-                              <Share2 size={10} />
-                              Share
-                            </button>
-                            <button
-                              onClick={() => handleTogglePublish(col.id, col.is_published)}
-                              className="w-7 h-7 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
-                              title={col.is_published ? 'Unpublish' : 'Publish'}
-                            >
-                              {col.is_published ? <Lock size={11} /> : <Globe size={11} />}
-                            </button>
-                            <button
-                              onClick={() => handleDelete(col.id, col.title)}
-                              disabled={deletingId === col.id}
-                              className="w-7 h-7 rounded-lg bg-muted/60 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center"
-                              title="Delete"
-                            >
-                              {deletingId === col.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
-                            </button>
-                          </>
-                        ) : (
-                          /* Non-owner: Save + Share */
-                          <>
-                            <button
-                              onClick={(e) => handleSave(col.id, e)}
-                              disabled={savingId === col.id}
-                              className={cn(
-                                'flex-1 flex items-center justify-center gap-1 h-7 rounded-lg transition-colors text-[10px] font-semibold',
-                                isSaved
-                                  ? 'bg-primary/20 text-primary'
-                                  : 'bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground'
-                              )}
-                            >
-                              {savingId === col.id
-                                ? <Loader2 size={10} className="animate-spin" />
-                                : <Bookmark size={10} className={isSaved ? 'fill-primary' : ''} />
-                              }
-                              {isSaved ? 'Saved' : 'Save'}
-                            </button>
-                            <button
-                              onClick={(e) => handleShare(col.id, e)}
-                              className="w-7 h-7 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
-                            >
-                              <Share2 size={11} />
-                            </button>
-                          </>
-                        )}
-                      </div>
                     </div>
                   </div>
-                )
-              })}
-            </div>
+                </div>
+              )
+            })}
           </div>
 
-          {/* ── DESKTOP: original grid (unchanged) ── */}
+          {/* ── DESKTOP: original grid (unchanged) ─────────────────────────── */}
           <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {collections.map((col) => {
               const isOwner     = col.user_id === userId
               const count       = itemCount(col)
-              const themeGrad   = THEME_STYLES[col.theme_color]  ?? THEME_STYLES.primary
-              const themeBorder = THEME_BORDER[col.theme_color]  ?? THEME_BORDER.primary
-              const themeAccent = THEME_ACCENT[col.theme_color]  ?? THEME_ACCENT.primary
+              const themeGrad   = THEME_GRAD[col.theme_color]   ?? THEME_GRAD.primary
+              const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
+              const themeAccent = THEME_ACCENT[col.theme_color] ?? THEME_ACCENT.primary
               const covers      = getCoverPreviews(col)
 
               return (
@@ -606,25 +572,15 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                     col.is_published ? themeBorder : 'border-dashed border-border opacity-70 hover:opacity-90'
                   )}
                 >
-                  {/* Banner — mosaic of covers or gradient fallback */}
                   <div className={cn('h-24 relative overflow-hidden bg-gradient-to-br to-transparent', themeGrad)}>
                     {covers.length > 0 ? (
                       <div className="absolute inset-0 flex gap-0.5">
                         {covers.map((url, i) => (
-                          <div
-                            key={i}
-                            className={cn(
-                              'relative overflow-hidden',
-                              covers.length === 1 ? 'flex-1' :
-                              covers.length === 2 ? 'flex-1' :
-                              covers.length === 3 && i === 0 ? 'w-1/2' : 'flex-1',
-                            )}
-                          >
-                            <img
-                              src={url}
-                              alt=""
-                              className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300"
-                            />
+                          <div key={i} className={cn('relative overflow-hidden',
+                            covers.length === 1 ? 'flex-1' :
+                            covers.length === 2 ? 'flex-1' :
+                            covers.length === 3 && i === 0 ? 'w-1/2' : 'flex-1')}>
+                            <img src={url} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300" />
                             <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
                           </div>
                         ))}
@@ -632,26 +588,21 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                     ) : col.cover_url ? (
                       <img src={col.cover_url} alt={col.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
                     ) : null}
-
                     <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
-
                     <div className="absolute top-2 right-2">
                       {col.is_published
                         ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 backdrop-blur-sm"><Globe size={8} /> Public</span>
                         : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-muted/80 text-muted-foreground border border-border backdrop-blur-sm"><Lock size={8} /> Draft</span>
                       }
                     </div>
-
                     {count > 0 && (
                       <div className="absolute bottom-2 left-2">
                         <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-background/80 backdrop-blur-sm border border-border', themeAccent)}>
-                          <BookOpen size={8} />
-                          {count} comic{count !== 1 ? 's' : ''}
+                          <BookOpen size={8} /> {count} comic{count !== 1 ? 's' : ''}
                         </span>
                       </div>
                     )}
                   </div>
-
                   <div className="p-4 space-y-3">
                     <div>
                       <Link href={`${basePath}/${col.id}`} className="font-black text-sm hover:text-primary transition-colors line-clamp-1 block">
@@ -661,16 +612,13 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                         <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{col.description}</p>
                       )}
                     </div>
-
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
                         {col.save_count > 0 && (
-                          <span className="flex items-center gap-1">
-                            <Sparkles size={9} className="text-amber-500/60" />
-                            {col.save_count} saved
+                          <span className="flex items-center gap-1 text-[10px]">
+                            <Bookmark size={9} className="text-primary/60" /> {col.save_count} saved
                           </span>
                         )}
-                        <span className="text-muted-foreground/40 text-[10px]">{formatDate(col.created_at)}</span>
                       </div>
                       {!isOwner && col.profiles && (
                         <Link href={`/profile/${col.profiles.username}`} className="text-[10px] hover:text-primary transition-colors truncate max-w-[80px]">
@@ -678,30 +626,20 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                         </Link>
                       )}
                     </div>
-
                     <div className="flex items-center gap-1.5">
                       <Link href={`${basePath}/${col.id}`} className="flex-1">
                         <Button variant="outline" size="sm" className="w-full h-7 text-xs gap-1.5 hover:border-primary/40 hover:text-primary">
-                          View <ArrowRight size={10} />
+                          View
                         </Button>
                       </Link>
-
                       {isOwner && (
                         <>
-                          <Button
-                            variant="ghost" size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={() => handleTogglePublish(col.id, col.is_published)}
-                            title={col.is_published ? 'Unpublish' : 'Publish'}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => handleTogglePublish(col.id, col.is_published, e)}>
                             {col.is_published ? <Lock size={12} /> : <Globe size={12} />}
                           </Button>
-                          <Button
-                            variant="ghost" size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDelete(col.id, col.title)}
-                            disabled={deletingId === col.id}
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => handleDelete(col.id, col.title, e)} disabled={deletingId === col.id}>
                             {deletingId === col.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                           </Button>
                         </>
@@ -719,8 +657,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       {!isProUser && userId && collections.filter(c => c.user_id === userId).length > 0 && (
         <div className="flex items-center justify-center pt-2">
           <Link href="/pricing" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-500 transition-colors">
-            <Crown size={11} />
-            Upgrade to Pro for unlimited collections
+            <Crown size={11} /> Upgrade to Pro for unlimited collections
           </Link>
         </div>
       )}
@@ -730,7 +667,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
         <button
           onClick={() => atLimit ? toast.error('Upgrade to Pro for unlimited collections') : setShowCreate(true)}
           className={cn(
-            'sm:hidden fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-200 active:scale-95',
+            'sm:hidden fixed bottom-36 right-4 z-40 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-200 active:scale-95',
             atLimit
               ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
               : 'bg-primary text-primary-foreground hover:bg-primary/90'
