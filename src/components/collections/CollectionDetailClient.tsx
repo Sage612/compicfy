@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import {
   Globe, Lock, Bookmark, BookmarkCheck,
   ArrowLeft, Loader2, Trash2, Share2, BookOpen, LayoutGrid,
-  Pencil, X, Check,
+  Pencil, X, Check, Sparkles,
 } from 'lucide-react'
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { cn } from '@/lib/utils'
@@ -42,13 +42,13 @@ interface Collection {
   collection_items: CollectionItem[]
 }
 
-const THEME_STYLES: Record<string, { gradient: string; border: string; text: string }> = {
-  primary: { gradient: 'from-primary/30 via-primary/10',         border: 'border-primary/30',     text: 'text-primary'     },
-  violet:  { gradient: 'from-violet-500/30 via-violet-500/10',   border: 'border-blue-500/30',  text: 'text-violet-500'  },
-  rose:    { gradient: 'from-rose-500/30 via-rose-500/10',       border: 'border-rose-500/30',    text: 'text-rose-500'    },
-  amber:   { gradient: 'from-amber-500/30 via-amber-500/10',     border: 'border-amber-500/30',   text: 'text-amber-500'   },
-  emerald: { gradient: 'from-emerald-500/30 via-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-500' },
-  indigo:  { gradient: 'from-indigo-500/30 via-indigo-500/10',   border: 'border-indigo-500/30',  text: 'text-indigo-500'  },
+const THEME_STYLES: Record<string, { gradient: string; border: string; text: string; bg: string; glow: string }> = {
+  primary: { gradient: 'from-primary/40 via-primary/10',         border: 'border-primary/30',     text: 'text-primary',     bg: 'bg-primary/10',     glow: 'shadow-primary/20'    },
+  violet:  { gradient: 'from-violet-500/40 via-violet-500/10',   border: 'border-violet-500/30',  text: 'text-violet-500',  bg: 'bg-violet-500/10',  glow: 'shadow-violet-500/20' },
+  rose:    { gradient: 'from-rose-500/40 via-rose-500/10',       border: 'border-rose-500/30',    text: 'text-rose-500',    bg: 'bg-rose-500/10',    glow: 'shadow-rose-500/20'   },
+  amber:   { gradient: 'from-amber-500/40 via-amber-500/10',     border: 'border-amber-500/30',   text: 'text-amber-500',   bg: 'bg-amber-500/10',   glow: 'shadow-amber-500/20'  },
+  emerald: { gradient: 'from-emerald-500/40 via-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-500', bg: 'bg-emerald-500/10', glow: 'shadow-emerald-500/20'},
+  indigo:  { gradient: 'from-indigo-500/40 via-indigo-500/10',   border: 'border-indigo-500/30',  text: 'text-indigo-500',  bg: 'bg-indigo-500/10',  glow: 'shadow-indigo-500/20' },
 }
 
 const THEME_OPTIONS = [
@@ -73,7 +73,6 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
   const [removingId,  setRemovingId]  = useState<string | null>(null)
   const [items,       setItems]       = useState<CollectionItem[]>(collection.collection_items ?? [])
 
-  // Edit modal state
   const [showEdit, setShowEdit] = useState(false)
   const [saving,   setSaving]   = useState(false)
   const [editForm, setEditForm] = useState({
@@ -84,7 +83,6 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
     is_published: collection.is_published,
   })
 
-  // Local display state (updates after save)
   const [currentTheme,     setCurrentTheme]     = useState(collection.theme_color)
   const [currentTitle,     setCurrentTitle]     = useState(collection.title)
   const [currentDesc,      setCurrentDesc]      = useState(collection.description)
@@ -92,6 +90,10 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
 
   const theme  = THEME_STYLES[currentTheme] ?? THEME_STYLES.primary
   const covers = items.map(i => i.recommendations?.cover_url).filter(Boolean).slice(0, 6) as string[]
+
+  // Dominant + stack for mobile hero
+  const dominant  = covers[0] ?? null
+  const stackCovers = covers.slice(1, 4)
 
   const handleSave = async () => {
     if (!isLoggedIn) { toast.error('Log in to save collections'); return }
@@ -148,15 +150,9 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-4xl mx-auto space-y-0">
 
-      {/* Back */}
-      <Link href="/collections" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft size={13} />
-        All Collections
-      </Link>
-
-      {/* ── Edit modal ── */}
+      {/* ── Edit modal ─────────────────────────────────────────────────────── */}
       {showEdit && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
@@ -177,11 +173,11 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                 <Input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} className="h-9 text-sm" autoFocus />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Description <span className="text-muted-foreground/60">(optional)</span></label>
+                <label className="text-xs font-semibold text-muted-foreground">Description</label>
                 <Textarea value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} placeholder="What makes this collection special..." rows={2} className="resize-none text-sm" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Cover URL <span className="text-muted-foreground/60">(optional)</span></label>
+                <label className="text-xs font-semibold text-muted-foreground">Cover URL</label>
                 <Input value={editForm.cover_url} onChange={e => setEditForm(f => ({ ...f, cover_url: e.target.value }))} placeholder="https://..." className="h-9 text-sm" />
               </div>
               <div className="space-y-1.5">
@@ -217,111 +213,316 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
         </div>
       )}
 
-      {/* Header card */}
-      <div className={cn('rounded-2xl border overflow-hidden', theme.border)}>
-        {/* Banner */}
-        <div className="h-36 md:h-48 relative overflow-hidden bg-muted">
-          {covers.length > 0 ? (
-            <div className="absolute inset-0 flex gap-0.5">
-              {covers.map((url, i) => (
-                <div key={i} className={cn('relative overflow-hidden shrink-0',
-                  covers.length === 1 ? 'flex-1' :
-                  covers.length === 2 ? 'flex-1' :
-                  covers.length >= 3 && i === 0 ? 'w-2/5' : 'flex-1')}>
+      {/* ════════════════════════════════════════════════════════════════════
+          MOBILE HERO  (hidden sm+)
+      ════════════════════════════════════════════════════════════════════ */}
+      <div className="sm:hidden">
+        {/* Full-bleed hero banner */}
+        <div className="relative h-64 overflow-hidden">
+          {dominant ? (
+            <>
+              {/* Dominant cover — full bleed, slightly blurred for atmosphere */}
+              <img
+                src={dominant}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+                aria-hidden
+              />
+              {/* Colour-tinted overlay matching theme */}
+              <div className={cn('absolute inset-0 bg-gradient-to-br opacity-50 to-transparent', theme.gradient)} />
+            </>
+          ) : collection.cover_url ? (
+            <>
+              <img src={collection.cover_url} alt={currentTitle} className="absolute inset-0 w-full h-full object-cover" />
+              <div className={cn('absolute inset-0 bg-gradient-to-br opacity-50 to-transparent', theme.gradient)} />
+            </>
+          ) : (
+            <div className={cn('absolute inset-0 bg-gradient-to-br to-transparent', theme.gradient)} />
+          )}
+
+          {/* Bottom fade to background */}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+
+          {/* Stacked thumbnails — bottom-right */}
+          {stackCovers.length > 0 && (
+            <div className="absolute bottom-4 right-4 flex items-end">
+              {stackCovers.map((url, i) => (
+                <div
+                  key={i}
+                  className="relative rounded-xl overflow-hidden border-2 border-background shadow-xl"
+                  style={{
+                    width:      52 - i * 6,
+                    height:     70 - i * 8,
+                    marginLeft: i === 0 ? 0 : -14,
+                    zIndex:     stackCovers.length - i,
+                    transform:  `rotate(${i % 2 === 0 ? 4 : -3}deg) translateY(${i * 3}px)`,
+                    opacity:    1 - i * 0.1,
+                  }}
+                >
                   <img src={url} alt="" className="w-full h-full object-cover" aria-hidden />
                 </div>
               ))}
             </div>
-          ) : collection.cover_url ? (
-            <img src={collection.cover_url} alt={currentTitle} className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <div className={cn('absolute inset-0 bg-gradient-to-br to-transparent', theme.gradient)} />
           )}
-          <div className={cn('absolute inset-0 bg-gradient-to-br opacity-60 to-transparent', theme.gradient)} />
-          <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
-          <div className="absolute top-3 right-3">
+
+          {/* Back button */}
+          <div className="absolute top-4 left-4">
+            <Link
+              href="/collections"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-background/70 backdrop-blur-sm border border-border/60 text-foreground"
+            >
+              <ArrowLeft size={16} />
+            </Link>
+          </div>
+
+          {/* Status badge */}
+          <div className="absolute top-4 right-4">
             {currentPublished
-              ? <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 backdrop-blur-sm"><Globe size={9} /> Public</span>
+              ? <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 backdrop-blur-sm"><Globe size={9} /> Public</span>
               : <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-muted/80 text-muted-foreground border border-border backdrop-blur-sm"><Lock size={9} /> Draft</span>
             }
           </div>
-          <div className="absolute top-3 left-3">
-            <div className="w-8 h-8 rounded-lg bg-background/60 backdrop-blur-sm border border-border flex items-center justify-center">
-              <LayoutGrid size={14} className={theme.text} />
-            </div>
-          </div>
         </div>
 
-        {/* Info */}
-        <div className="px-5 pb-5 pt-4 space-y-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1 min-w-0">
-              <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight">{currentTitle}</h1>
-              <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1"><BookOpen size={10} />{items.length} comic{items.length !== 1 ? 's' : ''}</span>
-                {collection.save_count > 0 && <><span>·</span><span>{collection.save_count} saves</span></>}
+        {/* Info panel — sits below hero, overlapping slightly */}
+        <div className="px-4 -mt-6 relative z-10 space-y-4">
+          {/* Title card */}
+          <div className={cn('rounded-2xl border bg-card/95 backdrop-blur-sm p-4 shadow-xl space-y-3', theme.border)}>
+            <div className="space-y-1">
+              <h1 className="text-xl font-black tracking-tight leading-tight">{currentTitle}</h1>
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
+                <span className={cn('flex items-center gap-1 font-semibold', theme.text)}>
+                  <BookOpen size={10} />
+                  {items.length} comic{items.length !== 1 ? 's' : ''}
+                </span>
+                {collection.save_count > 0 && (
+                  <>
+                    <span className="text-muted-foreground/30">·</span>
+                    <span className="flex items-center gap-1">
+                      <Sparkles size={9} className="text-amber-500/70" />
+                      {collection.save_count} saves
+                    </span>
+                  </>
+                )}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <Button size="sm" variant="outline" onClick={handleShare} className="h-8 text-xs gap-1.5">
-                <Share2 size={12} />
-                <span className="hidden sm:inline">Share</span>
-              </Button>
-              {!isOwner && (
-                <Button size="sm" variant={saved ? 'default' : 'outline'} onClick={handleSave} disabled={savingState} className={cn('gap-1.5 h-8 text-xs', saved && 'bg-primary')}>
-                  {savingState ? <Loader2 size={12} className="animate-spin" /> : saved ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
-                  <span className="hidden sm:inline">{saved ? 'Saved' : 'Save'}</span>
-                </Button>
-              )}
-              {isOwner && (
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShowEdit(true)}>
-                  <Pencil size={12} />
-                  <span className="hidden sm:inline">Edit</span>
-                </Button>
+
+            {currentDesc && (
+              <p className="text-xs text-muted-foreground leading-relaxed">{currentDesc}</p>
+            )}
+
+            {collection.profiles && (
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span>Curated by</span>
+                <Link href={`/profile/${collection.profiles.username}`} className={cn('font-semibold hover:underline', theme.text)}>
+                  @{collection.profiles.username}
+                </Link>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-2 pt-1">
+              {isOwner ? (
+                <>
+                  <button
+                    onClick={handleShare}
+                    className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-xs font-semibold"
+                  >
+                    <Share2 size={13} />
+                    Share
+                  </button>
+                  <button
+                    onClick={() => setShowEdit(true)}
+                    className={cn('flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border transition-colors text-xs font-semibold', theme.border, theme.text, theme.bg)}
+                  >
+                    <Pencil size={13} />
+                    Edit
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleSave}
+                    disabled={savingState}
+                    className={cn(
+                      'flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl transition-colors text-xs font-semibold',
+                      saved
+                        ? cn('border', theme.border, theme.text, theme.bg)
+                        : 'bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {savingState
+                      ? <Loader2 size={13} className="animate-spin" />
+                      : saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />
+                    }
+                    {saved ? 'Saved' : 'Save'}
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-xs font-semibold"
+                  >
+                    <Share2 size={13} />
+                    Share
+                  </button>
+                </>
               )}
             </div>
           </div>
-          {currentDesc && <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">{currentDesc}</p>}
-          {collection.profiles && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Curated by</span>
-              <Link href={`/profile/${collection.profiles.username}`} className={cn('font-semibold hover:underline', theme.text)}>
-                @{collection.profiles.username}
-              </Link>
+
+          {/* Comics grid */}
+          {items.length === 0 ? (
+            <div className="text-center py-12 rounded-2xl border border-dashed border-border space-y-3">
+              <div className="w-10 h-10 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto">
+                <BookOpen size={18} className="text-muted-foreground opacity-40" />
+              </div>
+              <p className="font-black text-sm">No comics yet</p>
+              {isOwner && <p className="text-xs text-muted-foreground px-4">Add comics from any comic detail page.</p>}
+            </div>
+          ) : (
+            <div className="space-y-3 pb-8">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                Comics in this collection
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {items.map((item) => (
+                  <div key={item.id} className="relative group/item">
+                    <ComicCard recommendation={item.recommendations} />
+                    {isOwner && (
+                      <button
+                        onClick={() => handleRemoveItem(item.id, item.recommendations.id)}
+                        disabled={removingId === item.id}
+                        className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-destructive"
+                        title="Remove from collection"
+                      >
+                        {removingId === item.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                      </button>
+                    )}
+                    {item.note && (
+                      <p className="text-[10px] text-muted-foreground mt-1 px-1 line-clamp-2 italic">"{item.note}"</p>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      {/* Comics grid */}
-      {items.length === 0 ? (
-        <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-3">
-          <div className="w-12 h-12 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto">
-            <BookOpen size={20} className="text-muted-foreground opacity-40" />
-          </div>
-          <p className="font-black text-sm">No comics in this collection yet</p>
-          {isOwner && <p className="text-xs text-muted-foreground">Add comics from any comic detail page using the "Add to Collection" button.</p>}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Comics in this collection</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {items.map((item) => (
-              <div key={item.id} className="relative group/item">
-                <ComicCard recommendation={item.recommendations} />
-                {isOwner && (
-                  <button onClick={() => handleRemoveItem(item.id, item.recommendations.id)} disabled={removingId === item.id}
-                    className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-destructive"
-                    title="Remove from collection">
-                    {removingId === item.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
-                  </button>
-                )}
-                {item.note && <p className="text-[10px] text-muted-foreground mt-1 px-1 line-clamp-2 italic">"{item.note}"</p>}
+      {/* ════════════════════════════════════════════════════════════════════
+          DESKTOP (unchanged, hidden on mobile)
+      ════════════════════════════════════════════════════════════════════ */}
+      <div className="hidden sm:block max-w-4xl mx-auto px-4 py-8 space-y-8">
+
+        <Link href="/collections" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft size={13} />
+          All Collections
+        </Link>
+
+        {/* Header card */}
+        <div className={cn('rounded-2xl border overflow-hidden', theme.border)}>
+          <div className="h-36 md:h-48 relative overflow-hidden bg-muted">
+            {covers.length > 0 ? (
+              <div className="absolute inset-0 flex gap-0.5">
+                {covers.map((url, i) => (
+                  <div key={i} className={cn('relative overflow-hidden shrink-0',
+                    covers.length === 1 ? 'flex-1' :
+                    covers.length === 2 ? 'flex-1' :
+                    covers.length >= 3 && i === 0 ? 'w-2/5' : 'flex-1')}>
+                    <img src={url} alt="" className="w-full h-full object-cover" aria-hidden />
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : collection.cover_url ? (
+              <img src={collection.cover_url} alt={currentTitle} className="absolute inset-0 w-full h-full object-cover" />
+            ) : (
+              <div className={cn('absolute inset-0 bg-gradient-to-br to-transparent', theme.gradient)} />
+            )}
+            <div className={cn('absolute inset-0 bg-gradient-to-br opacity-60 to-transparent', theme.gradient)} />
+            <div className="absolute inset-0 bg-gradient-to-t from-card via-card/40 to-transparent" />
+            <div className="absolute top-3 right-3">
+              {currentPublished
+                ? <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 border border-emerald-500/30 backdrop-blur-sm"><Globe size={9} /> Public</span>
+                : <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-muted/80 text-muted-foreground border border-border backdrop-blur-sm"><Lock size={9} /> Draft</span>
+              }
+            </div>
+            <div className="absolute top-3 left-3">
+              <div className="w-8 h-8 rounded-lg bg-background/60 backdrop-blur-sm border border-border flex items-center justify-center">
+                <LayoutGrid size={14} className={theme.text} />
+              </div>
+            </div>
+          </div>
+
+          <div className="px-5 pb-5 pt-4 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1 min-w-0">
+                <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight">{currentTitle}</h1>
+                <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1"><BookOpen size={10} />{items.length} comic{items.length !== 1 ? 's' : ''}</span>
+                  {collection.save_count > 0 && <><span>·</span><span>{collection.save_count} saves</span></>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="outline" onClick={handleShare} className="h-8 text-xs gap-1.5">
+                  <Share2 size={12} />
+                  <span className="hidden sm:inline">Share</span>
+                </Button>
+                {!isOwner && (
+                  <Button size="sm" variant={saved ? 'default' : 'outline'} onClick={handleSave} disabled={savingState} className={cn('gap-1.5 h-8 text-xs', saved && 'bg-primary')}>
+                    {savingState ? <Loader2 size={12} className="animate-spin" /> : saved ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
+                    <span className="hidden sm:inline">{saved ? 'Saved' : 'Save'}</span>
+                  </Button>
+                )}
+                {isOwner && (
+                  <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={() => setShowEdit(true)}>
+                    <Pencil size={12} />
+                    <span className="hidden sm:inline">Edit</span>
+                  </Button>
+                )}
+              </div>
+            </div>
+            {currentDesc && <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">{currentDesc}</p>}
+            {collection.profiles && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Curated by</span>
+                <Link href={`/profile/${collection.profiles.username}`} className={cn('font-semibold hover:underline', theme.text)}>
+                  @{collection.profiles.username}
+                </Link>
+              </div>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Comics grid */}
+        {items.length === 0 ? (
+          <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto">
+              <BookOpen size={20} className="text-muted-foreground opacity-40" />
+            </div>
+            <p className="font-black text-sm">No comics in this collection yet</p>
+            {isOwner && <p className="text-xs text-muted-foreground">Add comics from any comic detail page using the "Add to Collection" button.</p>}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Comics in this collection</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {items.map((item) => (
+                <div key={item.id} className="relative group/item">
+                  <ComicCard recommendation={item.recommendations} />
+                  {isOwner && (
+                    <button onClick={() => handleRemoveItem(item.id, item.recommendations.id)} disabled={removingId === item.id}
+                      className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-destructive"
+                      title="Remove from collection">
+                      {removingId === item.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                    </button>
+                  )}
+                  {item.note && <p className="text-[10px] text-muted-foreground mt-1 px-1 line-clamp-2 italic">"{item.note}"</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
     </div>
   )
 }

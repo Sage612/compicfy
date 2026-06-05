@@ -10,6 +10,7 @@ import {
   Plus, Globe, Lock, Loader2,
   Trash2, Crown, Sparkles,
   ArrowRight, X, LayoutGrid, BookOpen,
+  Bookmark, Share2, Pencil,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -71,11 +72,19 @@ const THEME_ACCENT: Record<string, string> = {
   indigo:  'text-indigo-500',
 }
 
+const THEME_BG: Record<string, string> = {
+  primary: 'bg-primary/20',
+  violet:  'bg-violet-500/20',
+  rose:    'bg-rose-500/20',
+  amber:   'bg-amber-500/20',
+  emerald: 'bg-emerald-500/20',
+  indigo:  'bg-indigo-500/20',
+}
+
 function itemCount(c: Collection): number {
   return c.collection_items?.[0]?.count ?? 0
 }
 
-/** Grab up to 4 cover URLs from collection_items */
 function getCoverPreviews(c: Collection): string[] {
   return (c.collection_items ?? [])
     .map((item: any) => item.recommendations?.cover_url ?? item.cover_url ?? null)
@@ -90,12 +99,77 @@ interface Props {
   basePath?: string
 }
 
+// ─── Mobile stacked cover component ───────────────────────────────────────────
+function MobileStackedCover({
+  covers,
+  themeGrad,
+  themeBg,
+  coverUrl,
+}: {
+  covers: string[]
+  themeGrad: string
+  themeBg: string
+  coverUrl: string | null
+}) {
+  if (covers.length === 0) {
+    // Theme gradient fallback
+    return (
+      <div className={cn('w-full h-full bg-gradient-to-br to-transparent', themeGrad)}>
+        <div className={cn('absolute inset-0', themeBg)} />
+      </div>
+    )
+  }
+
+  // Single dominant cover — full bleed
+  const dominant = covers[0]
+  const stack    = covers.slice(1, 4) // up to 3 smaller stacked behind
+
+  return (
+    <div className="absolute inset-0">
+      {/* Dominant cover — full bleed */}
+      <img
+        src={dominant}
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+        aria-hidden
+      />
+
+      {/* Stacked thumbnails — bottom-right corner */}
+      {stack.length > 0 && (
+        <div className="absolute bottom-2 right-2 flex items-end gap-[-4px]">
+          {stack.map((url, i) => (
+            <div
+              key={i}
+              className="relative rounded-md overflow-hidden border-2 border-card shadow-lg"
+              style={{
+                width:     28 - i * 4,
+                height:    38 - i * 5,
+                marginLeft: i === 0 ? 0 : -8,
+                zIndex:    stack.length - i,
+                opacity:   1 - i * 0.15,
+                transform: `rotate(${i % 2 === 0 ? 3 : -2}deg) translateY(${i * 2}px)`,
+              }}
+            >
+              <img src={url} alt="" className="w-full h-full object-cover" aria-hidden />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Gradient overlay for text readability */}
+      <div className="absolute inset-0 bg-gradient-to-t from-card via-card/30 to-transparent" />
+    </div>
+  )
+}
+
 export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath = '/collections' }: Props) {
   const [collections, setCollections] = useState<Collection[]>([])
   const [loading,     setLoading]     = useState(true)
   const [showCreate,  setShowCreate]  = useState(false)
   const [creating,    setCreating]    = useState(false)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
+  const [savingId,    setSavingId]    = useState<string | null>(null)
+  const [savedIds,    setSavedIds]    = useState<Set<string>>(new Set())
 
   const [form, setForm] = useState({
     title:        '',
@@ -179,10 +253,42 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
     }
   }
 
+  const handleSave = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!userId) { toast.error('Log in to save collections'); return }
+    const isSaved = savedIds.has(id)
+    setSavingId(id)
+    try {
+      await fetch(`/api/collections/${id}/save`, { method: isSaved ? 'DELETE' : 'POST' })
+      setSavedIds(prev => {
+        const next = new Set(prev)
+        isSaved ? next.delete(id) : next.add(id)
+        return next
+      })
+      toast.success(isSaved ? 'Removed from saved' : 'Collection saved!')
+    } catch {
+      toast.error('Failed to update')
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  const handleShare = async (id: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/collections/${id}`)
+      toast.success('Link copied!')
+    } catch {
+      toast.error('Failed to copy link')
+    }
+  }
+
   return (
     <div className="space-y-6">
 
-      {/* Header */}
+      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
@@ -201,19 +307,20 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
           </div>
         </div>
 
+        {/* Desktop-only create button */}
         {userId && !showCreate && (
-            <Button
-                size="sm"
-                onClick={() => atLimit ? toast.error('Upgrade to Pro for unlimited collections') : setShowCreate(true)}
-                className={cn('gap-1.5 shrink-0', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}
-            >
-                {atLimit ? <Crown size={14} /> : <Plus size={14} />}
-                <span className="hidden sm:inline">{atLimit ? 'Upgrade for More' : 'New Collection'}</span>
-            </Button>
-            )}
+          <Button
+            size="sm"
+            onClick={() => atLimit ? toast.error('Upgrade to Pro for unlimited collections') : setShowCreate(true)}
+            className={cn('gap-1.5 shrink-0 hidden sm:inline-flex', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}
+          >
+            {atLimit ? <Crown size={14} /> : <Plus size={14} />}
+            <span>{atLimit ? 'Upgrade for More' : 'New Collection'}</span>
+          </Button>
+        )}
       </div>
 
-      {/* Create form */}
+      {/* ── Create form ─────────────────────────────────────────────────────── */}
       {showCreate && (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-primary/5">
@@ -306,14 +413,14 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
         </div>
       )}
 
-      {/* Loading */}
+      {/* ── Loading ─────────────────────────────────────────────────────────── */}
       {loading && (
         <div className="flex justify-center py-16">
           <Loader2 size={24} className="animate-spin text-muted-foreground" />
         </div>
       )}
 
-      {/* Empty state */}
+      {/* ── Empty state ─────────────────────────────────────────────────────── */}
       {!loading && collections.length === 0 && (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
@@ -334,141 +441,281 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
         </div>
       )}
 
-      {/* Grid */}
+      {/* ── Grid ────────────────────────────────────────────────────────────── */}
       {!loading && collections.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {collections.map((col) => {
-            const isOwner     = col.user_id === userId
-            const count       = itemCount(col)
-            const themeGrad   = THEME_STYLES[col.theme_color]  ?? THEME_STYLES.primary
-            const themeBorder = THEME_BORDER[col.theme_color]  ?? THEME_BORDER.primary
-            const themeAccent = THEME_ACCENT[col.theme_color]  ?? THEME_ACCENT.primary
-            const covers      = getCoverPreviews(col)
+        <>
+          {/* ── MOBILE: Pinterest-style staggered 2-col masonry ── */}
+          <div className="sm:hidden">
+            <div className="columns-2 gap-3 space-y-0">
+              {collections.map((col, idx) => {
+                const isOwner     = col.user_id === userId
+                const count       = itemCount(col)
+                const themeGrad   = THEME_STYLES[col.theme_color] ?? THEME_STYLES.primary
+                const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
+                const themeAccent = THEME_ACCENT[col.theme_color] ?? THEME_ACCENT.primary
+                const themeBg     = THEME_BG[col.theme_color]     ?? THEME_BG.primary
+                const covers      = getCoverPreviews(col)
+                const isSaved     = savedIds.has(col.id)
 
-            return (
-              <div
-                key={col.id}
-                className={cn(
-                  'group relative rounded-2xl border bg-card overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5',
-                  col.is_published ? themeBorder : 'border-dashed border-border opacity-70 hover:opacity-90'
-                )}
-              >
-                {/* Banner — mosaic of covers or gradient fallback */}
-                <div className={cn('h-24 relative overflow-hidden bg-gradient-to-br to-transparent', themeGrad)}>
-                  {covers.length > 0 ? (
-                    <div className="absolute inset-0 flex gap-0.5">
-                      {covers.map((url, i) => (
-                        <div
-                          key={i}
-                          className={cn(
-                            'relative overflow-hidden',
-                            covers.length === 1 ? 'flex-1' :
-                            covers.length === 2 ? 'flex-1' :
-                            covers.length === 3 && i === 0 ? 'w-1/2' : 'flex-1',
-                          )}
-                        >
-                          <img
-                            src={url}
-                            alt=""
-                            className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300"
-                          />
-                          {/* per-cover gradient fade */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
-                        </div>
-                      ))}
-                    </div>
-                  ) : col.cover_url ? (
-                    <img src={col.cover_url} alt={col.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
-                  ) : null}
+                // Stagger heights: alternate taller/shorter cards for Pinterest effect
+                const coverHeight = idx % 3 === 0 ? 'h-44' : idx % 3 === 1 ? 'h-36' : 'h-52'
 
-                  {/* Full fade to card at bottom */}
-                  <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
-
-                  {/* Status badge */}
-                  <div className="absolute top-2 right-2">
-                    {col.is_published
-                      ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 backdrop-blur-sm"><Globe size={8} /> Public</span>
-                      : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-muted/80 text-muted-foreground border border-border backdrop-blur-sm"><Lock size={8} /> Draft</span>
-                    }
-                  </div>
-
-                  {/* Comic count pill */}
-                  {count > 0 && (
-                    <div className="absolute bottom-2 left-2">
-                      <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-background/80 backdrop-blur-sm border border-border', themeAccent)}>
-                        <BookOpen size={8} />
-                        {count} comic{count !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-4 space-y-3">
-                  {/* Title + description */}
-                  <div>
-                    <Link href={`${basePath}/${col.id}`} className="font-black text-sm hover:text-primary transition-colors line-clamp-1 block">
-                      {col.title}
-                    </Link>
-                    {col.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{col.description}</p>
+                return (
+                  <div
+                    key={col.id}
+                    className={cn(
+                      'break-inside-avoid mb-3 rounded-2xl border bg-card overflow-hidden transition-all duration-200',
+                      col.is_published ? themeBorder : 'border-dashed border-border opacity-70'
                     )}
-                  </div>
+                  >
+                    {/* Cover area */}
+                    <Link href={`${basePath}/${col.id}`}>
+                      <div className={cn('relative overflow-hidden', coverHeight)}>
+                        <MobileStackedCover
+                          covers={covers}
+                          themeGrad={themeGrad}
+                          themeBg={themeBg}
+                          coverUrl={col.cover_url}
+                        />
 
-                  {/* Meta row */}
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <div className="flex items-center gap-2">
+                        {/* Status badge */}
+                        <div className="absolute top-2 left-2 z-10">
+                          {col.is_published
+                            ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 backdrop-blur-sm"><Globe size={7} /> Public</span>
+                            : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-muted/80 text-muted-foreground border border-border backdrop-blur-sm"><Lock size={7} /> Draft</span>
+                          }
+                        </div>
+
+                        {/* Comic count */}
+                        {count > 0 && (
+                          <div className="absolute bottom-2 left-2 z-10">
+                            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-background/80 backdrop-blur-sm border border-border', themeAccent)}>
+                              <BookOpen size={7} />
+                              {count}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+
+                    {/* Card body */}
+                    <div className="p-3 space-y-2.5">
+                      {/* Title */}
+                      <Link href={`${basePath}/${col.id}`} className={cn('font-black text-xs leading-snug hover:text-primary transition-colors line-clamp-2 block', themeAccent === 'text-primary' ? '' : '')}>
+                        {col.title}
+                      </Link>
+
+                      {/* Description — only if short enough to not dominate */}
+                      {col.description && (
+                        <p className="text-[10px] text-muted-foreground line-clamp-2 leading-relaxed">{col.description}</p>
+                      )}
+
+                      {/* Creator (non-owner) */}
+                      {!isOwner && col.profiles && (
+                        <Link href={`/profile/${col.profiles.username}`} className="text-[9px] text-muted-foreground/60 hover:text-primary transition-colors block truncate">
+                          @{col.profiles.username}
+                        </Link>
+                      )}
+
+                      {/* Saves meta */}
                       {col.save_count > 0 && (
-                        <span className="flex items-center gap-1">
-                          <Sparkles size={9} className="text-amber-500/60" />
+                        <span className="flex items-center gap-1 text-[9px] text-muted-foreground/50">
+                          <Sparkles size={8} className="text-amber-500/60" />
                           {col.save_count} saved
                         </span>
                       )}
-                      <span className="text-muted-foreground/40 text-[10px]">{formatDate(col.created_at)}</span>
+
+                      {/* ── Actions row ── */}
+                      <div className="flex items-center gap-1.5 pt-0.5">
+                        {isOwner ? (
+                          /* Owner: Share + Edit + Delete */
+                          <>
+                            <button
+                              onClick={(e) => handleShare(col.id, e)}
+                              className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-[10px] font-semibold"
+                            >
+                              <Share2 size={10} />
+                              Share
+                            </button>
+                            <button
+                              onClick={() => handleTogglePublish(col.id, col.is_published)}
+                              className="w-7 h-7 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+                              title={col.is_published ? 'Unpublish' : 'Publish'}
+                            >
+                              {col.is_published ? <Lock size={11} /> : <Globe size={11} />}
+                            </button>
+                            <button
+                              onClick={() => handleDelete(col.id, col.title)}
+                              disabled={deletingId === col.id}
+                              className="w-7 h-7 rounded-lg bg-muted/60 hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors flex items-center justify-center"
+                              title="Delete"
+                            >
+                              {deletingId === col.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                            </button>
+                          </>
+                        ) : (
+                          /* Non-owner: Save + Share */
+                          <>
+                            <button
+                              onClick={(e) => handleSave(col.id, e)}
+                              disabled={savingId === col.id}
+                              className={cn(
+                                'flex-1 flex items-center justify-center gap-1 h-7 rounded-lg transition-colors text-[10px] font-semibold',
+                                isSaved
+                                  ? 'bg-primary/20 text-primary'
+                                  : 'bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground'
+                              )}
+                            >
+                              {savingId === col.id
+                                ? <Loader2 size={10} className="animate-spin" />
+                                : <Bookmark size={10} className={isSaved ? 'fill-primary' : ''} />
+                              }
+                              {isSaved ? 'Saved' : 'Save'}
+                            </button>
+                            <button
+                              onClick={(e) => handleShare(col.id, e)}
+                              className="w-7 h-7 rounded-lg bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center"
+                            >
+                              <Share2 size={11} />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    {!isOwner && col.profiles && (
-                      <Link href={`/profile/${col.profiles.username}`} className="text-[10px] hover:text-primary transition-colors truncate max-w-[80px]">
-                        @{col.profiles.username}
-                      </Link>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ── DESKTOP: original grid (unchanged) ── */}
+          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {collections.map((col) => {
+              const isOwner     = col.user_id === userId
+              const count       = itemCount(col)
+              const themeGrad   = THEME_STYLES[col.theme_color]  ?? THEME_STYLES.primary
+              const themeBorder = THEME_BORDER[col.theme_color]  ?? THEME_BORDER.primary
+              const themeAccent = THEME_ACCENT[col.theme_color]  ?? THEME_ACCENT.primary
+              const covers      = getCoverPreviews(col)
+
+              return (
+                <div
+                  key={col.id}
+                  className={cn(
+                    'group relative rounded-2xl border bg-card overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5',
+                    col.is_published ? themeBorder : 'border-dashed border-border opacity-70 hover:opacity-90'
+                  )}
+                >
+                  {/* Banner — mosaic of covers or gradient fallback */}
+                  <div className={cn('h-24 relative overflow-hidden bg-gradient-to-br to-transparent', themeGrad)}>
+                    {covers.length > 0 ? (
+                      <div className="absolute inset-0 flex gap-0.5">
+                        {covers.map((url, i) => (
+                          <div
+                            key={i}
+                            className={cn(
+                              'relative overflow-hidden',
+                              covers.length === 1 ? 'flex-1' :
+                              covers.length === 2 ? 'flex-1' :
+                              covers.length === 3 && i === 0 ? 'w-1/2' : 'flex-1',
+                            )}
+                          >
+                            <img
+                              src={url}
+                              alt=""
+                              className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : col.cover_url ? (
+                      <img src={col.cover_url} alt={col.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                    ) : null}
+
+                    <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
+
+                    <div className="absolute top-2 right-2">
+                      {col.is_published
+                        ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 backdrop-blur-sm"><Globe size={8} /> Public</span>
+                        : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-muted/80 text-muted-foreground border border-border backdrop-blur-sm"><Lock size={8} /> Draft</span>
+                      }
+                    </div>
+
+                    {count > 0 && (
+                      <div className="absolute bottom-2 left-2">
+                        <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-background/80 backdrop-blur-sm border border-border', themeAccent)}>
+                          <BookOpen size={8} />
+                          {count} comic{count !== 1 ? 's' : ''}
+                        </span>
+                      </div>
                     )}
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-1.5">
-                    <Link href={`${basePath}/${col.id}`} className="flex-1">
-                      <Button variant="outline" size="sm" className="w-full h-7 text-xs gap-1.5 hover:border-primary/40 hover:text-primary">
-                        View <ArrowRight size={10} />
-                      </Button>
-                    </Link>
+                  <div className="p-4 space-y-3">
+                    <div>
+                      <Link href={`${basePath}/${col.id}`} className="font-black text-sm hover:text-primary transition-colors line-clamp-1 block">
+                        {col.title}
+                      </Link>
+                      {col.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{col.description}</p>
+                      )}
+                    </div>
 
-                    {isOwner && (
-                      <>
-                        <Button
-                          variant="ghost" size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                          onClick={() => handleTogglePublish(col.id, col.is_published)}
-                          title={col.is_published ? 'Unpublish' : 'Publish'}
-                        >
-                          {col.is_published ? <Lock size={12} /> : <Globe size={12} />}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        {col.save_count > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Sparkles size={9} className="text-amber-500/60" />
+                            {col.save_count} saved
+                          </span>
+                        )}
+                        <span className="text-muted-foreground/40 text-[10px]">{formatDate(col.created_at)}</span>
+                      </div>
+                      {!isOwner && col.profiles && (
+                        <Link href={`/profile/${col.profiles.username}`} className="text-[10px] hover:text-primary transition-colors truncate max-w-[80px]">
+                          @{col.profiles.username}
+                        </Link>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <Link href={`${basePath}/${col.id}`} className="flex-1">
+                        <Button variant="outline" size="sm" className="w-full h-7 text-xs gap-1.5 hover:border-primary/40 hover:text-primary">
+                          View <ArrowRight size={10} />
                         </Button>
-                        <Button
-                          variant="ghost" size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDelete(col.id, col.title)}
-                          disabled={deletingId === col.id}
-                        >
-                          {deletingId === col.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                        </Button>
-                      </>
-                    )}
+                      </Link>
+
+                      {isOwner && (
+                        <>
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => handleTogglePublish(col.id, col.is_published)}
+                            title={col.is_published ? 'Unpublish' : 'Publish'}
+                          >
+                            {col.is_published ? <Lock size={12} /> : <Globe size={12} />}
+                          </Button>
+                          <Button
+                            variant="ghost" size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDelete(col.id, col.title)}
+                            disabled={deletingId === col.id}
+                          >
+                            {deletingId === col.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        </>
       )}
 
-      {/* Pro upsell */}
+      {/* ── Pro upsell ──────────────────────────────────────────────────────── */}
       {!isProUser && userId && collections.filter(c => c.user_id === userId).length > 0 && (
         <div className="flex items-center justify-center pt-2">
           <Link href="/pricing" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-500 transition-colors">
@@ -476,6 +723,22 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
             Upgrade to Pro for unlimited collections
           </Link>
         </div>
+      )}
+
+      {/* ── Mobile FAB ──────────────────────────────────────────────────────── */}
+      {userId && (
+        <button
+          onClick={() => atLimit ? toast.error('Upgrade to Pro for unlimited collections') : setShowCreate(true)}
+          className={cn(
+            'sm:hidden fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-200 active:scale-95',
+            atLimit
+              ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+          )}
+          aria-label="Create new collection"
+        >
+          {atLimit ? <Crown size={22} /> : <Plus size={24} />}
+        </button>
       )}
     </div>
   )
