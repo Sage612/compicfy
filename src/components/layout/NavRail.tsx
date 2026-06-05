@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useRef } from 'react'
 import {
-  Radar, LayoutGrid, ScrollText, ShoppingBag,
+  Radar, Layers, ScrollText, ShoppingBag,
   LayoutList, BookMarked, BookOpen, Crown,
   ChevronRight, House,
 } from 'lucide-react'
@@ -20,7 +20,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { href: '/',            label: 'Home',        icon: House,       accent: 'text-primary'    },
   { href: '/browse',      label: 'Browse',      icon: Radar,       accent: 'text-primary'   },
-  { href: '/collections', label: 'Collections', icon: LayoutGrid,  accent: 'text-primary' },
+  { href: '/collections', label: 'Collections', icon: Layers,      accent: 'text-primary' },
   { href: '/news',        label: 'News',        icon: ScrollText,  accent: 'text-primary'   },
   { href: '/affiliate',   label: 'Shop',        icon: ShoppingBag, accent: 'text-primary'  },
 ]

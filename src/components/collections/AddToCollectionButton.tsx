@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { LayoutGrid, ChevronDown, Plus, Check, Loader2 } from 'lucide-react'
+import { Layers, ChevronDown, Plus, Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 
@@ -95,7 +95,7 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
           onClose={() => setShowAuthPrompt(false)}
           config={{
             action: 'add comics to your collections',
-            icon: <LayoutGrid size={24} className="text-primary" />,
+            icon: <Layers size={24} className="text-primary" />,
           }}
         />
         <button
@@ -103,7 +103,7 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
           className="flex items-center justify-between w-full h-10 px-4 rounded-xl border border-border bg-card text-sm font-semibold text-muted-foreground hover:border-primary/40 hover:text-primary transition-all"
         >
           <span className="flex items-center gap-2 flex-1 justify-center">
-            <LayoutGrid size={14} className="shrink-0" />
+            <Layers size={14} className="shrink-0" />
             Add to Collection
           </span>
           <ChevronDown size={14} className="shrink-0 ml-2" />
@@ -128,7 +128,7 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
         )}
       >
         <span className="flex items-center gap-2 flex-1 justify-center min-w-0">
-          <LayoutGrid size={14} className="shrink-0" />
+          <Layers size={14} className="shrink-0" />
           <span className="truncate">
             {addedCount > 0 ? `Added to ${addedCount} collection${addedCount !== 1 ? 's' : ''}` : 'Add to Collection'}
           </span>
@@ -172,7 +172,7 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
                       : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  <LayoutGrid size={12} className="shrink-0 opacity-60" />
+                  <Layers size={12} className="shrink-0 opacity-60" />
                   <span className="truncate flex-1">{col.title}</span>
                   {adding === col.id
                     ? <Loader2 size={12} className="animate-spin text-muted-foreground shrink-0" />
