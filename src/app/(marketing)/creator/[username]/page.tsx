@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
   BookOpen, Star, ThumbsUp, Users, Globe,
-  ExternalLink, CalendarDays, ArrowRight,
+  ExternalLink, CalendarDays,
   Palette, Heart,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
@@ -21,7 +21,7 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params
-  return { title: `${username} — Creator` }
+  return { title: `${username} – Creator` }
 }
 
 export default async function CreatorProfilePage({ params }: Props) {
@@ -37,7 +37,11 @@ export default async function CreatorProfilePage({ params }: Props) {
     .single()
 
   if (!profileData) notFound()
-  if ((profileData as any).user_type !== 'creator') notFound()
+
+  // Only hard-block if user_type is explicitly set to something other than creator
+  // null/undefined = legacy account, allow through
+  const userType = (profileData as any).user_type
+  if (userType && userType !== 'creator') notFound()
 
   const profile  = profileData as any
   const isOwner  = viewer?.id === profile.id
@@ -70,12 +74,11 @@ export default async function CreatorProfilePage({ params }: Props) {
   const totalUpvotes = allWorks.reduce((s, w) => s + (w.upvotes ?? 0), 0)
   const totalReviews = allWorks.reduce((s, w) => s + ((w as any).review_count ?? 0), 0)
 
-  // Collect all genres the creator works in
   const genreSet = new Set<string>()
   allWorks.forEach(w => (w.genres ?? []).forEach((g: string) => genreSet.add(g)))
   const creatorGenres = Array.from(genreSet).slice(0, 8)
 
-  const hasLinks = profile.comic_url || profile.patreon_url || profile.kickstarter_url
+  const hasLinks = profile.comic_url || profile.patreon_url || profile.kickstarter_url || profile.website
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
@@ -89,7 +92,6 @@ export default async function CreatorProfilePage({ params }: Props) {
           <div className="absolute inset-0 opacity-20"
             style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #14b8a6 0%, transparent 50%), radial-gradient(circle at 80% 30%, #06b6d4 0%, transparent 40%)' }}
           />
-          {/* Decorative comic panel lines */}
           <div className="absolute inset-0 hidden md:block pointer-events-none overflow-hidden">
             <div className="absolute top-4 right-12 w-24 h-32 rounded border border-teal-500/20 rotate-6 opacity-40" />
             <div className="absolute top-8 right-32 w-16 h-22 rounded border border-teal-500/15 -rotate-3 opacity-30" />
@@ -97,7 +99,6 @@ export default async function CreatorProfilePage({ params }: Props) {
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card to-transparent" />
 
-          {/* Creator badge overlay */}
           <div className="absolute top-4 left-4">
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-500/20 border border-teal-500/30 text-teal-400 text-xs font-black backdrop-blur-sm">
               <Palette size={11} />
@@ -196,57 +197,37 @@ export default async function CreatorProfilePage({ params }: Props) {
             </div>
           )}
 
-            {/* Support links */}
-      {hasLinks && (
-        <div className="flex flex-wrap gap-2">
-          {profile.comic_url && (
-            <a
-              href={profile.comic_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400 text-xs font-semibold hover:bg-teal-500/20 transition-colors"
-            >
-              <BookOpen size={11} />
-              Read their Comic
-              <ExternalLink size={10} />
-            </a>
+          {/* Support links */}
+          {hasLinks && (
+            <div className="flex flex-wrap gap-2">
+              {profile.comic_url && (
+                <a href={profile.comic_url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-teal-500/30 bg-teal-500/10 text-teal-600 dark:text-teal-400 text-xs font-semibold hover:bg-teal-500/20 transition-colors">
+                  <BookOpen size={11} />Read their Comic<ExternalLink size={10} />
+                </a>
+              )}
+              {profile.patreon_url && (
+                <a href={profile.patreon_url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-600 text-xs font-semibold hover:bg-orange-500/20 transition-colors">
+                  Support on Patreon<ExternalLink size={10} />
+                </a>
+              )}
+              {profile.kickstarter_url && (
+                <a href={profile.kickstarter_url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 text-xs font-semibold hover:bg-emerald-500/20 transition-colors">
+                  Back their book<ExternalLink size={10} />
+                </a>
+              )}
+              {profile.website && (
+                <a href={profile.website} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground text-xs font-semibold hover:text-foreground hover:border-border/80 transition-colors">
+                  <Globe size={11} />
+                  {profile.website.replace(/^https?:\/\//, '').split('/')[0]}
+                  <ExternalLink size={10} />
+                </a>
+              )}
+            </div>
           )}
-          {profile.patreon_url && (
-            <a
-              href={profile.patreon_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-600 text-xs font-semibold hover:bg-orange-500/20 transition-colors"
-            >
-              Support on Patreon
-              <ExternalLink size={10} />
-            </a>
-          )}
-          {profile.kickstarter_url && (
-            <a
-              href={profile.kickstarter_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 text-xs font-semibold hover:bg-emerald-500/20 transition-colors"
-            >
-               Back their book
-              <ExternalLink size={10} />
-            </a>
-          )}
-          {profile.website && (
-            <a
-              href={profile.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground text-xs font-semibold hover:text-foreground hover:border-border/80 transition-colors"
-            >
-              <Globe size={11} />
-              {profile.website.replace(/^https?:\/\//, '').split('/')[0]}
-              <ExternalLink size={10} />
-            </a>
-          )}
-        </div>
-      )}
         </div>
       </div>
 
@@ -260,7 +241,6 @@ export default async function CreatorProfilePage({ params }: Props) {
             </div>
             <span className="text-xs text-muted-foreground">{totalWorks} published</span>
           </div>
-
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {allWorks.map(work => <ComicCard key={work.id} recommendation={work} />)}
           </div>
