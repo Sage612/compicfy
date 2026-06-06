@@ -245,22 +245,14 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
     const isSaved = savedIds.has(id)
     setSavingId(id)
     try {
-      const res  = await fetch(`/api/collections/${id}/save`, { method: isSaved ? 'DELETE' : 'POST' })
-      const data = await res.json()
-      if (!res.ok && res.status !== 409) {
-        toast.error('Failed to update'); return
-      }
-      // Use server count as source of truth
-      const newCount = data.save_count ?? null
+      await fetch(`/api/collections/${id}/save`, { method: isSaved ? 'DELETE' : 'POST' })
       setSavedIds(prev => {
         const next = new Set(prev)
         isSaved ? next.delete(id) : next.add(id)
         return next
       })
       setCollections(prev => prev.map(c =>
-        c.id === id
-          ? { ...c, save_count: newCount !== null ? newCount : c.save_count + (isSaved ? -1 : 1) }
-          : c
+        c.id === id ? { ...c, save_count: c.save_count + (isSaved ? -1 : 1) } : c
       ))
       toast.success(isSaved ? 'Removed from saved' : 'Collection saved!')
     } catch {
@@ -542,7 +534,10 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                               ? <Loader2 size={9} className="animate-spin" />
                               : <Bookmark size={9} className={isSaved ? 'fill-white' : ''} />
                             }
-                            {col.save_count > 0 ? col.save_count : 'Save'}
+                            {col.save_count > 0
+                              ? col.save_count
+                              : isSaved ? 'Saved' : 'Save'
+                            }
                           </button>
                           <button
                             onClick={(e) => handleShare(col.id, e)}
@@ -665,7 +660,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                               ? <Loader2 size={11} className="animate-spin" />
                               : <Bookmark size={11} className={savedIds.has(col.id) ? 'fill-primary' : ''} />
                             }
-                            {col.save_count > 0 ? col.save_count : 'Save'}
+                            {col.save_count > 0 ? col.save_count : savedIds.has(col.id) ? 'Saved' : 'Save'}
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
                             onClick={(e) => handleShare(col.id, e)} title="Share">
