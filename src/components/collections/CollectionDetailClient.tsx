@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
   Globe, Lock, Bookmark, BookmarkCheck,
-  ArrowLeft, Loader2, Trash2, Share2, BookOpen, Layers,
+  ArrowLeft, Loader2, Trash2, Share2, BookOpen, LayoutGrid,
   Pencil, X, Check, Sparkles,
 } from 'lucide-react'
 import { ComicCard } from '@/components/recommendations/ComicCard'
@@ -98,9 +98,18 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
     if (!isLoggedIn) { toast.error('Log in to save collections'); return }
     setSavingState(true)
     try {
-      await fetch(`/api/collections/${collection.id}/save`, { method: saved ? 'DELETE' : 'POST' })
+      const res  = await fetch(`/api/collections/${collection.id}/save`, { method: saved ? 'DELETE' : 'POST' })
+      const data = await res.json()
+      if (!res.ok && res.status !== 409) {
+        toast.error('Failed to update'); return
+      }
       setSaved(!saved)
-      setSaveCount(c => c + (saved ? -1 : 1))
+      // Use server count as source of truth
+      if (data.save_count !== undefined) {
+        setSaveCount(data.save_count)
+      } else {
+        setSaveCount(c => c + (saved ? -1 : 1))
+      }
       toast.success(saved ? 'Removed from saved' : 'Collection saved!')
     } catch { toast.error('Failed to update') }
     finally { setSavingState(false) }
@@ -450,7 +459,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             </div>
             <div className="absolute top-3 left-3">
               <div className="w-8 h-8 rounded-lg bg-background/60 backdrop-blur-sm border border-border flex items-center justify-center">
-                <Layers size={14} className={theme.text} />
+                <LayoutGrid size={14} className={theme.text} />
               </div>
             </div>
           </div>

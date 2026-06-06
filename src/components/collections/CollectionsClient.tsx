@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import {
   Plus, Globe, Lock, Loader2,
   Trash2, Crown, Share2,
-  X, Layers, BookOpen,
+  X, LayoutGrid, BookOpen,
   Bookmark, BookmarkCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -245,14 +245,22 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
     const isSaved = savedIds.has(id)
     setSavingId(id)
     try {
-      await fetch(`/api/collections/${id}/save`, { method: isSaved ? 'DELETE' : 'POST' })
+      const res  = await fetch(`/api/collections/${id}/save`, { method: isSaved ? 'DELETE' : 'POST' })
+      const data = await res.json()
+      if (!res.ok && res.status !== 409) {
+        toast.error('Failed to update'); return
+      }
+      // Use server count as source of truth
+      const newCount = data.save_count ?? null
       setSavedIds(prev => {
         const next = new Set(prev)
         isSaved ? next.delete(id) : next.add(id)
         return next
       })
       setCollections(prev => prev.map(c =>
-        c.id === id ? { ...c, save_count: c.save_count + (isSaved ? -1 : 1) } : c
+        c.id === id
+          ? { ...c, save_count: newCount !== null ? newCount : c.save_count + (isSaved ? -1 : 1) }
+          : c
       ))
       toast.success(isSaved ? 'Removed from saved' : 'Collection saved!')
     } catch {
@@ -279,7 +287,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-            <Layers size={16} className="text-primary" />
+            <LayoutGrid size={16} className="text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight">Collections</h1>
@@ -405,7 +413,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       {!loading && collections.length === 0 && (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <Layers size={20} className="text-primary opacity-60" />
+            <LayoutGrid size={20} className="text-primary opacity-60" />
           </div>
           <div>
             <p className="font-black text-sm">No collections yet</p>

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 
 // POST — save a collection
 // DELETE — unsave a collection
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -13,25 +14,30 @@ export async function POST(
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { data, error } = await (supabase as any)
+    // Upsert so duplicate saves never 409
+    const { error: insertError } = await (supabase as any)
       .from('collection_saves')
-      .insert({ user_id: user.id, collection_id: id })
-      .select()
-      .single()
+      .upsert(
+        { user_id: user.id, collection_id: id },
+        { onConflict: 'user_id,collection_id', ignoreDuplicates: true }
+      )
 
-    if (error) {
-      if (error.code === '23505') return NextResponse.json({ error: 'Already saved' }, { status: 409 })
-      throw error
-    }
+    if (insertError) throw insertError
 
-    // Increment save_count
+    // Recalculate save_count from actual rows — source of truth
+    const { count } = await (supabase as any)
+      .from('collection_saves')
+      .select('*', { count: 'exact', head: true })
+      .eq('collection_id', id)
+
     await (supabase as any)
       .from('collections')
-      .update({ save_count: (supabase as any).rpc('increment', { row_id: id }) })
+      .update({ save_count: count ?? 0 })
       .eq('id', id)
 
-    return NextResponse.json({ saved: true }, { status: 201 })
+    return NextResponse.json({ saved: true, save_count: count ?? 0 }, { status: 201 })
   } catch (err) {
+    console.error('Save POST error:', err)
     return NextResponse.json({ error: 'Failed to save' }, { status: 500 })
   }
 }
@@ -52,8 +58,20 @@ export async function DELETE(
       .eq('user_id', user.id)
       .eq('collection_id', id)
 
-    return NextResponse.json({ saved: false })
+    // Recalculate save_count from actual rows — source of truth
+    const { count } = await (supabase as any)
+      .from('collection_saves')
+      .select('*', { count: 'exact', head: true })
+      .eq('collection_id', id)
+
+    await (supabase as any)
+      .from('collections')
+      .update({ save_count: count ?? 0 })
+      .eq('id', id)
+
+    return NextResponse.json({ saved: false, save_count: count ?? 0 })
   } catch (err) {
+    console.error('Save DELETE error:', err)
     return NextResponse.json({ error: 'Failed to unsave' }, { status: 500 })
   }
 }
