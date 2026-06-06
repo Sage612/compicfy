@@ -443,7 +443,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
               const isSaved     = savedIds.has(col.id)
               const avatar      = col.profiles?.avatar_url
               const username    = col.profiles?.username
-              const saveLabel   = isSaved ? (col.save_count > 0 ? col.save_count : '✓') : (col.save_count > 0 ? col.save_count : 'Save')
 
               // Pinterest stagger: 3 rotating heights
               const cardH = idx % 3 === 0 ? 'h-52' : idx % 3 === 1 ? 'h-40' : 'h-64'
@@ -543,7 +542,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                               ? <Loader2 size={9} className="animate-spin" />
                               : <Bookmark size={9} className={isSaved ? 'fill-white' : ''} />
                             }
-                            {saveLabel}
+                            {col.save_count > 0 ? col.save_count : 'Save'}
                           </button>
                           <button
                             onClick={(e) => handleShare(col.id, e)}
@@ -569,8 +568,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
               const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
               const themeAccent = THEME_ACCENT[col.theme_color] ?? THEME_ACCENT.primary
               const covers      = getCoverPreviews(col)
-              const isSavedD    = savedIds.has(col.id)
-              const saveLabelD  = isSavedD ? (col.save_count > 0 ? col.save_count : '✓') : (col.save_count > 0 ? col.save_count : 'Save')
 
               return (
                 <div
@@ -668,7 +665,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                               ? <Loader2 size={11} className="animate-spin" />
                               : <Bookmark size={11} className={savedIds.has(col.id) ? 'fill-primary' : ''} />
                             }
-                            {saveLabelD}
+                            {col.save_count > 0 ? col.save_count : 'Save'}
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
                             onClick={(e) => handleShare(col.id, e)} title="Share">
