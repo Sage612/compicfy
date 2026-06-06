@@ -108,13 +108,17 @@ export async function updateSession(request: NextRequest) {
         }
       }
 
-      // Creator trying to access reader routes → redirect to creator dashboard
-      if (pathname.startsWith('/reader/') && profile.user_type === 'creator') {
+      // Creator trying to access reader DASHBOARD routes → redirect to creator dashboard
+      // Note: /reader/[username] public profiles are NOT dashboard routes, so we scope
+      // this guard to /reader/dashboard only to allow public reader profiles through.
+      if (pathname.startsWith('/reader/dashboard') && profile.user_type === 'creator') {
         return NextResponse.redirect(new URL('/creator/dashboard', request.url))
       }
 
-      // Reader trying to access creator routes → redirect to reader dashboard
-      if (pathname.startsWith('/creator/') && profile.user_type === 'reader') {
+      // Reader trying to access creator DASHBOARD routes → redirect to reader dashboard
+      // Note: /creator/[username] public profiles must remain accessible to all users,
+      // including readers. We scope this guard to /creator/dashboard only.
+      if (pathname.startsWith('/creator/dashboard') && profile.user_type === 'reader') {
         return NextResponse.redirect(new URL('/reader/dashboard', request.url))
       }
 
@@ -130,10 +134,12 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // ── 3. Protected route auth check ────────────────────────────────────────
+  // ── 3. Protected route auth check ─────────────────────────────────────────
+  // Only protect DASHBOARD routes, not public-facing profile pages.
+  // /creator/[username] and /reader/[username] are public profiles — no auth required.
   const protectedPaths = [
-    '/reader',
-    '/creator',
+    '/reader/dashboard',
+    '/creator/dashboard',
     '/admin',
     '/pro',
     '/feed',
