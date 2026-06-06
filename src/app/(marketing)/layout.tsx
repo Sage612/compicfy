@@ -22,7 +22,9 @@ export default async function MarketingLayout({ children }: { children: React.Re
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
       <Header />
-      <main className="flex-1 pt-20 pb-24 lg:pb-0 lg:pl-12 overflow-x-hidden">
+      {/* pt-[108px] on mobile = 64px header + 44px tab bar
+          lg:pt-20 = back to normal, no tab bar on desktop  */}
+      <main className="flex-1 pt-[108px] pb-24 lg:pt-20 lg:pb-0 lg:pl-12 overflow-x-hidden">
         {children}
       </main>
       <ConditionalFooter />
