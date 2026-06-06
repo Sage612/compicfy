@@ -306,7 +306,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
   const { data: profileData } = await supabase
     .from('profiles')
-    .select('username, display_name, avatar_url, role, is_pro, pro_expires_at, verified_recommender')
+    .select('username, display_name, avatar_url, role, is_pro, pro_expires_at, verified_recommender, user_type')
     .eq('id', rec.user_id)
     .maybeSingle()
 
@@ -318,6 +318,7 @@ export default async function ComicDetailPage({ params }: Props) {
     is_pro:               boolean
     pro_expires_at:       string | null
     verified_recommender: boolean
+    user_type:            string | null
   } | null
 
   // Ghost check — use UUID not username
@@ -560,15 +561,16 @@ export default async function ComicDetailPage({ params }: Props) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span>Recommended by</span>
                   <RecommenderLink
-                    username={profile?.username ?? ''}
-                    displayName={recommenderName}
-                    isLoggedIn={!!user}
-                    isGhost={isGhostRec}
-                    role={profile?.role}
-                    isPro={recommenderIsPro}
-                    isVerified={recommenderIsVerified}
-                    comicTitle={rec.title}
-                  />
+                      username={profile?.username ?? ''}
+                      displayName={recommenderName}
+                      isLoggedIn={!!user}
+                      isGhost={isGhostRec}
+                      role={profile?.role}
+                      isPro={recommenderIsPro}
+                      isVerified={recommenderIsVerified}
+                      comicTitle={rec.title}
+                      userType={profile?.user_type ?? null}
+                    />
                 </div>
                 <span className="shrink-0">{formatDate(rec.created_at)}</span>
               </div>

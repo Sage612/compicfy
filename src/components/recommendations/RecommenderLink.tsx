@@ -15,6 +15,7 @@ interface Props {
   isPro?:       boolean
   isVerified?:  boolean
   comicTitle?:  string
+  userType?:    string | null
 }
 
 export function RecommenderLink({
@@ -26,8 +27,14 @@ export function RecommenderLink({
   isPro,
   isVerified,
   comicTitle,
+  userType,
 }: Props) {
   const [open, setOpen] = useState(false)
+
+  // Route creators to their creator profile directly — no redirect hop needed
+  const profileHref = userType === 'creator'
+    ? `/creator/${username}`
+    : `/profile/${username}`
 
   if (isGhost) {
     return (
@@ -66,7 +73,7 @@ export function RecommenderLink({
   return (
     <>
       <Link
-        href={`/profile/${username}`}
+        href={profileHref}
         className="text-foreground hover:text-primary font-semibold transition-colors"
       >
         @{displayName}
