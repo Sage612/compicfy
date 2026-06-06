@@ -542,10 +542,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                               ? <Loader2 size={9} className="animate-spin" />
                               : <Bookmark size={9} className={isSaved ? 'fill-white' : ''} />
                             }
-                            {col.save_count > 0
-                              ? col.save_count
-                              : isSaved ? 'Saved' : 'Save'
-                            }
+                            {col.save_count > 0 ? col.save_count : 'Save'}
                           </button>
                           <button
                             onClick={(e) => handleShare(col.id, e)}
@@ -668,7 +665,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                               ? <Loader2 size={11} className="animate-spin" />
                               : <Bookmark size={11} className={savedIds.has(col.id) ? 'fill-primary' : ''} />
                             }
-                            {col.save_count > 0 ? col.save_count : savedIds.has(col.id) ? 'Saved' : 'Save'}
+                            {col.save_count > 0 ? col.save_count : 'Save'}
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
                             onClick={(e) => handleShare(col.id, e)} title="Share">
