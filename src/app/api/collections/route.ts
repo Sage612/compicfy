@@ -42,7 +42,13 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    if (userId) {
+    const mine = searchParams.get('mine') === 'true'
+
+    if (mine) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return NextResponse.json({ collections: [], total: 0, hasMore: false })
+      query = query.eq('user_id', user.id)
+    } else if (userId) {
       query = query.eq('user_id', userId)
     } else {
       const { data: { user } } = await supabase.auth.getUser()

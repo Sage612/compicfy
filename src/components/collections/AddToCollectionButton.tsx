@@ -43,7 +43,7 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
       setLoading(true)
       try {
         const [colRes, itemRes] = await Promise.all([
-          fetch('/api/collections'),
+          fetch('/api/collections?mine=true&limit=50'),
           fetch(`/api/collections?contains=${recommendationId}`),
         ])
         const colData  = await colRes.json()

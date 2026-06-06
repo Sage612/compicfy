@@ -370,7 +370,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                       ? <Loader2 size={13} className="animate-spin" />
                       : saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />
                     }
-                    {saved ? (saveCount > 0 ? saveCount : '✓') : (saveCount > 0 ? saveCount : 'Save')}
+                    {saved ? (saveCount > 0 ? `${saveCount} saved` : 'Saved') : (saveCount > 0 ? `${saveCount}` : 'Save')}
                   </button>
 
                   {/* Share — no count */}
@@ -484,7 +484,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                   <Button size="sm" variant={saved ? 'default' : 'outline'} onClick={handleSave} disabled={savingState}
                     className={cn('gap-1.5 h-8 text-xs', saved && 'bg-primary')}>
                     {savingState ? <Loader2 size={12} className="animate-spin" /> : saved ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
-                    <span className="hidden sm:inline">{saved ? (saveCount > 0 ? saveCount : '✓') : (saveCount > 0 ? saveCount : 'Save')}</span>
+                    <span className="hidden sm:inline">{saved ? (saveCount > 0 ? `${saveCount} saved` : 'Saved') : (saveCount > 0 ? `${saveCount}` : 'Save')}</span>
                   </Button>
                 )}
                 {isOwner && (
