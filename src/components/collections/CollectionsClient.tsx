@@ -9,14 +9,10 @@ import { toast } from 'sonner'
 import {
   Plus, Globe, Lock, Loader2,
   Trash2, Crown, Share2,
-  X, Layers, BookOpen,
+  X, LayoutGrid, BookOpen,
   Bookmark, BookmarkCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-interface CoverPreview {
-  cover_url: string | null
-}
 
 interface Collection {
   id:           string
@@ -34,7 +30,7 @@ interface Collection {
     display_name: string | null
     avatar_url:   string | null
   } | null
-  collection_items: { count: number; recommendations?: CoverPreview }[]
+  collection_items: { recommendations?: { cover_url: string | null } | null }[]
 }
 
 const FREE_LIMIT = 3
@@ -76,12 +72,12 @@ const THEME_ACCENT: Record<string, string> = {
 }
 
 function itemCount(c: Collection): number {
-  return c.collection_items?.[0]?.count ?? 0
+  return c.collection_items?.length ?? 0
 }
 
 function getCoverPreviews(c: Collection): string[] {
   return (c.collection_items ?? [])
-    .map((item: any) => item.recommendations?.cover_url ?? item.cover_url ?? null)
+    .map((item) => item.recommendations?.cover_url ?? null)
     .filter(Boolean)
     .slice(0, 4) as string[]
 }
@@ -283,7 +279,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <Layers size={16} className="text-primary" />
+            <LayoutGrid size={16} className="text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight">Collections</h1>
@@ -409,7 +405,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       {!loading && collections.length === 0 && (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <Layers size={20} className="text-primary opacity-60" />
+            <LayoutGrid size={20} className="text-primary opacity-60" />
           </div>
           <div>
             <p className="font-black text-sm">No collections yet</p>
@@ -538,7 +534,10 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                               ? <Loader2 size={9} className="animate-spin" />
                               : <Bookmark size={9} className={isSaved ? 'fill-white' : ''} />
                             }
-                            {col.save_count > 0 ? col.save_count : isSaved ? 'Saved' : 'Save'}
+                            {col.save_count > 0
+                              ? col.save_count
+                              : isSaved ? 'Saved' : 'Save'
+                            }
                           </button>
                           <button
                             onClick={(e) => handleShare(col.id, e)}

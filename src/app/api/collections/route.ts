@@ -28,7 +28,6 @@ export async function GET(request: Request) {
         .eq('collection_items.recommendation_id', contains)
 
       if (error) throw error
-
       return NextResponse.json({ collections: data ?? [] })
     }
 
@@ -38,19 +37,16 @@ export async function GET(request: Request) {
       .select(`
         *,
         profiles!collections_user_id_fkey(username, display_name, avatar_url, is_pro, role),
-        collection_items(count)
+        collection_items(recommendations(cover_url))
       `, { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    // If fetching own collections (dashboard / AddToCollectionButton), skip is_published filter
     if (userId) {
       query = query.eq('user_id', userId)
     } else {
-      // Public discovery — only published
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        // Show own (published + draft) + others' published
         query = query.or(`user_id.eq.${user.id},is_published.eq.true`)
       } else {
         query = query.eq('is_published', true)
