@@ -278,7 +278,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
             <Layers size={16} className="text-primary" />
           </div>
           <div>
@@ -632,15 +632,39 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                           View
                         </Button>
                       </Link>
-                      {isOwner && (
+                      {isOwner ? (
                         <>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={(e) => handleTogglePublish(col.id, col.is_published, e)}>
+                            onClick={(e) => handleShare(col.id, e)} title="Share">
+                            <Share2 size={12} />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => handleTogglePublish(col.id, col.is_published, e)}
+                            title={col.is_published ? 'Unpublish' : 'Publish'}>
                             {col.is_published ? <Lock size={12} /> : <Globe size={12} />}
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
                             onClick={(e) => handleDelete(col.id, col.title, e)} disabled={deletingId === col.id}>
                             {deletingId === col.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            variant="ghost" size="sm"
+                            className={cn('h-7 gap-1 text-xs px-2', savedIds.has(col.id) ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
+                            onClick={(e) => handleSave(col.id, e)}
+                            disabled={savingId === col.id}
+                          >
+                            {savingId === col.id
+                              ? <Loader2 size={11} className="animate-spin" />
+                              : <Bookmark size={11} className={savedIds.has(col.id) ? 'fill-primary' : ''} />
+                            }
+                            {col.save_count > 0 ? col.save_count : savedIds.has(col.id) ? 'Saved' : 'Save'}
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => handleShare(col.id, e)} title="Share">
+                            <Share2 size={12} />
                           </Button>
                         </>
                       )}
