@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
   Globe, Lock, Bookmark, BookmarkCheck,
-  ArrowLeft, Loader2, Trash2, Share2, BookOpen, LayoutGrid,
+  ArrowLeft, Loader2, Trash2, Share2, BookOpen, Layers,
   Pencil, X, Check, Sparkles,
 } from 'lucide-react'
 import { ComicCard } from '@/components/recommendations/ComicCard'
@@ -459,7 +459,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             </div>
             <div className="absolute top-3 left-3">
               <div className="w-8 h-8 rounded-lg bg-background/60 backdrop-blur-sm border border-border flex items-center justify-center">
-                <LayoutGrid size={14} className={theme.text} />
+                <Layers size={14} className={theme.text} />
               </div>
             </div>
           </div>
