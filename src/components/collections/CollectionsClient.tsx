@@ -82,14 +82,13 @@ function getCoverPreviews(c: Collection): string[] {
     .slice(0, 4) as string[]
 }
 
-// ── Stable height from ID ─────────────────────────────────────────────────
-// Derive a Pinterest card height from the collection's UUID so the height
-// never changes when the array order changes (create, delete, re-order).
-// We sum the char codes of the last 6 chars of the ID and mod by 3.
-function stableHeightClass(id: string): string {
-  const seed = id.slice(-6).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  const heights = ['h-52', 'h-40', 'h-64']
-  return heights[seed % 3]
+// ── Pinterest column height ───────────────────────────────────────────────
+// Heights cycle by position within each column (0→h-36, 1→h-44, 2→h-52).
+// Using explicit two-column arrays (not CSS columns) so React controls
+// placement and the pattern never shifts on create/delete.
+const CARD_HEIGHTS = ['h-36', 'h-44', 'h-52'] as const
+function colHeightClass(positionInColumn: number): string {
+  return CARD_HEIGHTS[positionInColumn % 3]
 }
 
 // ── Save button label helper ───────────────────────────────────────────────
@@ -448,8 +447,12 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       {/* ── MOBILE: Pinterest staggered full-cover cards ─────────────────── */}
       {!loading && collections.length > 0 && (
         <>
-          <div className="sm:hidden columns-2 gap-3">
-            {collections.map((col) => {
+          {/* Split into two explicit columns so React controls placement.
+              Heights cycle by position within each column — never shifts. */}
+          <div className="sm:hidden grid grid-cols-2 gap-3 items-start">
+            {/* Left column: even indices */}
+            <div className="flex flex-col gap-3">
+              {collections.filter((_, i) => i % 2 === 0).map((col, posInCol) => {
               const isOwner     = col.user_id === userId
               const count       = itemCount(col)
               const themeGrad   = THEME_GRAD[col.theme_color]   ?? THEME_GRAD.primary
@@ -460,14 +463,13 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
               const avatar      = col.profiles?.avatar_url
               const username    = col.profiles?.username
               const saveLabel   = getSaveLabel(col.save_count, isSaved)
-              // Stable height derived from ID — never shifts on create/delete
-              const cardH       = stableHeightClass(col.id)
+              const cardH       = colHeightClass(posInCol)
 
               return (
                 <div
                   key={col.id}
                   className={cn(
-                    'break-inside-avoid mb-3 rounded-2xl border overflow-hidden relative cursor-pointer',
+                    'rounded-2xl border overflow-hidden relative cursor-pointer',
                     cardH,
                     col.is_published ? themeBorder : 'border-dashed border-border/60 opacity-75'
                   )}
@@ -571,6 +573,90 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                 </div>
               )
             })}
+            </div>
+            {/* Right column: odd indices */}
+            <div className="flex flex-col gap-3">
+              {collections.filter((_, i) => i % 2 === 1).map((col, posInCol) => {
+              const isOwner     = col.user_id === userId
+              const count       = itemCount(col)
+              const themeGrad   = THEME_GRAD[col.theme_color]   ?? THEME_GRAD.primary
+              const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
+              const themeAccent = THEME_ACCENT[col.theme_color] ?? THEME_ACCENT.primary
+              const covers      = getCoverPreviews(col)
+              const isSaved     = savedIds.has(col.id)
+              const avatar      = col.profiles?.avatar_url
+              const username    = col.profiles?.username
+              const saveLabel   = getSaveLabel(col.save_count, isSaved)
+              // Right column starts at h-44 so it's offset from left column
+              const cardH       = colHeightClass(posInCol + 1)
+
+              return (
+                <div
+                  key={col.id}
+                  className={cn(
+                    'rounded-2xl border overflow-hidden relative cursor-pointer',
+                    cardH,
+                    col.is_published ? themeBorder : 'border-dashed border-border/60 opacity-75'
+                  )}
+                >
+                  <StackedCover covers={covers} themeGrad={themeGrad} coverUrl={col.cover_url} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+                  <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
+                    {col.is_published
+                      ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
+                      : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Draft</span>
+                    }
+                    {count > 0 && (
+                      <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', themeAccent)}>
+                        <BookOpen size={7} /> {count}
+                      </span>
+                    )}
+                  </div>
+                  <Link href={`${basePath}/${col.id}`} className="absolute inset-0 z-10" aria-label={col.title} />
+                  <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-2">
+                    <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{col.title}</p>
+                    {!isOwner && username && (
+                      <div className="flex items-center gap-1.5">
+                        {avatar ? (
+                          <img src={avatar} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
+                            <span className="text-[7px] text-white font-bold">{username[0].toUpperCase()}</span>
+                          </div>
+                        )}
+                        <span className="text-[9px] text-white/70 truncate">@{username}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5 relative z-30">
+                      {isOwner ? (
+                        <>
+                          <button onClick={(e) => handleShare(col.id, e)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10">
+                            <Share2 size={9} /> Share
+                          </button>
+                          <button onClick={(e) => handleTogglePublish(col.id, col.is_published, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10" title={col.is_published ? 'Unpublish' : 'Publish'}>
+                            {col.is_published ? <Lock size={10} /> : <Globe size={10} />}
+                          </button>
+                          <button onClick={(e) => handleDelete(col.id, col.title, e)} disabled={deletingId === col.id} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-red-500/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
+                            {deletingId === col.id ? <Loader2 size={9} className="animate-spin" /> : <Trash2 size={9} />}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={(e) => handleSave(col.id, e)} disabled={savingId === col.id} className={cn('flex items-center gap-1 px-2 h-6 rounded-lg backdrop-blur-sm text-[9px] font-semibold transition-colors border', isSaved ? 'bg-primary/70 text-white border-primary/40' : 'bg-white/15 hover:bg-white/25 text-white border-white/10')}>
+                            {savingId === col.id ? <Loader2 size={9} className="animate-spin" /> : <Bookmark size={9} className={isSaved ? 'fill-white' : ''} />}
+                            {saveLabel}
+                          </button>
+                          <button onClick={(e) => handleShare(col.id, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
+                            <Share2 size={9} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+            </div>
           </div>
 
           {/* ── DESKTOP: original grid ──────────────────────────────────────── */}
