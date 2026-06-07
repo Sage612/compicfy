@@ -18,7 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .order('updated_at', { ascending: false })
     .limit(200)
 
-  const base = 'https://compicfy.cloud'
+  const base = 'https://compicfy.com'
   const staticPages: MetadataRoute.Sitemap = [
     { url: base,               lastModified: new Date(), changeFrequency: 'daily',   priority: 1.0 },
     { url: `${base}/browse`,   lastModified: new Date(), changeFrequency: 'daily',   priority: 0.9 },

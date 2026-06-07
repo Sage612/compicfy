@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { paystackRequest, PAYSTACK_PLANS } from '@/lib/paystack/client'
 
 // Hardcoded fallback in case env var is missing
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://compicfy.cloud'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://compicfy.com'
 
 export async function POST(req: NextRequest) {
   try {

@@ -100,7 +100,7 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
       { label: 'FAQ',         href: '/faq',              icon: <HelpCircle  size={13} strokeWidth={2} /> },
       {
         label:    'Support',
-        href:     'mailto:support@compicfy.cloud',
+        href:     'mailto:support@compicfy.com',
         icon:     <Mail size={13} strokeWidth={2} />,
         external: true,
       },

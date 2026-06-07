@@ -25,7 +25,7 @@ import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnB
 import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { headers } from 'next/headers'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
 const GHOST_ID = '00000000-0000-0000-0000-000000000000'
 
 interface Props {

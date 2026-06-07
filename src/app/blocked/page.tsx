@@ -57,7 +57,7 @@ export default async function BlockedPage({ searchParams }: Props) {
 
         {/* Actions */}
         <div className="flex flex-col gap-3">
-          <a href="mailto:support@compicfy.cloud" className="w-full">
+          <a href="mailto:support@compicfy.com" className="w-full">
             <Button className="w-full gap-2 bg-destructive hover:bg-destructive/90 text-white font-bold shadow-lg shadow-destructive/20 h-11">
               <Mail size={16} />
               Submit an Appeal

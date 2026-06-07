@@ -16,7 +16,7 @@ import type { Recommendation } from '@/types/database.types'
 import type { News } from '@/types/database.types'
 import type { Metadata } from 'next'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
 
 export const metadata: Metadata = {
   title: 'Compicfy - Find your next obsession.',

@@ -178,7 +178,7 @@ export async function GET(request: NextRequest) {
                 color:         'rgba(255,255,255,0.20)',
                 display:       'flex',
               }}>
-                compicfy.cloud
+                compicfy.com
               </div>
             </div>
           </div>

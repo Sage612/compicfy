@@ -33,12 +33,12 @@ const PRIVACY_SECTIONS = [
   },
   {
     n: '7', title: 'Third-Party Cover Images',
-    body: 'Cover images may be sourced from community databases such as MyAnimeList and AniList when official publisher assets are unavailable. These are linked directly from their source, we do not store or serve these images from our own servers. Rights holders who wish to have images removed may contact us at support@compicfy.cloud.',
+    body: 'Cover images may be sourced from community databases such as MyAnimeList and AniList when official publisher assets are unavailable. These are linked directly from their source, we do not store or serve these images from our own servers. Rights holders who wish to have images removed may contact us at support@compicfy.com.',
   },
   {
     n: '8', title: 'Data Retention',
     body: null,
-    contact: 'support@compicfy.cloud',
+    contact: 'support@compicfy.com',
     contactText: 'We retain your account data for as long as your account is active. You may request deletion of your account and associated data at any time through your dashboard settings or by contacting us at {email}. Some content such as reviews and recommendations may be retained in anonymised form after account deletion.',
   },
   {
@@ -56,7 +56,7 @@ const PRIVACY_SECTIONS = [
   {
     n: '12', title: 'Your Rights (GDPR / CCPA)',
     // Added: required for EU and California users
-    body: 'Depending on your location, you may have rights regarding your personal data. EU residents (under GDPR) and California residents (under CCPA) have the right to: access the personal data we hold about you; request correction of inaccurate data; request deletion of your data; object to or restrict processing of your data; and data portability. To exercise any of these rights, contact us at support@compicfy.cloud. We will respond within 30 days. We do not discriminate against users who exercise their privacy rights.',
+    body: 'Depending on your location, you may have rights regarding your personal data. EU residents (under GDPR) and California residents (under CCPA) have the right to: access the personal data we hold about you; request correction of inaccurate data; request deletion of your data; object to or restrict processing of your data; and data portability. To exercise any of these rights, contact us at support@compicfy.com. We will respond within 30 days. We do not discriminate against users who exercise their privacy rights.',
   },
   {
     n: '13', title: 'International Data Transfers',
@@ -69,7 +69,7 @@ const PRIVACY_SECTIONS = [
   {
     n: '15', title: 'Contact Us',
     body: null,
-    contact: 'support@compicfy.cloud',
+    contact: 'support@compicfy.com',
     contactText: 'For privacy-related concerns or to exercise your data rights, contact us at {email}.',
   },
 ]

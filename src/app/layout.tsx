@@ -6,7 +6,7 @@ import { Toaster } from 'sonner'
 import { CookieBanner } from '@/components/ui/CookieBanner'
 import './globals.css'
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

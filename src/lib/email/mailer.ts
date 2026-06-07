@@ -1,8 +1,8 @@
 import nodemailer from 'nodemailer'
 
 export const SITE_NAME = process.env.NEXT_PUBLIC_SITE_NAME ?? 'Compicfy'
-export const SITE_URL  = process.env.NEXT_PUBLIC_SITE_URL  ?? 'https://compicfy.cloud'
-export const FROM      = process.env.SMTP_FROM             ?? 'support@compicfy.cloud'
+export const SITE_URL  = process.env.NEXT_PUBLIC_SITE_URL  ?? 'https://compicfy.com'
+export const FROM      = process.env.SMTP_FROM             ?? 'support@compicfy.com'
 
 // Reused across all sends
 const transporter = nodemailer.createTransport({

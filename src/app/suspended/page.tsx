@@ -64,7 +64,7 @@ export default async function SuspendedPage({ searchParams }: Props) {
         </div>
 
         <div className="flex flex-col gap-3">
-          <a href="mailto:support@compicfy.cloud">
+          <a href="mailto:support@compicfy.com">
             <Button variant="outline" className="w-full gap-2 border-amber-500/30 text-amber-700 hover:bg-amber-500/5 h-11 font-bold">
               <Mail size={16} />
               Contact Support

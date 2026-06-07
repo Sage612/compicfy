@@ -8,7 +8,7 @@ interface ProfileResult {
   is_pro: boolean
 }
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://compicfy.cloud'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://compicfy.com'
 
 export async function GET(req: NextRequest) {
   try {

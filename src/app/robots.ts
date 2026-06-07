@@ -16,6 +16,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: 'https://compicfy.cloud/sitemap.xml',
+    sitemap: 'https://compicfy.com/sitemap.xml',
   }
 }

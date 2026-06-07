@@ -22,7 +22,7 @@ async function sendPushForUser(
   url: string
 ) {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://compicfy.cloud'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://compicfy.com'
     await fetch(`${baseUrl}/api/push/send`, {
       method:  'POST',
       headers: {

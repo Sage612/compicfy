@@ -56,7 +56,7 @@ export default function DMCAPage() {
       if (!res.ok) throw new Error()
       setStep('success')
     } catch {
-      toast.error('Failed to submit. Please email support@compicfy.cloud directly.')
+      toast.error('Failed to submit. Please email support@compicfy.com directly.')
     } finally {
       setLoading(false)
     }
@@ -82,7 +82,7 @@ export default function DMCAPage() {
         </div>
         <p className="text-xs text-muted-foreground">
           Need to follow up? Email{' '}
-          <a href="mailto:support@compicfy.cloud" className="text-primary hover:underline">support@compicfy.cloud</a>
+          <a href="mailto:support@compicfy.com" className="text-primary hover:underline">support@compicfy.com</a>
         </p>
       </div>
     )
@@ -172,7 +172,7 @@ export default function DMCAPage() {
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed pl-8">
               You may also send a DMCA notice directly to{' '}
-              <a href="mailto:support@compicfy.cloud" className="text-primary hover:underline font-medium">support@compicfy.cloud</a>{' '}
+              <a href="mailto:support@compicfy.com" className="text-primary hover:underline font-medium">support@compicfy.com</a>{' '}
               with the subject line <span className="font-mono text-xs bg-muted border border-border px-1.5 py-0.5 rounded">DMCA Takedown Notice</span>.
             </p>
           </section>
@@ -232,7 +232,7 @@ export default function DMCAPage() {
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">URL of Infringing Content on Compicfy <span className="text-red-500">*</span></label>
-                <Input value={form.infringing_url} onChange={e => set('infringing_url', e.target.value)} placeholder="https://compicfy.cloud/..." className="h-9 text-sm font-mono" />
+                <Input value={form.infringing_url} onChange={e => set('infringing_url', e.target.value)} placeholder="https://compicfy.com/..." className="h-9 text-sm font-mono" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">Content Type <span className="text-red-500">*</span></label>

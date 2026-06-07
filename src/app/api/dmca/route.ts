@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     // ── 2. Email admin ───────────────────────────────────────────
     await sendMail(
-      'support@compicfy.cloud',
+      'support@compicfy.com',
       `🚨 DMCA Takedown Notice — ${claimant_name}`,
       `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
           <p>We have received your DMCA takedown notice regarding <strong>${copyrighted_work}</strong>.</p>
           ${submissionId ? `<p>Your reference ID is <strong>${submissionId}</strong> — keep this for follow-up.</p>` : ''}
           <p>Our team will review your claim and respond to this email within <strong>72 hours</strong>.</p>
-          <p>To follow up, email <a href="mailto:support@compicfy.cloud">support@compicfy.cloud</a>${submissionId ? ` with reference ID: ${submissionId}` : ''}.</p>
+          <p>To follow up, email <a href="mailto:support@compicfy.com">support@compicfy.com</a>${submissionId ? ` with reference ID: ${submissionId}` : ''}.</p>
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
           <p style="font-size: 12px; color: #9ca3af;">Compicfy · Submitted: ${submittedAt} UTC</p>
         </div>

@@ -37,17 +37,17 @@ const SECTIONS = [
   },
   {
     n: '8', title: 'Third-Party Cover Images',
-    body: 'Where official publisher cover images are unavailable, Compicfy may display promotional artwork sourced from community databases such as MyAnimeList or AniList. These images are used solely for identification and recommendation purposes, and we link directly to their source without re-hosting. Rights holders who wish to have specific images removed should contact support@compicfy.cloud.',
+    body: 'Where official publisher cover images are unavailable, Compicfy may display promotional artwork sourced from community databases such as MyAnimeList or AniList. These images are used solely for identification and recommendation purposes, and we link directly to their source without re-hosting. Rights holders who wish to have specific images removed should contact support@compicfy.com.',
   },
   {
     n: '9', title: 'DMCA Policy',
     body: null,
-    email: 'support@compicfy.cloud',
-    emailText: 'We respect intellectual property rights. If you believe content on Compicfy infringes your copyright, please send a DMCA notice to {email} or use our DMCA form at compicfy.cloud/dmca with details of the allegedly infringing content. We will respond within 72 hours to valid requests.',
+    email: 'support@compicfy.com',
+    emailText: 'We respect intellectual property rights. If you believe content on Compicfy infringes your copyright, please send a DMCA notice to {email} or use our DMCA form at compicfy.com/dmca with details of the allegedly infringing content. We will respond within 72 hours to valid requests.',
   },
   {
     n: '10', title: 'Pro Subscription',
-    body: 'Compicfy Pro is a paid subscription available on monthly or yearly billing cycles. Yearly plans are a single upfront payment with no auto-renewal. Monthly plans renew each billing cycle until cancelled. You may cancel your monthly plan at any time before the next billing date. We do not offer refunds on completed payments unless required by applicable law. Contact support@compicfy.cloud for billing enquiries.',
+    body: 'Compicfy Pro is a paid subscription available on monthly or yearly billing cycles. Yearly plans are a single upfront payment with no auto-renewal. Monthly plans renew each billing cycle until cancelled. You may cancel your monthly plan at any time before the next billing date. We do not offer refunds on completed payments unless required by applicable law. Contact support@compicfy.com for billing enquiries.',
   },
   {
     n: '11', title: 'Termination',
@@ -68,7 +68,7 @@ const SECTIONS = [
   {
     n: '15', title: 'Contact',
     body: null,
-    email: 'support@compicfy.cloud',
+    email: 'support@compicfy.com',
     emailText: 'For questions about these Terms, contact {email}.',
   },
 ]

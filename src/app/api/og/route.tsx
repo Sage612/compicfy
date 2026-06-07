@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
                 letterSpacing: '1px',
                 textTransform: 'uppercase',
               }}>
-                compicfy.cloud
+                compicfy.com
               </span>
             </div>
           </div>

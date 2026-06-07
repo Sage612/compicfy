@@ -56,7 +56,7 @@ function computeGenreDistribution(genres: string[]): { name: string; pct: number
   }))
 }
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.cloud'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
 
 export function MangaDNACard({ username, displayName, avatarUrl, genres, isPro, isOwner, dividerMode = false }: Props) {
   const [copied, setCopied] = useState(false)

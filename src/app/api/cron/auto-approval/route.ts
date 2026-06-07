@@ -227,7 +227,7 @@ function validateComic(comic: any): ValidationResult {
   details.artist_length_valid = artistLen === 0 || (artistLen >= 3 && artistLen <= 100)
 
   // 17. Content rating is valid
-  const validRatings = ['all_ages', 'teen', 'mature', 'explicit']
+  const validRatings = ['all_ages', 'teen', 'mature', 'explicit', 'adult']
   const rating = (comic.content_rating ?? 'all_ages').toLowerCase()
   if (!validRatings.includes(rating)) {
     failed.push(`Content rating "${rating}" not in [${validRatings.join(', ')}]`)

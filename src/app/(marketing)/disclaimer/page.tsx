@@ -20,7 +20,7 @@ const SECTIONS = [
   },
   {
     n: '4', title: 'Third-Party Cover Images',
-    body: 'Where an official publisher or platform cover image is unavailable, Compicfy may display cover artwork sourced from community-maintained databases such as MyAnimeList (MAL), AniList, MangaUpdates, or similar services. These images are linked directly from their source and are not stored or served by Compicfy. They are used solely for identification and recommendation purposes. If you are a rights holder and believe an image has been used without permission, please contact us at support@compicfy.cloud and we will remove it promptly.',
+    body: 'Where an official publisher or platform cover image is unavailable, Compicfy may display cover artwork sourced from community-maintained databases such as MyAnimeList (MAL), AniList, MangaUpdates, or similar services. These images are linked directly from their source and are not stored or served by Compicfy. They are used solely for identification and recommendation purposes. If you are a rights holder and believe an image has been used without permission, please contact us at support@compicfy.com and we will remove it promptly.',
   },
   {
     n: '5', title: 'Mature Content',
@@ -49,7 +49,7 @@ const SECTIONS = [
   {
     n: '11', title: 'Contact',
     body: null,
-    contact: 'support@compicfy.cloud',
+    contact: 'support@compicfy.com',
   },
 ]
 

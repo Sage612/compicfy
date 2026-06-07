@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-const APP_URL    = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://compicfy.cloud'
+const APP_URL    = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') || 'https://compicfy.com'
 const FLW_SECRET = process.env.FLUTTERWAVE_SECRET_KEY!
 
 export async function GET(req: NextRequest) {
