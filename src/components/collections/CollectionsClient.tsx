@@ -449,129 +449,157 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       {!loading && collections.length > 0 && (
         <>
           <div className="sm:hidden columns-2 gap-3">
-            {collections.map((col) => {
-              const isOwner     = col.user_id === userId
-              const count       = itemCount(col)
-              const themeGrad   = THEME_GRAD[col.theme_color]   ?? THEME_GRAD.primary
-              const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
-              const themeAccent = THEME_ACCENT[col.theme_color] ?? THEME_ACCENT.primary
-              const covers      = getCoverPreviews(col)
-              const isSaved     = savedIds.has(col.id)
-              const avatar      = col.profiles?.avatar_url
-              const username    = col.profiles?.username
-              const saveLabel   = getSaveLabel(col.save_count, isSaved)
-              // Stable height derived from ID — never shifts on create/delete
-              const cardH       = stableHeightClass(col.id)
+  {collections.map((col) => {
+    const isOwner = col.user_id === userId
+    const count = itemCount(col)
+    const themeGrad = THEME_GRAD[col.theme_color] ?? THEME_GRAD.primary
+    const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
+    const themeAccent = THEME_ACCENT[col.theme_color] ?? THEME_ACCENT.primary
+    const covers = getCoverPreviews(col)
+    const isSaved = savedIds.has(col.id)
+    const avatar = col.profiles?.avatar_url
+    const username = col.profiles?.username
+    const saveLabel = getSaveLabel(col.save_count, isSaved)
+    const dominant = covers[0] ?? col.cover_url
 
-              return (
+    return (
+      <div
+        key={col.id}
+        className={cn(
+          'break-inside-avoid mb-3 rounded-2xl overflow-hidden bg-card',
+          col.is_published ? themeBorder : 'border border-dashed border-border/60'
+        )}
+      >
+        {/* Cover */}
+        <div className="relative aspect-[3/4]">
+          {dominant ? (
+            <img src={dominant} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className={cn('absolute inset-0 bg-gradient-to-br', themeGrad)} />
+          )}
+          
+          <div className={cn('absolute inset-0 bg-gradient-to-br opacity-30 to-transparent', themeGrad)} />
+          
+          {covers.length > 1 && (
+            <div className="absolute bottom-2 right-2 flex items-end">
+              {covers.slice(1, 4).map((url, i) => (
                 <div
-                  key={col.id}
+                  key={i}
+                  className="relative rounded-md overflow-hidden border border-white/20 shadow-lg"
+                  style={{
+                    width: 32 - i * 4,
+                    height: 44 - i * 5,
+                    marginLeft: i === 0 ? 0 : -10,
+                    zIndex: covers.length - i,
+                    transform: `rotate(${i % 2 === 0 ? 5 : -4}deg)`,
+                  }}
+                >
+                  <img src={url} alt="" className="w-full h-full object-cover opacity-80" />
+                </div>
+              ))}
+            </div>
+          )}
+          
+          <div className="absolute top-2 left-2 right-2 flex justify-between items-start z-10">
+            {col.is_published ? (
+              <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/50 text-emerald-400 backdrop-blur-sm border border-emerald-500/30 flex items-center gap-0.5">
+                <Globe size={7} /> Public
+              </span>
+            ) : (
+              <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/50 text-white/60 backdrop-blur-sm border border-white/10 flex items-center gap-0.5">
+                <Lock size={7} /> Draft
+              </span>
+            )}
+            {count > 0 && (
+              <span className={cn('px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/50 backdrop-blur-sm border border-white/10 flex items-center gap-0.5', themeAccent)}>
+                <BookOpen size={7} /> {count}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Content - natural flow */}
+        <div className="p-2.5 space-y-2">
+          <Link href={`$${basePath}/$${col.id}`}>
+            <h3 className="font-black text-xs leading-snug line-clamp-2 hover:text-primary transition-colors">
+              {col.title}
+            </h3>
+          </Link>
+
+          {!isOwner && username && (
+            <Link href={`/profile/${username}`} className="flex items-center gap-1.5 group">
+              {avatar ? (
+                <img src={avatar} alt={username} className="w-4 h-4 rounded-full object-cover border border-border" />
+              ) : (
+                <div className={cn('w-4 h-4 rounded-full flex items-center justify-center text-[7px] font-bold border', themeBorder, themeAccent)}>
+                  {username[0].toUpperCase()}
+                </div>
+              )}
+              <span className="text-[9px] text-muted-foreground group-hover:text-foreground transition-colors truncate">
+                @{username}
+              </span>
+            </Link>
+          )}
+
+          <div className="flex items-center gap-1.5 pt-1">
+            {isOwner ? (
+              <>
+                <button
+                  onClick={(e) => handleShare(col.id, e)}
+                  className="flex-1 flex items-center justify-center gap-1 h-7 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground text-[9px] font-medium transition-colors"
+                >
+                  <Share2 size={11} /> Share
+                </button>
+                <button
+                  onClick={(e) => handleTogglePublish(col.id, col.is_published, e)}
+                  className="w-7 h-7 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                >
+                  {col.is_published ? <Lock size={11} /> : <Globe size={11} />}
+                </button>
+                <button
+                  onClick={(e) => handleDelete(col.id, col.title, e)}
+                  disabled={deletingId === col.id}
+                  className="w-7 h-7 rounded-lg bg-muted/50 hover:bg-destructive/20 text-muted-foreground hover:text-destructive flex items-center justify-center transition-colors"
+                >
+                  {deletingId === col.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={(e) => handleSave(col.id, e)}
+                  disabled={savingId === col.id}
                   className={cn(
-                    'break-inside-avoid mb-3 rounded-2xl border overflow-hidden relative cursor-pointer',
-                    cardH,
-                    col.is_published ? themeBorder : 'border-dashed border-border/60 opacity-75'
+                    'flex-1 flex items-center justify-center gap-1 h-7 rounded-lg text-[9px] font-medium transition-colors',
+                    isSaved
+                      ? cn('border', themeBorder, themeAccent)
+                      : 'bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  {/* ── Cover fills entire card ── */}
-                  <StackedCover covers={covers} themeGrad={themeGrad} coverUrl={col.cover_url} />
-
-                  {/* ── Full dark scrim from bottom ── */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-
-                  {/* ── Top row: status badge + comic count ── */}
-                  <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
-                    {col.is_published
-                      ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
-                      : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Draft</span>
-                    }
-                    {count > 0 && (
-                      <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', themeAccent)}>
-                        <BookOpen size={7} /> {count}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* ── Clickable overlay ── */}
-                  <Link href={`${basePath}/${col.id}`} className="absolute inset-0 z-10" aria-label={col.title} />
-
-                  <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-2">
-                    {/* Title */}
-                    <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">
-                      {col.title}
-                    </p>
-
-                    {/* Avatar + username (non-owner only) */}
-                    {!isOwner && username && (
-                      <div className="flex items-center gap-1.5">
-                        {avatar ? (
-                          <img src={avatar} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
-                        ) : (
-                          <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
-                            <span className="text-[7px] text-white font-bold">{username[0].toUpperCase()}</span>
-                          </div>
-                        )}
-                        <span className="text-[9px] text-white/70 truncate">@{username}</span>
-                      </div>
-                    )}
-
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-1.5 relative z-30">
-                      {isOwner ? (
-                        <>
-                          <button
-                            onClick={(e) => handleShare(col.id, e)}
-                            className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10"
-                          >
-                            <Share2 size={9} />
-                            Share
-                          </button>
-                          <button
-                            onClick={(e) => handleTogglePublish(col.id, col.is_published, e)}
-                            className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
-                            title={col.is_published ? 'Unpublish' : 'Publish'}
-                          >
-                            {col.is_published ? <Lock size={10} /> : <Globe size={10} />}
-                          </button>
-                          <button
-                            onClick={(e) => handleDelete(col.id, col.title, e)}
-                            disabled={deletingId === col.id}
-                            className="w-6 h-6 rounded-lg bg-white/15 hover:bg-red-500/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
-                          >
-                            {deletingId === col.id ? <Loader2 size={9} className="animate-spin" /> : <Trash2 size={9} />}
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            onClick={(e) => handleSave(col.id, e)}
-                            disabled={savingId === col.id}
-                            className={cn(
-                              'flex items-center gap-1 px-2 h-6 rounded-lg backdrop-blur-sm text-[9px] font-semibold transition-colors border',
-                              isSaved
-                                ? 'bg-primary/70 text-white border-primary/40'
-                                : 'bg-white/15 hover:bg-white/25 text-white border-white/10'
-                            )}
-                          >
-                            {savingId === col.id
-                              ? <Loader2 size={9} className="animate-spin" />
-                              : <Bookmark size={9} className={isSaved ? 'fill-white' : ''} />
-                            }
-                            {saveLabel}
-                          </button>
-                          <button
-                            onClick={(e) => handleShare(col.id, e)}
-                            className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
-                          >
-                            <Share2 size={9} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+                  {savingId === col.id ? (
+                    <Loader2 size={11} className="animate-spin" />
+                  ) : isSaved ? (
+                    <BookmarkCheck size={11} className="fill-current" />
+                  ) : (
+                    <Bookmark size={11} />
+                  )}
+                  {saveLabel}
+                </button>
+                <button
+                  onClick={(e) => handleShare(col.id, e)}
+                  className="w-7 h-7 rounded-lg bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                >
+                  <Share2 size={11} />
+                </button>
+              </>
+            )}
           </div>
+        </div>
+      </div>
+    )
+  })}
+</div>
+
 
           {/* ── DESKTOP: original grid ──────────────────────────────────────── */}
           <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
