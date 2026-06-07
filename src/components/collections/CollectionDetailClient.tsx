@@ -89,15 +89,15 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
   const [currentDesc,      setCurrentDesc]      = useState(collection.description)
   const [currentPublished, setCurrentPublished] = useState(collection.is_published)
 
-  const theme   = THEME_STYLES[currentTheme] ?? THEME_STYLES.primary
-  const covers  = items.map(i => i.recommendations?.cover_url).filter(Boolean).slice(0, 6) as string[]
-  const dominant      = covers[0] ?? null
-  const stackCovers   = covers.slice(1, 4)
+  const theme       = THEME_STYLES[currentTheme] ?? THEME_STYLES.primary
+  const covers      = items.map(i => i.recommendations?.cover_url).filter(Boolean).slice(0, 6) as string[]
+  const dominant    = covers[0] ?? null
+  const stackCovers = covers.slice(1, 4)
 
-  // ── Save count display helper ──────────────────────────────────────────────
-  // When the viewer has saved this collection, always show at least 1 so the
-  // count is never hidden behind a label-only fallback on page refresh.
-  const displayCount = saved ? Math.max(saveCount, 1) : saveCount
+  // ── Save button label — always show real count from DB (trigger keeps it accurate) ──
+  const saveLabel = saved
+    ? saveCount > 0 ? `${saveCount} saved` : 'Saved'
+    : saveCount > 0 ? `${saveCount}` : 'Save'
 
   const handleSave = async () => {
     if (!isLoggedIn) { toast.error('Log in to save collections'); return }
@@ -108,11 +108,9 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
       if (!res.ok && res.status !== 409) {
         toast.error('Failed to update'); return
       }
-      const newSaved = !saved
-      setSaved(newSaved)
-      // Use server count as source of truth, but guarantee minimum of 1 when saved
-      const serverCount = data.save_count ?? saveCount
-      setSaveCount(newSaved ? Math.max(serverCount, 1) : serverCount)
+      setSaved(!saved)
+      // Use server count as source of truth — DB trigger keeps it accurate
+      if (data.save_count !== undefined) setSaveCount(data.save_count)
       toast.success(saved ? 'Removed from saved' : 'Collection saved!')
     } catch { toast.error('Failed to update') }
     finally { setSavingState(false) }
@@ -160,13 +158,6 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
     } catch { toast.error('Failed to remove') }
     finally { setRemovingId(null) }
   }
-
-  // ── Save button label helper ───────────────────────────────────────────────
-  // Always show the numeric count when saved (never show plain "Saved" if we
-  // have a count), so the number persists across page refreshes.
-  const saveLabel = saved
-    ? `${displayCount} saved`
-    : displayCount > 0 ? `${displayCount}` : 'Save'
 
   return (
     <div className="max-w-4xl mx-auto space-y-0">
@@ -308,12 +299,12 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                   <BookOpen size={10} />
                   {items.length} comic{items.length !== 1 ? 's' : ''}
                 </span>
-                {displayCount > 0 && (
+                {saveCount > 0 && (
                   <>
                     <span className="text-muted-foreground/30">·</span>
                     <span className="flex items-center gap-1">
                       <Bookmark size={9} className="text-primary/60" />
-                      {displayCount} {displayCount === 1 ? 'save' : 'saves'}
+                      {saveCount} {saveCount === 1 ? 'save' : 'saves'}
                     </span>
                   </>
                 )}
@@ -478,8 +469,8 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                 <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight">{currentTitle}</h1>
                 <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1"><BookOpen size={10} />{items.length} comic{items.length !== 1 ? 's' : ''}</span>
-                  {displayCount > 0 && (
-                    <><span>·</span><span className="flex items-center gap-1"><Bookmark size={9} className="text-primary/60" />{displayCount} {displayCount === 1 ? 'save' : 'saves'}</span></>
+                  {saveCount > 0 && (
+                    <><span>·</span><span className="flex items-center gap-1"><Bookmark size={9} className="text-primary/60" />{saveCount} {saveCount === 1 ? 'save' : 'saves'}</span></>
                   )}
                 </div>
               </div>

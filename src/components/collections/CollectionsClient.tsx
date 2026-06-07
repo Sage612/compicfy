@@ -82,18 +82,22 @@ function getCoverPreviews(c: Collection): string[] {
     .slice(0, 4) as string[]
 }
 
-// ── Save count display helper ──────────────────────────────────────────────
-// When the viewer has saved a collection, always show at least 1 so the
-// count is never hidden behind a label-only fallback on page refresh.
-function getDisplayCount(saveCount: number, isSaved: boolean): number {
-  return isSaved ? Math.max(saveCount, 1) : saveCount
+// ── Stable height from ID ─────────────────────────────────────────────────
+// Derive a Pinterest card height from the collection's UUID so the height
+// never changes when the array order changes (create, delete, re-order).
+// We sum the char codes of the last 6 chars of the ID and mod by 3.
+function stableHeightClass(id: string): string {
+  const seed = id.slice(-6).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+  const heights = ['h-52', 'h-40', 'h-64']
+  return heights[seed % 3]
 }
 
 // ── Save button label helper ───────────────────────────────────────────────
+// Show the real save_count from DB (now always accurate via trigger).
+// When saved: always show "N saved". When not saved: show count if > 0, else "Save".
 function getSaveLabel(saveCount: number, isSaved: boolean): string {
-  const display = getDisplayCount(saveCount, isSaved)
-  if (isSaved) return `${display} saved`
-  return display > 0 ? `${display}` : 'Save'
+  if (isSaved) return saveCount > 0 ? `${saveCount} saved` : 'Saved'
+  return saveCount > 0 ? `${saveCount}` : 'Save'
 }
 
 // ── Stacked cover for mobile card ───────────────────────────────────────────
@@ -263,8 +267,8 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       if (!res.ok && res.status !== 409) {
         toast.error('Failed to update'); return
       }
-      const newSaved     = !isSaved
-      const serverCount  = data.save_count ?? null
+      // Use server count as source of truth — DB trigger keeps it accurate
+      const serverCount = data.save_count ?? null
       setSavedIds(prev => {
         const next = new Set(prev)
         isSaved ? next.delete(id) : next.add(id)
@@ -272,9 +276,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       })
       setCollections(prev => prev.map(c => {
         if (c.id !== id) return c
-        const base = serverCount !== null ? serverCount : c.save_count + (isSaved ? -1 : 1)
-        // Guarantee minimum of 1 when newly saved so count never hides on refresh
-        return { ...c, save_count: newSaved ? Math.max(base, 1) : base }
+        return { ...c, save_count: serverCount !== null ? serverCount : c.save_count + (isSaved ? -1 : 1) }
       }))
       toast.success(isSaved ? 'Removed from saved' : 'Collection saved!')
     } catch {
@@ -447,7 +449,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       {!loading && collections.length > 0 && (
         <>
           <div className="sm:hidden columns-2 gap-3">
-            {collections.map((col, idx) => {
+            {collections.map((col) => {
               const isOwner     = col.user_id === userId
               const count       = itemCount(col)
               const themeGrad   = THEME_GRAD[col.theme_color]   ?? THEME_GRAD.primary
@@ -458,9 +460,8 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
               const avatar      = col.profiles?.avatar_url
               const username    = col.profiles?.username
               const saveLabel   = getSaveLabel(col.save_count, isSaved)
-
-              // Pinterest stagger: 3 rotating heights
-              const cardH = idx % 3 === 0 ? 'h-52' : idx % 3 === 1 ? 'h-40' : 'h-64'
+              // Stable height derived from ID — never shifts on create/delete
+              const cardH       = stableHeightClass(col.id)
 
               return (
                 <div
@@ -634,10 +635,10 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
-                        {getDisplayCount(col.save_count, isSaved) > 0 && (
+                        {col.save_count > 0 && (
                           <span className="flex items-center gap-1 text-[10px]">
                             <Bookmark size={9} className="text-primary/60" />
-                            {getDisplayCount(col.save_count, isSaved)} saved
+                            {col.save_count} saved
                           </span>
                         )}
                       </div>
