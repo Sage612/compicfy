@@ -94,6 +94,11 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
   const dominant      = covers[0] ?? null
   const stackCovers   = covers.slice(1, 4)
 
+  // ── Save count display helper ──────────────────────────────────────────────
+  // When the viewer has saved this collection, always show at least 1 so the
+  // count is never hidden behind a label-only fallback on page refresh.
+  const displayCount = saved ? Math.max(saveCount, 1) : saveCount
+
   const handleSave = async () => {
     if (!isLoggedIn) { toast.error('Log in to save collections'); return }
     setSavingState(true)
@@ -103,13 +108,11 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
       if (!res.ok && res.status !== 409) {
         toast.error('Failed to update'); return
       }
-      setSaved(!saved)
-      // Use server count as source of truth
-      if (data.save_count !== undefined) {
-        setSaveCount(data.save_count)
-      } else {
-        setSaveCount(c => c + (saved ? -1 : 1))
-      }
+      const newSaved = !saved
+      setSaved(newSaved)
+      // Use server count as source of truth, but guarantee minimum of 1 when saved
+      const serverCount = data.save_count ?? saveCount
+      setSaveCount(newSaved ? Math.max(serverCount, 1) : serverCount)
       toast.success(saved ? 'Removed from saved' : 'Collection saved!')
     } catch { toast.error('Failed to update') }
     finally { setSavingState(false) }
@@ -157,6 +160,13 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
     } catch { toast.error('Failed to remove') }
     finally { setRemovingId(null) }
   }
+
+  // ── Save button label helper ───────────────────────────────────────────────
+  // Always show the numeric count when saved (never show plain "Saved" if we
+  // have a count), so the number persists across page refreshes.
+  const saveLabel = saved
+    ? `${displayCount} saved`
+    : displayCount > 0 ? `${displayCount}` : 'Save'
 
   return (
     <div className="max-w-4xl mx-auto space-y-0">
@@ -298,12 +308,12 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                   <BookOpen size={10} />
                   {items.length} comic{items.length !== 1 ? 's' : ''}
                 </span>
-                {saveCount > 0 && (
+                {displayCount > 0 && (
                   <>
                     <span className="text-muted-foreground/30">·</span>
                     <span className="flex items-center gap-1">
                       <Bookmark size={9} className="text-primary/60" />
-                      {saveCount} {saveCount === 1 ? 'save' : 'saves'}
+                      {displayCount} {displayCount === 1 ? 'save' : 'saves'}
                     </span>
                   </>
                 )}
@@ -334,7 +344,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
               </div>
             )}
 
-            {/* Action buttons with counts */}
+            {/* Action buttons */}
             <div className="flex gap-2 pt-0.5">
               {isOwner ? (
                 <>
@@ -355,7 +365,6 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                 </>
               ) : (
                 <>
-                  {/* Save button with live count */}
                   <button
                     onClick={handleSave}
                     disabled={savingState}
@@ -370,10 +379,9 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                       ? <Loader2 size={13} className="animate-spin" />
                       : saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />
                     }
-                    {saved ? (saveCount > 0 ? `${saveCount} saved` : 'Saved') : (saveCount > 0 ? `${saveCount}` : 'Save')}
+                    {saveLabel}
                   </button>
 
-                  {/* Share — no count */}
                   <button
                     onClick={handleShare}
                     className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-xs font-semibold"
@@ -423,7 +431,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
       </div>
 
       {/* ══════════════════════════════════════════════════════════════════════
-          DESKTOP (unchanged, hidden on mobile)
+          DESKTOP (hidden on mobile)
       ══════════════════════════════════════════════════════════════════════ */}
       <div className="hidden sm:block max-w-4xl mx-auto px-4 py-8 space-y-8">
 
@@ -470,8 +478,8 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                 <h1 className="text-xl md:text-2xl font-black tracking-tight leading-tight">{currentTitle}</h1>
                 <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1"><BookOpen size={10} />{items.length} comic{items.length !== 1 ? 's' : ''}</span>
-                  {saveCount > 0 && (
-                    <><span>·</span><span className="flex items-center gap-1"><Bookmark size={9} className="text-primary/60" />{saveCount} {saveCount === 1 ? 'save' : 'saves'}</span></>
+                  {displayCount > 0 && (
+                    <><span>·</span><span className="flex items-center gap-1"><Bookmark size={9} className="text-primary/60" />{displayCount} {displayCount === 1 ? 'save' : 'saves'}</span></>
                   )}
                 </div>
               </div>
@@ -484,7 +492,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                   <Button size="sm" variant={saved ? 'default' : 'outline'} onClick={handleSave} disabled={savingState}
                     className={cn('gap-1.5 h-8 text-xs', saved && 'bg-primary')}>
                     {savingState ? <Loader2 size={12} className="animate-spin" /> : saved ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
-                    <span className="hidden sm:inline">{saved ? (saveCount > 0 ? `${saveCount} saved` : 'Saved') : (saveCount > 0 ? `${saveCount}` : 'Save')}</span>
+                    <span className="hidden sm:inline">{saveLabel}</span>
                   </Button>
                 )}
                 {isOwner && (

@@ -82,6 +82,20 @@ function getCoverPreviews(c: Collection): string[] {
     .slice(0, 4) as string[]
 }
 
+// ── Save count display helper ──────────────────────────────────────────────
+// When the viewer has saved a collection, always show at least 1 so the
+// count is never hidden behind a label-only fallback on page refresh.
+function getDisplayCount(saveCount: number, isSaved: boolean): number {
+  return isSaved ? Math.max(saveCount, 1) : saveCount
+}
+
+// ── Save button label helper ───────────────────────────────────────────────
+function getSaveLabel(saveCount: number, isSaved: boolean): string {
+  const display = getDisplayCount(saveCount, isSaved)
+  if (isSaved) return `${display} saved`
+  return display > 0 ? `${display}` : 'Save'
+}
+
 // ── Stacked cover for mobile card ───────────────────────────────────────────
 function StackedCover({
   covers,
@@ -93,7 +107,6 @@ function StackedCover({
   coverUrl:  string | null
 }) {
   if (covers.length === 0) {
-    // Fallback: cover_url or theme gradient
     return (
       <div className="absolute inset-0">
         {coverUrl ? (
@@ -250,18 +263,19 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
       if (!res.ok && res.status !== 409) {
         toast.error('Failed to update'); return
       }
-      // Use server count as source of truth
-      const newCount = data.save_count ?? null
+      const newSaved     = !isSaved
+      const serverCount  = data.save_count ?? null
       setSavedIds(prev => {
         const next = new Set(prev)
         isSaved ? next.delete(id) : next.add(id)
         return next
       })
-      setCollections(prev => prev.map(c =>
-        c.id === id
-          ? { ...c, save_count: newCount !== null ? newCount : c.save_count + (isSaved ? -1 : 1) }
-          : c
-      ))
+      setCollections(prev => prev.map(c => {
+        if (c.id !== id) return c
+        const base = serverCount !== null ? serverCount : c.save_count + (isSaved ? -1 : 1)
+        // Guarantee minimum of 1 when newly saved so count never hides on refresh
+        return { ...c, save_count: newSaved ? Math.max(base, 1) : base }
+      }))
       toast.success(isSaved ? 'Removed from saved' : 'Collection saved!')
     } catch {
       toast.error('Failed to update')
@@ -443,6 +457,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
               const isSaved     = savedIds.has(col.id)
               const avatar      = col.profiles?.avatar_url
               const username    = col.profiles?.username
+              const saveLabel   = getSaveLabel(col.save_count, isSaved)
 
               // Pinterest stagger: 3 rotating heights
               const cardH = idx % 3 === 0 ? 'h-52' : idx % 3 === 1 ? 'h-40' : 'h-64'
@@ -475,7 +490,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                     )}
                   </div>
 
-                  {/* ── Bottom: title + avatar/username + actions ── */}
+                  {/* ── Clickable overlay ── */}
                   <Link href={`${basePath}/${col.id}`} className="absolute inset-0 z-10" aria-label={col.title} />
 
                   <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-2">
@@ -501,7 +516,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                     {/* Action buttons */}
                     <div className="flex items-center gap-1.5 relative z-30">
                       {isOwner ? (
-                        /* Owner: Share + Publish toggle + Delete */
                         <>
                           <button
                             onClick={(e) => handleShare(col.id, e)}
@@ -526,7 +540,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                           </button>
                         </>
                       ) : (
-                        /* Non-owner: Save (with count) + Share */
                         <>
                           <button
                             onClick={(e) => handleSave(col.id, e)}
@@ -542,7 +555,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                               ? <Loader2 size={9} className="animate-spin" />
                               : <Bookmark size={9} className={isSaved ? 'fill-white' : ''} />
                             }
-                            {col.save_count > 0 ? col.save_count : 'Save'}
+                            {saveLabel}
                           </button>
                           <button
                             onClick={(e) => handleShare(col.id, e)}
@@ -559,7 +572,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
             })}
           </div>
 
-          {/* ── DESKTOP: original grid (unchanged) ─────────────────────────── */}
+          {/* ── DESKTOP: original grid ──────────────────────────────────────── */}
           <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {collections.map((col) => {
               const isOwner     = col.user_id === userId
@@ -568,6 +581,8 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
               const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
               const themeAccent = THEME_ACCENT[col.theme_color] ?? THEME_ACCENT.primary
               const covers      = getCoverPreviews(col)
+              const isSaved     = savedIds.has(col.id)
+              const saveLabel   = getSaveLabel(col.save_count, isSaved)
 
               return (
                 <div
@@ -619,9 +634,10 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                     </div>
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
-                        {col.save_count > 0 && (
+                        {getDisplayCount(col.save_count, isSaved) > 0 && (
                           <span className="flex items-center gap-1 text-[10px]">
-                            <Bookmark size={9} className="text-primary/60" /> {col.save_count} saved
+                            <Bookmark size={9} className="text-primary/60" />
+                            {getDisplayCount(col.save_count, isSaved)} saved
                           </span>
                         )}
                       </div>
@@ -657,15 +673,15 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                         <>
                           <Button
                             variant="ghost" size="sm"
-                            className={cn('h-7 gap-1 text-xs px-2', savedIds.has(col.id) ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
+                            className={cn('h-7 gap-1 text-xs px-2', isSaved ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
                             onClick={(e) => handleSave(col.id, e)}
                             disabled={savingId === col.id}
                           >
                             {savingId === col.id
                               ? <Loader2 size={11} className="animate-spin" />
-                              : <Bookmark size={11} className={savedIds.has(col.id) ? 'fill-primary' : ''} />
+                              : <Bookmark size={11} className={isSaved ? 'fill-primary' : ''} />
                             }
-                            {col.save_count > 0 ? col.save_count : 'Save'}
+                            {saveLabel}
                           </Button>
                           <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
                             onClick={(e) => handleShare(col.id, e)} title="Share">
