@@ -5,19 +5,30 @@ const BRAND_DARK = '#0ea5b0'
 const BRAND_DIM  = '#1dc9a015'
 const BRAND_BRD  = '#1dc9a030'
 
-// ── SVG Logo inline ──────────────────────────────────────────────────────────
+// ── SVG Logo inline ───────────────────────────────────────────────────────────
+// Email-safe layout: <table> instead of flexbox/inline-flex (not supported in
+// most email clients). The SVG icon sits in a teal rounded square, brand name
+// beside it with "Pic" in teal and "Com"/"fy" in white.
 const LOGO = `
-  <div style="display:inline-flex;align-items:center;gap:10px;">
-    <!-- Speech bubble icon -->
-    <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="36" height="36" rx="10" fill="${BRAND}"/>
-      <!-- C letterform cutout -->
-      <path d="M22 13C20.6 11.8 18.9 11 17 11C13.1 11 10 14.1 10 18C10 21.9 13.1 25 17 25C18.9 25 20.6 24.2 22 23" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-      <!-- period dot -->
-      <circle cx="25" cy="23" r="2" fill="white"/>
-    </svg>
-    <span style="color:#f9fafb;font-size:22px;font-weight:800;letter-spacing:-0.5px;">Com<span style="color:${BRAND};">Pic</span>fy</span>
-  </div>
+  <table cellpadding="0" cellspacing="0" border="0" style="display:inline-table;border-collapse:collapse;">
+    <tr>
+      <td style="vertical-align:middle;padding-right:10px;">
+        <table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+          <tr>
+            <td width="36" height="36" style="width:36px;height:36px;background:#1dc9a0;border-radius:10px;text-align:center;vertical-align:middle;">
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">
+                <path d="M17 5.5C15.2 4.1 12.9 3.5 10.5 4C7.2 4.8 5 7.7 5 11C5 14.3 7.2 17.2 10.5 18C12.9 18.5 15.2 17.9 17 16.5" stroke="white" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+                <circle cx="18.5" cy="16.5" r="2" fill="white"/>
+              </svg>
+            </td>
+          </tr>
+        </table>
+      </td>
+      <td style="vertical-align:middle;">
+        <span style="color:#f9fafb;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">Com</span><span style="color:#1dc9a0;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">Pic</span><span style="color:#f9fafb;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">fy</span>
+      </td>
+    </tr>
+  </table>
 `
 
 // ── Base shell ────────────────────────────────────────────────────────────────
@@ -32,9 +43,9 @@ const base = (content: string, badgeHtml = '') => `
 <body style="margin:0;padding:0;background:#09090b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
 
   <!-- Outer wrapper -->
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#09090b;padding:40px 16px;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#09090b;padding:40px 16px;">
     <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:580px;">
 
         <!-- ── Header: Logo ── -->
         <tr>
@@ -115,7 +126,7 @@ export const templates = {
 
   welcome: (username: string) => base(`
     ${h1(`Welcome aboard, @${username}! 🎉`)}
-    ${p(`You've just joined the best community for discovering manga, manhwa, manhua, and webtoons — recommended by real readers, not algorithms.`)}
+    ${p(`You've just joined the best community for discovering manga, manhwa, manhua, and webtoons recommended by real readers, not algorithms.`)}
     <div style="background:#18181b;border:1px solid #27272a;border-radius:14px;padding:20px 22px;margin:0 0 24px;">
       <p style="color:#fafafa;font-size:13px;font-weight:700;margin:0 0 14px;letter-spacing:0.05em;text-transform:uppercase;">Get started</p>
       <table width="100%" cellpadding="0" cellspacing="0">
@@ -228,15 +239,23 @@ export const templates = {
     ${h1(`You have a new follower!`)}
     ${p(`${highlight(followerDisplayName)} (${highlight(`@${followerUsername}`)}) just followed you on ${SITE_NAME}. They'll see your recommendations in their discovery feed.`)}
     <div style="background:#18181b;border:1px solid #27272a;border-radius:14px;padding:18px 20px;margin:0 0 24px;">
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:42px;height:42px;border-radius:50%;background:${BRAND_DIM};border:2px solid ${BRAND_BRD};display:flex;align-items:center;justify-content:center;">
-          <span style="color:${BRAND};font-size:16px;font-weight:800;">${followerDisplayName[0].toUpperCase()}</span>
-        </div>
-        <div>
-          <p style="color:#fafafa;font-size:14px;font-weight:700;margin:0;">${followerDisplayName}</p>
-          <p style="color:#71717a;font-size:13px;margin:4px 0 0;">@${followerUsername}</p>
-        </div>
-      </div>
+      <table cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="width:42px;height:42px;vertical-align:middle;padding-right:12px;">
+            <table cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td width="42" height="42" style="width:42px;height:42px;background:${BRAND_DIM};border:2px solid ${BRAND_BRD};border-radius:50%;text-align:center;vertical-align:middle;">
+                  <span style="color:${BRAND};font-size:16px;font-weight:800;">${followerDisplayName[0].toUpperCase()}</span>
+                </td>
+              </tr>
+            </table>
+          </td>
+          <td style="vertical-align:middle;">
+            <p style="color:#fafafa;font-size:14px;font-weight:700;margin:0;">${followerDisplayName}</p>
+            <p style="color:#71717a;font-size:13px;margin:4px 0 0;">@${followerUsername}</p>
+          </td>
+        </tr>
+      </table>
     </div>
     ${btn('View Their Profile', `${SITE_URL}/profile/${followerUsername}`)}
   `, badge('New Follower', '👤', BRAND)),
