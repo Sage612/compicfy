@@ -52,13 +52,14 @@ const footerLinks = {
 
 export function Footer() {
   return (
-    <footer className="relative overflow-hidden border-t border-border bg-background">
+    // lg:pl-12 offsets the 48px collapsed nav rail so footer content is never obscured
+    <footer className="relative overflow-hidden border-t border-border bg-background lg:pl-12">
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-32 bg-[#0ea5b0]/4 blur-3xl pointer-events-none" />
 
       <div className="relative max-w-7xl mx-auto px-4 pt-14 pb-12 sm:pb-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-10">
 
-          {/* Brand column - No background box, tail is visible */}
+          {/* Brand column */}
           <div className="col-span-2 md:col-span-1 space-y-4">
             <Link href="/" className="inline-flex items-center gap-2.5 group">
               <LogoMark className="w-7 h-7" />

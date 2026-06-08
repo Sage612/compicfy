@@ -60,7 +60,8 @@ export function Header() {
   const [avatarUrl,    setAvatarUrl]    = useState<string | null>(null)
   const [displayName,  setDisplayName]  = useState<string | null>(null)
   const [username,     setUsername]     = useState<string | null>(null)
-  const [visible,      setVisible]      = useState(true)
+  // Mobile-only scroll hide — desktop header is always visible
+  const [mobileVisible, setMobileVisible] = useState(true)
   const [isPro,        setIsPro]        = useState(false)
   const [role,         setRole]         = useState<string>('user')
   const [userType,     setUserType]     = useState<UserType>('reader')
@@ -74,9 +75,9 @@ export function Header() {
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY
-      if (currentY < 60)                        setVisible(true)
-      else if (currentY > lastScrollY.current + 4) setVisible(false)
-      else if (currentY < lastScrollY.current - 4) setVisible(true)
+      if (currentY < 60)                        setMobileVisible(true)
+      else if (currentY > lastScrollY.current + 4) setMobileVisible(false)
+      else if (currentY < lastScrollY.current - 4) setMobileVisible(true)
       lastScrollY.current = currentY
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -177,14 +178,13 @@ export function Header() {
     ? displayName.slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() ?? 'U'
 
-  
   return (
     <>
-      {/* ── MOBILE HEADER ── */}
+      {/* ── MOBILE HEADER — hides on scroll ── */}
       <header className={cn(
         'fixed top-0 left-0 right-0 z-50 lg:hidden px-3 pt-3',
         'transition-transform duration-300',
-        !visible && '-translate-y-full'
+        !mobileVisible && '-translate-y-full'
       )}>
         <div className={cn(
           'flex items-center justify-between gap-2 h-12 px-3',
@@ -192,7 +192,7 @@ export function Header() {
           'border border-border/60',
           'rounded-full shadow-lg shadow-black/10',
         )}>
-          {/* Logo — No background box, tail is visible */}
+          {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <LogoMark className="w-6 h-6" />
             <span className="font-black text-[13px] tracking-tight leading-none">
@@ -227,12 +227,8 @@ export function Header() {
         </div>
       </header>
 
-      {/* ── DESKTOP HEADER ── */}
-      <header className={cn(
-        'fixed top-0 left-0 right-0 z-50 hidden lg:flex px-6 pt-3',
-        'transition-transform duration-300',
-        !visible && '-translate-y-full'
-      )}>
+      {/* ── DESKTOP HEADER — always visible, never hides on scroll ── */}
+      <header className="fixed top-0 left-0 right-0 z-50 hidden lg:flex px-6 pt-3">
         <div className={cn(
           'w-full max-w-6xl mx-auto',
           'flex items-center justify-between gap-4 h-12 px-4',
@@ -240,7 +236,7 @@ export function Header() {
           'border border-border/60',
           'rounded-full shadow-lg shadow-black/10',
         )}>
-          {/* Logo — No background box, tail is visible */}
+          {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0 group">
             <LogoMark className="w-7 h-7" />
             <span className="font-black text-[14px] tracking-tight leading-none">
@@ -303,12 +299,12 @@ export function Header() {
             ) : (
               <div className="flex items-center gap-1 ml-1">
 
-                {/* Rec button */}
+                {/* Rec button — rounded-lg not rounded-full */}
                 <Link href={routes.newRec}>
                   <Button
                     size="sm"
                     className={cn(
-                      'h-8 px-3 gap-1.5 text-sm font-semibold border-0 rounded-full',
+                      'h-8 px-3 gap-1.5 text-sm font-semibold border-0 rounded-lg',
                       isCreator
                         ? 'bg-teal-500 hover:bg-teal-600 text-white'
                         : 'bg-primary hover:bg-primary/90 text-primary-foreground'
@@ -457,17 +453,17 @@ export function Header() {
         </div>
       </header>
 
-              {/* Nav Rail — desktop only, rendered here to share auth state */}
-              {authReady && (
-                <NavRail
-                  isLoggedIn={!!user}
-                  isPro={isPro}
-                  isCreator={isCreator}
-                  listsHref={listsHref}
-                  listsLabel={listsLabel}
-                />
-              )}
-              <MobileTabBar isPro={isPro} />
+      {/* Nav Rail — desktop only, rendered here to share auth state */}
+      {authReady && (
+        <NavRail
+          isLoggedIn={!!user}
+          isPro={isPro}
+          isCreator={isCreator}
+          listsHref={listsHref}
+          listsLabel={listsLabel}
+        />
+      )}
+      <MobileTabBar isPro={isPro} />
     </>
   )
 }
