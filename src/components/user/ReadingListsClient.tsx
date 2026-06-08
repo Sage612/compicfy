@@ -84,6 +84,8 @@ function getCoverPreviews(list: ReadingList): string[] {
 }
 
 function itemCount(list: ReadingList): number {
+  // _item_count is pre-computed server-side to avoid Supabase aggregate conflict
+  if (typeof (list as any)._item_count === 'number') return (list as any)._item_count
   if (!list.reading_list_items?.length) return 0
   // API returns count as first item's count or array length
   const first = list.reading_list_items[0]
@@ -393,7 +395,7 @@ export function ReadingListsClient({
           </div>
           <h3 className="font-black text-xl mb-2">No lists yet</h3>
           <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto leading-relaxed">
-            Create lists to organise your reading journey, currently reading, plan to read, all-time favourites.
+            Create lists to organise your reading journey — currently reading, plan to read, all-time favourites.
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Button size="sm" onClick={() => setShowCreate(true)} className="gap-2">

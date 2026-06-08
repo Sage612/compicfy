@@ -60,6 +60,7 @@ function getCoverPreviews(list: PublicList): string[] {
 }
 
 function itemCount(list: PublicList): number {
+  if (typeof (list as any)._item_count === 'number') return (list as any)._item_count
   if (!list.reading_list_items?.length) return 0
   const first = list.reading_list_items[0]
   if (typeof first?.count === 'number') return first.count
