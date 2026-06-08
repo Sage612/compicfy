@@ -8,9 +8,15 @@ export async function GET() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('reading_lists')
-      .select('*, reading_list_items(count)')
+      .select(`
+        *,
+        reading_list_items(
+          count,
+          recommendations(cover_url)
+        )
+      `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
 
@@ -27,7 +33,6 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // ── Enforce 3 list limit for free users ──
     const { allowed, error: limitError } = await enforceListLimit(user.id)
     if (!allowed) return limitError!
 

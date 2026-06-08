@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ReadingListsClient } from '@/components/user/ReadingListsClient'
-import { BookMarked } from 'lucide-react'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Reading Lists | Pro' }
@@ -11,9 +10,16 @@ export default async function ProReaderListsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: lists } = await supabase
+  const { data: lists } = await (supabase as any)
     .from('reading_lists')
-    .select('id, name, description, is_public, created_at, reading_list_items(count)')
+    .select(`
+      id, name, description, is_public, created_at, star_count,
+      user_id,
+      reading_list_items(
+        count,
+        recommendations(cover_url)
+      )
+    `)
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
