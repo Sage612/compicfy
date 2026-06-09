@@ -96,10 +96,12 @@ export default async function ProfilePage({ params }: Props) {
   const heroCover = pinnedRec?.cover_url || recommendations[0]?.cover_url
 
   return (
-    <div className="min-h-screen bg-[#0a0a0b]">
-      {/* HERO - Gen Z full bleed with cover */}
-      <div className="relative">
-        <div className="h- md:h- w-full overflow-hidden">
+  <div className="min-h-screen bg-[#0a0a0b]">
+    {/* Add spacer for fixed header */}
+    <div className="h-[56px] md:h-[64px]" />
+    {/* HERO - Gen Z full bleed with cover */}
+    <div className="relative">
+      <div className="h-[24vh] md:h-[32vh] w-full overflow-hidden">
           {heroCover? (
             <>
               <img src={heroCover} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -114,7 +116,7 @@ export default async function ProfilePage({ params }: Props) {
 
         <div className="max-w-5xl mx-auto px-4 relative">
           {/* Avatar with genre ring */}
-          <div className="relative -mt-20 md:-mt-24 flex items-end justify-between">
+          <div className="relative -mt-14 md:-mt-16 flex items-end justify-between">
             <div className="relative">
               <div className={`absolute -inset-1.5 rounded-full blur-xl opacity-60 ${topGenre? GENRE_COLORS[topGenre]?.split(' ')[0].replace('/15','/40') : 'bg-violet-600/40'}`} />
               <div className="relative rounded-full p-1 bg-[#0a0a0b] ring-2 ring-white/10">
