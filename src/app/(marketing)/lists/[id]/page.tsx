@@ -60,6 +60,31 @@ export default async function PublicListPage({ params }: Props) {
   // Block non-owners from private lists
   if (!list.is_public && !isOwner) notFound()
 
+  // Resolve the correct dashboard path based on user type and pro status
+  let myListsHref = '/reader/dashboard/lists'
+  if (user && isOwner) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('user_type, role, is_pro, pro_expires_at')
+      .eq('id', user.id)
+      .single()
+
+    if (profile) {
+      const isAdmin   = ['admin', 'moderator'].includes((profile as any).role)
+      const isPro     = isAdmin || (
+        (profile as any).is_pro &&
+        (!(profile as any).pro_expires_at || new Date((profile as any).pro_expires_at) > new Date())
+      )
+      const isCreator = (profile as any).user_type === 'creator'
+
+      if (isCreator) {
+        myListsHref = isPro ? '/pro/creator/dashboard/works' : '/creator/dashboard/works'
+      } else {
+        myListsHref = isPro ? '/pro/reader/dashboard/lists' : '/reader/dashboard/lists'
+      }
+    }
+  }
+
   // Fetch owner profile
   const { data: ownerData } = await supabase
     .from('profiles')
@@ -127,6 +152,7 @@ export default async function PublicListPage({ params }: Props) {
         initialStarred={isStarred}
         typeColors={TYPE_COLORS}
         statusMeta={STATUS_META}
+        myListsHref={myListsHref}
       />
     </div>
   )

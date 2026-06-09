@@ -14,16 +14,17 @@ import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  list:          any
-  owner:         { username: string; display_name: string | null; avatar_url: string | null } | null
-  items:         any[]
-  statusCounts:  Record<string, number>
-  ownerInitials: string
-  isOwner:       boolean
-  isLoggedIn:    boolean
+  list:           any
+  owner:          { username: string; display_name: string | null; avatar_url: string | null } | null
+  items:          any[]
+  statusCounts:   Record<string, number>
+  ownerInitials:  string
+  isOwner:        boolean
+  isLoggedIn:     boolean
   initialStarred: boolean
-  typeColors:    Record<string, string>
-  statusMeta:    Record<string, { label: string; emoji: string }>
+  typeColors:     Record<string, string>
+  statusMeta:     Record<string, { label: string; emoji: string }>
+  myListsHref:    string
 }
 
 export function PublicListDetailClient({
@@ -37,6 +38,7 @@ export function PublicListDetailClient({
   initialStarred,
   typeColors,
   statusMeta,
+  myListsHref,
 }: Props) {
   const [list,       setList]       = useState(initialList)
   const [starred,    setStarred]    = useState(initialStarred)
@@ -130,7 +132,7 @@ export function PublicListDetailClient({
                     <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="h-8 text-xs gap-1.5">
                       <Pencil size={12} /> Edit
                     </Button>
-                    <Link href="/reader/dashboard/lists">
+                    <Link href={myListsHref}>
                       <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground">
                         <Settings size={12} /> Manage
                       </Button>

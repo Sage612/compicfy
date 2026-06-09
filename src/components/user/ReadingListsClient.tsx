@@ -387,6 +387,9 @@ export function ReadingListsClient({
                     <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
                       <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
                       <div className="flex items-center gap-1.5 relative z-30">
+                        <button onClick={e => { e.preventDefault(); e.stopPropagation(); setEditingId(list.id); setEditName(list.name) }} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10" title="Rename">
+                          <Pencil size={9} />
+                        </button>
                         <button onClick={e => handleShare(list.id, e)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10">
                           <Share2 size={9} /> Share
                         </button>
@@ -433,6 +436,9 @@ export function ReadingListsClient({
                     <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
                       <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
                       <div className="flex items-center gap-1.5 relative z-30">
+                        <button onClick={e => { e.preventDefault(); e.stopPropagation(); setEditingId(list.id); setEditName(list.name) }} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10" title="Rename">
+                          <Pencil size={9} />
+                        </button>
                         <button onClick={e => handleShare(list.id, e)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10">
                           <Share2 size={9} /> Share
                         </button>
