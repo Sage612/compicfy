@@ -114,7 +114,7 @@ function DBCard({ result }: { result: DBResult }) {
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-primary/10 text-primary border-primary/20">
             <Database size={8} />
-            Compicfy
+            ComPicfy
           </span>
           <span className={cn('inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize', typeColor)}>
             {result.type}
@@ -196,7 +196,7 @@ function ExternalCard({
               className="h-7 gap-1.5 text-[11px] border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50 transition-all"
             >
               <Plus size={10} />
-              Recommend to Compicfy
+              Recommend to ComPicfy
             </Button>
           </Link>
         </div>
@@ -227,7 +227,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
   const [showSuggestions, setShowSuggestions] = useState(false)
 
   // Source tab: all / compicfy / web
-  const [activeTab,  setActiveTab]  = useState<'all' | 'compicfy' | 'web'>('all')
+  const [activeTab,  setActiveTab]  = useState<'all' | 'comPicfy' | 'web'>('all')
   // Type filter: all / manhwa / manga / manhua / webtoon / comic
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
@@ -563,13 +563,13 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
           )}
 
           {/* DB results */}
-          {!isLoading && (activeTab === 'all' || activeTab === 'compicfy') && visibleDB.length > 0 && (
+          {!isLoading && (activeTab === 'all' || activeTab === 'comPicfy') && visibleDB.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
                   <Database size={10} className="text-primary" />
                 </div>
-                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">In Compicfy</p>
+                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">In ComPicfy</p>
                 <div className="flex-1 h-px bg-border" />
               </div>
               {visibleDB.map(r => <DBCard key={r.id} result={r} />)}
@@ -601,11 +601,11 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
             </div>
           )}
 
-          {/* Compicfy tab empty */}
-          {!isLoading && activeTab === 'compicfy' && visibleDB.length === 0 && (
+          {/* ComPicfy tab empty */}
+          {!isLoading && activeTab === 'comPicfy' && visibleDB.length === 0 && (
             <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
               <Database size={24} className="text-muted-foreground/30 mx-auto" />
-              <p className="text-sm font-semibold">Not in Compicfy yet</p>
+              <p className="text-sm font-semibold">Not in ComPicfy yet</p>
               <p className="text-xs text-muted-foreground">Check the External tab to find it and add it</p>
             </div>
           )}

@@ -71,7 +71,7 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
     ...(!isOnDashboard ? [
       { label: 'Collections', href: '/collections',          icon: <Layers     size={13} strokeWidth={2} /> },
       // Public community lists — labelled "Lists Hub" to distinguish from dashboard "My Lists"
-      { label: 'Lists Hub',   href: '/lists',                icon: <Globe      size={13} strokeWidth={2} />, accent: 'text-primary' },
+      { label: 'Lists Hub',   href: '/lists',                icon: <Globe      size={13} strokeWidth={2} /> },
       { label: 'News',        href: '/news',                 icon: <Newspaper  size={13} strokeWidth={2} /> },
       { label: 'Trending',    href: '/browse?sort=trending', icon: <Flame      size={13} strokeWidth={2} /> },
       { label: 'New Releases',href: '/browse?sort=recent',   icon: <TrendingUp size={13} strokeWidth={2} /> },
