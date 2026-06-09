@@ -53,6 +53,7 @@ function themeIndex(id: string): number {
 }
 
 function getCoverPreviews(list: PublicList): string[] {
+  if (Array.isArray((list as any)._cover_urls)) return (list as any)._cover_urls.slice(0, 4)
   return (list.reading_list_items ?? [])
     .map(item => item.recommendations?.cover_url ?? null)
     .filter(Boolean)
@@ -102,11 +103,12 @@ function StackedCover({ covers, themeGrad }: { covers: string[]; themeGrad: stri
 }
 
 interface Props {
+  myListsHref?: string
   userId:          string | null
   starredListIds?: string[]
 }
 
-export function ListsClient({ userId, starredListIds = [] }: Props) {
+export function ListsClient({ userId, starredListIds = [], myListsHref = "/reader/dashboard/lists" }: Props) {
   const [lists,      setLists]      = useState<PublicList[]>([])
   const [loading,    setLoading]    = useState(true)
   const [starringId, setStarringId] = useState<string | null>(null)
@@ -408,6 +410,15 @@ export function ListsClient({ userId, starredListIds = [] }: Props) {
             })}
           </div>
         </>
+      )}
+
+      {/* Link to personal dashboard lists */}
+      {userId && (
+        <div className="flex items-center justify-center pt-2">
+          <Link href={myListsHref} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
+            <BookMarked size={11} /> Manage my reading lists
+          </Link>
+        </div>
       )}
     </div>
   )

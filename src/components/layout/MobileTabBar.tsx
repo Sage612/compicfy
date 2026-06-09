@@ -1,15 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
   House, Layers, Newspaper, ShoppingBag, Crown,
   Users, HelpCircle, TrendingUp, Sparkles, Flame, BookOpen, Mail,
+  Globe, BookMarked,
 } from 'lucide-react'
 
-// Discord SVG icon
 function DiscordIcon({ size = 14 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -19,20 +20,17 @@ function DiscordIcon({ size = 14 }: { size?: number }) {
 }
 
 interface TabItem {
-  label: string
-  href: string
-  icon: React.ReactNode
+  label:    string
+  href:     string
+  icon:     React.ReactNode
   external?: boolean
-  proOnly?: false
-  hideWhenPro?: boolean
-  accent?: string
+  accent?:  string
 }
 
 interface MobileTabBarProps {
   isPro?: boolean
 }
 
-// Dashboard/admin route prefixes — "Home" chip appears here
 const DASHBOARD_PREFIXES = [
   '/reader/dashboard',
   '/pro/reader/dashboard',
@@ -41,20 +39,13 @@ const DASHBOARD_PREFIXES = [
   '/admin',
 ]
 
-// Routes where this bar should render only with Home button
-const HOME_ONLY_PREFIXES = [
-  ...DASHBOARD_PREFIXES,
-  '/admin',
-]
-
 export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
-  const pathname  = usePathname()
+  const pathname     = usePathname()
   const searchParams = useSearchParams()
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(true)
+  const scrollRef    = useRef<HTMLDivElement>(null)
+  const [visible, setVisible]   = useState(true)
   const lastScrollY = useRef(0)
 
-  // Hide/show with scroll — synced with header behaviour
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY
@@ -67,25 +58,22 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Check if on dashboard/admin pages
-  const isOnDashboard = HOME_ONLY_PREFIXES.some(p => pathname.startsWith(p))
-
-  // Show Home button only when on dashboard/admin
-  const showHome = isOnDashboard
+  const isOnDashboard = DASHBOARD_PREFIXES.some(p => pathname.startsWith(p))
+  const showHome      = isOnDashboard
 
   const tabs: TabItem[] = [
-    // Home — only on dashboard/admin routes
     ...(showHome ? [{
       label: 'Home',
       href:  '/',
       icon:  <House size={13} strokeWidth={2} />,
     }] : []),
 
-    // All other tabs — only when NOT on dashboard/admin
     ...(!isOnDashboard ? [
-      { label: 'Collections', href: '/collections',          icon: <Layers    size={13} strokeWidth={2} /> },
-      { label: 'News',        href: '/news',                 icon: <Newspaper size={13} strokeWidth={2} /> },
-      { label: 'Trending',    href: '/browse?sort=trending', icon: <Flame     size={13} strokeWidth={2} /> },
+      { label: 'Collections', href: '/collections',          icon: <Layers     size={13} strokeWidth={2} /> },
+      // Public community lists — labelled "Lists Hub" to distinguish from dashboard "My Lists"
+      { label: 'Lists Hub',   href: '/lists',                icon: <Globe      size={13} strokeWidth={2} />, accent: 'text-primary' },
+      { label: 'News',        href: '/news',                 icon: <Newspaper  size={13} strokeWidth={2} /> },
+      { label: 'Trending',    href: '/browse?sort=trending', icon: <Flame      size={13} strokeWidth={2} /> },
       { label: 'New Releases',href: '/browse?sort=recent',   icon: <TrendingUp size={13} strokeWidth={2} /> },
       { label: 'Shop & Merch',href: '/affiliate',            icon: <ShoppingBag size={13} strokeWidth={2} /> },
       {
@@ -95,16 +83,15 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
         external: true,
         accent:   'text-[#5865F2]',
       },
-      { label: 'About',       href: '/about',            icon: <Users       size={13} strokeWidth={2} /> },
-      { label: 'Guidelines',  href: '/guidelines',       icon: <BookOpen    size={13} strokeWidth={2} /> },
-      { label: 'FAQ',         href: '/faq',              icon: <HelpCircle  size={13} strokeWidth={2} /> },
+      { label: 'About',      href: '/about',      icon: <Users      size={13} strokeWidth={2} /> },
+      { label: 'Guidelines', href: '/guidelines', icon: <BookOpen   size={13} strokeWidth={2} /> },
+      { label: 'FAQ',        href: '/faq',        icon: <HelpCircle size={13} strokeWidth={2} /> },
       {
         label:    'Support',
         href:     'mailto:support@compicfy.com',
         icon:     <Mail size={13} strokeWidth={2} />,
         external: true,
       },
-      // Pricing — only for non-pro users
       ...(!isPro ? [{
         label:  'Go Pro',
         href:   '/pricing',
@@ -120,17 +107,11 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
       'transition-transform duration-300',
       !visible && '-translate-y-[calc(100%+64px)]',
     )}>
-      {/* Fade edges */}
       <div className="relative">
-        {/* Left fade */}
         <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 z-10 bg-gradient-to-r from-background/80 to-transparent" />
-        {/* Right fade */}
         <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 z-10 bg-gradient-to-l from-background/80 to-transparent" />
 
-        <div
-          ref={scrollRef}
-          className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar"
-        >
+        <div ref={scrollRef} className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar">
           {tabs.map((tab) => {
             const isActive = !tab.external && (() => {
               if (tab.href === '/') return pathname === '/'
@@ -162,9 +143,7 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
                     : 'bg-background/80 backdrop-blur-sm border-border/50 text-muted-foreground hover:text-foreground hover:border-border',
                 )}
               >
-                <span className={cn(
-                  isActive ? 'text-primary-foreground' : tab.accent ?? 'text-muted-foreground'
-                )}>
+                <span className={cn(isActive ? 'text-primary-foreground' : tab.accent ?? 'text-muted-foreground')}>
                   {tab.icon}
                 </span>
                 {tab.label}

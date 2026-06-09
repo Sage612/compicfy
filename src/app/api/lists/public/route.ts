@@ -9,15 +9,12 @@ export async function GET(request: Request) {
     const limit  = parseInt(searchParams.get('limit') ?? '24')
     const offset = (page - 1) * limit
 
-    // Fetch public lists with cover previews (no count aggregate)
+    // Fetch public lists — no nested recommendations here to avoid bloat
     const { data, error, count } = await (supabase as any)
       .from('reading_lists')
       .select(`
-        *,
-        profiles!reading_lists_user_id_fkey(username, display_name, avatar_url),
-        reading_list_items(
-          recommendations(cover_url)
-        )
+        id, user_id, name, description, is_public, star_count, created_at, updated_at,
+        profiles!reading_lists_user_id_fkey(username, display_name, avatar_url)
       `, { count: 'exact' })
       .eq('is_public', true)
       .order('star_count', { ascending: false })
@@ -26,8 +23,9 @@ export async function GET(request: Request) {
 
     if (error) throw error
 
-    // Fetch item counts separately
     const listIds = (data ?? []).map((l: any) => l.id)
+
+    // Fetch item counts separately
     const { data: countRows } = await (supabase as any)
       .from('reading_list_items')
       .select('list_id')
@@ -38,9 +36,27 @@ export async function GET(request: Request) {
       countMap[row.list_id] = (countMap[row.list_id] ?? 0) + 1
     }
 
+    // Fetch up to 4 cover URLs per list — separate query, clean and limited
+    const { data: coverRows } = await (supabase as any)
+      .from('reading_list_items')
+      .select('list_id, recommendations(cover_url)')
+      .in('list_id', listIds)
+      .not('recommendations', 'is', null)
+      .order('added_at', { ascending: false })
+
+    // Group covers by list_id, max 4 each
+    const coverMap: Record<string, string[]> = {}
+    for (const row of (coverRows ?? [])) {
+      const url = row.recommendations?.cover_url
+      if (!url) continue
+      if (!coverMap[row.list_id]) coverMap[row.list_id] = []
+      if (coverMap[row.list_id].length < 4) coverMap[row.list_id].push(url)
+    }
+
     const enriched = (data ?? []).map((l: any) => ({
       ...l,
-      _item_count: countMap[l.id] ?? 0,
+      _item_count:    countMap[l.id] ?? 0,
+      _cover_urls:    coverMap[l.id] ?? [],
     }))
 
     return NextResponse.json({
