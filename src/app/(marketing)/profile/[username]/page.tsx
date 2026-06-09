@@ -98,7 +98,7 @@ export default async function ProfilePage({ params }: Props) {
   return (
   <div className="min-h-screen bg-[#0a0a0b]">
     {/* Add spacer for fixed header */}
-    <div className="h-[56px] md:h-[64px]" />
+    <div className="h-[48px] md:h-[48px]" />
     {/* HERO - Gen Z full bleed with cover */}
     <div className="relative">
       <div className="h-[24vh] md:h-[32vh] w-full overflow-hidden">
