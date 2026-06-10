@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { RotateCcw } from 'lucide-react'
 
 // ── Update this date whenever you make material changes ──────────
-const LAST_UPDATED = 'May 14, 2025'
+const LAST_UPDATED = 'May 14, 2026'
 
 const cookies = [
   {

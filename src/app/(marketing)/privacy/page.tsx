@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = { title: 'Privacy Policy' }
 
 // ── Update this date whenever you make material changes ──────────
-const LAST_UPDATED = 'May 14, 2025'
+const LAST_UPDATED = 'May 14, 2026'
 
 const PRIVACY_SECTIONS = [
   {

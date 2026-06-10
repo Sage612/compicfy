@@ -1,9 +1,3 @@
-// Shared pattern used in all legal pages:
-// - Gradient icon header
-// - Section divider with h2 font-black
-// - Prose text as text-muted-foreground leading-relaxed
-
-// ── src/app/(marketing)/guidelines/page.tsx ──────────────────────────────────
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Community Guidelines' }

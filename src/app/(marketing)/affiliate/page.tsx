@@ -171,7 +171,7 @@ export default function AffiliatePage() {
           </p>
           <Link
             href="/browse"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-violet-500 text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-md shadow-primary/20"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-md shadow-primary/20"
           >
             Browse Comics
           </Link>
