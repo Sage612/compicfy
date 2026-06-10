@@ -413,7 +413,6 @@ export default async function ReaderProfilePage({ params }: Props) {
           {/* ── Genres + Taste Identity — merged, compact ── */}
           {favoriteGenres.length > 0 && !isGhost && (
             <div className="mb-3 space-y-2">
-              {/* Genres */}
               <div className="flex flex-wrap gap-1.5">
                 {favoriteGenres.map((genre: string) => (
                   <Link key={genre} href={`/browse?genre=${encodeURIComponent(genre)}`}>
@@ -423,7 +422,6 @@ export default async function ReaderProfilePage({ params }: Props) {
                   </Link>
                 ))}
               </div>
-              {/* Taste tag inline below genres, no section header */}
               <TasteTags genres={favoriteGenres} compact />
             </div>
           )}
@@ -479,6 +477,7 @@ export default async function ReaderProfilePage({ params }: Props) {
         totalRecs={totalRecs}
         isPro={isPro || isAdmin}
         isGhost={isGhost}
+        isOwner={isOwner}
         username={profile.username}
         showGold={showGold}
       />
