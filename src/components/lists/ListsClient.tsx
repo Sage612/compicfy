@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import {
   Layers, Globe, BookOpen, Star, Share2,
-  Loader2, BookMarked,
+  Loader2, BookMarked, Plus, Crown, X, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+const FREE_LIST_LIMIT = 5
 
 interface PublicList {
   id:          string
@@ -28,7 +32,6 @@ interface PublicList {
   }[]
 }
 
-// ── Theme helpers ────────────────────────────────────────────────────────────
 const THEME_GRAD: Record<number, string> = {
   0: 'from-primary/60 via-primary/20 to-primary/5',
   1: 'from-violet-500/60 via-violet-500/20 to-violet-500/5',
@@ -38,13 +41,13 @@ const THEME_GRAD: Record<number, string> = {
   5: 'from-indigo-500/60 via-indigo-500/20 to-indigo-500/5',
 }
 const THEME_BORDER: Record<number, string> = {
-  0: 'border-primary/30',   1: 'border-violet-500/30',
-  2: 'border-rose-500/30',  3: 'border-amber-500/30',
+  0: 'border-primary/30',     1: 'border-violet-500/30',
+  2: 'border-rose-500/30',    3: 'border-amber-500/30',
   4: 'border-emerald-500/30', 5: 'border-indigo-500/30',
 }
 const THEME_ACCENT: Record<number, string> = {
-  0: 'text-primary',    1: 'text-violet-400',
-  2: 'text-rose-400',   3: 'text-amber-400',
+  0: 'text-primary',     1: 'text-violet-400',
+  2: 'text-rose-400',    3: 'text-amber-400',
   4: 'text-emerald-400', 5: 'text-indigo-400',
 }
 
@@ -68,7 +71,7 @@ function itemCount(list: PublicList): number {
   return list.reading_list_items.length
 }
 
-function starLabel(starCount: number, isStarred: boolean): string {
+function getStarLabel(starCount: number, isStarred: boolean): string {
   if (isStarred) return starCount > 0 ? `${starCount} starred` : 'Starred'
   return starCount > 0 ? `${starCount}` : 'Star'
 }
@@ -103,16 +106,33 @@ function StackedCover({ covers, themeGrad }: { covers: string[]; themeGrad: stri
 }
 
 interface Props {
-  myListsHref?: string
   userId:          string | null
   starredListIds?: string[]
+  myListsHref?:    string
+  isProUser?:      boolean
+  userListCount?:  number
 }
 
-export function ListsClient({ userId, starredListIds = [], myListsHref = "/reader/dashboard/lists" }: Props) {
+export function ListsClient({
+  userId,
+  starredListIds  = [],
+  myListsHref     = '/reader/dashboard/lists',
+  isProUser       = false,
+  userListCount   = 0,
+}: Props) {
   const [lists,      setLists]      = useState<PublicList[]>([])
   const [loading,    setLoading]    = useState(true)
   const [starringId, setStarringId] = useState<string | null>(null)
   const [starredSet, setStarredSet] = useState<Set<string>>(() => new Set(starredListIds))
+
+  // Create form state
+  const [showCreate, setShowCreate] = useState(false)
+  const [newName,    setNewName]    = useState('')
+  const [newDesc,    setNewDesc]    = useState('')
+  const [creating,   setCreating]   = useState(false)
+
+  // atLimit: free users can only have FREE_LIST_LIMIT lists total
+  const atLimit = !isProUser && userListCount >= FREE_LIST_LIMIT
 
   useEffect(() => { fetchLists() }, [])
 
@@ -127,6 +147,37 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleNewListClick = () => {
+    if (!userId) { toast.error('Log in to create lists'); return }
+    if (atLimit) {
+      toast.error(`Free users can create up to ${FREE_LIST_LIMIT} lists — upgrade to Pro for unlimited`)
+      return
+    }
+    setShowCreate(true)
+  }
+
+  const handleCreate = async () => {
+    if (!newName.trim()) return
+    setCreating(true)
+    try {
+      const res  = await fetch('/api/lists', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name: newName, description: newDesc, is_public: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        if (res.status === 403) { toast.error('List limit reached — upgrade to Pro'); return }
+        throw new Error(data.error)
+      }
+      // New list is public so it may appear in this feed — reload to show it
+      setNewName(''); setNewDesc(''); setShowCreate(false)
+      toast.success('List created! Reloading...')
+      await fetchLists()
+    } catch { toast.error('Failed to create list') }
+    finally  { setCreating(false) }
   }
 
   const handleStar = async (id: string, e: React.MouseEvent) => {
@@ -158,16 +209,77 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
   return (
     <div className="space-y-6">
 
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-          <Layers size={16} className="text-primary" />
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <Layers size={16} className="text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
+            <p className="text-muted-foreground text-sm">Curated reading journeys from the community</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
-          <p className="text-muted-foreground text-sm">Curated reading journeys from the community</p>
-        </div>
+
+        {/* Desktop create button — only for logged-in users */}
+        {userId && !showCreate && (
+          <Button
+            size="sm"
+            onClick={handleNewListClick}
+            className={cn(
+              'gap-1.5 shrink-0 hidden sm:inline-flex',
+              atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90'
+            )}
+          >
+            {atLimit ? <Crown size={14} /> : <Plus size={14} />}
+            {atLimit ? 'Upgrade for More' : 'New List'}
+          </Button>
+        )}
       </div>
+
+      {/* ── Inline create form (slides in below header) ── */}
+      {showCreate && (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-primary/5">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                <Plus size={13} className="text-primary-foreground" />
+              </div>
+              <p className="text-xs font-black uppercase tracking-widest text-primary">New Reading List</p>
+            </div>
+            <button onClick={() => { setShowCreate(false); setNewName(''); setNewDesc('') }}
+              className="text-muted-foreground hover:text-foreground transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+          <div className="p-5 space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">List Name <span className="text-red-500">*</span></label>
+              <Input value={newName} onChange={e => setNewName(e.target.value)}
+                placeholder='"Best Romance Manhwa", "My Completed Series"'
+                autoFocus className="h-9 text-sm"
+                onKeyDown={e => e.key === 'Enter' && handleCreate()} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-muted-foreground">Description <span className="text-muted-foreground/60">(optional)</span></label>
+              <Input value={newDesc} onChange={e => setNewDesc(e.target.value)}
+                placeholder="What's this list about?" className="h-9 text-sm" />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This list will be created as <strong>public</strong> so the community can discover it.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={handleCreate} disabled={!newName.trim() || creating} className="gap-2">
+                {creating ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                Create List
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => { setShowCreate(false); setNewName(''); setNewDesc('') }}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
@@ -186,6 +298,11 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
             <p className="font-black text-sm">No public lists yet</p>
             <p className="text-xs text-muted-foreground mt-1">Be the first to share a reading list with the community.</p>
           </div>
+          {userId && (
+            <Button size="sm" onClick={handleNewListClick} className="gap-1.5">
+              <Plus size={14} /> Create First List
+            </Button>
+          )}
         </div>
       )}
 
@@ -213,7 +330,6 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
                   )}>
                     <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-
                     <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm">
                         <Globe size={7} /> Public
@@ -224,9 +340,7 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
                         </span>
                       )}
                     </div>
-
                     <Link href={`/lists/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
-
                     <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
                       <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
                       {!isOwner && username && (
@@ -243,7 +357,7 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
                           className={cn('flex items-center gap-1 px-2 h-6 rounded-lg backdrop-blur-sm text-[9px] font-semibold transition-colors border',
                             isStarred ? 'bg-amber-500/70 text-white border-amber-400/40' : 'bg-white/15 hover:bg-white/25 text-white border-white/10')}>
                           {starringId === list.id ? <Loader2 size={9} className="animate-spin" /> : <Star size={9} className={isStarred ? 'fill-white' : ''} />}
-                          {starLabel(list.star_count, isStarred)}
+                          {getStarLabel(list.star_count, isStarred)}
                         </button>
                         <button onClick={e => handleShare(list.id, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
                           <Share2 size={9} />
@@ -274,7 +388,6 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
                   )}>
                     <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-
                     <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm">
                         <Globe size={7} /> Public
@@ -285,9 +398,7 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
                         </span>
                       )}
                     </div>
-
                     <Link href={`/lists/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
-
                     <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
                       <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
                       {!isOwner && username && (
@@ -304,7 +415,7 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
                           className={cn('flex items-center gap-1 px-2 h-6 rounded-lg backdrop-blur-sm text-[9px] font-semibold transition-colors border',
                             isStarred ? 'bg-amber-500/70 text-white border-amber-400/40' : 'bg-white/15 hover:bg-white/25 text-white border-white/10')}>
                           {starringId === list.id ? <Loader2 size={9} className="animate-spin" /> : <Star size={9} className={isStarred ? 'fill-white' : ''} />}
-                          {starLabel(list.star_count, isStarred)}
+                          {getStarLabel(list.star_count, isStarred)}
                         </button>
                         <button onClick={e => handleShare(list.id, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
                           <Share2 size={9} />
@@ -324,15 +435,13 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
               const covers    = getCoverPreviews(list)
               const count     = itemCount(list)
               const isStarred = starredSet.has(list.id)
-              const isOwner   = list.user_id === userId
-              const label     = starLabel(list.star_count, isStarred)
+              const label     = getStarLabel(list.star_count, isStarred)
 
               return (
                 <div key={list.id} className={cn(
                   'group relative rounded-2xl border bg-card overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5',
                   THEME_BORDER[ti]
                 )}>
-                  {/* Cover banner */}
                   <div className={cn('h-24 relative overflow-hidden bg-gradient-to-br to-transparent', THEME_GRAD[ti])}>
                     {covers.length > 0 ? (
                       <div className="absolute inset-0 flex gap-0.5">
@@ -361,8 +470,6 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
                       </div>
                     )}
                   </div>
-
-                  {/* Body */}
                   <div className="p-4 space-y-3">
                     <div>
                       <Link href={`/lists/${list.id}`} className="font-black text-sm hover:text-primary transition-colors line-clamp-1 block">
@@ -372,7 +479,6 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
                         <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{list.description}</p>
                       )}
                     </div>
-
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       {list.star_count > 0 && (
                         <span className="flex items-center gap-1 text-[10px]">
@@ -380,13 +486,12 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
                           {list.star_count} starred
                         </span>
                       )}
-                      {!isOwner && list.profiles && (
+                      {list.profiles && list.user_id !== userId && (
                         <Link href={`/profile/${list.profiles.username}`} className="text-[10px] hover:text-primary transition-colors truncate max-w-[80px] ml-auto">
                           @{list.profiles.username}
                         </Link>
                       )}
                     </div>
-
                     <div className="flex items-center gap-1.5">
                       <Link href={`/lists/${list.id}`} className="flex-1">
                         <button className="w-full h-7 text-xs rounded-md border border-border hover:border-primary/40 hover:text-primary transition-colors font-medium">
@@ -394,7 +499,8 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
                         </button>
                       </Link>
                       <button
-                        className={cn('h-7 gap-1 text-xs px-2 rounded-md flex items-center transition-colors', isStarred ? 'text-amber-500' : 'text-muted-foreground hover:text-foreground')}
+                        className={cn('h-7 gap-1 text-xs px-2 rounded-md flex items-center transition-colors',
+                          isStarred ? 'text-amber-500' : 'text-muted-foreground hover:text-foreground')}
                         onClick={e => handleStar(list.id, e)} disabled={starringId === list.id}>
                         {starringId === list.id ? <Loader2 size={11} className="animate-spin" /> : <Star size={11} className={isStarred ? 'fill-amber-500' : ''} />}
                         {label}
@@ -412,13 +518,31 @@ export function ListsClient({ userId, starredListIds = [], myListsHref = "/reade
         </>
       )}
 
-      {/* Link to personal dashboard lists */}
+      {/* Manage link */}
       {userId && (
         <div className="flex items-center justify-center pt-2">
           <Link href={myListsHref} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
             <BookMarked size={11} /> Manage my reading lists
           </Link>
         </div>
+      )}
+
+      {/* Mobile FAB — sits above the admin floating button (bottom-36) and above MobileTabBar (bottom-24)
+          Use bottom-44 to clear admin FAB at bottom-20 on md+ and bottom-36 on mobile */}
+      {userId && (
+        <button
+          onClick={handleNewListClick}
+          className={cn(
+            'sm:hidden fixed bottom-44 right-4 z-40 w-14 h-14 rounded-full shadow-2xl',
+            'flex items-center justify-center transition-all duration-200 active:scale-95',
+            atLimit
+              ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+          )}
+          aria-label="Create new list"
+        >
+          {atLimit ? <Crown size={22} /> : <Plus size={24} />}
+        </button>
       )}
     </div>
   )

@@ -8,7 +8,7 @@ import { toast } from 'sonner'
 import {
   BookMarked, Plus, Trash2, Globe, Lock,
   Loader2, BookOpen, Pencil, ArrowRight, Crown,
-  Sparkles, Radar, Share2, Star,
+  Sparkles, Radar, Share2, Star, Check, X,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
@@ -358,98 +358,138 @@ export function ReadingListsClient({
           <div className="sm:hidden grid grid-cols-2 gap-3 items-start">
             <div className="flex flex-col gap-3">
               {lists.filter((_, i) => i % 2 === 0).map((list, posInCol) => {
-                const ti      = themeIndex(list.id)
-                const covers  = getCoverPreviews(list)
-                const count   = itemCount(list)
-                const locked  = isLocked(list.id)
-                const cardH   = ['h-36', 'h-44', 'h-52'][posInCol % 3]
+                const ti        = themeIndex(list.id)
+                const covers    = getCoverPreviews(list)
+                const count     = itemCount(list)
+                const locked    = isLocked(list.id)
+                const cardH     = ['h-36', 'h-44', 'h-52'][posInCol % 3]
+                const isEditing = editingId === list.id
 
                 return (
                   <div key={list.id} className={cn(
-                    'rounded-2xl border overflow-hidden relative cursor-pointer',
-                    cardH,
-                    locked ? 'border-dashed border-amber-500/30 opacity-75' : THEME_BORDER[ti]
+                    'rounded-2xl border overflow-hidden relative',
+                    isEditing ? 'bg-card' : 'cursor-pointer ' + cardH,
+                    !isEditing && (locked ? 'border-dashed border-amber-500/30 opacity-75' : THEME_BORDER[ti]),
+                    isEditing && THEME_BORDER[ti]
                   )}>
-                    <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-                    <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
-                      {list.is_public
-                        ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
-                        : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Private</span>
-                      }
-                      {count > 0 && (
-                        <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', THEME_ACCENT[ti])}>
-                          <BookOpen size={7} /> {count}
-                        </span>
-                      )}
-                    </div>
-                    <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
-                    <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
-                      <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
-                      <div className="flex items-center gap-1.5 relative z-30">
-                        <button onClick={e => { e.preventDefault(); e.stopPropagation(); setEditingId(list.id); setEditName(list.name) }} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10" title="Rename">
-                          <Pencil size={9} />
-                        </button>
-                        <button onClick={e => handleShare(list.id, e)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10">
-                          <Share2 size={9} /> Share
-                        </button>
-                        <button onClick={e => handleTogglePublic(list.id, list.is_public, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                          {list.is_public ? <Lock size={10} /> : <Globe size={10} />}
-                        </button>
-                        <button onClick={e => handleDelete(list.id, e)} disabled={deletingId === list.id} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-red-500/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                          {deletingId === list.id ? <Loader2 size={9} className="animate-spin" /> : <Trash2 size={9} />}
-                        </button>
+                    {isEditing ? (
+                      <div className="p-3 space-y-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Rename</p>
+                        <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-8 text-sm" autoFocus
+                          onKeyDown={e => { if (e.key === 'Enter') handleRename(list.id); if (e.key === 'Escape') setEditingId(null) }} />
+                        <div className="flex gap-1.5">
+                          <Button size="sm" className="h-7 text-xs flex-1 gap-1" onClick={() => handleRename(list.id)} disabled={!editName.trim()}>
+                            <Check size={11} /> Save
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setEditingId(null)}>
+                            <X size={11} />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+                        <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
+                          {list.is_public
+                            ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
+                            : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Private</span>
+                          }
+                          {count > 0 && (
+                            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', THEME_ACCENT[ti])}>
+                              <BookOpen size={7} /> {count}
+                            </span>
+                          )}
+                        </div>
+                        <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
+                        <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
+                          <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
+                          <div className="flex items-center gap-1.5 relative z-30">
+                            <button onClick={e => { e.preventDefault(); e.stopPropagation(); setEditingId(list.id); setEditName(list.name) }} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10" title="Rename">
+                              <Pencil size={9} />
+                            </button>
+                            <button onClick={e => handleShare(list.id, e)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10">
+                              <Share2 size={9} /> Share
+                            </button>
+                            <button onClick={e => handleTogglePublic(list.id, list.is_public, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
+                              {list.is_public ? <Lock size={10} /> : <Globe size={10} />}
+                            </button>
+                            <button onClick={e => handleDelete(list.id, e)} disabled={deletingId === list.id} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-red-500/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
+                              {deletingId === list.id ? <Loader2 size={9} className="animate-spin" /> : <Trash2 size={9} />}
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )
               })}
             </div>
             <div className="flex flex-col gap-3">
               {lists.filter((_, i) => i % 2 === 1).map((list, posInCol) => {
-                const ti      = themeIndex(list.id)
-                const covers  = getCoverPreviews(list)
-                const count   = itemCount(list)
-                const locked  = isLocked(list.id)
-                const cardH   = ['h-44', 'h-52', 'h-36'][posInCol % 3]
+                const ti        = themeIndex(list.id)
+                const covers    = getCoverPreviews(list)
+                const count     = itemCount(list)
+                const locked    = isLocked(list.id)
+                const cardH     = ['h-44', 'h-52', 'h-36'][posInCol % 3]
+                const isEditing = editingId === list.id
 
                 return (
                   <div key={list.id} className={cn(
-                    'rounded-2xl border overflow-hidden relative cursor-pointer',
-                    cardH,
-                    locked ? 'border-dashed border-amber-500/30 opacity-75' : THEME_BORDER[ti]
+                    'rounded-2xl border overflow-hidden relative',
+                    isEditing ? 'bg-card' : 'cursor-pointer ' + cardH,
+                    !isEditing && (locked ? 'border-dashed border-amber-500/30 opacity-75' : THEME_BORDER[ti]),
+                    isEditing && THEME_BORDER[ti]
                   )}>
-                    <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-                    <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
-                      {list.is_public
-                        ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
-                        : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Private</span>
-                      }
-                      {count > 0 && (
-                        <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', THEME_ACCENT[ti])}>
-                          <BookOpen size={7} /> {count}
-                        </span>
-                      )}
-                    </div>
-                    <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
-                    <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
-                      <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
-                      <div className="flex items-center gap-1.5 relative z-30">
-                        <button onClick={e => { e.preventDefault(); e.stopPropagation(); setEditingId(list.id); setEditName(list.name) }} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10" title="Rename">
-                          <Pencil size={9} />
-                        </button>
-                        <button onClick={e => handleShare(list.id, e)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10">
-                          <Share2 size={9} /> Share
-                        </button>
-                        <button onClick={e => handleTogglePublic(list.id, list.is_public, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                          {list.is_public ? <Lock size={10} /> : <Globe size={10} />}
-                        </button>
-                        <button onClick={e => handleDelete(list.id, e)} disabled={deletingId === list.id} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-red-500/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                          {deletingId === list.id ? <Loader2 size={9} className="animate-spin" /> : <Trash2 size={9} />}
-                        </button>
+                    {isEditing ? (
+                      <div className="p-3 space-y-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Rename</p>
+                        <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-8 text-sm" autoFocus
+                          onKeyDown={e => { if (e.key === 'Enter') handleRename(list.id); if (e.key === 'Escape') setEditingId(null) }} />
+                        <div className="flex gap-1.5">
+                          <Button size="sm" className="h-7 text-xs flex-1 gap-1" onClick={() => handleRename(list.id)} disabled={!editName.trim()}>
+                            <Check size={11} /> Save
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setEditingId(null)}>
+                            <X size={11} />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+                        <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
+                          {list.is_public
+                            ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
+                            : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Private</span>
+                          }
+                          {count > 0 && (
+                            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', THEME_ACCENT[ti])}>
+                              <BookOpen size={7} /> {count}
+                            </span>
+                          )}
+                        </div>
+                        <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
+                        <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
+                          <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
+                          <div className="flex items-center gap-1.5 relative z-30">
+                            <button onClick={e => { e.preventDefault(); e.stopPropagation(); setEditingId(list.id); setEditName(list.name) }} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10" title="Rename">
+                              <Pencil size={9} />
+                            </button>
+                            <button onClick={e => handleShare(list.id, e)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10">
+                              <Share2 size={9} /> Share
+                            </button>
+                            <button onClick={e => handleTogglePublic(list.id, list.is_public, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
+                              {list.is_public ? <Lock size={10} /> : <Globe size={10} />}
+                            </button>
+                            <button onClick={e => handleDelete(list.id, e)} disabled={deletingId === list.id} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-red-500/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
+                              {deletingId === list.id ? <Loader2 size={9} className="animate-spin" /> : <Trash2 size={9} />}
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )
               })}
