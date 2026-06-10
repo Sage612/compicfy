@@ -226,7 +226,7 @@ export function ReadingListsClient({
               <BookMarked size={16} className="text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-black tracking-tight">My Reading Lists</h1>
+              <h1 className="text-2xl font-black tracking-tight"> Reading Lists</h1>
               <p className="text-muted-foreground text-sm">
                 {lists.length} list{lists.length !== 1 ? 's' : ''}
                 {isProUser === false && (

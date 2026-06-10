@@ -10,14 +10,17 @@ export function AdminFloatingButton() {
   if (pathname.startsWith('/admin')) return null
 
   return (
+    // hidden on mobile — SpeedDialFAB handles admin action there
+    // only visible on desktop (lg+)
     <Link
       href="/admin"
       title="Admin Dashboard"
       className={cn(
-        'fixed bottom-20 right-4 z-50 md:bottom-6 md:right-6',
+        'hidden lg:flex',
+        'fixed bottom-6 right-6 z-50',
         'w-12 h-12 rounded-full',
         'bg-primary',
-        'flex items-center justify-center',
+        'items-center justify-center',
         'shadow-lg shadow-primary/30',
         'hover:scale-110 active:scale-95 transition-transform',
         'ring-2 ring-background'

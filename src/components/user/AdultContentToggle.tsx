@@ -167,7 +167,7 @@ export function AdultContentToggle({ userId, initialEnabled }: Props) {
               and legally permitted to view such content in your jurisdiction.
                       </p>
                       
- {/* Age input */}
+                {/* Age input */}
             <div className="mb-4 space-y-1.5">
               <label className="text-xs font-medium text-foreground">
                 Enter your age to confirm

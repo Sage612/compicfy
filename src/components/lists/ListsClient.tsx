@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,7 +9,6 @@ import { toast } from 'sonner'
 import {
   Layers, Globe, BookOpen, Star, Share2,
   Loader2, BookMarked, Plus, Crown, X, Check,
-  Globe2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ListsSkeleton } from '@/components/lists/ListsSkeleton'
@@ -128,10 +128,18 @@ export function ListsClient({
   const [starredSet, setStarredSet] = useState<Set<string>>(() => new Set(starredListIds))
 
   // Create form state
+  const searchParams = useSearchParams()
   const [showCreate, setShowCreate] = useState(false)
   const [newName,    setNewName]    = useState('')
   const [newDesc,    setNewDesc]    = useState('')
   const [creating,   setCreating]   = useState(false)
+
+  // Auto-open create form when navigated here from SpeedDialFAB (?create=1)
+  useEffect(() => {
+    if (searchParams.get('create') === '1' && userId && !atLimit) {
+      setShowCreate(true)
+    }
+  }, [searchParams, userId])
 
   // atLimit: free users can only have FREE_LIST_LIMIT lists total
   const atLimit = !isProUser && userListCount >= FREE_LIST_LIMIT
@@ -215,7 +223,7 @@ export function ListsClient({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-            <Globe size={16} className="text-primary" />
+            <Layers size={16} className="text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
@@ -525,23 +533,7 @@ export function ListsClient({
         </div>
       )}
 
-      {/* Mobile FAB — sits above the admin floating button (bottom-36) and above MobileTabBar (bottom-24)
-          Use bottom-44 to clear admin FAB at bottom-20 on md+ and bottom-36 on mobile */}
-      {userId && (
-        <button
-          onClick={handleNewListClick}
-          className={cn(
-            'sm:hidden fixed bottom-44 right-4 z-40 w-14 h-14 rounded-full shadow-2xl',
-            'flex items-center justify-center transition-all duration-200 active:scale-95',
-            atLimit
-              ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
-          )}
-          aria-label="Create new list"
-        >
-          {atLimit ? <Crown size={22} /> : <Plus size={24} />}
-        </button>
-      )}
+      
     </div>
   )
 }

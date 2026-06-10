@@ -3,20 +3,44 @@ import { Header } from '@/components/layout/Header'
 import { ConditionalFooter } from '@/components/layout/ConditionalFooter'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
+import { SpeedDialFAB } from '@/components/layout/SpeedDialFAB'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  let isAdmin = false
+  let isAdmin             = false
+  let isProUser           = false
+  let userListCount       = 0
+  let userCollectionCount = 0
+  let myListsHref         = '/reader/dashboard/lists'
+
   if (user) {
-    const { data: profile } = (await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()) as { data: { role: string } | null }
-    isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
+    const [profileResult, listCountResult, collectionCountResult] = await Promise.all([
+      supabase.from('profiles').select('role, is_pro, pro_expires_at, user_type').eq('id', user.id).single(),
+      (supabase as any).from('reading_lists').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+      (supabase as any).from('collections').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+    ])
+
+    const profile = profileResult.data as any
+    if (profile) {
+      isAdmin   = ['admin', 'moderator'].includes(profile.role)
+      isProUser = isAdmin || (
+        profile.is_pro &&
+        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+      )
+
+      const isCreator = profile.user_type === 'creator'
+      if (isCreator) {
+        myListsHref = isProUser ? '/pro/creator/dashboard/works' : '/creator/dashboard/works'
+      } else {
+        myListsHref = isProUser ? '/pro/reader/dashboard/lists' : '/reader/dashboard/lists'
+      }
+    }
+
+    userListCount       = listCountResult.count       ?? 0
+    userCollectionCount = collectionCountResult.count ?? 0
   }
 
   return (
@@ -29,7 +53,19 @@ export default async function MarketingLayout({ children }: { children: React.Re
       </main>
       <ConditionalFooter />
       <MobileNav />
+
+      {/* Desktop-only admin button */}
       {isAdmin && <AdminFloatingButton />}
+
+      {/* Mobile speed dial — handles create (list/collection) + admin nav in one FAB */}
+      <SpeedDialFAB
+        userId={user?.id ?? null}
+        isAdmin={isAdmin}
+        isProUser={isProUser}
+        userListCount={userListCount}
+        userCollectionCount={userCollectionCount}
+        myListsHref={myListsHref}
+      />
     </div>
   )
 }

@@ -3,7 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import { ReadingListDetail } from '@/components/user/ReadingListDetail'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Reading List' }
+export const metadata: Metadata = { title: 'Reading List | Pro' }
 
 export default async function ProReaderListDetailPage({
   params,

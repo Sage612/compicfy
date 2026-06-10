@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -166,6 +167,7 @@ interface Props {
 export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath = '/collections', savedCollectionIds = [] }: Props) {
   const [collections, setCollections] = useState<Collection[]>([])
   const [loading,     setLoading]     = useState(true)
+  const searchParams = useSearchParams()
   const [showCreate,  setShowCreate]  = useState(false)
   const [creating,    setCreating]    = useState(false)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
@@ -183,6 +185,13 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
   const atLimit = !isProUser && collections.filter(c => c.user_id === userId).length >= FREE_LIMIT
 
   useEffect(() => { fetchCollections() }, [])
+
+  // Auto-open create form when navigated here from SpeedDialFAB (?create=1)
+  useEffect(() => {
+    if (searchParams.get('create') === '1' && userId && !atLimit) {
+      setShowCreate(true)
+    }
+  }, [searchParams, userId])
 
   const fetchCollections = async () => {
     setLoading(true)
@@ -791,21 +800,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
         </div>
       )}
 
-      {/* ── Mobile FAB ──────────────────────────────────────────────────────── */}
-      {userId && (
-        <button
-          onClick={() => atLimit ? toast.error('Upgrade to Pro for unlimited collections') : setShowCreate(true)}
-          className={cn(
-            'sm:hidden fixed bottom-36 right-4 z-40 w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition-all duration-200 active:scale-95',
-            atLimit
-              ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
-              : 'bg-primary text-primary-foreground hover:bg-primary/90'
-          )}
-          aria-label="Create new collection"
-        >
-          {atLimit ? <Crown size={22} /> : <Plus size={24} />}
-        </button>
-      )}
+
     </div>
   )
 }
