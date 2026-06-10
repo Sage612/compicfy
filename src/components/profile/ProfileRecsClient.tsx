@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useTransition, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
 } from '@/components/ui/sheet'
-import { Search, X, SlidersHorizontal, BookOpen, Loader2 } from 'lucide-react'
+import { Search, X, SlidersHorizontal, BookOpen, Loader2, Filter } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Recommendation } from '@/types/database.types'
 import { toast } from 'sonner'
@@ -38,7 +38,7 @@ const STATUSES = [
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'data-[active=true]:bg-rose-500   data-[active=true]:border-rose-500   data-[active=true]:text-white',
-  manhwa:  'data-[active=true]:bg-blue-500 data-[active=true]:border-blue-500 data-[active=true]:text-white',
+  manhwa:  'data-[active=true]:bg-teal-500   data-[active=true]:border-teal-500   data-[active=true]:text-white',
   manhua:  'data-[active=true]:bg-amber-500  data-[active=true]:border-amber-500  data-[active=true]:text-white',
   webtoon: 'data-[active=true]:bg-teal-500   data-[active=true]:border-teal-500   data-[active=true]:text-white',
   comic:   'data-[active=true]:bg-blue-500   data-[active=true]:border-blue-500   data-[active=true]:text-white',
@@ -61,7 +61,6 @@ export function ProfileRecsClient({
   initialItems,
   initialTotal,
 }: Props) {
-  // ── All filter state lives HERE — no URL params, no stale props ──
   const [q,      setQ]      = useState('')
   const [type,   setType]   = useState('')
   const [status, setStatus] = useState('')
@@ -69,26 +68,30 @@ export function ProfileRecsClient({
 
   const [items,       setItems]       = useState<Recommendation[]>(initialItems)
   const [total,       setTotal]       = useState(initialTotal)
-  const [page,        setPage]        = useState(1)
+  // ── offset tracks how many items we've actually loaded ──
+  const [offset,      setOffset]      = useState(initialItems.length)
   const [fetching,    setFetching]    = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
 
-  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const debounceRef   = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isFirstRender = useRef(true)
 
-  const hasFilters = !!(q || type || status)
+  const hasFilters   = !!(q || type || status)
+  const activeFilters = [type, status].filter(Boolean).length
 
-  // ── Fetch from API whenever filters/sort change ──
+  // ── Core fetch — append=true means load more, false means fresh filter ──
   const fetchRecs = useCallback(async (
     filters: { q: string; type: string; status: string; sort: string },
-    offset = 0,
-    append = false,
+    fetchOffset: number,
+    append: boolean,
   ) => {
-    if (!append) setFetching(true)
+    if (append) setLoadingMore(true)
+    else        setFetching(true)
+
     try {
       const params = new URLSearchParams()
       params.set('user_id',       userId)
-      params.set('offset',        String(offset))
+      params.set('offset',        String(fetchOffset))
       params.set('limit',         String(PAGE_SIZE))
       params.set('exclude_adult', 'true')
       params.set('sort',          filters.sort)
@@ -101,13 +104,16 @@ export function ProfileRecsClient({
       if (!res.ok) throw new Error(data.error ?? 'Failed to load')
 
       const incoming = (data.recommendations ?? []) as Recommendation[]
+
       if (append) {
         setItems(prev => [...prev, ...incoming])
-        setPage(prev => prev + 1)
+        // advance offset by however many actually came back
+        setOffset(prev => prev + incoming.length)
       } else {
         setItems(incoming)
         setTotal(data.total ?? incoming.length)
-        setPage(1)
+        // after a fresh filter fetch, offset = number of items returned
+        setOffset(incoming.length)
       }
     } catch {
       toast.error('Failed to load recommendations')
@@ -117,49 +123,45 @@ export function ProfileRecsClient({
     }
   }, [username, userId])
 
-  // ── Re-fetch when filters/sort change (skip on mount — we have SSR data) ──
+  // ── Re-fetch fresh when filters/sort change (skip SSR mount) ──
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false
       return
     }
-    fetchRecs({ q, type, status, sort })
-  }, [type, status, sort]) // q handled separately via debounce
+    fetchRecs({ q, type, status, sort }, 0, false)
+  }, [type, status, sort]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearchChange = (value: string) => {
     setQ(value)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => {
-      fetchRecs({ q: value, type, status, sort })
+      fetchRecs({ q: value, type, status, sort }, 0, false)
     }, 400)
   }
-
-  const handleSortChange = (value: string) => setSort(value)
-  const handleTypeChange = (value: string) => setType(value)
-  const handleStatusChange = (value: string) => setStatus(value)
 
   const clearAll = () => {
     setQ('')
     setType('')
     setStatus('')
     setSort('recent')
-    fetchRecs({ q: '', type: '', status: '', sort: 'recent' })
+    fetchRecs({ q: '', type: '', status: '', sort: 'recent' }, 0, false)
   }
 
+  // ── Load more uses current offset — no stale page math ──
   const loadMore = () => {
-    setLoadingMore(true)
-    fetchRecs({ q, type, status, sort }, page * PAGE_SIZE, true)
+    fetchRecs({ q, type, status, sort }, offset, true)
   }
 
   const hasMore = items.length < total
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
 
       {/* ── Filter bar ── */}
-      <div className="space-y-3">
+      <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
 
-        {/* Row 1: search + mobile sheet */}
+        {/* Search + mobile sheet trigger */}
         <div className="flex gap-2">
           <div className="relative flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -167,7 +169,7 @@ export function ProfileRecsClient({
               value={q}
               onChange={e => handleSearchChange(e.target.value)}
               placeholder="Search recommendations…"
-              className="pl-9 h-10 bg-card border-border focus:border-primary transition-colors"
+              className="pl-9 h-10 bg-background border-border focus:border-primary transition-colors text-sm"
             />
             {q && (
               <button
@@ -179,20 +181,21 @@ export function ProfileRecsClient({
             )}
           </div>
 
+          {/* Mobile filter sheet */}
           <Sheet>
             <SheetTrigger asChild>
               <Button
                 variant="outline" size="sm"
                 className={cn(
                   'h-10 gap-1.5 md:hidden relative shrink-0',
-                  hasFilters && 'border-primary text-primary bg-primary/5'
+                  activeFilters > 0 && 'border-primary text-primary bg-primary/5'
                 )}
               >
-                <SlidersHorizontal size={14} />
+                <Filter size={14} />
                 Filters
-                {hasFilters && (
+                {activeFilters > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center font-bold">
-                    !
+                    {activeFilters}
                   </span>
                 )}
               </Button>
@@ -207,8 +210,8 @@ export function ProfileRecsClient({
               <MobileFilterPanel
                 currentType={type}
                 currentStatus={status}
-                onType={handleTypeChange}
-                onStatus={handleStatusChange}
+                onType={v => setType(v)}
+                onStatus={v => setStatus(v)}
               />
             </SheetContent>
           </Sheet>
@@ -225,43 +228,39 @@ export function ProfileRecsClient({
           )}
         </div>
 
-        {/* Row 2: sort pills */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-            Sort
-          </span>
+        {/* Sort pills */}
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Sort</span>
           <div className="flex gap-1.5 flex-wrap">
             {SORTS.map(({ value, label, full }) => (
               <button
                 key={value}
-                onClick={() => handleSortChange(value)}
+                onClick={() => setSort(value)}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold border transition-all duration-150',
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-150',
                   sort === value
                     ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
-                    : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-primary/50'
+                    : 'bg-background border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
                 )}
               >
                 <span>{label}</span>
-                <span className="hidden sm:inline text-xs">{full}</span>
+                <span className="hidden sm:inline">{full}</span>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Row 3: desktop type + status */}
+        {/* Desktop type + status */}
         <div className="hidden md:flex items-center gap-3 flex-wrap">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-            Type
-          </span>
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Type</span>
           <div className="flex gap-1.5 flex-wrap">
             {TYPES.map(({ value, label }) => (
               <button
                 key={value}
                 data-active={type === value}
-                onClick={() => handleTypeChange(value)}
+                onClick={() => setType(value)}
                 className={cn(
-                  'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
+                  'px-3 py-1 rounded-full text-xs font-bold border transition-all duration-150',
                   TYPE_COLORS[value] ?? TYPE_COLORS[''],
                   type !== value && 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
                 )}
@@ -270,17 +269,15 @@ export function ProfileRecsClient({
               </button>
             ))}
           </div>
-          <div className="w-px h-5 bg-border" />
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-            Status
-          </span>
+          <div className="w-px h-4 bg-border mx-1" />
+          <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Status</span>
           <div className="flex gap-1.5 flex-wrap">
             {STATUSES.map(({ value, label }) => (
               <button
                 key={value}
-                onClick={() => handleStatusChange(value)}
+                onClick={() => setStatus(value)}
                 className={cn(
-                  'px-3 py-1 rounded-full text-xs font-semibold border transition-all duration-150',
+                  'px-3 py-1 rounded-full text-xs font-bold border transition-all duration-150',
                   status === value
                     ? 'bg-primary text-primary-foreground border-primary'
                     : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
@@ -293,19 +290,26 @@ export function ProfileRecsClient({
         </div>
 
         {/* Results count */}
-        <p className="text-xs text-muted-foreground">
-          {fetching ? (
-            <span className="flex items-center gap-1.5">
-              <Loader2 size={11} className="animate-spin" /> Filtering…
-            </span>
-          ) : (
-            <>
-              <span className="font-semibold text-foreground">{total}</span>{' '}
-              recommendation{total !== 1 ? 's' : ''}
-              {hasFilters && <span className="text-primary ml-1">· filtered</span>}
-            </>
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            {fetching ? (
+              <span className="flex items-center gap-1.5">
+                <Loader2 size={11} className="animate-spin" /> Filtering…
+              </span>
+            ) : (
+              <>
+                <span className="font-bold text-foreground">{total}</span>{' '}
+                recommendation{total !== 1 ? 's' : ''}
+                {hasFilters && <span className="text-primary ml-1.5">· filtered</span>}
+              </>
+            )}
+          </p>
+          {hasMore && !fetching && (
+            <p className="text-xs text-muted-foreground">
+              Showing <span className="font-bold text-foreground">{items.length}</span> of <span className="font-bold text-foreground">{total}</span>
+            </p>
           )}
-        </p>
+        </div>
       </div>
 
       {/* ── Grid ── */}
@@ -345,28 +349,40 @@ export function ProfileRecsClient({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-          {items.map(rec => (
-            <ComicCard key={rec.id} recommendation={rec} />
-          ))}
-        </div>
-      )}
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {items.map(rec => (
+              <ComicCard key={rec.id} recommendation={rec} />
+            ))}
+          </div>
 
-      {/* ── Load more ── */}
-      {hasMore && !fetching && items.length > 0 && (
-        <div className="flex justify-center pt-2">
-          <Button
-            variant="outline"
-            onClick={loadMore}
-            disabled={loadingMore}
-            className="gap-2 min-w-36 rounded-xl border-border hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all"
-          >
-            {loadingMore
-              ? <><Loader2 size={14} className="animate-spin" /> Loading…</>
-              : <>Load more · {total - items.length} left</>
-            }
-          </Button>
-        </div>
+          {/* ── Load more ── */}
+          {hasMore && (
+            <div className="flex flex-col items-center gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="gap-2 min-w-44 rounded-xl border-border hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all"
+              >
+                {loadingMore
+                  ? <><Loader2 size={14} className="animate-spin" /> Loading…</>
+                  : <>Load {Math.min(PAGE_SIZE, total - items.length)} more · {total - items.length} left</>
+                }
+              </Button>
+              <p className="text-[11px] text-muted-foreground">
+                {items.length} of {total} loaded
+              </p>
+            </div>
+          )}
+
+          {/* All loaded state */}
+          {!hasMore && items.length > PAGE_SIZE && (
+            <p className="text-center text-xs text-muted-foreground py-4">
+              ✓ All {total} recommendations loaded
+            </p>
+          )}
+        </>
       )}
     </div>
   )
