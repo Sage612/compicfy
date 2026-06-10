@@ -13,6 +13,7 @@ import {
   Bookmark, BookmarkCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { CollectionsSkeleton } from '@/components/collections/CollectionsSkeleton'
 
 interface Collection {
   id:           string
@@ -417,12 +418,8 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
         </div>
       )}
 
-      {/* ── Loading ─────────────────────────────────────────────────────────── */}
-      {loading && (
-        <div className="flex justify-center py-16">
-          <Loader2 size={24} className="animate-spin text-muted-foreground" />
-        </div>
-      )}
+      {/* ── Loading skeleton ─────────────────────────────────────────────── */}
+      {loading && <CollectionsSkeleton />}
 
       {/* ── Empty state ─────────────────────────────────────────────────────── */}
       {!loading && collections.length === 0 && (

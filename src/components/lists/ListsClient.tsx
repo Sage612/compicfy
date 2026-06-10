@@ -10,6 +10,7 @@ import {
   Loader2, BookMarked, Plus, Crown, X, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ListsSkeleton } from '@/components/lists/ListsSkeleton'
 
 const FREE_LIST_LIMIT = 5
 
@@ -281,12 +282,8 @@ export function ListsClient({
         </div>
       )}
 
-      {/* Loading */}
-      {loading && (
-        <div className="flex justify-center py-16">
-          <Loader2 size={24} className="animate-spin text-muted-foreground" />
-        </div>
-      )}
+      {/* Loading skeleton — matches card shapes */}
+      {loading && <ListsSkeleton />}
 
       {/* Empty */}
       {!loading && lists.length === 0 && (
