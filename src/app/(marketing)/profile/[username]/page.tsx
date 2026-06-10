@@ -468,6 +468,7 @@ export default async function ProfilePage({ params }: Props) {
         totalRecs={totalRecs}
         isPro={isPro || isAdmin}
         isGhost={isGhost}
+        isOwner={isOwner}
         username={profile.username}
         showGold={showGold}
       />

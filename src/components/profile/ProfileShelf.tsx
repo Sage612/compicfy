@@ -7,6 +7,7 @@ interface Props {
   totalRecs:       number
   isPro:           boolean
   isGhost:         boolean
+  isOwner:         boolean
   username:        string
   showGold:        boolean
 }
@@ -23,12 +24,14 @@ const TYPE_SPINE: Record<string, string> = {
   other:   'bg-zinc-500',
 }
 
-export function ProfileShelf({ recommendations, totalRecs, isPro, isGhost, username, showGold }: Props) {
+export function ProfileShelf({ recommendations, totalRecs, isPro, isGhost, isOwner, username, showGold }: Props) {
   if (isGhost || recommendations.length === 0) return null
 
-  const limit   = isPro ? PRO_LIMIT : FREE_LIMIT
-  const visible = recommendations.slice(0, limit)
-  const hasMore = totalRecs > visible.length
+  const limit      = isPro ? PRO_LIMIT : FREE_LIMIT
+  const visible    = recommendations.slice(0, limit)
+  const hasMore    = totalRecs > visible.length
+  // Upsell only makes sense when the viewer IS the owner and isn't Pro
+  const showUpsell = isOwner && !isPro
 
   return (
     <div className="space-y-3">
@@ -39,7 +42,7 @@ export function ProfileShelf({ recommendations, totalRecs, isPro, isGhost, usern
           <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">
             Manhwa Shelf
           </h2>
-          {!isPro && (
+          {showUpsell && (
             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[9px] font-black border bg-amber-500/10 text-amber-600 border-amber-500/20">
               <Crown size={8} className="fill-amber-500" />
               Pro unlocks full shelf
@@ -94,11 +97,11 @@ export function ProfileShelf({ recommendations, totalRecs, isPro, isGhost, usern
           )
         })}
 
-        {/* Locked slots for free users — shows Pro upsell */}
-        {!isPro && totalRecs > FREE_LIMIT && (
+        {/* Locked slot — only shown to the shelf owner */}
+        {showUpsell && totalRecs > FREE_LIMIT && (
           <Link
             href="/pricing"
-            className="group relative aspect-[3/4] rounded-lg overflow-hidden bg-muted/50 border border-dashed border-amber-500/30 hover:border-amber-500/60 transition-colors flex flex-col items-center justify-center gap-1 col-span-0"
+            className="group relative aspect-[3/4] rounded-lg overflow-hidden bg-muted/50 border border-dashed border-amber-500/30 hover:border-amber-500/60 transition-colors flex flex-col items-center justify-center gap-1"
           >
             <Crown size={14} className="text-amber-500/60 group-hover:text-amber-500 transition-colors" />
             <span className="text-[8px] font-black text-amber-600/60 group-hover:text-amber-600 text-center leading-tight px-1 transition-colors">
@@ -108,8 +111,8 @@ export function ProfileShelf({ recommendations, totalRecs, isPro, isGhost, usern
         )}
       </div>
 
-      {/* Pro upsell strip */}
-      {!isPro && totalRecs > FREE_LIMIT && (
+      {/* Pro upsell strip — only shown to the shelf owner */}
+      {showUpsell && totalRecs > FREE_LIMIT && (
         <Link
           href="/pricing"
           className="flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-amber-500/20 bg-amber-500/5 text-xs text-amber-600 hover:border-amber-500/40 hover:bg-amber-500/10 transition-all"
