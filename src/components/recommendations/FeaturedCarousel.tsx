@@ -14,7 +14,6 @@ interface Props {
   recommendations: Recommendation[]
 }
 
-// Type accent colors — same system as ComicCard
 const TYPE_COLORS: Record<string, string> = {
   manga:   '#f43f5e',
   manhwa:  '#0ea5b0',
@@ -23,11 +22,19 @@ const TYPE_COLORS: Record<string, string> = {
   comic:   '#3b82f6',
   other:   '#6b7280',
 }
+
 const STATUS_CONFIG = {
   ongoing:   { color: 'bg-emerald-500', label: 'Ongoing'   },
   completed: { color: 'bg-sky-500',     label: 'Completed' },
   hiatus:    { color: 'bg-amber-500',   label: 'Hiatus'    },
   cancelled: { color: 'bg-rose-500',    label: 'Cancelled' },
+}
+
+function proxyCover(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
 export function FeaturedCarousel({ recommendations }: Props) {
@@ -71,15 +78,16 @@ export function FeaturedCarousel({ recommendations }: Props) {
           {recommendations.map((rec, i) => {
             const accentColor = TYPE_COLORS[rec.type] ?? TYPE_COLORS.other
             const status      = STATUS_CONFIG[rec.status as keyof typeof STATUS_CONFIG]
+            const coverSrc    = proxyCover(rec.cover_url)
 
             return (
               <div key={rec.id} className="relative flex-none w-full min-w-0">
 
                 {/* ── MOBILE ── */}
                 <div className="sm:hidden relative overflow-hidden bg-zinc-950" style={{ height: '460px' }}>
-                  {rec.cover_url ? (
+                  {coverSrc ? (
                     <img
-                      src={rec.cover_url}
+                      src={coverSrc}
                       alt={rec.title}
                       className="absolute inset-0 w-full h-full object-cover"
                     />
@@ -89,30 +97,18 @@ export function FeaturedCarousel({ recommendations }: Props) {
                     </div>
                   )}
 
-                  {/* Gradient overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-transparent" />
+                  <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: accentColor }} />
 
-                  {/* Left accent bar — type color */}
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-[3px]"
-                    style={{ background: accentColor }}
-                  />
-
-                  {/* Slide counter */}
                   <div className="absolute top-4 right-4 text-[10px] text-white/30 font-mono tabular-nums">
                     {String(i + 1).padStart(2, '0')} / {String(recommendations.length).padStart(2, '0')}
                   </div>
 
-                  {/* Content */}
                   <div className="absolute bottom-0 left-0 right-0 px-5 pb-10 pt-8 space-y-3">
                     <div className="flex items-center gap-2">
                       <span
                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider"
-                        style={{
-                          background: `${accentColor}25`,
-                          border: `1px solid ${accentColor}40`,
-                          color: accentColor,
-                        }}
+                        style={{ background: `${accentColor}25`, border: `1px solid ${accentColor}40`, color: accentColor }}
                       >
                         <Zap size={9} />
                         {rec.type}
@@ -135,10 +131,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
                         </div>
                       )}
                       {rec.genres?.slice(0, 2).map(g => (
-                        <span
-                          key={g}
-                          className="px-2 py-0.5 rounded text-[10px] text-white/60 bg-white/10 border border-white/10"
-                        >
+                        <span key={g} className="px-2 py-0.5 rounded text-[10px] text-white/60 bg-white/10 border border-white/10">
                           {g}
                         </span>
                       ))}
@@ -166,37 +159,25 @@ export function FeaturedCarousel({ recommendations }: Props) {
                 {/* ── DESKTOP ── */}
                 <div className="hidden sm:block relative h-[360px] md:h-[440px] overflow-hidden bg-zinc-950">
 
-                  {/* Blurred background */}
-                  {rec.cover_url && (
+                  {coverSrc && (
                     <img
-                      src={rec.cover_url}
+                      src={coverSrc}
                       alt=""
                       aria-hidden
                       className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-20"
                     />
                   )}
 
-                  {/* Overlays */}
                   <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/98 via-zinc-950/80 to-zinc-950/30" />
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/40 via-transparent to-transparent" />
-
-                  {/* Left accent bar */}
-                  <div
-                    className="absolute left-0 top-0 bottom-0 w-[3px]"
-                    style={{ background: accentColor }}
-                  />
+                  <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: accentColor }} />
 
                   <div className="relative h-full flex items-center px-8 md:px-12 gap-8 py-8">
 
-                    {/* Cover */}
                     <div className="shrink-0">
                       <div className="w-32 md:w-40 aspect-[3/4] rounded-lg overflow-hidden border border-white/10 shadow-2xl">
-                        {rec.cover_url ? (
-                          <img
-                            src={rec.cover_url}
-                            alt={rec.title}
-                            className="w-full h-full object-cover"
-                          />
+                        {coverSrc ? (
+                          <img src={coverSrc} alt={rec.title} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-white/5">
                             <BookOpen size={32} className="text-white/30" />
@@ -205,16 +186,11 @@ export function FeaturedCarousel({ recommendations }: Props) {
                       </div>
                     </div>
 
-                    {/* Text */}
                     <div className="flex-1 min-w-0 flex flex-col justify-center gap-3">
                       <div className="flex items-center gap-2">
                         <span
                           className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider"
-                          style={{
-                            background: `${accentColor}25`,
-                            border: `1px solid ${accentColor}40`,
-                            color: accentColor,
-                          }}
+                          style={{ background: `${accentColor}25`, border: `1px solid ${accentColor}40`, color: accentColor }}
                         >
                           <Zap size={9} />
                           {rec.type}
@@ -237,10 +213,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
                           </div>
                         )}
                         {rec.genres?.slice(0, 3).map(g => (
-                          <span
-                            key={g}
-                            className="px-2 py-0.5 rounded text-[10px] text-white/50 bg-white/5 border border-white/10"
-                          >
+                          <span key={g} className="px-2 py-0.5 rounded text-[10px] text-white/50 bg-white/5 border border-white/10">
                             {g}
                           </span>
                         ))}
@@ -271,7 +244,6 @@ export function FeaturedCarousel({ recommendations }: Props) {
                     </div>
                   </div>
 
-                  {/* Slide counter */}
                   <div className="absolute top-4 right-4 text-[10px] text-white/20 font-mono tabular-nums">
                     {String(i + 1).padStart(2, '0')} / {String(recommendations.length).padStart(2, '0')}
                   </div>
@@ -283,15 +255,12 @@ export function FeaturedCarousel({ recommendations }: Props) {
         </div>
       </div>
 
-      {/* Nav arrows */}
       <button
         onClick={scrollPrev}
         className={cn(
           'hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded',
-          'bg-black/40 border border-white/10',
-          'items-center justify-center text-white',
-          'opacity-0 group-hover:opacity-100 transition-all duration-200',
-          'hover:bg-black/60',
+          'bg-black/40 border border-white/10 items-center justify-center text-white',
+          'opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-black/60',
           !canScrollPrev && 'cursor-not-allowed opacity-20'
         )}
         aria-label="Previous"
@@ -303,10 +272,8 @@ export function FeaturedCarousel({ recommendations }: Props) {
         onClick={scrollNext}
         className={cn(
           'hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded',
-          'bg-black/40 border border-white/10',
-          'items-center justify-center text-white',
-          'opacity-0 group-hover:opacity-100 transition-all duration-200',
-          'hover:bg-black/60',
+          'bg-black/40 border border-white/10 items-center justify-center text-white',
+          'opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-black/60',
           !canScrollNext && 'cursor-not-allowed opacity-20'
         )}
         aria-label="Next"
@@ -314,7 +281,6 @@ export function FeaturedCarousel({ recommendations }: Props) {
         <ChevronRight size={16} />
       </button>
 
-      {/* Dot indicators */}
       <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
         {recommendations.map((_, index) => (
           <button
@@ -322,9 +288,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
             onClick={() => scrollTo(index)}
             className={cn(
               'rounded-full transition-all duration-300',
-              selectedIndex === index
-                ? 'w-5 h-1 bg-white'
-                : 'w-1 h-1 bg-white/25 hover:bg-white/40'
+              selectedIndex === index ? 'w-5 h-1 bg-white' : 'w-1 h-1 bg-white/25 hover:bg-white/40'
             )}
             aria-label={`Go to slide ${index + 1}`}
           />

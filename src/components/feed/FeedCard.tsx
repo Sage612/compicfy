@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { BookOpen, MessageSquare } from 'lucide-react'
@@ -8,10 +10,17 @@ import { cn } from '@/lib/utils'
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
-  manhwa:  'bg-teal-500/10 text-teal-500 border-teal-500/20',
+  manhwa:  'bg-teal-500/10   text-teal-500   border-teal-500/20',
   manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
   webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
   comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+}
+
+function proxyCover(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
 interface Props {
@@ -25,6 +34,7 @@ interface Props {
 export function FeedCard({ rec, isLoggedIn, reactionCount, userReacted, onReactionToggle }: Props) {
   const typeStyle = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
   const initials  = (rec.display_name || rec.username || '?').slice(0, 2).toUpperCase()
+  const coverSrc  = proxyCover(rec.cover_url)
 
   const recommenderIsPro = rec.role === 'admin' ||
     (rec.is_pro === true &&
@@ -66,9 +76,9 @@ export function FeedCard({ rec, isLoggedIn, reactionCount, userReacted, onReacti
       {/* Comic */}
       <Link href={`/comic/${rec.id}`} className="group flex gap-4 p-4">
         <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
-          {rec.cover_url ? (
+          {coverSrc ? (
             <img
-              src={rec.cover_url}
+              src={coverSrc}
               alt={rec.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />

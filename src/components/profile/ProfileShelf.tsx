@@ -24,13 +24,19 @@ const TYPE_SPINE: Record<string, string> = {
   other:   'bg-zinc-500',
 }
 
+function proxyCover(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 export function ProfileShelf({ recommendations, totalRecs, isPro, isGhost, isOwner, username, showGold }: Props) {
   if (isGhost || recommendations.length === 0) return null
 
   const limit      = isPro ? PRO_LIMIT : FREE_LIMIT
   const visible    = recommendations.slice(0, limit)
   const hasMore    = totalRecs > visible.length
-  // Upsell only makes sense when the viewer IS the owner and isn't Pro
   const showUpsell = isOwner && !isPro
 
   return (
@@ -64,20 +70,19 @@ export function ProfileShelf({ recommendations, totalRecs, isPro, isGhost, isOwn
       <div className={`grid gap-1.5 ${isPro ? 'grid-cols-6' : 'grid-cols-3'}`}>
         {visible.map((rec) => {
           const spineColor = TYPE_SPINE[rec.type] ?? TYPE_SPINE.other
+          const coverSrc   = proxyCover(rec.cover_url)
           return (
             <Link
               key={rec.id}
               href={`/comic/${rec.id}`}
               className="group relative aspect-[3/4] rounded-lg overflow-hidden bg-muted border border-border hover:border-primary/40 hover:shadow-md transition-all duration-200"
             >
-              {/* Spine accent */}
               <div className={`absolute left-0 top-0 bottom-0 w-1 ${spineColor} opacity-60 group-hover:opacity-100 transition-opacity z-10`} />
 
-              {rec.cover_url ? (
+              {coverSrc ? (
                 <img
-                  src={rec.cover_url}
+                  src={coverSrc}
                   alt={rec.title}
-                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   loading="lazy"
                 />
@@ -87,7 +92,6 @@ export function ProfileShelf({ recommendations, totalRecs, isPro, isGhost, isOwn
                 </div>
               )}
 
-              {/* Title on hover */}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent px-1.5 pb-1.5 pt-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                 <p className="text-white text-[9px] font-black line-clamp-2 leading-tight">
                   {rec.title}
@@ -97,7 +101,6 @@ export function ProfileShelf({ recommendations, totalRecs, isPro, isGhost, isOwn
           )
         })}
 
-        {/* Locked slot — only shown to the shelf owner */}
         {showUpsell && totalRecs > FREE_LIMIT && (
           <Link
             href="/pricing"
@@ -111,7 +114,6 @@ export function ProfileShelf({ recommendations, totalRecs, isPro, isGhost, isOwn
         )}
       </div>
 
-      {/* Pro upsell strip — only shown to the shelf owner */}
       {showUpsell && totalRecs > FREE_LIMIT && (
         <Link
           href="/pricing"

@@ -36,11 +36,22 @@ function isNewThisWeek(createdAt: string): boolean {
   return Date.now() - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
 }
 
+// ── Proxy helper — routes all cover images through our proxy ──────
+function proxyCover(url: string | null | undefined): string | null {
+  if (!url) return null
+  // Already a relative/local URL — no need to proxy
+  if (url.startsWith('/')) return url
+  // Already proxied
+  if (url.includes('/api/image-proxy')) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
-  const accent = TYPE_ACCENTS[rec.type] ?? TYPE_ACCENTS.other
-  const status = STATUS_META[rec.status] ?? { label: rec.status, color: 'text-muted-foreground' }
-  const score  = rec.score ?? (rec.upvotes - rec.downvotes)
-  const isNew  = isNewThisWeek(rec.created_at)
+  const accent    = TYPE_ACCENTS[rec.type] ?? TYPE_ACCENTS.other
+  const status    = STATUS_META[rec.status] ?? { label: rec.status, color: 'text-muted-foreground' }
+  const score     = rec.score ?? (rec.upvotes - rec.downvotes)
+  const isNew     = isNewThisWeek(rec.created_at)
+  const coverSrc  = proxyCover(rec.cover_url)
 
   // System-submitted flag — covers auto-submitter and any future system accounts
   const isSystemSubmitted = rec.is_ai_generated && rec.ai_model === 'auto-submitter'
@@ -65,12 +76,11 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
 
       {/* ── Cover ── */}
       <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-        {rec.cover_url ? (
+        {coverSrc ? (
           <img
-            src={rec.cover_url}
+            src={coverSrc}
             alt={`Cover art for ${rec.title}`}
             title={rec.title}
-            referrerPolicy="no-referrer"   // don't leak user browsing to third-party CDNs
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
             loading="lazy"
           />
@@ -107,8 +117,7 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
           ) : null}
         </div>
 
-        
-        {/* ── SYS badge — bottom-left, above title, doesn't clash with NEW/score ── */}
+        {/* ── SYS badge ── */}
         {isSystemSubmitted && (
           <div className="absolute bottom-7 left-3.5 z-10">
             <span
@@ -129,7 +138,7 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
         </div>
       </div>
 
-      {/* ── Meta strip — below cover ── */}
+      {/* ── Meta strip ── */}
       <div className="px-3 pt-2 pb-2.5 space-y-1.5 pl-4">
 
         {/* Status + genre row */}
@@ -160,7 +169,7 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
           </span>
         </div>
 
-        {/* Cover credit — always shown when cover exists */}
+        {/* Cover credit */}
         {rec.cover_url && (
           <p className="text-[8px] text-muted-foreground/40 truncate">
             © {rec.author ?? 'respective rights holder'}
