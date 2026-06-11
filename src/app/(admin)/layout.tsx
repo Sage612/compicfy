@@ -37,7 +37,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex flex-1 pt-14">
+      <div className="flex flex-1 pt-[104px] lg:pt-14">
         <AdminSidebar role={role} proDashHref={proDashHref} />
         <main className="flex-1 min-w-0 overflow-auto pb-24 md:pb-0">
           {children}

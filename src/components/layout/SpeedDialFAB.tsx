@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
-  Plus, X, Layers, BookMarked, Shield, Crown, Loader2,
+  Plus, X, Layers, BookMarked, Shield, Crown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -29,10 +29,9 @@ export function SpeedDialFAB({
   userCollectionCount,
   myListsHref,
 }: Props) {
-  const pathname    = usePathname()
-  const router      = useRouter()
-  const [open, setOpen]       = useState(false)
-  const [creating, setCreating] = useState<'list' | 'collection' | null>(null)
+  const pathname = usePathname()
+  const router   = useRouter()
+  const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   // Hide on admin/dashboard pages
@@ -57,20 +56,19 @@ export function SpeedDialFAB({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
 
-  const handleNewList = async () => {
+  const handleNewList = () => {
     if (listAtLimit) {
-      toast.error(`Free users can create up to ${FREE_LIST_LIMIT} lists upgrade to Pro`)
+      toast.error(`Free users can create up to ${FREE_LIST_LIMIT} lists — upgrade to Pro`)
       setOpen(false)
       return
     }
-    // Navigate to lists page where the create form lives
     setOpen(false)
     router.push('/lists?create=1')
   }
 
-  const handleNewCollection = async () => {
+  const handleNewCollection = () => {
     if (collectionAtLimit) {
-      toast.error(`Free users can create up to ${FREE_COLLECTION_LIMIT} collections upgrade to Pro`)
+      toast.error(`Free users can create up to ${FREE_COLLECTION_LIMIT} collections — upgrade to Pro`)
       setOpen(false)
       return
     }
@@ -80,96 +78,105 @@ export function SpeedDialFAB({
 
   const actions = [
     ...(isAdmin ? [{
-      label:   'Admin Dashboard',
-      icon:    Shield,
-      href:    '/admin',
-      color:   'bg-rose-500 text-white shadow-rose-500/30',
-      isLink:  true,
+      label:  'Admin Dashboard',
+      icon:   Shield,
+      color:  'bg-rose-500 text-white',
+      isLink: true,
+      href:   '/admin',
     }] : []),
     {
-      label:   listAtLimit ? 'Upgrade for Lists' : 'New Reading List',
-      icon:    listAtLimit ? Crown : BookMarked,
-      onClick: handleNewList,
-      color:   listAtLimit
-        ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-amber-500/30'
-        : 'bg-card text-foreground border border-border shadow-black/10',
+      label:  listAtLimit ? 'Upgrade for Lists' : 'New Reading List',
+      icon:   listAtLimit ? Crown : BookMarked,
+      color:  listAtLimit
+        ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
+        : 'bg-card text-foreground border border-border',
       isLink: false,
+      onClick: handleNewList,
     },
     {
-      label:   collectionAtLimit ? 'Upgrade for Collections' : 'New Collection',
-      icon:    collectionAtLimit ? Crown : Layers,
-      onClick: handleNewCollection,
-      color:   collectionAtLimit
-        ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-amber-500/30'
-        : 'bg-card text-foreground border border-border shadow-black/10',
+      label:  collectionAtLimit ? 'Upgrade for Collections' : 'New Collection',
+      icon:   collectionAtLimit ? Crown : Layers,
+      color:  collectionAtLimit
+        ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
+        : 'bg-card text-foreground border border-border',
       isLink: false,
+      onClick: handleNewCollection,
     },
   ]
 
   return (
-    // lg:hidden — on desktop the admin button and inline create buttons handle this
-    <div ref={ref} className="lg:hidden fixed bottom-20 right-4 z-50 flex flex-col items-end gap-3">
+    <>
+      {/* ── Backdrop — only when open, closes on tap ── */}
+      {open && (
+        <div
+          className="lg:hidden fixed inset-0 z-40"
+          onClick={() => setOpen(false)}
+        />
+      )}
 
-      {/* ── Action buttons — fan upward when open ── */}
-      <div className={cn(
-        'flex flex-col items-end gap-2.5 transition-all duration-200',
-        open ? 'opacity-100 translate-y-0 pointer-events-auto' : 'opacity-0 translate-y-4 pointer-events-none'
-      )}>
-        {actions.map((action, i) => {
-          const Icon = action.icon
-          const inner = (
-            <>
-              {/* Label chip */}
-              <span className="bg-background/90 backdrop-blur-sm border border-border text-foreground text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm whitespace-nowrap">
-                {action.label}
-              </span>
-              {/* Icon button */}
-              <div className={cn(
-                'w-12 h-12 rounded-full flex items-center justify-center shadow-lg shrink-0',
-                action.color
-              )}>
-                <Icon size={18} />
-              </div>
-            </>
-          )
-
-          return action.isLink ? (
-            <Link
-              key={i}
-              href={(action as any).href}
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-3"
-            >
-              {inner}
-            </Link>
-          ) : (
-            <button
-              key={i}
-              onClick={action.onClick}
-              className="flex items-center gap-3"
-            >
-              {inner}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* ── Main FAB ── */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        className={cn(
-          'w-14 h-14 rounded-full shadow-2xl flex items-center justify-center',
-          'transition-all duration-200 active:scale-95',
-          open
-            ? 'bg-foreground text-background rotate-45'
-            : isAdmin
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90'
-        )}
-        aria-label={open ? 'Close menu' : 'Create new'}
+      {/* ── FAB container — w-fit so it never blocks taps when closed ── */}
+      <div
+        ref={ref}
+        className="lg:hidden fixed bottom-28 right-4 z-50 flex flex-col items-end gap-3 w-fit"
       >
-        {open ? <X size={22} /> : <Plus size={24} />}
-      </button>
-    </div>
+        {/* ── Action buttons — only rendered when open so they have zero hit area when closed ── */}
+        {open && (
+          <div className="flex flex-col items-end gap-2.5 w-fit">
+            {actions.map((action, i) => {
+              const Icon = action.icon
+              const inner = (
+                <>
+                  <span className="bg-background/95 backdrop-blur-sm border border-border text-foreground text-xs font-semibold px-3 py-1.5 rounded-full shadow-md whitespace-nowrap">
+                    {action.label}
+                  </span>
+                  <div className={cn(
+                    'w-12 h-12 rounded-full flex items-center justify-center shadow-lg shrink-0',
+                    action.color
+                  )}>
+                    <Icon size={18} />
+                  </div>
+                </>
+              )
+
+              return action.isLink ? (
+                <Link
+                  key={i}
+                  href={(action as any).href}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 w-fit"
+                >
+                  {inner}
+                </Link>
+              ) : (
+                <button
+                  key={i}
+                  onClick={(action as any).onClick}
+                  className="flex items-center gap-3 w-fit"
+                >
+                  {inner}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* ── Main FAB ── */}
+        <button
+          onClick={() => setOpen(o => !o)}
+          className={cn(
+            'w-14 h-14 rounded-full shadow-2xl flex items-center justify-center',
+            'transition-all duration-200 active:scale-95',
+            open
+              ? 'bg-foreground text-background'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+          )}
+          aria-label={open ? 'Close menu' : 'Create new'}
+        >
+          <div className={cn('transition-transform duration-200', open && 'rotate-45')}>
+            <Plus size={24} />
+          </div>
+        </button>
+      </div>
+    </>
   )
 }

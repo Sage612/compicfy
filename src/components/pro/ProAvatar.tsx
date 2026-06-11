@@ -27,7 +27,7 @@ export function ProAvatar({ src, fallback, size = 'md', isPro, isAdmin, classNam
     return (
       <Avatar className={cn(s.avatar, className)}>
         <AvatarImage src={src ?? undefined} />
-        <AvatarFallback className={cn('font-black bg-gradient-to-br from-primary to-violet-500 text-white', s.text)}>
+        <AvatarFallback className={cn('font-black bg-primary text-white', s.text)}>
           {fallback}
         </AvatarFallback>
       </Avatar>

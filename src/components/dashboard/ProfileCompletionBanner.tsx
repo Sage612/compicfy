@@ -71,7 +71,7 @@ export function ProfileCompletionBanner({ hasAvatar, hasBio, hasWebsite }: Props
         {/* Progress bar */}
         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-primary to-violet-500 rounded-full transition-all duration-500"
+            className="h-full bg-primary rounded-full transition-all duration-500"
             style={{ width: `${percentage}%` }}
           />
         </div>
