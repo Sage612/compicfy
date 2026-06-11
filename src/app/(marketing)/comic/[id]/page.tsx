@@ -384,11 +384,11 @@ export default async function ComicDetailPage({ params }: Props) {
         <div className="relative h-56 md:h-72 overflow-hidden">
           {rec.cover_url && (
             <img
-              src={rec.cover_url}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-25 dark:opacity-20"
-              aria-hidden
-            />
+                src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-25 dark:opacity-20"
+                aria-hidden
+              />
           )}
           <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-15 dark:opacity-25`} />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
@@ -414,7 +414,7 @@ export default async function ComicDetailPage({ params }: Props) {
                 <div className={`absolute -inset-3 rounded-lg ${typeStyle.glow} blur-2xl opacity-40`} />
                 <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-muted border border-border shadow-xl">
                   {rec.cover_url ? (
-                    <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                    <img src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`} alt={rec.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <BookOpen size={40} className="text-muted-foreground opacity-40" />

@@ -20,11 +20,18 @@ import { createClient } from '@/lib/supabase/client'
 type FilterKey = 'all' | 'approved' | 'pending' | 'rejected'
 
 const TYPE_COLORS: Record<string, string> = {
-  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
-  manhwa:  'bg-blue-500/10 text-blue-500 border-blue-500/20',
-  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
-  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
-  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+  manga:   'bg-rose-500/10  text-rose-500  border-rose-500/20',
+  manhwa:  'bg-teal-500/10  text-teal-500  border-teal-500/20',
+  manhua:  'bg-amber-500/10 text-amber-500 border-amber-500/20',
+  webtoon: 'bg-teal-500/10  text-teal-500  border-teal-500/20',
+  comic:   'bg-blue-500/10  text-blue-500  border-blue-500/20',
+}
+
+function proxyCover(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
 interface Rec {
@@ -70,7 +77,6 @@ export function RecsClient({
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [pinnedId,   setPinnedId]   = useState<string | null>(null)
 
-  // Fetch pinned rec on mount
   useEffect(() => {
     const fetchPinned = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -120,7 +126,6 @@ export function RecsClient({
     }
   }, [pinnedId])
 
-  // Accent classes
   const accent = {
     amber: {
       header:  'bg-amber-500/10 text-amber-500',
@@ -164,17 +169,17 @@ export function RecsClient({
   return (
     <div className="space-y-5">
 
-      {/* Header — single line */}
+      {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Icon only for Pro */}
+        <div className="flex items-center gap-2.5 min-w-0">
           {isPro && (
             <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', accent.header)}>
               <BookOpen size={17} />
             </div>
           )}
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+            {/* Title + PRO badge on one line, never wraps */}
+            <div className="flex items-center gap-2">
               <h1 className="text-xl font-black tracking-tight truncate">My Recommendations</h1>
               {isPro && (
                 <span className={cn('text-[10px] font-black px-1.5 py-0.5 rounded-full border shrink-0', accent.tab)}>
@@ -182,18 +187,25 @@ export function RecsClient({
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+            {/* Stats row — compact, wraps gracefully on small screens */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap mt-0.5">
               <span>{counts.all} total</span>
               {counts.approved > 0 && (
                 <>
-                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
                   <span className="text-emerald-500 font-semibold">{counts.approved} live</span>
                 </>
               )}
               {counts.pending > 0 && (
                 <>
-                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
                   <span className="text-amber-500 font-semibold">{counts.pending} pending</span>
+                </>
+              )}
+              {counts.rejected > 0 && (
+                <>
+                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
+                  <span className="text-red-500 font-semibold">{counts.rejected} rejected</span>
                 </>
               )}
             </div>
@@ -206,7 +218,7 @@ export function RecsClient({
         </Link>
       </div>
 
-      {/* Empty state */}
+      {/* ── Empty state ── */}
       {!recs.length ? (
         <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border space-y-4 text-center">
           <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center', accent.header)}>
@@ -287,6 +299,7 @@ export function RecsClient({
                 const isDeleting = deletingId === rec.id
                 const isPinned   = pinnedId === rec.id
                 const isEdited   = rec.updated_at !== rec.created_at
+                const coverSrc   = proxyCover(rec.cover_url)
 
                 return (
                   <div
@@ -299,15 +312,20 @@ export function RecsClient({
                     {/* Top row */}
                     <div className="flex gap-3 p-3">
 
-                      {/* Cover with status badge overlay */}
+                      {/* Cover */}
                       <div className="relative w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0">
-                        {rec.cover_url
-                          ? <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center">
-                              <BookOpen size={16} className="text-muted-foreground opacity-40" />
-                            </div>
-                        }
-                        {/* Status dot on cover */}
+                        {coverSrc ? (
+                          <img
+                            src={coverSrc}
+                            alt={rec.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <BookOpen size={16} className="text-muted-foreground opacity-40" />
+                          </div>
+                        )}
+                        {/* Status dot */}
                         <div className={cn(
                           'absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center',
                           status === 'approved' ? 'bg-emerald-500' :
@@ -333,7 +351,6 @@ export function RecsClient({
                           )}
                         </div>
 
-                        {/* Badges */}
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className={cn('inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-bold border capitalize', typeStyle)}>
                             {rec.type}
@@ -344,7 +361,6 @@ export function RecsClient({
                           </span>
                         </div>
 
-                        {/* Stats */}
                         <div className="flex items-center gap-2.5 text-[10px] text-muted-foreground flex-wrap">
                           <span className="flex items-center gap-0.5">
                             <ThumbsUp size={9} className="text-emerald-500" />{rec.upvotes}
@@ -410,7 +426,6 @@ export function RecsClient({
                         </Link>
                       )}
 
-                      {/* Pin — approved only */}
                       {status === 'approved' && (
                         <PinButton
                           key={`pin-${rec.id}-${pinnedId ?? 'none'}`}
@@ -421,7 +436,6 @@ export function RecsClient({
                         />
                       )}
 
-                      {/* Delete */}
                       <Button
                         variant="outline"
                         size="sm"
