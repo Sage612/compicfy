@@ -223,7 +223,7 @@ export function ListsClient({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-            <Layers size={16} className="text-primary" />
+            <Globe size={16} className="text-primary" />
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
