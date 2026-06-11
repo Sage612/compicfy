@@ -21,14 +21,13 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const page   = parseInt(searchParams.get('page')  ?? '1')
-    const limit  = parseInt(searchParams.get('limit') ?? '24')
+    const offset = parseInt(searchParams.get('offset') ?? '0')
+    const limit  = parseInt(searchParams.get('limit')  ?? '24')
     const type   = searchParams.get('type')   ?? ''
     const genre  = searchParams.get('genre')  ?? ''
     const status = searchParams.get('status') ?? ''
     const sort   = searchParams.get('sort')   ?? 'recent'
     const q      = searchParams.get('q')      ?? ''
-    const offset = (page - 1) * limit
 
     // Build query — always exclude adult/mature on public profile page
     let query = (supabase as any)
@@ -43,10 +42,10 @@ export async function GET(
     if (genre)  query = query.contains('genres', [genre])
     if (status) query = query.eq('status', status)
 
-    if      (sort === 'top')    query = query.order('score',      { ascending: false })
-    else if (sort === 'votes')  query = query.order('upvotes',    { ascending: false })
+    if      (sort === 'top')      query = query.order('score',       { ascending: false })
+    else if (sort === 'votes')    query = query.order('upvotes',     { ascending: false })
     else if (sort === 'trending') query = query.order('daily_votes', { ascending: false })
-    else                        query = query.order('created_at', { ascending: false })
+    else                          query = query.order('created_at',  { ascending: false })
 
     query = query.range(offset, offset + limit - 1)
 
@@ -59,8 +58,8 @@ export async function GET(
 
     return NextResponse.json({
       recommendations: data ?? [],
-      total:   count  ?? 0,
-      page,
+      total:   count ?? 0,
+      offset,
       limit,
       hasMore: (count ?? 0) > offset + limit,
     })
