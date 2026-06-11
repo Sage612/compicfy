@@ -9,8 +9,10 @@ import { toast } from 'sonner'
 import {
   BookOpen, Globe, Lock, BookMarked, ThumbsUp,
   Star, Share2, Pencil, Check, X, Loader2, Settings,
+  Radar,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
+import { AddToTrackerSearch } from '@/components/recommendations/AddToTrackerSearch'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -94,6 +96,11 @@ export function PublicListDetailClient({
     setEditDesc(list.description ?? '')
     setEditPublic(list.is_public)
     setEditMode(false)
+  }
+
+  const handleAdded = (_comicId: string, _title: string, _listId: string, _status: string) => {
+    // Reload to get full rec data for the new item
+    window.location.reload()
   }
 
   const starLabel = starred
@@ -247,6 +254,14 @@ export function PublicListDetailClient({
         </div>
       </div>
 
+      {/* ── Add comic — owner only ── */}
+      {isOwner && (
+        <AddToTrackerSearch
+          lists={[{ id: list.id, name: list.name }]}
+          onAdded={handleAdded}
+        />
+      )}
+
       {/* ── Items ── */}
       {items.length === 0 ? (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-3">
@@ -254,11 +269,11 @@ export function PublicListDetailClient({
             <BookOpen size={22} className="text-muted-foreground opacity-40" />
           </div>
           <p className="text-sm text-muted-foreground">
-            {isOwner ? 'Add comics from any comic detail page.' : 'This list has no comics yet.'}
+            {isOwner ? 'Use the search above to add comics to this list.' : 'This list has no comics yet.'}
           </p>
           {isOwner && (
             <Link href="/browse">
-              <Button size="sm" className="gap-1.5"><BookOpen size={13} /> Browse Comics</Button>
+              <Button size="sm" className="gap-1.5"><Radar size={13} /> Browse Comics</Button>
             </Link>
           )}
         </div>

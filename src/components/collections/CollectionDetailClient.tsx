@@ -12,6 +12,7 @@ import {
   Pencil, X, Check, Sparkles,
 } from 'lucide-react'
 import { ComicCard } from '@/components/recommendations/ComicCard'
+import { AddToCollectionSearch } from '@/components/collections/AddToCollectionSearch'
 import { cn } from '@/lib/utils'
 import type { Recommendation } from '@/types/database.types'
 
@@ -142,6 +143,11 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
       toast.success('Collection updated!')
     } catch { toast.error('Failed to update collection') }
     finally { setSaving(false) }
+  }
+
+  const handleAdded = (comicId: string, title: string) => {
+    // Reload the page to get full recommendation data for the new item
+    window.location.reload()
   }
 
   const handleRemoveItem = async (itemId: string, recId: string) => {
@@ -385,6 +391,14 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             </div>
           </div>
 
+          {/* Add comic search — owner only */}
+          {isOwner && (
+            <AddToCollectionSearch
+              collectionId={collection.id}
+              onAdded={handleAdded}
+            />
+          )}
+
           {/* Comics grid */}
           {items.length === 0 ? (
             <div className="text-center py-12 rounded-2xl border border-dashed border-border space-y-3">
@@ -508,13 +522,21 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
           </div>
         </div>
 
+        {/* Add comic search — owner only */}
+        {isOwner && (
+          <AddToCollectionSearch
+            collectionId={collection.id}
+            onAdded={handleAdded}
+          />
+        )}
+
         {items.length === 0 ? (
           <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-3">
             <div className="w-12 h-12 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto">
               <BookOpen size={20} className="text-muted-foreground opacity-40" />
             </div>
             <p className="font-black text-sm">No comics in this collection yet</p>
-            {isOwner && <p className="text-xs text-muted-foreground">Add comics from any comic detail page using the "Add to Collection" button.</p>}
+            {isOwner && <p className="text-xs text-muted-foreground">Use the search above to add comics to this collection.</p>}
           </div>
         ) : (
           <div className="space-y-4">
