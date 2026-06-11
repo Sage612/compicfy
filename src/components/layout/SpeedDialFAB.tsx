@@ -59,7 +59,7 @@ export function SpeedDialFAB({
 
   const handleNewList = async () => {
     if (listAtLimit) {
-      toast.error(`Free users can create up to ${FREE_LIST_LIMIT} lists — upgrade to Pro`)
+      toast.error(`Free users can create up to ${FREE_LIST_LIMIT} lists upgrade to Pro`)
       setOpen(false)
       return
     }
@@ -70,7 +70,7 @@ export function SpeedDialFAB({
 
   const handleNewCollection = async () => {
     if (collectionAtLimit) {
-      toast.error(`Free users can create up to ${FREE_COLLECTION_LIMIT} collections — upgrade to Pro`)
+      toast.error(`Free users can create up to ${FREE_COLLECTION_LIMIT} collections upgrade to Pro`)
       setOpen(false)
       return
     }
@@ -108,7 +108,7 @@ export function SpeedDialFAB({
 
   return (
     // lg:hidden — on desktop the admin button and inline create buttons handle this
-    <div ref={ref} className="lg:hidden fixed bottom-28 right-4 z-50 flex flex-col items-end gap-3">
+    <div ref={ref} className="lg:hidden fixed bottom-20 right-4 z-50 flex flex-col items-end gap-3">
 
       {/* ── Action buttons — fan upward when open ── */}
       <div className={cn(

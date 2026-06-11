@@ -27,7 +27,7 @@ interface Props {
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10   text-rose-500',
-  manhwa:  'bg-blue-500/10 text-blue-500',
+  manhwa:  'bg-teal-500/10 text-teal-500',
   manhua:  'bg-amber-500/10  text-amber-500',
   webtoon: 'bg-teal-500/10   text-teal-500',
   comic:   'bg-blue-500/10   text-blue-500',
