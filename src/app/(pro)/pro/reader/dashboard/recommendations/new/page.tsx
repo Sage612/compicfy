@@ -15,15 +15,17 @@ export default async function ProReaderNewRecPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 
-      {/* Header with icon */}
+      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
           <BookOpen size={20} className="text-white" />
         </div>
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">Submit a Recommendation</h1>
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
-            <Sparkles size={12} className="text-amber-500" />
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-tight">
+            Submit a Recommendation
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+            <Sparkles size={11} className="text-amber-500 shrink-0" />
             Unlimited submissions on Pro
           </p>
         </div>
