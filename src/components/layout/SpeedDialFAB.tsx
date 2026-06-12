@@ -117,7 +117,7 @@ export function SpeedDialFAB({
       {/* ── FAB container — w-fit so it never blocks taps when closed ── */}
       <div
         ref={ref}
-        className="lg:hidden fixed bottom-18 right-4 z-50 flex flex-col items-end gap-3 w-fit"
+        className="lg:hidden fixed bottom-20 right-4 z-50 flex flex-col items-end gap-3 w-fit"
       >
         {/* ── Action buttons — only rendered when open so they have zero hit area when closed ── */}
         {open && (

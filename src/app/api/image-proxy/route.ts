@@ -22,7 +22,6 @@ const ALLOWED_HOSTS = [
   'static.mantacdn.net',
   'imgg.mangaina.com',
   'tapas.io',
-  'image-repository-cdn.tappytoon.com',
   'comick.dev',
   'meo.comick.pictures',
   'i.imgur.com',
@@ -49,7 +48,6 @@ const REFERER_MAP: Record<string, string> = {
   'comick.app':   'https://comick.app',
 }
 
-// Placeholder SVG returned when image fails
 const PLACEHOLDER = `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="400" viewBox="0 0 300 400">
   <rect width="300" height="400" fill="#1a1b1e"/>
   <text x="150" y="185" text-anchor="middle" fill="#444" font-size="48">📖</text>
@@ -61,6 +59,14 @@ export async function GET(request: NextRequest) {
   const url = searchParams.get('url')
 
   if (!url) {
+    return new NextResponse(PLACEHOLDER, {
+      headers: { 'Content-Type': 'image/svg+xml' },
+    })
+  }
+
+  // data: URIs cannot be proxied server-side — should never reach here
+  // but guard anyway
+  if (url.startsWith('data:')) {
     return new NextResponse(PLACEHOLDER, {
       headers: { 'Content-Type': 'image/svg+xml' },
     })
@@ -100,7 +106,6 @@ export async function GET(request: NextRequest) {
         'Accept-Language': 'en-US,en;q=0.9',
         'Referer':         referer,
       },
-      // 8 second timeout — stay under Vercel's 10s limit
       signal: AbortSignal.timeout(8000),
     })
 

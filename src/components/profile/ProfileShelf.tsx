@@ -26,7 +26,11 @@ const TYPE_SPINE: Record<string, string> = {
 
 function proxyCover(url: string | null | undefined): string | null {
   if (!url) return null
+  // data: URIs are self-contained — pass through untouched
+  if (url.startsWith('data:')) return url
+  // Already a relative/local URL
   if (url.startsWith('/')) return url
+  // Already proxied
   if (url.includes('/api/image-proxy')) return url
   return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }

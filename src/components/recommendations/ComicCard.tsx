@@ -39,6 +39,8 @@ function isNewThisWeek(createdAt: string): boolean {
 // ── Proxy helper — routes all cover images through our proxy ──────
 function proxyCover(url: string | null | undefined): string | null {
   if (!url) return null
+  // data: URIs are self-contained — pass through untouched
+  if (url.startsWith('data:')) return url
   // Already a relative/local URL — no need to proxy
   if (url.startsWith('/')) return url
   // Already proxied
