@@ -37,6 +37,17 @@ const TYPES    = ['manga', 'manhwa', 'manhua', 'webtoon', 'comic', 'other']
 const STATUSES = ['ongoing', 'completed', 'hiatus', 'cancelled']
 const RATINGS  = ['all_ages', 'teen', 'mature', 'adult']
 
+function proxyCover(url: string | null | undefined): string | null {
+  if (!url) return null
+  // data: URIs are self-contained — pass through untouched
+  if (url.startsWith('data:')) return url
+  // Already a relative/local URL
+  if (url.startsWith('/')) return url
+  // Already proxied
+  if (url.includes('/api/image-proxy')) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 function sanitisePayload(data: Record<string, any>): Record<string, any> {
   const numericFields = ['chapter_count', 'year_released']
   const result: Record<string, any> = {}
@@ -499,7 +510,9 @@ export function AdminRecommendations() {
             const typeStyle   = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
             const isPending   = !rec.is_approved && !rec.rejection_reason
             const isSelected  = selected.has(rec.id)
-            const isProSub    = !!rec.is_pro_submission
+            const isProSub = !!rec.is_pro_submission
+            const coverSrc   = proxyCover(rec.cover_url)
+
 
             return (
               <div
@@ -534,10 +547,17 @@ export function AdminRecommendations() {
 
                   {/* Cover */}
                   <div className="w-12 h-16 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
-                    {rec.cover_url
-                      ? <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-muted-foreground opacity-40" /></div>
-                    }
+                    {coverSrc ? (
+                          <img
+                            src={coverSrc}
+                            alt={rec.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <BookOpen size={16} className="text-muted-foreground opacity-40" />
+                          </div>
+                        )}
                   </div>
 
                   {/* Content */}
