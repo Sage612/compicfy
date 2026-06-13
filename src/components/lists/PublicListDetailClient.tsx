@@ -52,6 +52,17 @@ export function PublicListDetailClient({
   const [editDesc,   setEditDesc]   = useState(initialList.description ?? '')
   const [editPublic, setEditPublic] = useState(initialList.is_public)
 
+function proxyCover(url: string | null | undefined): string | null {
+  if (!url) return null
+  // data: URIs are self-contained — pass through untouched
+  if (url.startsWith('data:')) return url
+  // Already a relative/local URL
+  if (url.startsWith('/')) return url
+  // Already proxied
+  if (url.includes('/api/image-proxy')) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
   const handleStar = async () => {
     if (!isLoggedIn) { toast.error('Log in to star lists'); return }
     setStarring(true)
@@ -283,16 +294,25 @@ export function PublicListDetailClient({
             const rec        = item.recommendations
             if (!rec) return null
             const typeStyle  = typeColors[rec.type] ?? 'bg-muted text-muted-foreground border-border'
-            const smeta      = statusMeta[item.status]
+            const smeta = statusMeta[item.status]
+            const coverSrc   = proxyCover(rec.cover_url)
+
 
             return (
               <Link key={item.id} href={`/comic/${rec.id}`}
                 className="group flex gap-4 p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200">
                 <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
-                  {rec.cover_url
-                    ? <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    : <div className="w-full h-full flex items-center justify-center"><BookOpen size={16} className="text-muted-foreground opacity-40" /></div>
-                  }
+                 {coverSrc ? (
+                          <img
+                            src={coverSrc}
+                            alt={rec.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <BookOpen size={16} className="text-muted-foreground opacity-40" />
+                          </div>
+                        )}
                 </div>
                 <div className="flex-1 min-w-0 space-y-2 py-0.5">
                   <div className="flex items-start justify-between gap-2">
