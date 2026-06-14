@@ -1,280 +1,433 @@
 import { SITE_NAME, SITE_URL } from './mailer'
 
-const BRAND      = '#1dc9a0'
-const BRAND_DARK = '#0ea5b0'
-const BRAND_DIM  = '#1dc9a015'
-const BRAND_BRD  = '#1dc9a030'
+// ── Brand tokens ─────────────────────────────────────────────────────────────
+const C = {
+  bg:       '#080808',
+  card:     '#0f0f0f',
+  border:   '#1a1a1a',
+  border2:  '#222222',
+  text:     '#f0f0f0',
+  muted:    '#888888',
+  muted2:   '#555555',
+  teal:     '#0ea5b0',
+  tealDim:  '#0ea5b015',
+  tealBrd:  '#0ea5b030',
+  amber:    '#f59e0b',
+  emerald:  '#10b981',
+  red:      '#ef4444',
+}
 
-// ── SVG Logo inline ───────────────────────────────────────────────────────────
-// Email-safe layout: <table> instead of flexbox/inline-flex (not supported in
-// most email clients). The SVG icon sits in a teal rounded square, brand name
-// beside it with "Pic" in teal and "Com"/"fy" in white.
+// ── Email-safe logo ───────────────────────────────────────────────────────────
+// Uses table layout for max email client compatibility
 const LOGO = `
-  <table cellpadding="0" cellspacing="0" border="0" style="display:inline-table;border-collapse:collapse;">
-    <tr>
-      <td style="vertical-align:middle;padding-right:10px;">
-        <table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
-          <tr>
-            <td width="36" height="36" style="width:36px;height:36px;background:#1dc9a0;border-radius:10px;text-align:center;vertical-align:middle;">
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;margin:0 auto;">
-                <path d="M17 5.5C15.2 4.1 12.9 3.5 10.5 4C7.2 4.8 5 7.7 5 11C5 14.3 7.2 17.2 10.5 18C12.9 18.5 15.2 17.9 17 16.5" stroke="white" stroke-width="2.2" stroke-linecap="round" fill="none"/>
-                <circle cx="18.5" cy="16.5" r="2" fill="white"/>
-              </svg>
-            </td>
-          </tr>
-        </table>
-      </td>
-      <td style="vertical-align:middle;">
-        <span style="color:#f9fafb;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">Com</span><span style="color:#1dc9a0;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">Pic</span><span style="color:#f9fafb;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">fy</span>
-      </td>
-    </tr>
-  </table>
-`
+<table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+  <tr>
+    <td style="vertical-align:middle;padding-right:10px;">
+      <!-- Speech bubble icon -->
+      <table cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td width="40" height="40"
+            style="width:40px;height:40px;background:${C.teal};border-radius:10px;
+                   text-align:center;vertical-align:middle;">
+            <svg width="26" height="26" viewBox="0 0 44 44" fill="none"
+                 xmlns="http://www.w3.org/2000/svg"
+                 style="display:block;margin:7px auto;">
+              <rect x="2" y="2" width="36" height="30" rx="8" fill="${C.teal}"/>
+              <path d="M9 32 L5 43 L20 33.5" fill="${C.teal}"/>
+              <path d="M28 11.5 C25 9 19.5 9 16.5 12 C13.5 15 13.5 20.5 16.5 23.5 C19.5 26.5 25 26.5 28 24"
+                    stroke="#080808" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+              <circle cx="30" cy="24.5" r="2.2" fill="#080808"/>
+            </svg>
+          </td>
+        </tr>
+      </table>
+    </td>
+    <td style="vertical-align:middle;">
+      <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
+                   font-size:22px;font-weight:900;letter-spacing:-0.8px;color:${C.text};">
+        Compic</span><span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
+                   font-size:22px;font-weight:900;letter-spacing:-0.8px;color:${C.teal};">fy</span>
+    </td>
+  </tr>
+</table>`
 
 // ── Base shell ────────────────────────────────────────────────────────────────
-const base = (content: string, badgeHtml = '') => `
+const shell = (content: string) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
   <title>${SITE_NAME}</title>
 </head>
-<body style="margin:0;padding:0;background:#09090b;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<body style="margin:0;padding:0;background:${C.bg};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:${C.bg};min-height:100vh;">
+  <tr><td align="center" style="padding:40px 16px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0"
+           style="max-width:560px;">
 
-  <!-- Outer wrapper -->
-  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#09090b;padding:40px 16px;">
-    <tr><td align="center">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:580px;">
+      <!-- ── Logo header ── -->
+      <tr>
+        <td style="padding:0 0 32px;text-align:center;">
+          <a href="${SITE_URL}" style="text-decoration:none;display:inline-block;">
+            ${LOGO}
+          </a>
+        </td>
+      </tr>
 
-        <!-- ── Header: Logo ── -->
-        <tr>
-          <td style="padding:0 0 28px;text-align:center;">
-            <a href="${SITE_URL}" style="text-decoration:none;display:inline-block;">
-              ${LOGO}
+      <!-- ── Card ── -->
+      <tr>
+        <td style="background:${C.card};border:1px solid ${C.border};
+                   border-radius:20px;padding:40px 36px;">
+          ${content}
+        </td>
+      </tr>
+
+      <!-- ── Footer ── -->
+      <tr>
+        <td style="padding:28px 0 0;text-align:center;">
+          <p style="color:${C.muted2};font-size:12px;margin:0 0 8px;
+                    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+            © ${new Date().getFullYear()} ${SITE_NAME} · Comic discovery for real readers
+          </p>
+          <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+            <a href="${SITE_URL}/reader/dashboard/settings"
+               style="color:${C.muted};font-size:12px;text-decoration:none;">
+              Notification settings
             </a>
-          </td>
-        </tr>
+            <span style="color:${C.border2};margin:0 8px;">·</span>
+            <a href="${SITE_URL}"
+               style="color:${C.muted};font-size:12px;text-decoration:none;">
+              ${SITE_URL.replace('https://', '')}
+            </a>
+          </p>
+        </td>
+      </tr>
 
-        <!-- ── Badge (optional) ── -->
-        ${badgeHtml ? `<tr><td style="padding:0 0 20px;text-align:center;">${badgeHtml}</td></tr>` : ''}
-
-        <!-- ── Card ── -->
-        <tr>
-          <td style="background:#111113;border:1px solid #27272a;border-radius:20px;padding:36px 32px;">
-            ${content}
-          </td>
-        </tr>
-
-        <!-- ── Footer ── -->
-        <tr>
-          <td style="padding:24px 0 0;text-align:center;">
-            <p style="color:#52525b;font-size:12px;margin:0 0 6px;">
-              © ${new Date().getFullYear()} ${SITE_NAME} · Comic discovery for real readers
-            </p>
-            <p style="margin:0;">
-              <a href="${SITE_URL}/reader/dashboard/notifications" style="color:#71717a;font-size:12px;text-decoration:none;border-bottom:1px solid #3f3f46;">
-                Manage notifications
-              </a>
-              <span style="color:#3f3f46;margin:0 8px;">·</span>
-              <a href="${SITE_URL}" style="color:#71717a;font-size:12px;text-decoration:none;border-bottom:1px solid #3f3f46;">
-                Visit ${SITE_NAME}
-              </a>
-            </p>
-          </td>
-        </tr>
-
-      </table>
-    </td></tr>
-  </table>
-
+    </table>
+  </td></tr>
+</table>
 </body>
-</html>
-`
+</html>`
 
-// ── Reusable blocks ───────────────────────────────────────────────────────────
-const h1 = (text: string) =>
-  `<h1 style="color:#fafafa;font-size:24px;font-weight:800;margin:0 0 14px;letter-spacing:-0.3px;line-height:1.3;">${text}</h1>`
+// ── Component primitives ──────────────────────────────────────────────────────
 
-const p = (text: string, muted = false) =>
-  `<p style="color:${muted ? '#71717a' : '#a1a1aa'};font-size:15px;line-height:1.7;margin:0 0 20px;">${text}</p>`
+const badge = (text: string, color: string) => `
+<div style="display:inline-block;background:${color}18;border:1px solid ${color}35;
+            border-radius:100px;padding:6px 16px;margin:0 0 24px;">
+  <span style="color:${color};font-size:12px;font-weight:700;letter-spacing:0.3px;
+               font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+    ${text}
+  </span>
+</div>`
 
-const btn = (text: string, href: string, variant: 'primary' | 'ghost' = 'primary') =>
-  variant === 'primary'
-    ? `<a href="${href}" style="display:inline-block;background:linear-gradient(135deg,${BRAND},${BRAND_DARK});color:#fff;text-decoration:none;padding:13px 28px;border-radius:10px;font-weight:700;font-size:14px;letter-spacing:0.1px;">${text} →</a>`
-    : `<a href="${href}" style="display:inline-block;color:${BRAND};text-decoration:none;font-size:14px;font-weight:600;padding:13px 0;">${text} →</a>`
+const h1 = (text: string) => `
+<h1 style="color:${C.text};font-size:26px;font-weight:800;margin:0 0 16px;
+           letter-spacing:-0.5px;line-height:1.25;
+           font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+  ${text}
+</h1>`
 
-const divider = () =>
-  `<div style="border-top:1px solid #27272a;margin:28px 0;"></div>`
+const p = (text: string) => `
+<p style="color:${C.muted};font-size:15px;line-height:1.75;margin:0 0 20px;
+          font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+  ${text}
+</p>`
 
-const quote = (text: string, accentColor = '#f59e0b') =>
-  `<div style="background:#18181b;border-left:3px solid ${accentColor};border-radius:0 10px 10px 0;padding:14px 18px;margin:0 0 24px;">
-    <p style="color:#a1a1aa;font-size:14px;margin:0;line-height:1.6;font-style:italic;">${text}</p>
-  </div>`
+const strong = (text: string) =>
+  `<strong style="color:${C.text};font-weight:700;">${text}</strong>`
 
-const badge = (text: string, emoji: string, color: string, bgAlpha = '1a', brdAlpha = '33') =>
-  `<div style="display:inline-flex;align-items:center;gap:7px;background:${color}${bgAlpha};border:1px solid ${color}${brdAlpha};border-radius:100px;padding:7px 16px;">
-    <span style="font-size:14px;">${emoji}</span>
-    <span style="color:${color};font-size:13px;font-weight:700;">${text}</span>
-  </div>`
+const cta = (text: string, href: string, color = C.teal) => `
+<table cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px;">
+  <tr>
+    <td style="background:${color};border-radius:10px;">
+      <a href="${href}"
+         style="display:inline-block;color:#fff;text-decoration:none;
+                padding:13px 28px;font-size:14px;font-weight:700;
+                font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
+                letter-spacing:0.1px;">
+        ${text} →
+      </a>
+    </td>
+  </tr>
+</table>`
 
-const highlight = (text: string) =>
-  `<strong style="color:#fafafa;font-weight:700;">${text}</strong>`
+const divider = () => `
+<div style="border-top:1px solid ${C.border};margin:28px 0;"></div>`
+
+const infoBox = (content: string, borderColor = C.border2) => `
+<div style="background:#131313;border:1px solid ${borderColor};
+            border-radius:12px;padding:18px 20px;margin:0 0 24px;">
+  ${content}
+</div>`
+
+const reasonBox = (reason: string, color = C.amber) => `
+<div style="background:${color}0d;border-left:3px solid ${color};
+            border-radius:0 10px 10px 0;padding:14px 18px;margin:0 0 24px;">
+  <p style="color:${C.muted};font-size:14px;margin:0;line-height:1.6;
+             font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+    <strong style="color:${C.text};">Reason:</strong> ${reason}
+  </p>
+</div>`
+
+const label = (text: string) => `
+<p style="color:${C.muted2};font-size:11px;font-weight:700;text-transform:uppercase;
+          letter-spacing:0.8px;margin:0 0 6px;
+          font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+  ${text}
+</p>`
+
+const value = (text: string) => `
+<p style="color:${C.text};font-size:15px;font-weight:700;margin:0;
+          font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+  ${text}
+</p>`
+
+const checklist = (items: string[], color = C.teal) =>
+  items.map(item => `
+<div style="display:flex;align-items:center;gap:10px;margin:0 0 10px;">
+  <div style="width:18px;height:18px;background:${color}20;border-radius:50%;
+              text-align:center;line-height:18px;flex-shrink:0;">
+    <span style="color:${color};font-size:11px;font-weight:800;">✓</span>
+  </div>
+  <p style="color:${C.muted};font-size:14px;margin:0;
+             font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+    ${item}
+  </p>
+</div>`).join('')
 
 // ── Templates ────────────────────────────────────────────────────────────────
 export const templates = {
 
-  welcome: (username: string) => base(`
-    ${h1(`Welcome aboard, @${username}! 🎉`)}
-    ${p(`You've just joined the best community for discovering manga, manhwa, manhua, and webtoons recommended by real readers, not algorithms.`)}
-    <div style="background:#18181b;border:1px solid #27272a;border-radius:14px;padding:20px 22px;margin:0 0 24px;">
-      <p style="color:#fafafa;font-size:13px;font-weight:700;margin:0 0 14px;letter-spacing:0.05em;text-transform:uppercase;">Get started</p>
-      <table width="100%" cellpadding="0" cellspacing="0">
+  // ── Welcome ──
+  welcome: (username: string) => shell(`
+    ${badge('Welcome to Compicfy 🎌', C.teal)}
+    ${h1(`Hey @${username}, welcome aboard! 👋`)}
+    ${p(`You've just joined the community where real readers discover manga, manhwa, manhua, and webtoons, no algorithms, just genuine picks from people who actually read.`)}
+
+    ${infoBox(`
+      ${label('Get started')}
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">
         <tr>
-          <td style="padding:8px 0;border-bottom:1px solid #27272a;">
-            <span style="color:${BRAND};font-size:14px;margin-right:10px;">📖</span>
-            <a href="${SITE_URL}/browse" style="color:#a1a1aa;font-size:14px;text-decoration:none;">Browse community recommendations</a>
+          <td style="padding:10px 0;border-bottom:1px solid ${C.border};">
+            <a href="${SITE_URL}/browse"
+               style="color:${C.muted};font-size:14px;text-decoration:none;
+                      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+              <span style="color:${C.teal};margin-right:10px;">📖</span>Browse community recommendations
+            </a>
           </td>
         </tr>
         <tr>
-          <td style="padding:8px 0;border-bottom:1px solid #27272a;">
-            <span style="color:${BRAND};font-size:14px;margin-right:10px;">✍️</span>
-            <a href="${SITE_URL}/reader/dashboard/recommendations/new" style="color:#a1a1aa;font-size:14px;text-decoration:none;">Submit your first recommendation</a>
+          <td style="padding:10px 0;border-bottom:1px solid ${C.border};">
+            <a href="${SITE_URL}/reader/dashboard/recommendations/new"
+               style="color:${C.muted};font-size:14px;text-decoration:none;
+                      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+              <span style="color:${C.teal};margin-right:10px;">✍️</span>Submit your first recommendation
+            </a>
           </td>
         </tr>
         <tr>
-          <td style="padding:8px 0;">
-            <span style="color:${BRAND};font-size:14px;margin-right:10px;">📚</span>
-            <a href="${SITE_URL}/reader/dashboard/lists" style="color:#a1a1aa;font-size:14px;text-decoration:none;">Create a reading list</a>
+          <td style="padding:10px 0;">
+            <a href="${SITE_URL}/reader/dashboard/lists"
+               style="color:${C.muted};font-size:14px;text-decoration:none;
+                      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+              <span style="color:${C.teal};margin-right:10px;">📚</span>Create your first reading list
+            </a>
           </td>
         </tr>
       </table>
-    </div>
-    ${btn('Start Exploring', `${SITE_URL}/browse`)}
-  `, badge('Welcome to Compicfy', '🎌', BRAND)),
+    `)}
 
-  recommendationApproved: (username: string, title: string, recId: string) => base(`
+    ${cta('Start Exploring', `${SITE_URL}/browse`)}
+    ${p(`If you have any questions, just reply to this email. We read every one.`)}
+  `),
+
+  // ── Rec Approved ──
+  recommendationApproved: (username: string, title: string, recId: string) => shell(`
+    ${badge('✅ Recommendation Approved', C.emerald)}
     ${h1(`Your rec is live, @${username}!`)}
-    ${p(`${highlight(`"${title}"`)} has been approved and is now discoverable by the entire Compicfy community. The community can vote, review, and save it.`)}
-    <div style="background:#18181b;border:1px solid #27272a;border-radius:14px;padding:18px 20px;margin:0 0 24px;display:flex;gap:14px;">
-      <div>
-        <p style="color:#71717a;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 4px;">Title</p>
-        <p style="color:#fafafa;font-size:15px;font-weight:700;margin:0;">${title}</p>
-      </div>
-    </div>
-    ${btn('View Your Recommendation', `${SITE_URL}/comic/${recId}`)}
-  `, badge('Recommendation Approved', '✅', '#16a34a')),
+    ${p(`${strong(`"${title}"`)} has been approved and is now discoverable by the entire Compicfy community. Readers can now vote, review, and save it.`)}
 
-  recommendationRejected: (username: string, title: string, reason: string, recId: string) => base(`
+    ${infoBox(`
+      ${label('Your recommendation')}
+      ${value(title)}
+    `, C.emerald + '30')}
+
+    ${cta('View Your Recommendation', `${SITE_URL}/comic/${recId}`, C.emerald)}
+    ${p(`Keep submitting — the more recs you share, the more the community discovers you.`)}
+  `),
+
+  // ── Rec Rejected ──
+  recommendationRejected: (username: string, title: string, reason: string, recId: string) => shell(`
+    ${badge('❌ Recommendation Not Approved', C.red)}
     ${h1(`Hi @${username},`)}
-    ${p(`Your recommendation for ${highlight(`"${title}"`)} was reviewed but couldn't be approved at this time.`)}
-    ${quote(`<strong style="color:#fafafa;">Reason:</strong> ${reason}`, '#dc2626')}
-    ${p(`You can edit your submission and resubmit, or appeal the decision if you believe it was made in error.`)}
+    ${p(`Your recommendation for ${strong(`"${title}"`)} was reviewed but couldn't be approved this time.`)}
+    ${reasonBox(reason, C.red)}
+    ${p(`You can edit your submission and resubmit, or appeal if you think this was a mistake.`)}
     ${divider()}
-    <table cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding-right:12px;">${btn('Submit an Appeal', `${SITE_URL}/reader/dashboard/recommendations`)}</td>
-        <td>${btn('Edit & Resubmit', `${SITE_URL}/reader/dashboard/recommendations`, 'ghost')}</td>
-      </tr>
-    </table>
-  `, badge('Recommendation Not Approved', '❌', '#dc2626')),
+    ${cta('Edit & Resubmit', `${SITE_URL}/reader/dashboard/recommendations`, C.red)}
+  `),
 
-  accountBanned: (username: string, reason: string) => base(`
+  // ── Account Banned ──
+  accountBanned: (username: string, reason: string) => shell(`
+    ${badge('🚫 Account Suspended', C.red)}
     ${h1(`Hi @${username},`)}
-    ${p(`Your ${SITE_NAME} account has been permanently banned following a review of your activity.`)}
-    ${quote(`<strong style="color:#fafafa;">Reason:</strong> ${reason}`, '#dc2626')}
-    ${p(`If you believe this was a mistake, you can submit a ban appeal and our team will review it.`, true)}
+    ${p(`Your ${SITE_NAME} account has been permanently suspended following a review.`)}
+    ${reasonBox(reason, C.red)}
+    ${p(`If you believe this was a mistake you can submit a ban appeal and our team will review it.`)}
     ${divider()}
-    ${btn('Submit a Ban Appeal', `${SITE_URL}/reader/dashboard`)}
-  `, badge('Account Banned', '🚫', '#dc2626')),
+    ${cta('Submit a Ban Appeal', `${SITE_URL}/reader/dashboard`, C.red)}
+  `),
 
-  accountUnbanned: (username: string) => base(`
+  // ── Account Unbanned ──
+  accountUnbanned: (username: string) => shell(`
+    ${badge('✅ Account Reinstated', C.emerald)}
     ${h1(`Welcome back, @${username}!`)}
-    ${p(`Your ${SITE_NAME} account restriction has been lifted. You now have full access to the platform again.`)}
-    ${p(`We ask that you review our community guidelines to ensure a positive experience for everyone.`, true)}
+    ${p(`Your ${SITE_NAME} account restriction has been lifted. You have full access again.`)}
+    ${p(`Please review our community guidelines to ensure a smooth experience for everyone.`)}
     ${divider()}
-    <table cellpadding="0" cellspacing="0">
-      <tr>
-        <td style="padding-right:12px;">${btn('Go to Dashboard', `${SITE_URL}/reader/dashboard`)}</td>
-        <td>${btn('Community Guidelines', `${SITE_URL}/guidelines`, 'ghost')}</td>
-      </tr>
-    </table>
-  `, badge('Account Reinstated', '✅', '#16a34a')),
+    ${cta('Go to Dashboard', `${SITE_URL}/reader/dashboard`, C.emerald)}
+  `),
 
-  accountSuspended: (username: string, reason: string, duration_hours: number) => base(`
+  // ── Account Suspended ──
+  accountSuspended: (username: string, reason: string, duration_hours: number) => shell(`
+    ${badge('⚠️ Temporary Suspension', C.amber)}
     ${h1(`Hi @${username},`)}
-    ${p(`Your account has been temporarily suspended for ${highlight(`${duration_hours} hours`)}.`)}
-    ${quote(`<strong style="color:#fafafa;">Reason:</strong> ${reason}`, '#f59e0b')}
-    ${p(`Your account will be automatically reinstated once the suspension period ends. Please review our community guidelines in the meantime.`, true)}
+    ${p(`Your account has been temporarily suspended for ${strong(`${duration_hours} hours`)}.`)}
+    ${reasonBox(reason, C.amber)}
+    ${p(`Your account will be automatically reinstated once the suspension period ends.`)}
     ${divider()}
-    ${btn('View Community Guidelines', `${SITE_URL}/guidelines`)}
-  `, badge('Temporary Suspension', '⚠️', '#f59e0b')),
+    ${cta('View Guidelines', `${SITE_URL}/guidelines`, C.amber)}
+  `),
 
-  accountUnsuspended: (username: string) => base(`
+  // ── Account Unsuspended ──
+  accountUnsuspended: (username: string) => shell(`
+    ${badge('✅ Access Restored', C.emerald)}
     ${h1(`Good news, @${username}!`)}
-    ${p(`Your account suspension has been lifted. You now have full access to ${SITE_NAME} again.`)}
-    ${p(`Thank you for your patience. We look forward to seeing your contributions to the community.`, true)}
+    ${p(`Your suspension has been lifted. You have full access to ${SITE_NAME} again.`)}
+    ${p(`Thank you for your patience. We're glad to have you back.`)}
     ${divider()}
-    ${btn('Go to Dashboard', `${SITE_URL}/reader/dashboard`)}
-  `, badge('Access Restored', '✅', '#16a34a')),
+    ${cta('Go to Dashboard', `${SITE_URL}/reader/dashboard`, C.emerald)}
+  `),
 
-  appealResolved: (username: string, type: string, outcome: string, title?: string) => base(`
+  // ── Appeal Resolved ──
+  appealResolved: (username: string, type: string, outcome: string, title?: string) => shell(`
+    ${badge(
+      outcome === 'approved' ? '✅ Appeal Approved' : '❌ Appeal Rejected',
+      outcome === 'approved' ? C.emerald : C.red
+    )}
     ${h1(`Hi @${username},`)}
-    ${p(`Your ${type} appeal${title ? ` for ${highlight(`"${title}"`)}` : ''} has been reviewed and ${highlight(outcome === 'approved' ? 'approved' : 'rejected')}.`)}
-    ${outcome === 'approved'
-      ? `<div style="background:#16a34a15;border:1px solid #16a34a30;border-radius:12px;padding:16px 20px;margin:0 0 24px;">
-          <p style="color:#16a34a;font-size:14px;font-weight:600;margin:0;">
-            ${type === 'ban' ? '🎉 Your account has been reinstated and is now fully active.' : '🎉 Your recommendation is now live on Compicfy.'}
-          </p>
-        </div>`
-      : `<div style="background:#dc262615;border:1px solid #dc262630;border-radius:12px;padding:16px 20px;margin:0 0 24px;">
-          <p style="color:#dc2626;font-size:14px;font-weight:600;margin:0;">After careful review, our team has decided to uphold the original decision.</p>
-        </div>`
-    }
-    ${divider()}
-    ${btn('Go to Dashboard', `${SITE_URL}/reader/dashboard`)}
-  `, badge(`Appeal ${outcome === 'approved' ? 'Approved' : 'Rejected'}`, outcome === 'approved' ? '✅' : '❌', outcome === 'approved' ? '#16a34a' : '#dc2626')),
+    ${p(`Your ${type} appeal${title ? ` for ${strong(`"${title}"`)}` : ''} has been reviewed.`)}
 
-  newFollower: (username: string, followerUsername: string, followerDisplayName: string) => base(`
+    ${infoBox(
+      outcome === 'approved'
+        ? `<p style="color:${C.emerald};font-size:14px;font-weight:600;margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+            ${type === 'ban' ? '🎉 Your account has been reinstated and is fully active.' : '🎉 Your recommendation is now live on Compicfy.'}
+           </p>`
+        : `<p style="color:${C.red};font-size:14px;font-weight:600;margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+            After careful review, our team has upheld the original decision.
+           </p>`,
+      outcome === 'approved' ? C.emerald + '30' : C.red + '30'
+    )}
+
+    ${cta('Go to Dashboard', `${SITE_URL}/reader/dashboard`,
+      outcome === 'approved' ? C.emerald : C.teal
+    )}
+  `),
+
+  // ── New Follower ──
+  newFollower: (username: string, followerUsername: string, followerDisplayName: string) => shell(`
+    ${badge('👤 New Follower', C.teal)}
     ${h1(`You have a new follower!`)}
-    ${p(`${highlight(followerDisplayName)} (${highlight(`@${followerUsername}`)}) just followed you on ${SITE_NAME}. They'll see your recommendations in their discovery feed.`)}
-    <div style="background:#18181b;border:1px solid #27272a;border-radius:14px;padding:18px 20px;margin:0 0 24px;">
+    ${p(`${strong(followerDisplayName)} (${strong(`@${followerUsername}`)}) just followed you on ${SITE_NAME}. Their feed will now feature your recommendations.`)}
+
+    ${infoBox(`
       <table cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td style="width:42px;height:42px;vertical-align:middle;padding-right:12px;">
+          <td width="44" height="44" style="width:44px;height:44px;vertical-align:middle;padding-right:14px;">
             <table cellpadding="0" cellspacing="0" border="0">
               <tr>
-                <td width="42" height="42" style="width:42px;height:42px;background:${BRAND_DIM};border:2px solid ${BRAND_BRD};border-radius:50%;text-align:center;vertical-align:middle;">
-                  <span style="color:${BRAND};font-size:16px;font-weight:800;">${followerDisplayName[0].toUpperCase()}</span>
+                <td width="44" height="44"
+                  style="width:44px;height:44px;background:${C.tealDim};border:2px solid ${C.tealBrd};
+                         border-radius:50%;text-align:center;vertical-align:middle;">
+                  <span style="color:${C.teal};font-size:18px;font-weight:800;">
+                    ${followerDisplayName[0].toUpperCase()}
+                  </span>
                 </td>
               </tr>
             </table>
           </td>
           <td style="vertical-align:middle;">
-            <p style="color:#fafafa;font-size:14px;font-weight:700;margin:0;">${followerDisplayName}</p>
-            <p style="color:#71717a;font-size:13px;margin:4px 0 0;">@${followerUsername}</p>
+            ${value(followerDisplayName)}
+            <p style="color:${C.muted};font-size:13px;margin:4px 0 0;
+                       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+              @${followerUsername}
+            </p>
           </td>
         </tr>
       </table>
-    </div>
-    ${btn('View Their Profile', `${SITE_URL}/profile/${followerUsername}`)}
-  `, badge('New Follower', '👤', BRAND)),
+    `)}
 
-  newVote: (username: string, voterUsername: string, title: string, recId: string, voteType: 'up' | 'down') => base(`
-    ${h1(voteType === 'up' ? `Someone loves your rec! 👍` : `New vote on your rec`)}
-    ${p(`${highlight(`@${voterUsername}`)} ${voteType === 'up' ? 'upvoted' : 'downvoted'} your recommendation for ${highlight(`"${title}"`)}.`)}
-    <div style="background:#18181b;border:1px solid #27272a;border-radius:14px;padding:16px 20px;margin:0 0 24px;">
-      <p style="color:#71717a;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 6px;">Recommendation</p>
-      <p style="color:#fafafa;font-size:15px;font-weight:700;margin:0;">${title}</p>
-    </div>
-    ${btn('View Recommendation', `${SITE_URL}/comic/${recId}`)}
-  `, badge(voteType === 'up' ? 'New Upvote' : 'New Downvote', voteType === 'up' ? '👍' : '👎', voteType === 'up' ? '#16a34a' : '#dc2626')),
+    ${cta('View Their Profile', `${SITE_URL}/profile/${followerUsername}`)}
+  `),
 
-  newReview: (username: string, reviewerUsername: string, title: string, recId: string, reviewSnippet: string) => base(`
+  // ── New Vote ──
+  newVote: (username: string, voterUsername: string, title: string, recId: string, voteType: 'up' | 'down') => shell(`
+    ${badge(
+      voteType === 'up' ? '👍 New Upvote' : '👎 New Downvote',
+      voteType === 'up' ? C.emerald : C.red
+    )}
+    ${h1(voteType === 'up' ? 'Someone loves your rec!' : 'New vote on your recommendation')}
+    ${p(`${strong(`@${voterUsername}`)} ${voteType === 'up' ? 'upvoted' : 'downvoted'} your recommendation for ${strong(`"${title}"`)}.`)}
+
+    ${infoBox(`
+      ${label('Recommendation')}
+      ${value(title)}
+    `, voteType === 'up' ? C.emerald + '30' : C.red + '30')}
+
+    ${cta('View Recommendation', `${SITE_URL}/comic/${recId}`,
+      voteType === 'up' ? C.emerald : C.teal
+    )}
+  `),
+
+  // ── New Review ──
+  newReview: (username: string, reviewerUsername: string, title: string, recId: string, reviewSnippet: string) => shell(`
+    ${badge('⭐ New Review', C.amber)}
     ${h1(`@${reviewerUsername} reviewed your rec!`)}
-    ${p(`Someone left a review on your recommendation for ${highlight(`"${title}"`)}.`)}
-    ${quote(`"${reviewSnippet}${reviewSnippet.length >= 120 ? '…' : ''}"`, '#f59e0b')}
-    ${btn('Read Full Review', `${SITE_URL}/comic/${recId}`)}
-  `, badge('New Review', '⭐', '#f59e0b')),
+    ${p(`Someone left a review on your recommendation for ${strong(`"${title}"`)}.`)}
+
+    ${reasonBox(
+      `"${reviewSnippet}${reviewSnippet.length >= 120 ? '…' : ''}"`,
+      C.amber
+    )}
+
+    ${cta('Read Full Review', `${SITE_URL}/comic/${recId}`, C.amber)}
+  `),
+
+  // ── Pro Waitlist Confirmation ──
+  proWaitlist: (email: string) => shell(`
+    ${badge('🎉 You\'re on the list!', C.teal)}
+    ${h1(`Pro is coming, you'll be first to know.`)}
+    ${p(`We've added ${strong(email)} to the Compicfy Pro waitlist. When Pro launches, you'll get an email before anyone else.`)}
+
+    ${infoBox(`
+      ${label("What you'll get with Pro")}
+      <div style="margin-top:14px;">
+        ${checklist([
+          'Unlimited recommendations every month',
+          'Full recommendation analytics dashboard',
+          'Export reading lists as CSV or PDF',
+          'Leaderboard access and rank tracking',
+          'Exclusive 👑 Pro badge on your profile',
+          'Priority review queue for submissions',
+        ])}
+      </div>
+    `)}
+
+    ${p(`While you wait browse the community, submit recommendations, and build your reading lists. The platform is live and free right now.`)}
+    ${cta('Start Exploring', `${SITE_URL}/browse`)}
+  `),
 
 }

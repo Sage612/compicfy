@@ -226,8 +226,14 @@ async function fetchAniListByFormat(limit: number, format: 'MANHWA' | 'MANHUA' |
       query ($perPage: Int, $format: MediaFormat) {
         Page(perPage: $perPage) {
           media(type: MANGA, sort: TRENDING_DESC, format: $format, status_in: [RELEASING, FINISHED]) {
-            id title { english romaji } description(asHtml: false)
+            id title { english romaji native } description(asHtml: false)
             genres coverImage { extraLarge large } startDate { year } chapters status format
+            staff(perPage: 10) {
+              edges {
+                role
+                node { name { full } }
+              }
+            }
           }
         }
       }
@@ -242,25 +248,35 @@ async function fetchAniListByFormat(limit: number, format: 'MANHWA' | 'MANHUA' |
     const data  = await res.json()
     const items = data?.data?.Page?.media ?? []
     return items
-      .map((item: any): SeriesData => ({
-        title:              item.title?.english || item.title?.romaji || '',
-        alternative_titles: [item.title?.romaji, item.title?.native].filter(Boolean),
-        description:        item.description?.replace(/<[^>]*>/g, '').trim().slice(0, 2000) || 'No description available.',
-        type:               mapAniListFormat(item.format),
-        status:             mapAniListStatus(item.status),
-        genres:             sanitizeGenres(item.genres ?? []),
-        cover_url:          item.coverImage?.extraLarge || item.coverImage?.large || null,
-        author:             null,
-        artist:             null,
-        year_released:      item.startDate?.year ?? null,
-        chapter_count:      item.chapters ?? null,
-        official_platforms: ['INKR'],
-        mangaupdates_id:    undefined,
-        mangadex_id:        undefined,
-        anilist_id:         String(item.id),
-        mal_id:             undefined,
-        source:             'anilist' as const,
-      }))
+      .map((item: any): SeriesData => {
+        const edges      = item.staff?.edges ?? []
+        // AniList role strings: 'Story', 'Art', 'Story & Art', 'Original Story', etc.
+        const storyEdge  = edges.find((e: any) => /story/i.test(e.role ?? ''))
+        const artEdge    = edges.find((e: any) => /^art$/i.test(e.role ?? ''))
+        const firstEdge  = edges[0]
+        const author     = storyEdge?.node?.name?.full ?? firstEdge?.node?.name?.full ?? null
+        const artist     = artEdge?.node?.name?.full   ?? storyEdge?.node?.name?.full ?? firstEdge?.node?.name?.full ?? null
+
+        return {
+          title:              item.title?.english || item.title?.romaji || '',
+          alternative_titles: [item.title?.romaji, item.title?.native].filter(Boolean),
+          description:        item.description?.replace(/<[^>]*>/g, '').trim().slice(0, 2000) || 'No description available.',
+          type:               mapAniListFormat(item.format),
+          status:             mapAniListStatus(item.status),
+          genres:             sanitizeGenres(item.genres ?? []),
+          cover_url:          item.coverImage?.extraLarge || item.coverImage?.large || null,
+          author,
+          artist,
+          year_released:      item.startDate?.year ?? null,
+          chapter_count:      item.chapters ?? null,
+          official_platforms: ['INKR'],
+          mangaupdates_id:    undefined,
+          mangadex_id:        undefined,
+          anilist_id:         String(item.id),
+          mal_id:             undefined,
+          source:             'anilist' as const,
+        }
+      })
       .filter((s: SeriesData) => s.title.length > 0)
   } catch {
     return []
@@ -268,9 +284,16 @@ async function fetchAniListByFormat(limit: number, format: 'MANHWA' | 'MANHUA' |
 }
 
 // ── Jikan (MAL) ───────────────────────────────────────────────────
+// MAL formats names as "Last, First" — reverse to get "First Last"
+function formatMalName(name: string | undefined): string | null {
+  if (!name) return null
+  const parts = name.split(', ')
+  return parts.length === 2 ? `${parts[1]} ${parts[0]}` : name
+}
+
 async function fetchJikanByType(
   limit: number,
-  page: number,   // explicit page — always passed in, never derived
+  page: number,
   malType: 'manhwa' | 'manhua' | 'manga'
 ): Promise<SeriesData[]> {
   try {
@@ -281,25 +304,32 @@ async function fetchJikanByType(
     if (!res.ok) return []
     const data = await res.json()
     return (data.data ?? [])
-      .map((item: any): SeriesData => ({
-        title:              item.title_english || item.title || '',
-        alternative_titles: [item.title, item.title_japanese].filter(Boolean),
-        description:        item.synopsis?.replace(/\[Written by MAL Rewrite\]/g, '').trim().slice(0, 2000) || 'No description available.',
-        type:               malType,
-        status:             mapStatus(item.status ?? ''),
-        genres:             sanitizeGenres(item.genres?.map((g: any) => g.name) ?? []),
-        cover_url:          item.images?.jpg?.large_image_url ?? item.images?.jpg?.image_url ?? null,
-        author:             item.authors?.[0]?.name?.replace(', ', ' ') ?? null,
-        artist:             item.authors?.[1]?.name?.replace(', ', ' ') ?? item.authors?.[0]?.name?.replace(', ', ' ') ?? null,
-        year_released:      item.published?.prop?.from?.year ?? null,
-        chapter_count:      item.chapters ?? null,
-        official_platforms: ['INKR'],
-        mangaupdates_id:    undefined,
-        mangadex_id:        undefined,
-        anilist_id:         undefined,
-        mal_id:             String(item.mal_id),
-        source:             'jikan' as const,
-      }))
+      .map((item: any): SeriesData => {
+        const authors = item.authors ?? []
+        // Jikan types: 'Story', 'Art' — some entries only have one person for both
+        const storyPerson = authors.find((a: any) => a.type === 'Story') ?? authors[0]
+        const artPerson   = authors.find((a: any) => a.type === 'Art')   ?? authors[0]
+
+        return {
+          title:              item.title_english || item.title || '',
+          alternative_titles: [item.title, item.title_japanese].filter(Boolean),
+          description:        item.synopsis?.replace(/\[Written by MAL Rewrite\]/g, '').trim().slice(0, 2000) || 'No description available.',
+          type:               malType,
+          status:             mapStatus(item.status ?? ''),
+          genres:             sanitizeGenres(item.genres?.map((g: any) => g.name) ?? []),
+          cover_url:          item.images?.jpg?.large_image_url ?? item.images?.jpg?.image_url ?? null,
+          author:             formatMalName(storyPerson?.name),
+          artist:             formatMalName(artPerson?.name),
+          year_released:      item.published?.prop?.from?.year ?? null,
+          chapter_count:      item.chapters ?? null,
+          official_platforms: ['INKR'],
+          mangaupdates_id:    undefined,
+          mangadex_id:        undefined,
+          anilist_id:         undefined,
+          mal_id:             String(item.mal_id),
+          source:             'jikan' as const,
+        }
+      })
       .filter((s: SeriesData) => s.title.length > 0)
   } catch {
     return []
