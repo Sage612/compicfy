@@ -86,7 +86,7 @@ function StackedCover({ covers, themeGrad }: { covers: string[]; themeGrad: stri
   const stack    = covers.slice(1, 4)
   return (
     <div className="absolute inset-0">
-      <img src={dominant} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
+      <img src={`/api/image-proxy?url=${encodeURIComponent(dominant)}`} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
       {stack.length > 0 && (
         <div className="absolute bottom-14 right-2 flex items-end">
           {stack.map((url, i) => (
@@ -98,7 +98,7 @@ function StackedCover({ covers, themeGrad }: { covers: string[]; themeGrad: stri
                 opacity: 1 - i * 0.12,
                 transform: `rotate(${i % 2 === 0 ? 5 : -4}deg) translateY(${i * 2}px)`,
               }}>
-              <img src={url} alt="" className="w-full h-full object-cover" aria-hidden />
+              <img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="" className="w-full h-full object-cover" aria-hidden />
             </div>
           ))}
         </div>
@@ -352,7 +352,7 @@ export function ListsClient({
                       {!isOwner && username && (
                         <div className="flex items-center gap-1.5">
                           {avatar
-                            ? <img src={avatar} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
+                            ? <img src={`/api/image-proxy?url=${encodeURIComponent(avatar)}`} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
                             : <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center"><span className="text-[7px] text-white font-bold">{username[0].toUpperCase()}</span></div>
                           }
                           <span className="text-[9px] text-white/70 truncate">@{username}</span>
@@ -410,7 +410,7 @@ export function ListsClient({
                       {!isOwner && username && (
                         <div className="flex items-center gap-1.5">
                           {avatar
-                            ? <img src={avatar} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
+                            ? <img src={`/api/image-proxy?url=${encodeURIComponent(avatar)}`} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
                             : <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center"><span className="text-[7px] text-white font-bold">{username[0].toUpperCase()}</span></div>
                           }
                           <span className="text-[9px] text-white/70 truncate">@{username}</span>
@@ -456,7 +456,7 @@ export function ListsClient({
                             covers.length === 1 ? 'flex-1' :
                             covers.length === 2 ? 'flex-1' :
                             covers.length === 3 && i === 0 ? 'w-1/2' : 'flex-1')}>
-                            <img src={url} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300" />
+                            <img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300" />
                             <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
                           </div>
                         ))}
@@ -537,3 +537,4 @@ export function ListsClient({
     </div>
   )
 }
+
