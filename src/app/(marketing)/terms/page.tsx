@@ -47,7 +47,7 @@ const SECTIONS = [
   },
   {
     n: '10', title: 'Pro Subscription',
-    body: 'Compicfy Pro is a paid subscription available on monthly or yearly billing cycles. Yearly plans are a single upfront payment with no auto-renewal. Monthly plans renew each billing cycle until cancelled. You may cancel your monthly plan at any time before the next billing date. We do not offer refunds on completed payments unless required by applicable law. Contact support@compicfy.com for billing enquiries.',
+    body: 'Compicfy Pro is a paid subscription available on monthly or yearly billing cycles. Yearly plans renew annually and monthly plans renew each billing cycle until cancelled. You may cancel your monthly plan at any time before the next billing date. We do not offer refunds on completed payments unless required by applicable law. Contact support@compicfy.com for billing enquiries.',
   },
   {
     n: '11', title: 'Termination',

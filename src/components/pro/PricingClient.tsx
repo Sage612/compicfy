@@ -127,7 +127,7 @@ export function PricingClient({ user, profile }: Props) {
 
   const heroSub = isCreator
     ? 'Pro gives creators deep analytics, audience insights, and the tools to grow their readership.'
-    : "Pro isn't just about removing limits it's the recognition, visibility, and tools that serious collectors deserve."
+    : "Pro isn't just about removing limits — it's the recognition, visibility, and tools that serious collectors deserve."
 
   const dashboardHref = isAdmin
     ? '/admin'
@@ -212,7 +212,7 @@ export function PricingClient({ user, profile }: Props) {
               <h2 className="text-2xl font-black">Pro is coming soon</h2>
               <p className="text-muted-foreground text-sm max-w-md mx-auto leading-relaxed">
                 We're still building the platform. Pro will open when we're ready.
-                Join the waitlist and you'll be the first to know and the first to get access.
+                Join the waitlist and you'll be the first to know, and the first to get access.
               </p>
             </div>
 
@@ -242,7 +242,7 @@ export function PricingClient({ user, profile }: Props) {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  No spam. One email when Pro launches.
+                  No spam. One email when Pro launches. That's it.
                 </p>
               </div>
             )}

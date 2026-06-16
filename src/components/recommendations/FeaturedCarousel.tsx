@@ -5,13 +5,14 @@ import Autoplay from 'embla-carousel-autoplay'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, BookOpen, ThumbsUp, Star, Zap } from 'lucide-react'
+import { ChevronLeft, ChevronRight, BookOpen, ThumbsUp, Star, Zap, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
 
 interface Props {
-  recommendations: Recommendation[]
+  recommendations:  Recommendation[]
+  adminFeaturedIds: Set<string>  // ids of admin-curated picks — rest are community voted
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -32,16 +33,12 @@ const STATUS_CONFIG = {
 
 function proxyCover(url: string | null | undefined): string | null {
   if (!url) return null
-  // data: URIs are self-contained — pass through untouched
-  if (url.startsWith('data:')) return url
-  // Already a relative/local URL
   if (url.startsWith('/')) return url
-  // Already proxied
   if (url.includes('/api/image-proxy')) return url
   return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
-export function FeaturedCarousel({ recommendations }: Props) {
+export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
   const [emblaRef, emblaApi] = useEmblaCarousel(
     { loop: true, align: 'start' },
     [Autoplay({ delay: 5000, stopOnInteraction: false, stopOnMouseEnter: true })]
@@ -83,6 +80,14 @@ export function FeaturedCarousel({ recommendations }: Props) {
             const accentColor = TYPE_COLORS[rec.type] ?? TYPE_COLORS.other
             const status      = STATUS_CONFIG[rec.status as keyof typeof STATUS_CONFIG]
             const coverSrc    = proxyCover(rec.cover_url)
+            const isAdminPick = adminFeaturedIds.has(rec.id)
+
+            // Badge config — admin pick vs community voted
+            const badge = isAdminPick
+              ? { icon: Star,  label: 'Featured',        className: 'text-amber-400',   fill: 'fill-amber-400'   }
+              : { icon: Users, label: 'Community Voted', className: 'text-sky-400',     fill: ''                 }
+
+            const cornerLabel = isAdminPick ? '✨ Top Pick' : '🗳️ Community Vote'
 
             return (
               <div key={rec.id} className="relative flex-none w-full min-w-0">
@@ -90,11 +95,7 @@ export function FeaturedCarousel({ recommendations }: Props) {
                 {/* ── MOBILE ── */}
                 <div className="sm:hidden relative overflow-hidden bg-zinc-950" style={{ height: '460px' }}>
                   {coverSrc ? (
-                    <img
-                      src={coverSrc}
-                      alt={rec.title}
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
+                    <img src={coverSrc} alt={rec.title} className="absolute inset-0 w-full h-full object-cover" />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
                       <BookOpen size={48} className="text-white/20" />
@@ -117,9 +118,10 @@ export function FeaturedCarousel({ recommendations }: Props) {
                         <Zap size={9} />
                         {rec.type}
                       </span>
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                        <Star size={9} className="fill-amber-400" />
-                        Featured
+                      {/* Dynamic badge */}
+                      <span className={cn('flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider', badge.className)}>
+                        <badge.icon size={9} className={badge.fill} />
+                        {badge.label}
                       </span>
                     </div>
 
@@ -199,9 +201,10 @@ export function FeaturedCarousel({ recommendations }: Props) {
                           <Zap size={9} />
                           {rec.type}
                         </span>
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                          <Star size={9} className="fill-amber-400" />
-                          Featured
+                        {/* Dynamic badge */}
+                        <span className={cn('flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider', badge.className)}>
+                          <badge.icon size={9} className={badge.fill} />
+                          {badge.label}
                         </span>
                       </div>
 
@@ -248,8 +251,8 @@ export function FeaturedCarousel({ recommendations }: Props) {
                     </div>
                   </div>
 
-                  <div className="absolute top-4 right-4 text-[10px] text-white/20 font-mono tabular-nums">
-                    {String(i + 1).padStart(2, '0')} / {String(recommendations.length).padStart(2, '0')}
+                  <div className="absolute top-4 right-4 px-2 py-0.5 rounded bg-black/60 text-[10px] font-black text-white border border-white/10">
+                    {cornerLabel}
                   </div>
                 </div>
 

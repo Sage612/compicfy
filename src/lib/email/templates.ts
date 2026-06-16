@@ -2,28 +2,33 @@ import { SITE_NAME, SITE_URL } from './mailer'
 
 // ── Brand tokens ─────────────────────────────────────────────────────────────
 const C = {
-  bg:       '#080808',
-  card:     '#0f0f0f',
-  border:   '#1a1a1a',
-  border2:  '#222222',
-  text:     '#f0f0f0',
-  muted:    '#888888',
-  muted2:   '#555555',
-  teal:     '#0ea5b0',
-  tealDim:  '#0ea5b015',
-  tealBrd:  '#0ea5b030',
-  amber:    '#f59e0b',
-  emerald:  '#10b981',
-  red:      '#ef4444',
+  bg:      '#080808',
+  card:    '#0f0f0f',
+  border:  '#1a1a1a',
+  border2: '#222222',
+  text:    '#f0f0f0',
+  muted:   '#888888',
+  muted2:  '#555555',
+  teal:    '#0ea5b0',
+  tealDim: '#0ea5b015',
+  tealBrd: '#0ea5b030',
+  amber:   '#f59e0b',
+  emerald: '#10b981',
+  red:     '#ef4444',
 }
 
 // ── Email-safe logo ───────────────────────────────────────────────────────────
-// Uses table layout for max email client compatibility
-const LOGO = `
+// SITE_NAME split: everything before last 2 chars + last 2 chars in teal
+// e.g. "Compicfy" → "Compicf" + "y" — but we want "Compic" + "fy"
+// So we hardcode the split at -2 chars to keep "fy" teal
+const LOGO_PREFIX = SITE_NAME.slice(0, -2)   // "Compicf" → adjust below
+const LOGO_SUFFIX = SITE_NAME.slice(-2)       // "fy"
+
+// Actually split at known boundary: everything up to last 2 = prefix, last 2 = teal
+const makeLogo = () => `
 <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
   <tr>
     <td style="vertical-align:middle;padding-right:10px;">
-      <!-- Speech bubble icon -->
       <table cellpadding="0" cellspacing="0" border="0">
         <tr>
           <td width="40" height="40"
@@ -45,14 +50,17 @@ const LOGO = `
     <td style="vertical-align:middle;">
       <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
                    font-size:22px;font-weight:900;letter-spacing:-0.8px;color:${C.text};">
-        Compic</span><span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
-                   font-size:22px;font-weight:900;letter-spacing:-0.8px;color:${C.teal};">fy</span>
+        ${SITE_NAME.slice(0, -2)}</span><span
+        style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
+               font-size:22px;font-weight:900;letter-spacing:-0.8px;color:${C.teal};">
+        ${SITE_NAME.slice(-2)}</span>
     </td>
   </tr>
 </table>`
 
 // ── Base shell ────────────────────────────────────────────────────────────────
-const shell = (content: string) => `
+// dashboardPath: the correct dashboard URL for this user e.g. /reader/dashboard
+const shell = (content: string, dashboardPath = '/reader/dashboard') => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -68,16 +76,16 @@ const shell = (content: string) => `
     <table width="100%" cellpadding="0" cellspacing="0" border="0"
            style="max-width:560px;">
 
-      <!-- ── Logo header ── -->
+      <!-- Logo -->
       <tr>
         <td style="padding:0 0 32px;text-align:center;">
           <a href="${SITE_URL}" style="text-decoration:none;display:inline-block;">
-            ${LOGO}
+            ${makeLogo()}
           </a>
         </td>
       </tr>
 
-      <!-- ── Card ── -->
+      <!-- Card -->
       <tr>
         <td style="background:${C.card};border:1px solid ${C.border};
                    border-radius:20px;padding:40px 36px;">
@@ -85,7 +93,7 @@ const shell = (content: string) => `
         </td>
       </tr>
 
-      <!-- ── Footer ── -->
+      <!-- Footer -->
       <tr>
         <td style="padding:28px 0 0;text-align:center;">
           <p style="color:${C.muted2};font-size:12px;margin:0 0 8px;
@@ -93,14 +101,14 @@ const shell = (content: string) => `
             © ${new Date().getFullYear()} ${SITE_NAME} · Comic discovery for real readers
           </p>
           <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
-            <a href="${SITE_URL}/reader/dashboard/settings"
+            <a href="${SITE_URL}${dashboardPath}/settings"
                style="color:${C.muted};font-size:12px;text-decoration:none;">
               Notification settings
             </a>
             <span style="color:${C.border2};margin:0 8px;">·</span>
             <a href="${SITE_URL}"
                style="color:${C.muted};font-size:12px;text-decoration:none;">
-              ${SITE_URL.replace('https://', '')}
+              ${SITE_URL.replace(/https?:\/\//, '')}
             </a>
           </p>
         </td>
@@ -112,7 +120,7 @@ const shell = (content: string) => `
 </body>
 </html>`
 
-// ── Component primitives ──────────────────────────────────────────────────────
+// ── Primitives ────────────────────────────────────────────────────────────────
 
 const badge = (text: string, color: string) => `
 <div style="display:inline-block;background:${color}18;border:1px solid ${color}35;
@@ -154,8 +162,8 @@ const cta = (text: string, href: string, color = C.teal) => `
   </tr>
 </table>`
 
-const divider = () => `
-<div style="border-top:1px solid ${C.border};margin:28px 0;"></div>`
+const divider = () =>
+  `<div style="border-top:1px solid ${C.border};margin:28px 0;"></div>`
 
 const infoBox = (content: string, borderColor = C.border2) => `
 <div style="background:#131313;border:1px solid ${borderColor};
@@ -179,7 +187,7 @@ const label = (text: string) => `
   ${text}
 </p>`
 
-const value = (text: string) => `
+const val = (text: string) => `
 <p style="color:${C.text};font-size:15px;font-weight:700;margin:0;
           font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
   ${text}
@@ -187,25 +195,27 @@ const value = (text: string) => `
 
 const checklist = (items: string[], color = C.teal) =>
   items.map(item => `
-<div style="display:flex;align-items:center;gap:10px;margin:0 0 10px;">
-  <div style="width:18px;height:18px;background:${color}20;border-radius:50%;
-              text-align:center;line-height:18px;flex-shrink:0;">
+<div style="display:flex;align-items:flex-start;gap:10px;margin:0 0 10px;">
+  <div style="width:18px;height:18px;min-width:18px;background:${color}20;border-radius:50%;
+              text-align:center;line-height:18px;margin-top:1px;">
     <span style="color:${color};font-size:11px;font-weight:800;">✓</span>
   </div>
-  <p style="color:${C.muted};font-size:14px;margin:0;
+  <p style="color:${C.muted};font-size:14px;margin:0;line-height:1.5;
              font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
     ${item}
   </p>
 </div>`).join('')
 
-// ── Templates ────────────────────────────────────────────────────────────────
+// ── Templates ─────────────────────────────────────────────────────────────────
+// All functions accept dashboardPath so links go to the right dashboard
+// Default is /reader/dashboard — pass /creator/dashboard for creators
+// ─────────────────────────────────────────────────────────────────────────────
 export const templates = {
 
-  // ── Welcome ──
-  welcome: (username: string) => shell(`
-    ${badge('Welcome to Compicfy 🎌', C.teal)}
+  welcome: (username: string, dashboardPath = '/reader/dashboard') => shell(`
+    ${badge(`Welcome to ${SITE_NAME} 🎌`, C.teal)}
     ${h1(`Hey @${username}, welcome aboard! 👋`)}
-    ${p(`You've just joined the community where real readers discover manga, manhwa, manhua, and webtoons, no algorithms, just genuine picks from people who actually read.`)}
+    ${p(`You've just joined the community where real readers discover manga, manhwa, manhua, and webtoons — no algorithms, just genuine picks from people who actually read.`)}
 
     ${infoBox(`
       ${label('Get started')}
@@ -221,7 +231,7 @@ export const templates = {
         </tr>
         <tr>
           <td style="padding:10px 0;border-bottom:1px solid ${C.border};">
-            <a href="${SITE_URL}/reader/dashboard/recommendations/new"
+            <a href="${SITE_URL}${dashboardPath}/recommendations/new"
                style="color:${C.muted};font-size:14px;text-decoration:none;
                       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
               <span style="color:${C.teal};margin-right:10px;">✍️</span>Submit your first recommendation
@@ -230,7 +240,7 @@ export const templates = {
         </tr>
         <tr>
           <td style="padding:10px 0;">
-            <a href="${SITE_URL}/reader/dashboard/lists"
+            <a href="${SITE_URL}${dashboardPath}/lists"
                style="color:${C.muted};font-size:14px;text-decoration:none;
                       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
               <span style="color:${C.teal};margin-right:10px;">📚</span>Create your first reading list
@@ -241,58 +251,48 @@ export const templates = {
     `)}
 
     ${cta('Start Exploring', `${SITE_URL}/browse`)}
-    ${p(`If you have any questions, just reply to this email. We read every one.`)}
-  `),
+    ${p(`If you have questions just reply to this email. We read every one.`)}
+  `, dashboardPath),
 
-  // ── Rec Approved ──
-  recommendationApproved: (username: string, title: string, recId: string) => shell(`
+  recommendationApproved: (username: string, title: string, recId: string, dashboardPath = '/reader/dashboard') => shell(`
     ${badge('✅ Recommendation Approved', C.emerald)}
     ${h1(`Your rec is live, @${username}!`)}
-    ${p(`${strong(`"${title}"`)} has been approved and is now discoverable by the entire Compicfy community. Readers can now vote, review, and save it.`)}
-
-    ${infoBox(`
-      ${label('Your recommendation')}
-      ${value(title)}
-    `, C.emerald + '30')}
-
+    ${p(`${strong(`"${title}"`)} has been approved and is now discoverable by the entire ${SITE_NAME} community. Readers can vote, review, and save it.`)}
+    ${infoBox(`${label('Your recommendation')}${val(title)}`, C.emerald + '30')}
     ${cta('View Your Recommendation', `${SITE_URL}/comic/${recId}`, C.emerald)}
     ${p(`Keep submitting — the more recs you share, the more the community discovers you.`)}
-  `),
+  `, dashboardPath),
 
-  // ── Rec Rejected ──
-  recommendationRejected: (username: string, title: string, reason: string, recId: string) => shell(`
+  recommendationRejected: (username: string, title: string, reason: string, recId: string, dashboardPath = '/reader/dashboard') => shell(`
     ${badge('❌ Recommendation Not Approved', C.red)}
     ${h1(`Hi @${username},`)}
     ${p(`Your recommendation for ${strong(`"${title}"`)} was reviewed but couldn't be approved this time.`)}
     ${reasonBox(reason, C.red)}
     ${p(`You can edit your submission and resubmit, or appeal if you think this was a mistake.`)}
     ${divider()}
-    ${cta('Edit & Resubmit', `${SITE_URL}/reader/dashboard/recommendations`, C.red)}
-  `),
+    ${cta('Edit & Resubmit', `${SITE_URL}${dashboardPath}/recommendations`, C.red)}
+  `, dashboardPath),
 
-  // ── Account Banned ──
-  accountBanned: (username: string, reason: string) => shell(`
+  accountBanned: (username: string, reason: string, dashboardPath = '/reader/dashboard') => shell(`
     ${badge('🚫 Account Suspended', C.red)}
     ${h1(`Hi @${username},`)}
     ${p(`Your ${SITE_NAME} account has been permanently suspended following a review.`)}
     ${reasonBox(reason, C.red)}
     ${p(`If you believe this was a mistake you can submit a ban appeal and our team will review it.`)}
     ${divider()}
-    ${cta('Submit a Ban Appeal', `${SITE_URL}/reader/dashboard`, C.red)}
-  `),
+    ${cta('Submit a Ban Appeal', `${SITE_URL}${dashboardPath}`, C.red)}
+  `, dashboardPath),
 
-  // ── Account Unbanned ──
-  accountUnbanned: (username: string) => shell(`
+  accountUnbanned: (username: string, dashboardPath = '/reader/dashboard') => shell(`
     ${badge('✅ Account Reinstated', C.emerald)}
     ${h1(`Welcome back, @${username}!`)}
     ${p(`Your ${SITE_NAME} account restriction has been lifted. You have full access again.`)}
     ${p(`Please review our community guidelines to ensure a smooth experience for everyone.`)}
     ${divider()}
-    ${cta('Go to Dashboard', `${SITE_URL}/reader/dashboard`, C.emerald)}
-  `),
+    ${cta('Go to Dashboard', `${SITE_URL}${dashboardPath}`, C.emerald)}
+  `, dashboardPath),
 
-  // ── Account Suspended ──
-  accountSuspended: (username: string, reason: string, duration_hours: number) => shell(`
+  accountSuspended: (username: string, reason: string, duration_hours: number, dashboardPath = '/reader/dashboard') => shell(`
     ${badge('⚠️ Temporary Suspension', C.amber)}
     ${h1(`Hi @${username},`)}
     ${p(`Your account has been temporarily suspended for ${strong(`${duration_hours} hours`)}.`)}
@@ -300,67 +300,59 @@ export const templates = {
     ${p(`Your account will be automatically reinstated once the suspension period ends.`)}
     ${divider()}
     ${cta('View Guidelines', `${SITE_URL}/guidelines`, C.amber)}
-  `),
+  `, dashboardPath),
 
-  // ── Account Unsuspended ──
-  accountUnsuspended: (username: string) => shell(`
+  accountUnsuspended: (username: string, dashboardPath = '/reader/dashboard') => shell(`
     ${badge('✅ Access Restored', C.emerald)}
     ${h1(`Good news, @${username}!`)}
     ${p(`Your suspension has been lifted. You have full access to ${SITE_NAME} again.`)}
     ${p(`Thank you for your patience. We're glad to have you back.`)}
     ${divider()}
-    ${cta('Go to Dashboard', `${SITE_URL}/reader/dashboard`, C.emerald)}
-  `),
+    ${cta('Go to Dashboard', `${SITE_URL}${dashboardPath}`, C.emerald)}
+  `, dashboardPath),
 
-  // ── Appeal Resolved ──
-  appealResolved: (username: string, type: string, outcome: string, title?: string) => shell(`
+  appealResolved: (username: string, type: string, outcome: string, title?: string, dashboardPath = '/reader/dashboard') => shell(`
     ${badge(
       outcome === 'approved' ? '✅ Appeal Approved' : '❌ Appeal Rejected',
       outcome === 'approved' ? C.emerald : C.red
     )}
     ${h1(`Hi @${username},`)}
     ${p(`Your ${type} appeal${title ? ` for ${strong(`"${title}"`)}` : ''} has been reviewed.`)}
-
     ${infoBox(
       outcome === 'approved'
-        ? `<p style="color:${C.emerald};font-size:14px;font-weight:600;margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
-            ${type === 'ban' ? '🎉 Your account has been reinstated and is fully active.' : '🎉 Your recommendation is now live on Compicfy.'}
+        ? `<p style="color:${C.emerald};font-size:14px;font-weight:600;margin:0;
+                    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+            ${type === 'ban' ? '🎉 Your account has been reinstated and is fully active.' : '🎉 Your recommendation is now live on ' + SITE_NAME + '.'}
            </p>`
-        : `<p style="color:${C.red};font-size:14px;font-weight:600;margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+        : `<p style="color:${C.red};font-size:14px;font-weight:600;margin:0;
+                    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
             After careful review, our team has upheld the original decision.
            </p>`,
       outcome === 'approved' ? C.emerald + '30' : C.red + '30'
     )}
+    ${cta('Go to Dashboard', `${SITE_URL}${dashboardPath}`, outcome === 'approved' ? C.emerald : C.teal)}
+  `, dashboardPath),
 
-    ${cta('Go to Dashboard', `${SITE_URL}/reader/dashboard`,
-      outcome === 'approved' ? C.emerald : C.teal
-    )}
-  `),
-
-  // ── New Follower ──
-  newFollower: (username: string, followerUsername: string, followerDisplayName: string) => shell(`
+  newFollower: (username: string, followerUsername: string, followerDisplayName: string, dashboardPath = '/reader/dashboard') => shell(`
     ${badge('👤 New Follower', C.teal)}
     ${h1(`You have a new follower!`)}
     ${p(`${strong(followerDisplayName)} (${strong(`@${followerUsername}`)}) just followed you on ${SITE_NAME}. Their feed will now feature your recommendations.`)}
-
     ${infoBox(`
       <table cellpadding="0" cellspacing="0" border="0">
         <tr>
-          <td width="44" height="44" style="width:44px;height:44px;vertical-align:middle;padding-right:14px;">
-            <table cellpadding="0" cellspacing="0" border="0">
-              <tr>
-                <td width="44" height="44"
-                  style="width:44px;height:44px;background:${C.tealDim};border:2px solid ${C.tealBrd};
-                         border-radius:50%;text-align:center;vertical-align:middle;">
-                  <span style="color:${C.teal};font-size:18px;font-weight:800;">
-                    ${followerDisplayName[0].toUpperCase()}
-                  </span>
-                </td>
-              </tr>
-            </table>
+          <td width="44" height="44" style="vertical-align:middle;padding-right:14px;">
+            <table cellpadding="0" cellspacing="0" border="0"><tr>
+              <td width="44" height="44"
+                style="width:44px;height:44px;background:${C.tealDim};border:2px solid ${C.tealBrd};
+                       border-radius:50%;text-align:center;vertical-align:middle;">
+                <span style="color:${C.teal};font-size:18px;font-weight:800;">
+                  ${followerDisplayName[0].toUpperCase()}
+                </span>
+              </td>
+            </tr></table>
           </td>
           <td style="vertical-align:middle;">
-            ${value(followerDisplayName)}
+            ${val(followerDisplayName)}
             <p style="color:${C.muted};font-size:13px;margin:4px 0 0;
                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
               @${followerUsername}
@@ -369,65 +361,45 @@ export const templates = {
         </tr>
       </table>
     `)}
-
     ${cta('View Their Profile', `${SITE_URL}/profile/${followerUsername}`)}
-  `),
+  `, dashboardPath),
 
-  // ── New Vote ──
-  newVote: (username: string, voterUsername: string, title: string, recId: string, voteType: 'up' | 'down') => shell(`
-    ${badge(
-      voteType === 'up' ? '👍 New Upvote' : '👎 New Downvote',
-      voteType === 'up' ? C.emerald : C.red
-    )}
+  newVote: (username: string, voterUsername: string, title: string, recId: string, voteType: 'up' | 'down', dashboardPath = '/reader/dashboard') => shell(`
+    ${badge(voteType === 'up' ? '👍 New Upvote' : '👎 New Downvote', voteType === 'up' ? C.emerald : C.red)}
     ${h1(voteType === 'up' ? 'Someone loves your rec!' : 'New vote on your recommendation')}
     ${p(`${strong(`@${voterUsername}`)} ${voteType === 'up' ? 'upvoted' : 'downvoted'} your recommendation for ${strong(`"${title}"`)}.`)}
+    ${infoBox(`${label('Recommendation')}${val(title)}`, voteType === 'up' ? C.emerald + '30' : C.red + '30')}
+    ${cta('View Recommendation', `${SITE_URL}/comic/${recId}`, voteType === 'up' ? C.emerald : C.teal)}
+  `, dashboardPath),
 
-    ${infoBox(`
-      ${label('Recommendation')}
-      ${value(title)}
-    `, voteType === 'up' ? C.emerald + '30' : C.red + '30')}
-
-    ${cta('View Recommendation', `${SITE_URL}/comic/${recId}`,
-      voteType === 'up' ? C.emerald : C.teal
-    )}
-  `),
-
-  // ── New Review ──
-  newReview: (username: string, reviewerUsername: string, title: string, recId: string, reviewSnippet: string) => shell(`
+  newReview: (username: string, reviewerUsername: string, title: string, recId: string, reviewSnippet: string, dashboardPath = '/reader/dashboard') => shell(`
     ${badge('⭐ New Review', C.amber)}
     ${h1(`@${reviewerUsername} reviewed your rec!`)}
     ${p(`Someone left a review on your recommendation for ${strong(`"${title}"`)}.`)}
-
-    ${reasonBox(
-      `"${reviewSnippet}${reviewSnippet.length >= 120 ? '…' : ''}"`,
-      C.amber
-    )}
-
+    ${reasonBox(`"${reviewSnippet}${reviewSnippet.length >= 120 ? '…' : ''}"`, C.amber)}
     ${cta('Read Full Review', `${SITE_URL}/comic/${recId}`, C.amber)}
-  `),
+  `, dashboardPath),
 
-  // ── Pro Waitlist Confirmation ──
   proWaitlist: (email: string) => shell(`
     ${badge('🎉 You\'re on the list!', C.teal)}
-    ${h1(`Pro is coming, you'll be first to know.`)}
-    ${p(`We've added ${strong(email)} to the Compicfy Pro waitlist. When Pro launches, you'll get an email before anyone else.`)}
-
+    ${h1(`Pro is coming — you'll be first to know.`)}
+    ${p(`We've added ${strong(email)} to the ${SITE_NAME} Pro waitlist. When Pro launches, you'll get an email before anyone else.`)}
     ${infoBox(`
-      ${label("What you'll get with Pro")}
+      ${label('What you\'ll get with Pro')}
       <div style="margin-top:14px;">
         ${checklist([
           'Unlimited recommendations every month',
           'Full recommendation analytics dashboard',
           'Export reading lists as CSV or PDF',
           'Leaderboard access and rank tracking',
-          'Exclusive 👑 Pro badge on your profile',
+          `Exclusive 👑 Pro badge on your profile`,
           'Priority review queue for submissions',
+          'And more to come...',
         ])}
       </div>
     `)}
-
-    ${p(`While you wait browse the community, submit recommendations, and build your reading lists. The platform is live and free right now.`)}
-    ${cta('Start Exploring', `${SITE_URL}/browse`)}
-  `),
+    ${p(`While you wait — browse the community, submit recommendations, and build your reading lists. The platform is live and free right now.`)}
+    ${cta('Start Reading', `${SITE_URL}/browse`)}
+  `, '/reader/dashboard'),
 
 }

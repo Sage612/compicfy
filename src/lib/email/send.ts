@@ -1,4 +1,4 @@
-import { sendMail, FROM, SITE_NAME } from './mailer'
+import { sendMail, SITE_NAME } from './mailer'
 import { templates } from './templates'
 import { createClient } from '@supabase/supabase-js'
 
@@ -20,45 +20,77 @@ async function getUserEmail(userId: string): Promise<string | null> {
   }
 }
 
-// ── Transactional emails ─────────────────────────────────────────────────────
+/** Resolve the correct dashboard base path for a user */
+async function getDashboardPath(userId: string, isPro?: boolean): Promise<string> {
+  try {
+    const admin = getAdminClient()
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('user_type, is_pro, pro_expires_at, role')
+      .eq('id', userId)
+      .single() as { data: any }
 
-export const sendWelcomeEmail = (to: string, username: string) =>
-  sendMail(to, `Welcome to Compicfy, @${username}! 🎉`, templates.welcome(username))
+    if (!profile) return '/reader/dashboard'
 
-export const sendApprovedEmail = (to: string, username: string, title: string, recId: string) =>
-  sendMail(to, `✅ Your recommendation "${title}" was approved!`, templates.recommendationApproved(username, title, recId))
+    const isAdmin   = ['admin', 'moderator'].includes(profile.role ?? '')
+    const proActive = isAdmin || (profile.is_pro &&
+      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+    const isCreator = profile.user_type === 'creator'
 
-export const sendRejectedEmail = (to: string, username: string, title: string, reason: string, recId: string) =>
-  sendMail(to, `Your recommendation "${title}" was not approved`, templates.recommendationRejected(username, title, reason, recId))
+    if (isCreator) return proActive ? '/pro/creator/dashboard' : '/creator/dashboard'
+    return proActive ? '/pro/reader/dashboard' : '/reader/dashboard'
+  } catch {
+    return '/reader/dashboard'
+  }
+}
 
-export const sendBannedEmail = (to: string, username: string, reason: string) =>
-  sendMail(to, `Your ${SITE_NAME} account has been suspended`, templates.accountBanned(username, reason))
+// ── Transactional emails ──────────────────────────────────────────────────────
 
-export const sendUnbannedEmail = (to: string, username: string) =>
-  sendMail(to, `Your ${SITE_NAME} account has been reinstated ✅`, templates.accountUnbanned(username))
+export const sendWelcomeEmail = async (to: string, username: string, userId?: string) => {
+  const dashboardPath = userId ? await getDashboardPath(userId) : '/reader/dashboard'
+  return sendMail(to, `Welcome to ${SITE_NAME}, @${username}! 🎉`, templates.welcome(username, dashboardPath))
+}
 
-export const sendAppealResolvedEmail = (to: string, username: string, type: string, outcome: string, title?: string) =>
-  sendMail(to, `Your ${type} appeal has been ${outcome}`, templates.appealResolved(username, type, outcome, title))
+export const sendApprovedEmail = async (to: string, username: string, title: string, recId: string, userId?: string) => {
+  const dashboardPath = userId ? await getDashboardPath(userId) : '/reader/dashboard'
+  return sendMail(to, `✅ Your recommendation "${title}" was approved!`, templates.recommendationApproved(username, title, recId, dashboardPath))
+}
 
-export const sendSuspendedEmail = (to: string, username: string, reason: string, duration_hours: number) =>
-  sendMail(
-    to,
-    `Your ${SITE_NAME} account has been temporarily suspended`,
-    templates.accountSuspended(username, reason, duration_hours)
-  )
+export const sendRejectedEmail = async (to: string, username: string, title: string, reason: string, recId: string, userId?: string) => {
+  const dashboardPath = userId ? await getDashboardPath(userId) : '/reader/dashboard'
+  return sendMail(to, `Your recommendation "${title}" was not approved`, templates.recommendationRejected(username, title, reason, recId, dashboardPath))
+}
 
-export const sendUnsuspendedEmail = (to: string, username: string) =>
-  sendMail(
-    to,
-    `Your ${SITE_NAME} account access has been restored`,
-    templates.accountUnsuspended(username)
-  )
+export const sendBannedEmail = async (to: string, username: string, reason: string, userId?: string) => {
+  const dashboardPath = userId ? await getDashboardPath(userId) : '/reader/dashboard'
+  return sendMail(to, `Your ${SITE_NAME} account has been suspended`, templates.accountBanned(username, reason, dashboardPath))
+}
 
-// ── Notification emails ──────────────────────────────────────────────────────
+export const sendUnbannedEmail = async (to: string, username: string, userId?: string) => {
+  const dashboardPath = userId ? await getDashboardPath(userId) : '/reader/dashboard'
+  return sendMail(to, `Your ${SITE_NAME} account has been reinstated ✅`, templates.accountUnbanned(username, dashboardPath))
+}
+
+export const sendAppealResolvedEmail = async (to: string, username: string, type: string, outcome: string, title?: string, userId?: string) => {
+  const dashboardPath = userId ? await getDashboardPath(userId) : '/reader/dashboard'
+  return sendMail(to, `Your ${type} appeal has been ${outcome}`, templates.appealResolved(username, type, outcome, title, dashboardPath))
+}
+
+export const sendSuspendedEmail = async (to: string, username: string, reason: string, duration_hours: number, userId?: string) => {
+  const dashboardPath = userId ? await getDashboardPath(userId) : '/reader/dashboard'
+  return sendMail(to, `Your ${SITE_NAME} account has been temporarily suspended`, templates.accountSuspended(username, reason, duration_hours, dashboardPath))
+}
+
+export const sendUnsuspendedEmail = async (to: string, username: string, userId?: string) => {
+  const dashboardPath = userId ? await getDashboardPath(userId) : '/reader/dashboard'
+  return sendMail(to, `Your ${SITE_NAME} account access has been restored`, templates.accountUnsuspended(username, dashboardPath))
+}
+
+// ── Notification emails ───────────────────────────────────────────────────────
 
 export async function sendFollowNotificationEmail(
-  followedUserId: string,
-  followerUsername: string,
+  followedUserId:      string,
+  followerUsername:    string,
   followerDisplayName: string
 ) {
   const admin = getAdminClient()
@@ -68,25 +100,27 @@ export async function sendFollowNotificationEmail(
     .eq('id', followedUserId)
     .single()
 
-  if (!profile?.email_notifications) return
-  if (!profile?.username) return
+  if (!profile?.email_notifications || !profile?.username) return
 
-  const email = await getUserEmail(followedUserId)
+  const [email, dashboardPath] = await Promise.all([
+    getUserEmail(followedUserId),
+    getDashboardPath(followedUserId),
+  ])
   if (!email) return
 
   await sendMail(
     email,
-    `@${followerUsername} is now following you on Compicfy!`,
-    templates.newFollower(profile.username, followerUsername, followerDisplayName)
+    `@${followerUsername} is now following you on ${SITE_NAME}!`,
+    templates.newFollower(profile.username, followerUsername, followerDisplayName, dashboardPath)
   )
 }
 
 export async function sendVoteNotificationEmail(
-  recOwnerId: string,
+  recOwnerId:    string,
   voterUsername: string,
-  recTitle: string,
-  recId: string,
-  voteType: 'up' | 'down'
+  recTitle:      string,
+  recId:         string,
+  voteType:      'up' | 'down'
 ) {
   if (voteType === 'down') return
 
@@ -97,25 +131,27 @@ export async function sendVoteNotificationEmail(
     .eq('id', recOwnerId)
     .single()
 
-  if (!profile?.email_notifications) return
-  if (!profile?.username) return
+  if (!profile?.email_notifications || !profile?.username) return
 
-  const email = await getUserEmail(recOwnerId)
+  const [email, dashboardPath] = await Promise.all([
+    getUserEmail(recOwnerId),
+    getDashboardPath(recOwnerId),
+  ])
   if (!email) return
 
   await sendMail(
     email,
     `Your recommendation "${recTitle}" got an upvote! 👍`,
-    templates.newVote(profile.username, voterUsername, recTitle, recId, voteType)
+    templates.newVote(profile.username, voterUsername, recTitle, recId, voteType, dashboardPath)
   )
 }
 
 export async function sendReviewNotificationEmail(
-  recOwnerId: string,
+  recOwnerId:       string,
   reviewerUsername: string,
-  recTitle: string,
-  recId: string,
-  reviewContent: string
+  recTitle:         string,
+  recId:            string,
+  reviewContent:    string
 ) {
   const admin = getAdminClient()
   const { data: profile } = await admin
@@ -124,17 +160,17 @@ export async function sendReviewNotificationEmail(
     .eq('id', recOwnerId)
     .single()
 
-  if (!profile?.email_notifications) return
-  if (!profile?.username) return
+  if (!profile?.email_notifications || !profile?.username) return
 
-  const email = await getUserEmail(recOwnerId)
+  const [email, dashboardPath] = await Promise.all([
+    getUserEmail(recOwnerId),
+    getDashboardPath(recOwnerId),
+  ])
   if (!email) return
-
-  const snippet = reviewContent.slice(0, 120)
 
   await sendMail(
     email,
     `@${reviewerUsername} reviewed your recommendation "${recTitle}"`,
-    templates.newReview(profile.username, reviewerUsername, recTitle, recId, snippet)
+    templates.newReview(profile.username, reviewerUsername, recTitle, recId, reviewContent.slice(0, 120), dashboardPath)
   )
 }

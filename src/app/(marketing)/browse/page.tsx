@@ -4,7 +4,6 @@ import { FilterBar } from '@/components/recommendations/FilterBar'
 import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
 import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
-import { BrowseRecButton } from '@/components/recommendations/BrowseRecButton'
 import { BookOpen, Radar } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -26,9 +25,39 @@ interface Props {
 const PAGE_SIZE    = 24
 const SAFE_RATINGS = '("adult","mature")'
 
-async function getFeatured(s: SupabaseClient) {
-  const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('daily_votes', { ascending: false }).limit(12)
-  return (data as Recommendation[]) ?? []
+async function getFeatured(s: SupabaseClient): Promise<{ items: Recommendation[]; adminIds: Set<string> }> {
+  const now = new Date().toISOString()
+
+  // Admin-curated picks — is_featured=true AND (carousel_until is null OR carousel_until > now)
+  const { data: adminData } = await s
+    .from('recommendations')
+    .select('*')
+    .eq('is_approved', true)
+    .eq('is_featured', true)
+    .not('content_rating', 'in', SAFE_RATINGS)
+    .or(`carousel_until.is.null,carousel_until.gt.${now}`)
+    .order('featured_at', { ascending: false })
+    .limit(6)
+
+  const adminPicks = (adminData as Recommendation[]) ?? []
+  const adminIds   = new Set(adminPicks.map(r => r.id))
+  const remaining  = Math.max(0, 12 - adminPicks.length)
+
+  // Fill remaining with top community-voted — not admin-featured, ordered by daily_votes
+  let communityPicks: Recommendation[] = []
+  if (remaining > 0) {
+    const { data: communityData } = await s
+      .from('recommendations')
+      .select('*')
+      .eq('is_approved', true)
+      .eq('is_featured', false)
+      .not('content_rating', 'in', SAFE_RATINGS)
+      .order('daily_votes', { ascending: false })
+      .limit(remaining)
+    communityPicks = (communityData as Recommendation[]) ?? []
+  }
+
+  return { items: [...adminPicks, ...communityPicks], adminIds }
 }
 
 async function getTrending(s: SupabaseClient) {
@@ -73,7 +102,7 @@ async function getYouMightLike(s: SupabaseClient, userId: string | null) {
   const { data } = await (s as any).rpc('get_personalized_recommendations', {
     p_user_id:         userId,
     p_exclude_id:      null,
-    p_limit:           20, // fetch extra to cover filtered-out own comics
+    p_limit:           20,
     p_content_ratings: ['all_ages', 'teen'],
   })
   let results = (data as Recommendation[]) ?? []
@@ -118,7 +147,6 @@ export default async function BrowsePage({ searchParams }: Props) {
   let adultEnabled     = false
   let interactionCount = 0
   let isPro            = false
-  let recommendHref    = 'reader/dashboard/recommendations/new'
 
   if (user) {
     const [profileRes, interactions] = await Promise.all([
@@ -133,15 +161,14 @@ export default async function BrowsePage({ searchParams }: Props) {
             profile?.role === 'moderator' ||
             (profile?.is_pro && (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
 
-    if (isPro) recommendHref = '/pro/reader/recommendations/new'
   }
 
   const [
-    featured, trending, recent, newThisWeek,
+    featuredResult, trending, recent, newThisWeek,
     adminPicks, communityFavs, hiddenGems, youMightLike,
     { items, total },
   ] = await Promise.all([
-    isFiltering ? Promise.resolve([]) : getFeatured(supabase),
+    isFiltering ? Promise.resolve({ items: [], adminIds: new Set<string>() }) : getFeatured(supabase),
     isFiltering ? Promise.resolve([]) : getTrending(supabase),
     isFiltering ? Promise.resolve([]) : getRecent(supabase),
     isFiltering ? Promise.resolve([]) : getNewThisWeek(supabase),
@@ -151,6 +178,9 @@ export default async function BrowsePage({ searchParams }: Props) {
     isFiltering ? Promise.resolve([]) : getYouMightLike(supabase, user?.id ?? null),
     getInitialGrid(supabase, params),
   ])
+
+  const featured         = featuredResult.items
+  const adminFeaturedIds = featuredResult.adminIds
 
   const clientParams: Record<string, string> = { adult: 'false' }
   if (params.q)      clientParams.q      = params.q
@@ -175,21 +205,17 @@ export default async function BrowsePage({ searchParams }: Props) {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {adultEnabled && (
-            <Link href="/browse/adult">
-              <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 h-8 px-2.5">🔞</Button>
-            </Link>
-          )}
-          {/* BrowseRecButton handles auth state — shows modal for guests, links for logged in */}
-          <BrowseRecButton isLoggedIn={!!user} recommendHref={recommendHref} />
-        </div>
+        {adultEnabled && (
+          <Link href="/browse/adult">
+            <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 h-8 px-2.5 shrink-0">🔞</Button>
+          </Link>
+        )}
       </div>
 
-      {/* Featured Carousel */}
+      {/* Featured Carousel — admin picks shown first, rest are community voted */}
       {!isFiltering && featured.length > 0 && (
         <Suspense fallback={<div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />}>
-          <FeaturedCarousel recommendations={featured} />
+          <FeaturedCarousel recommendations={featured} adminFeaturedIds={adminFeaturedIds} />
         </Suspense>
       )}
 
