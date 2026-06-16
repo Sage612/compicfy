@@ -271,7 +271,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
       {/* Featured Carousel */}
       {!isFiltering && featured.length > 0 && (
         <Suspense fallback={<div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />}>
-          <FeaturedCarousel recommendations={featured} />
+         <FeaturedCarousel recommendations={featured} adminFeaturedIds={new Set()} />
         </Suspense>
       )}
 
