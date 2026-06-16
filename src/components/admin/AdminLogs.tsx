@@ -105,7 +105,7 @@ export function AdminLogs() {
     if (log.action === 'auto_approved' || log.action === 'flagged_for_review') {
       return (
         <div className="space-y-2 text-sm">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <span className="text-muted-foreground">Status:</span>
               <span className="ml-2 font-mono">{log.approval?.status}</span>
@@ -126,7 +126,7 @@ export function AdminLogs() {
               <p className="text-muted-foreground text-xs mb-1">Failed Conditions:</p>
               <ul className="space-y-1">
                 {log.details.failed_conditions.slice(0, 5).map((cond: string, i: number) => (
-                  <li key={i} className="text-xs bg-red-500/10 text-red-700 px-2 py-1 rounded">
+                  <li key={i} className="text-xs bg-red-500/10 text-red-700 px-2 py-1 rounded break-words">
                     • {cond}
                   </li>
                 ))}
@@ -141,7 +141,7 @@ export function AdminLogs() {
     if (log.action === 'auto_rec_submit') {
       return (
         <div className="space-y-2 text-sm">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
               <span className="text-muted-foreground">Type:</span>
               <span className="ml-1 font-semibold capitalize">{log.submission?.type}</span>
@@ -154,14 +154,14 @@ export function AdminLogs() {
             </div>
             <div>
               <span className="text-muted-foreground">Source:</span>
-              <span className="ml-1 font-mono text-xs">{log.details.source}</span>
+              <span className="ml-1 font-mono text-xs break-all">{log.details.source}</span>
             </div>
           </div>
 
           {log.submission?.author && (
             <div>
               <span className="text-muted-foreground">Author:</span>
-              <span className="ml-2">{log.submission.author}</span>
+              <span className="ml-2 break-words">{log.submission.author}</span>
             </div>
           )}
 
@@ -194,16 +194,16 @@ export function AdminLogs() {
           {log.submission?.ids && Object.values(log.submission.ids).some(Boolean) && (
             <div className="pt-2 border-t">
               <span className="text-muted-foreground text-xs">External IDs:</span>
-              <div className="grid grid-cols-3 gap-2 mt-1 text-xs">
-                {log.submission.ids.mu && <div className="bg-muted px-2 py-1 rounded"><span className="text-muted-foreground">MU:</span> {log.submission.ids.mu}</div>}
-                {log.submission.ids.al && <div className="bg-muted px-2 py-1 rounded"><span className="text-muted-foreground">AL:</span> {log.submission.ids.al}</div>}
-                {log.submission.ids.mal && <div className="bg-muted px-2 py-1 rounded"><span className="text-muted-foreground">MAL:</span> {log.submission.ids.mal}</div>}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1 text-xs">
+                {log.submission.ids.mu && <div className="bg-muted px-2 py-1 rounded break-all"><span className="text-muted-foreground">MU:</span> {log.submission.ids.mu}</div>}
+                {log.submission.ids.al && <div className="bg-muted px-2 py-1 rounded break-all"><span className="text-muted-foreground">AL:</span> {log.submission.ids.al}</div>}
+                {log.submission.ids.mal && <div className="bg-muted px-2 py-1 rounded break-all"><span className="text-muted-foreground">MAL:</span> {log.submission.ids.mal}</div>}
               </div>
             </div>
           )}
 
           {log.summary.reason && (
-            <div className="pt-2 border-t bg-amber-500/10 px-2 py-1 rounded text-xs text-amber-700">
+            <div className="pt-2 border-t bg-amber-500/10 px-2 py-1 rounded text-xs text-amber-700 break-words">
               {log.summary.reason}
             </div>
           )}
@@ -215,7 +215,7 @@ export function AdminLogs() {
     if (log.action === 'chapter_check') {
       return (
         <div className="space-y-2 text-sm">
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div>
               <span className="text-muted-foreground">Database:</span>
               <span className="ml-1 font-semibold">{log.chapter_check?.database}</span>
@@ -256,7 +256,7 @@ export function AdminLogs() {
     if (log.action === 'id_check') {
       return (
         <div className="space-y-2 text-sm">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div>
               <span className="text-muted-foreground">IDs Found:</span>
               <span className="ml-2 font-bold text-emerald-600">{log.id_check?.total}/6</span>
@@ -272,10 +272,10 @@ export function AdminLogs() {
           {log.id_check?.found && Object.keys(log.id_check.found).length > 0 && (
             <div className="pt-2 border-t">
               <span className="text-muted-foreground text-xs">Found:</span>
-              <div className="grid grid-cols-2 gap-1 mt-1 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-1 text-xs">
                 {Object.entries(log.id_check.found).map(([key, val]) => (
                   val && (
-                    <div key={key} className="bg-emerald-500/10 px-2 py-1 rounded text-emerald-700">
+                    <div key={key} className="bg-emerald-500/10 px-2 py-1 rounded text-emerald-700 break-all">
                       <span className="font-semibold uppercase">{key}:</span> {val}
                     </div>
                   )
@@ -291,7 +291,7 @@ export function AdminLogs() {
     if (log.action.includes('summary')) {
       return (
         <div className="space-y-2 text-sm">
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div>
               <span className="text-muted-foreground">Submitted:</span>
               <span className="ml-1 font-bold text-emerald-600">{log.details.submitted_count}</span>
@@ -315,7 +315,7 @@ export function AdminLogs() {
               <span className="text-muted-foreground text-xs">Sources Used:</span>
               <div className="space-y-1 mt-1 text-xs">
                 {Object.entries(log.details.sources).map(([type, source]: [string, any]) => (
-                  <div key={type} className="bg-muted px-2 py-1 rounded capitalize">
+                  <div key={type} className="bg-muted px-2 py-1 rounded capitalize break-words">
                     <span className="font-semibold">{type}:</span> {source}
                   </div>
                 ))}
@@ -329,7 +329,7 @@ export function AdminLogs() {
     // Fallback
     return (
       <div className="text-sm text-muted-foreground">
-        <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-48">
+        <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-48 break-words">
           {JSON.stringify(log.details, null, 2)}
         </pre>
       </div>
@@ -347,15 +347,16 @@ export function AdminLogs() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{logs.length} logs shown</p>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex flex-wrap gap-1.5 w-full sm:w-auto">
           {actionTypes.map(type => (
             <Button
               key={type}
               variant={filter === type ? 'default' : 'outline'}
               size="sm"
               onClick={() => setFilter(filter === type ? '' : type)}
+              className="text-xs px-2 py-1 h-auto"
             >
               {type.replace(/_/g, ' ')}
             </Button>
@@ -365,7 +366,7 @@ export function AdminLogs() {
           variant="outline"
           size="sm"
           onClick={() => { setPage(1); fetchLogs(1, false) }}
-          className="gap-1.5"
+          className="gap-1.5 shrink-0"
         >
           <RefreshCw size={13} />
           Refresh
@@ -391,9 +392,9 @@ export function AdminLogs() {
               <div key={log.id} className="bg-card hover:bg-muted/20 transition-colors">
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : log.id)}
-                  className="w-full text-left px-4 py-3 flex items-center gap-3"
+                  className="w-full text-left px-3 py-3 flex items-start gap-2 sm:gap-3"
                 >
-                  <Avatar className="h-8 w-8 shrink-0">
+                  <Avatar className="h-8 w-8 shrink-0 mt-0.5">
                     <AvatarImage src={log.profile?.avatar_url} />
                     <AvatarFallback className="text-xs bg-gradient-to-br from-primary to-violet-500 text-white font-bold">
                       {initials}
@@ -401,31 +402,31 @@ export function AdminLogs() {
                   </Avatar>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                       <span className="text-sm font-semibold">@{log.profile?.username || 'System'}</span>
-                      <span className={cn('inline-flex items-center px-2 py-0.5 rounded text-xs font-bold', style.color, style.bg)}>
+                      <span className={cn('inline-flex items-center px-2 py-0.5 rounded text-xs font-bold w-fit', style.color, style.bg)}>
                         {log.action}
                       </span>
                     </div>
-                    <p className="text-sm text-foreground mt-0.5 truncate">
+                    <p className="text-sm text-foreground mt-0.5 break-words">
                       {log.summary.title}
                     </p>
                     {log.summary.reason && (
-                      <p className="text-xs text-amber-600 mt-1">⚠️ {log.summary.reason}</p>
+                      <p className="text-xs text-amber-600 mt-1 break-words">⚠️ {log.summary.reason}</p>
                     )}
                     {log.summary.error && (
-                      <p className="text-xs text-red-600 mt-1">❌ {log.summary.error}</p>
+                      <p className="text-xs text-red-600 mt-1 break-words">❌ {log.summary.error}</p>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-muted-foreground">{timeAgo(log.created_at)}</span>
-                    {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  <div className="flex flex-col items-end gap-1 shrink-0 ml-1">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{timeAgo(log.created_at)}</span>
+                    {isExpanded ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
                   </div>
                 </button>
 
                 {isExpanded && (
-                  <div className="px-4 py-3 bg-muted/30 border-t border-border">
+                  <div className="px-3 sm:px-4 py-3 bg-muted/30 border-t border-border">
                     {renderLogDetails(log)}
                   </div>
                 )}
