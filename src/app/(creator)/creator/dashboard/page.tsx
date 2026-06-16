@@ -74,7 +74,7 @@ export default async function CreatorDashboardPage() {
           <div className="relative shrink-0">
             <div className="absolute -inset-1 rounded-full bg-teal-500/30 blur-sm" />
             <Avatar className="relative h-16 w-16 border-2 border-teal-500/40">
-              <AvatarImage src={profile.avatar_url ?? undefined} />
+              <AvatarImage src={profile.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(profile.avatar_url)}` : undefined} />
               <AvatarFallback className="text-xl bg-teal-500 text-white font-bold">{initials}</AvatarFallback>
             </Avatar>
           </div>
@@ -167,7 +167,7 @@ export default async function CreatorDashboardPage() {
               <div key={work.id} className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-teal-500/30 transition-colors">
                 <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                   {work.cover_url
-                    ? <img src={work.cover_url} alt={work.title} className="w-full h-full object-cover" />
+                    ? <img src={`/api/image-proxy?url=${encodeURIComponent(src={`/api/image-proxy?url=${encodeURIComponent(work.cover_url)}`})}`} alt={work.title} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center"><BookOpen size={12} className="text-muted-foreground opacity-40" /></div>
                   }
                 </div>
@@ -226,7 +226,7 @@ export default async function CreatorDashboardPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <Avatar className="h-6 w-6 shrink-0">
-                      <AvatarImage src={review.profiles?.avatar_url} />
+                      <AvatarImage src={review.profiles?.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(review.profiles.avatar_url)}` : undefined} />
                       <AvatarFallback className="text-[9px] bg-muted">
                         {review.profiles?.username?.slice(0, 2).toUpperCase()}
                       </AvatarFallback>
@@ -287,3 +287,4 @@ export default async function CreatorDashboardPage() {
     </div>
   )
 }
+

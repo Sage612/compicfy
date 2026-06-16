@@ -115,7 +115,7 @@ export default async function ProReaderDashboardPage() {
         <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-amber-500/10 blur-2xl pointer-events-none" />
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
-          <ProAvatar src={profile.avatar_url} fallback={initials} size="lg" isPro={isPro} isAdmin={isAdmin} />
+          <ProAvatar src={profile.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(profile.avatar_url)}` : undefined} fallback={initials} size="lg" isPro={isPro} isAdmin={isAdmin} />
           <div className="flex-1 min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-black truncate">Hey, {profile.display_name || profile.username}!</h1>

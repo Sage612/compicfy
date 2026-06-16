@@ -92,7 +92,7 @@ export default async function ProCreatorDashboardPage() {
         <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-teal-500/10 blur-2xl pointer-events-none" />
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-5">
-          <ProAvatar src={profile.avatar_url} fallback={initials} size="lg" isPro={isPro} isAdmin={isAdmin} />
+          <ProAvatar src={profile.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(profile.avatar_url)}` : fallback} fallback={initials} size="lg" isPro={isPro} isAdmin={isAdmin} />
           <div className="flex-1 min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-black truncate">{profile.display_name || profile.username}</h1>
@@ -196,7 +196,7 @@ export default async function ProCreatorDashboardPage() {
               <div key={work.id} className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-teal-500/30 transition-colors">
                 <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                   {work.cover_url
-                    ? <img src={work.cover_url} alt={work.title} className="w-full h-full object-cover" />
+                    ? <img src={`/api/image-proxy?url=${encodeURIComponent(work.cover_url)}`} alt={work.title} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center"><BookOpen size={12} className="text-muted-foreground opacity-40" /></div>
                   }
                 </div>
@@ -234,7 +234,7 @@ export default async function ProCreatorDashboardPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <Avatar className="h-6 w-6 shrink-0">
-                      <AvatarImage src={review.profiles?.avatar_url} />
+                      <AvatarImage src={review.profiles?.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(review.profiles.avatar_url)}` : undefined} />
                       <AvatarFallback className="text-[9px] bg-muted">{review.profiles?.username?.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <span className="text-xs font-semibold truncate">@{review.profiles?.username}</span>
