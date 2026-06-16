@@ -204,7 +204,7 @@ export default async function ProReaderDashboardPage() {
                 <span className="text-lg font-black text-muted-foreground/30 w-6 shrink-0">#{i + 1}</span>
                 <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                   {rec.cover_url
-                    ? <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ? <img src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     : <div className="w-full h-full flex items-center justify-center"><BookOpen size={12} className="text-muted-foreground opacity-40" /></div>
                   }
                 </div>
@@ -275,7 +275,7 @@ export default async function ProReaderDashboardPage() {
                 >
                   <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                     {rec.cover_url
-                      ? <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ? <img src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       : <div className="w-full h-full flex items-center justify-center"><BookOpen size={12} className="text-muted-foreground opacity-40" /></div>
                     }
                   </div>
@@ -321,3 +321,4 @@ export default async function ProReaderDashboardPage() {
     </div>
   )
 }
+
