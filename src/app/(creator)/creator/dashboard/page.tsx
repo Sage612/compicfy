@@ -167,7 +167,7 @@ export default async function CreatorDashboardPage() {
               <div key={work.id} className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-teal-500/30 transition-colors">
                 <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                   {work.cover_url
-                    ? <img src={`/api/image-proxy?url=${encodeURIComponent(src={`/api/image-proxy?url=${encodeURIComponent(work.cover_url)}`})}`} alt={work.title} className="w-full h-full object-cover" />
+                    ? <img src={`/api/image-proxy?url=${encodeURIComponent(work.cover_url)}`} alt={work.title} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center"><BookOpen size={12} className="text-muted-foreground opacity-40" /></div>
                   }
                 </div>
@@ -287,4 +287,5 @@ export default async function CreatorDashboardPage() {
     </div>
   )
 }
+
 
