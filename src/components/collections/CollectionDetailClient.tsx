@@ -562,3 +562,4 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
     </div>
   )
 }
+

@@ -325,3 +325,4 @@ export function ReadingListDetail({
     </div>
   )
 }
+
