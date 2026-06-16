@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const BATCH_SIZE = 10
-const API_DELAY_MS = 600
+const BATCH_SIZE         = 10
+const API_DELAY_MS       = 600
 const REQUEST_TIMEOUT_MS = 8000
 
+// ── Fetch with timeout ────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const response = await fetch(url, { ...options, signal: controller.signal })
     clearTimeout(timeoutId)
@@ -19,39 +20,28 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQU
   }
 }
 
+// ── Logging ───────────────────────────────────────────────────────
 interface CheckLog {
-  comic_id: string
-  comic_title: string
-  database_tried: string[]
-  database_success: string | null
+  comic_id:          string
+  comic_title:       string
+  database_tried:    string[]
+  database_success:  string | null
   old_chapter_count: number | null
   new_chapter_count: number | null
-  platforms_found: string[]
-  status: 'success' | 'no_update' | 'failed'
-  reason?: string
-  error?: string
-  timestamp: string
+  status:            'success' | 'no_update' | 'failed'
+  reason?:           string
+  error?:            string
+  timestamp:         string
 }
 
 async function logChapterCheck(supabase: any, log: CheckLog) {
   try {
     await supabase.from('activity_logs').insert({
-      user_id: null,
-      action: 'chapter_check',
+      user_id:     null,
+      action:      'chapter_check',
       entity_type: 'recommendations',
-      entity_id: log.comic_id,
-      details: {
-        comic_title: log.comic_title,
-        database_tried: log.database_tried,
-        database_success: log.database_success,
-        old_chapter_count: log.old_chapter_count,
-        new_chapter_count: log.new_chapter_count,
-        platforms_found: log.platforms_found,
-        status: log.status,
-        reason: log.reason,
-        error: log.error,
-        timestamp: log.timestamp,
-      },
+      entity_id:   log.comic_id,
+      details:     log,
     })
   } catch (err) {
     console.error('Failed to log:', err)
@@ -59,181 +49,167 @@ async function logChapterCheck(supabase: any, log: CheckLog) {
 }
 
 // ── MangaUpdates ──────────────────────────────────────────────────
-async function getLatestChapterFromMU(id: string): Promise<{ chapter: number | null; platforms: string[] }> {
+async function getChapterFromMU(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     const res = await fetchWithTimeout(`https://api.mangaupdates.com/v1/series/${id}`)
-    if (res.ok) {
-      const data = await res.json()
-      const ch = data?.latest_chapter
-      if (ch && !isNaN(Number(ch))) return { chapter: Number(ch), platforms: [] }
-    }
+    if (!res.ok) return null
+    const data = await res.json()
+    const ch   = data?.latest_chapter
+    return ch && !isNaN(Number(ch)) ? Number(ch) : null
   } catch (err) {
-    console.error(`MU fetch error for ${id}:`, err)
+    console.error(`MU chapter error for ${id}:`, err)
+    return null
   }
-  return { chapter: null, platforms: [] }
 }
 
 // ── MangaBaka ─────────────────────────────────────────────────────
-async function getLatestChapterFromMangaBaka(id: string): Promise<{ chapter: number | null; platforms: string[] }> {
+// Fixed domain: api.mangabaka.org (was api.mangabaka.dev)
+async function getChapterFromMangaBaka(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
-    const url = `https://api.mangabaka.dev/series/${id}`
-    console.log(`[MB Chapter] Query: ${url}`)
-    const res = await fetchWithTimeout(url)
-    if (!res.ok) {
-      console.log(`[MB Chapter] HTTP ${res.status}`)
-      return { chapter: null, platforms: [] }
-    }
+    const res = await fetchWithTimeout(`https://api.mangabaka.org/series/${id}`)
+    if (!res.ok) return null
     const data = await res.json()
-    console.log(`[MB Chapter] Response preview: ${JSON.stringify(data).slice(0, 300)}`)
-    const ch = data?.data?.total_chapters ?? data?.total_chapters ?? data?.chapters ?? data?.latest_chapter
-    if (ch && !isNaN(Number(ch))) return { chapter: Number(ch), platforms: [] }
+    const ch   = data?.data?.total_chapters ?? data?.total_chapters ?? data?.latest_chapter
+    return ch && !isNaN(Number(ch)) ? Number(ch) : null
   } catch (err) {
-    console.error(`MB fetch error for ${id}:`, err)
+    console.error(`MB chapter error for ${id}:`, err)
+    return null
   }
-  return { chapter: null, platforms: [] }
 }
 
 // ── MangaDex ──────────────────────────────────────────────────────
-async function getLatestChapterFromMangaDex(id: string): Promise<{ chapter: number | null; platforms: string[] }> {
+async function getChapterFromMangaDex(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     const res = await fetchWithTimeout(`https://api.mangadex.org/manga/${id}`)
-    if (res.ok) {
-      const data = await res.json()
-      const ch = data?.data?.attributes?.lastChapter
-      if (ch && !isNaN(Number(ch))) return { chapter: Number(ch), platforms: [] }
-    }
+    if (!res.ok) return null
+    const data = await res.json()
+    const ch   = data?.data?.attributes?.lastChapter
+    return ch && !isNaN(Number(ch)) ? Number(ch) : null
   } catch (err) {
-    console.error(`MD fetch error for ${id}:`, err)
+    console.error(`MD chapter error for ${id}:`, err)
+    return null
   }
-  return { chapter: null, platforms: [] }
+}
+
+// ── Jikan (MAL) ───────────────────────────────────────────────────
+async function getChapterFromJikan(id: string): Promise<number | null> {
+  try {
+    await new Promise(r => setTimeout(r, API_DELAY_MS))
+    const res = await fetchWithTimeout(`https://api.jikan.moe/v4/manga/${id}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    const ch   = data?.data?.chapters
+    return ch && !isNaN(Number(ch)) ? Number(ch) : null
+  } catch (err) {
+    console.error(`Jikan chapter error for ${id}:`, err)
+    return null
+  }
 }
 
 // ── AniList ───────────────────────────────────────────────────────
-async function getLatestChapterFromAniList(id: string): Promise<{ chapter: number | null; platforms: string[] }> {
+async function getChapterFromAniList(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     const gql = `query($id:Int){Media(id:$id,type:MANGA){chapters}}`
     const res = await fetchWithTimeout('https://graphql.anilist.co', {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: gql, variables: { id: parseInt(id) } }),
+      body:    JSON.stringify({ query: gql, variables: { id: parseInt(id) } }),
     })
-    if (res.ok) {
-      const data = await res.json()
-      const ch = data?.data?.Media?.chapters
-      if (ch && !isNaN(Number(ch))) return { chapter: Number(ch), platforms: [] }
-    }
+    if (!res.ok) return null
+    const data = await res.json()
+    const ch   = data?.data?.Media?.chapters
+    return ch && !isNaN(Number(ch)) ? Number(ch) : null
   } catch (err) {
-    console.error(`AL fetch error for ${id}:`, err)
+    console.error(`AL chapter error for ${id}:`, err)
+    return null
   }
-  return { chapter: null, platforms: [] }
 }
 
-// ── Jikan (MAL) ───────────────────────────────────────────────────
-async function getLatestChapterFromJikan(id: string): Promise<{ chapter: number | null; platforms: string[] }> {
-  try {
-    await new Promise(r => setTimeout(r, API_DELAY_MS))
-    const res = await fetchWithTimeout(`https://api.jikan.moe/v4/manga/${id}`)
-    if (res.ok) {
-      const data = await res.json()
-      const ch = data?.data?.chapters
-      if (ch && !isNaN(Number(ch))) return { chapter: Number(ch), platforms: [] }
-    }
-  } catch (err) {
-    console.error(`Jikan fetch error for ${id}:`, err)
-  }
-  return { chapter: null, platforms: [] }
-}
-
-// ── Main chapter getter — QUERIES ALL SOURCES, PICKS BEST ──────
-async function getLatestChapterCount(comic: any): Promise<{ chapter: number | null; source: string | null; tried: string[] }> {
-  const results: { source: string; chapter: number | null }[] = []
+async function resolveChapterCount(comic: any): Promise<{ chapter: number | null; source: string | null; tried: string[] }> {
   const tried: string[] = []
 
-  // Query all sources in parallel
-  const queries = []
-
+  // Step 1: MangaUpdates (primary)
+  let muChapter: number | null = null
   if (comic.mangaupdates_id) {
-    queries.push(
-      getLatestChapterFromMU(comic.mangaupdates_id).then(r => ({ source: 'MangaUpdates', ...r }))
-    )
+    tried.push('MangaUpdates')
+    muChapter = await getChapterFromMU(comic.mangaupdates_id)
   }
+
+  // Step 2: MangaBaka (confirmation or independent)
+  let mbChapter: number | null = null
   if (comic.mangabaka_id) {
-    queries.push(
-      getLatestChapterFromMangaBaka(comic.mangabaka_id).then(r => ({ source: 'MangaBaka', ...r }))
-    )
+    tried.push('MangaBaka')
+    mbChapter = await getChapterFromMangaBaka(comic.mangabaka_id)
   }
+
+  // If both returned a value and they agree within ±1 → high confidence, return immediately
+  if (muChapter !== null && mbChapter !== null) {
+    if (Math.abs(muChapter - mbChapter) <= 1) {
+      // Take the higher of the two (one DB may lag by 1)
+      return { chapter: Math.max(muChapter, mbChapter), source: 'MU+MB confirmed', tried }
+    }
+    // They disagree — fall through to tiebreak with remaining sources
+  }
+
+  // If only MU succeeded, tentatively hold it and continue to verify
+  // If only MB succeeded, same
+  // If neither, continue
+
+  // Step 3: MangaDex
   if (comic.mangadex_id) {
-    queries.push(
-      getLatestChapterFromMangaDex(comic.mangadex_id).then(r => ({ source: 'MangaDex', ...r }))
-    )
-  }
-  if (comic.anilist_id) {
-    queries.push(
-      getLatestChapterFromAniList(comic.anilist_id).then(r => ({ source: 'AniList', ...r }))
-    )
-  }
-  if (comic.mal_id) {
-    queries.push(
-      getLatestChapterFromJikan(comic.mal_id).then(r => ({ source: 'Jikan', ...r }))
-    )
-  }
-
-  if (queries.length === 0) {
-    return { chapter: null, source: null, tried: [] }
-  }
-
-  const allResults = await Promise.all(queries)
-
-  for (const r of allResults) {
-    tried.push(r.source)
-    results.push({ source: r.source, chapter: r.chapter })
-  }
-
-  // Filter to valid chapters
-  const valid = results.filter(r => r.chapter !== null && r.chapter > 0)
-
-  if (valid.length === 0) {
-    return { chapter: null, source: null, tried }
-  }
-
-  // If only one source returned a value, use it
-  if (valid.length === 1) {
-    return { chapter: valid[0].chapter, source: valid[0].source, tried }
-  }
-
-  // Count occurrences of each chapter value
-  const counts: Record<number, { count: number; sources: string[] }> = {}
-  for (const r of valid) {
-    const ch = r.chapter!
-    if (!counts[ch]) counts[ch] = { count: 0, sources: [] }
-    counts[ch].count++
-    counts[ch].sources.push(r.source)
-  }
-
-  // Find the most common chapter count
-  let maxCount = 0
-  let bestChapter: number | null = null
-  let bestSources: string[] = []
-
-  for (const [ch, data] of Object.entries(counts)) {
-    if (data.count > maxCount) {
-      maxCount = data.count
-      bestChapter = Number(ch)
-      bestSources = data.sources
+    tried.push('MangaDex')
+    const mdChapter = await getChapterFromMangaDex(comic.mangadex_id)
+    if (mdChapter !== null) {
+      // If MU or MB already has a value and MD agrees with either → trust it
+      if (muChapter !== null && Math.abs(mdChapter - muChapter) <= 1) {
+        return { chapter: Math.max(mdChapter, muChapter), source: 'MU+MD confirmed', tried }
+      }
+      if (mbChapter !== null && Math.abs(mdChapter - mbChapter) <= 1) {
+        return { chapter: Math.max(mdChapter, mbChapter), source: 'MB+MD confirmed', tried }
+      }
+      // No prior value to compare — hold MD as candidate
+      if (muChapter === null && mbChapter === null) {
+        return { chapter: mdChapter, source: 'MangaDex', tried }
+      }
     }
   }
 
-  // If there's a tie, use the highest chapter count
-  if (bestChapter === null) {
-    const highest = valid.reduce((a, b) => (a.chapter! > b.chapter! ? a : b))
-    return { chapter: highest.chapter, source: highest.source, tried }
+  // Step 4: Jikan/MAL
+  if (comic.mal_id) {
+    tried.push('MAL')
+    const malChapter = await getChapterFromJikan(comic.mal_id)
+    if (malChapter !== null) {
+      if (muChapter !== null && Math.abs(malChapter - muChapter) <= 1) {
+        return { chapter: Math.max(malChapter, muChapter), source: 'MU+MAL confirmed', tried }
+      }
+      if (mbChapter !== null && Math.abs(malChapter - mbChapter) <= 1) {
+        return { chapter: Math.max(malChapter, mbChapter), source: 'MB+MAL confirmed', tried }
+      }
+      if (muChapter === null && mbChapter === null) {
+        return { chapter: malChapter, source: 'MAL', tried }
+      }
+    }
   }
 
-  return { chapter: bestChapter, source: bestSources.join(', '), tried }
+  // Step 5: AniList (final fallback — always accept if we get here)
+  if (comic.anilist_id) {
+    tried.push('AniList')
+    const alChapter = await getChapterFromAniList(comic.anilist_id)
+    if (alChapter !== null) {
+      return { chapter: alChapter, source: 'AniList', tried }
+    }
+  }
+
+  // If we got a value from MU or MB but nothing confirmed it, use the best single value
+  // (better than nothing — MU is the most reliable single source)
+  if (muChapter !== null) return { chapter: muChapter, source: 'MangaUpdates (unconfirmed)', tried }
+  if (mbChapter !== null) return { chapter: mbChapter, source: 'MangaBaka (unconfirmed)',   tried }
+
+  return { chapter: null, source: null, tried }
 }
 
 // ── Main handler ──────────────────────────────────────────────────
@@ -245,14 +221,14 @@ export async function GET(req: Request) {
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
   const cutoff = new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString()
 
   const { data: comics, error } = await supabase
     .from('recommendations')
-    .select('id, title, chapter_count, official_platforms, mangaupdates_id, mangabaka_id, mangadex_id, anilist_id, mal_id')
+    .select('id, title, chapter_count, mangaupdates_id, mangabaka_id, mangadex_id, anilist_id, mal_id')
     .eq('is_approved', true)
     .eq('status', 'ongoing')
     .or(`last_chapter_check.is.null,last_chapter_check.lt.${cutoff}`)
@@ -268,36 +244,37 @@ export async function GET(req: Request) {
   }
 
   let updated = 0
-  const results = []
+  const results  = []
   const logs: CheckLog[] = []
 
   for (const comic of comics) {
     const timestamp = new Date().toISOString()
 
     try {
-      const { chapter: newChapterCount, source, tried } = await getLatestChapterCount(comic)
+      const { chapter: newChapterCount, source, tried } = await resolveChapterCount(comic)
 
       const logEntry: CheckLog = {
-        comic_id: comic.id,
-        comic_title: comic.title,
-        database_tried: tried,
-        database_success: source,
+        comic_id:          comic.id,
+        comic_title:       comic.title,
+        database_tried:    tried,
+        database_success:  source,
         old_chapter_count: comic.chapter_count,
         new_chapter_count: newChapterCount,
-        platforms_found: [],
-        status: 'no_update',
+        status:            'no_update',
         timestamp,
       }
 
-      // Always update last_chapter_check
-      await supabase.from('recommendations').update({ last_chapter_check: timestamp }).eq('id', comic.id)
+      // Always update the check timestamp
+      await supabase.from('recommendations')
+        .update({ last_chapter_check: timestamp })
+        .eq('id', comic.id)
 
       if (newChapterCount && newChapterCount > (comic.chapter_count ?? 0)) {
-        await supabase
-          .from('recommendations')
+        await supabase.from('recommendations')
           .update({ chapter_count: newChapterCount, last_chapter_check: timestamp })
           .eq('id', comic.id)
 
+        // Notify users tracking this comic
         const { data: trackers } = await supabase
           .from('reading_list_items')
           .select('list_id, reading_lists!inner(user_id)')
@@ -305,44 +282,46 @@ export async function GET(req: Request) {
           .in('status', ['reading', 'plan_to_read'])
 
         if (trackers && trackers.length > 0) {
-          const userIds = [...new Set(trackers.map((t: any) => t.reading_lists?.user_id).filter(Boolean))]
+          const userIds       = [...new Set(trackers.map((t: any) => t.reading_lists?.user_id).filter(Boolean))]
           const notifications = userIds.map((userId: string) => ({
             user_id: userId,
-            type: 'system',
-            title: `📖 ${comic.title} updated`,
+            type:    'system',
+            title:   `📖 ${comic.title} updated`,
             content: `New chapters available, now at chapter ${newChapterCount}`,
-            data: { recommendation_id: comic.id, new_chapter_count: newChapterCount, old_chapter_count: comic.chapter_count },
+            data:    { recommendation_id: comic.id, new_chapter_count: newChapterCount, old_chapter_count: comic.chapter_count },
           }))
+
           await supabase.from('notifications').insert(notifications)
-          updated++
-          logEntry.status = 'success'
-          results.push({
-            id: comic.id,
-            title: comic.title,
-            old: comic.chapter_count,
-            new: newChapterCount,
-            source,
-            notified: trackers.length,
-          })
         }
+
+        updated++
+        logEntry.status = 'success'
+        results.push({
+          id:       comic.id,
+          title:    comic.title,
+          old:      comic.chapter_count,
+          new:      newChapterCount,
+          source,
+          notified: trackers?.length ?? 0,
+        })
       } else if (newChapterCount === null) {
         logEntry.status = 'failed'
-        logEntry.reason = 'No valid ID or all APIs failed'
+        logEntry.reason = 'No valid ID or all APIs returned null'
       }
 
       logs.push(logEntry)
+
     } catch (err: any) {
       console.error(`Failed to check ${comic.title}:`, err)
       logs.push({
-        comic_id: comic.id,
-        comic_title: comic.title,
-        database_tried: [],
-        database_success: null,
+        comic_id:          comic.id,
+        comic_title:       comic.title,
+        database_tried:    [],
+        database_success:  null,
         old_chapter_count: comic.chapter_count,
         new_chapter_count: null,
-        platforms_found: [],
-        status: 'failed',
-        error: err?.message ?? 'Unknown error',
+        status:            'failed',
+        error:             err?.message ?? 'Unknown error',
         timestamp,
       })
     }
@@ -351,10 +330,10 @@ export async function GET(req: Request) {
   for (const log of logs) await logChapterCheck(supabase, log)
 
   return NextResponse.json({
-    checked: comics.length,
+    checked:    comics.length,
     updated,
     results,
     logs_count: logs.length,
-    logs: logs.slice(0, 5),
+    logs:       logs.slice(0, 5),
   })
 }
