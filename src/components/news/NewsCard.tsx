@@ -56,7 +56,7 @@ export function NewsCard({ news, variant = 'default' }: Props) {
         {news.cover_url && (
           <div className="w-14 h-14 rounded overflow-hidden bg-muted shrink-0">
             <img
-              src={news.cover_url}
+              src={`/api/image-proxy?url=${encodeURIComponent(news.cover_url)}`}
               alt={news.cover_alt ?? news.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             />
@@ -127,7 +127,7 @@ export function NewsCard({ news, variant = 'default' }: Props) {
       <Link href={`/news/${news.slug}`} className="group relative block rounded-lg overflow-hidden border border-border">
         <div className="aspect-[16/9] bg-muted">
           <img
-            src={news.cover_url}
+            src={`/api/image-proxy?url=${encodeURIComponent(news.cover_url)}`}
             alt={news.cover_alt ?? news.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
@@ -207,7 +207,7 @@ export function NewsCard({ news, variant = 'default' }: Props) {
     >
       <div className="aspect-[16/9] bg-muted overflow-hidden relative">
         <img
-          src={news.cover_url}
+          src={`/api/image-proxy?url=${encodeURIComponent(news.cover_url)}`}
           alt={news.cover_alt ?? news.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
