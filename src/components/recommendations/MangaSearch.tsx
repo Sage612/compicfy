@@ -128,7 +128,7 @@ export function MangaSearch({ onSelect }: Props) {
                   <div className="w-10 h-14 rounded-md overflow-hidden bg-muted shrink-0">
                     {result.coverUrl ? (
                       <img
-                        src={result.coverUrl}
+                        src={`/api/image-proxy?url=${encodeURIComponent(result.coverUrl)}`}
                         alt={result.title}
                         className="w-full h-full object-cover"
                       />

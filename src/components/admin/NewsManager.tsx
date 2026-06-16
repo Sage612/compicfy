@@ -398,7 +398,7 @@ export function NewsManager({ initialNews }: Props) {
               {/* Cover thumbnail */}
               {item.cover_url && (
                 <div className="w-14 h-10 rounded-lg overflow-hidden bg-muted shrink-0">
-                  <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
+                  <img src={`/api/image-proxy?url=${encodeURIComponent(item.cover_url)}`} alt={item.title} className="w-full h-full object-cover" />
                 </div>
               )}
 

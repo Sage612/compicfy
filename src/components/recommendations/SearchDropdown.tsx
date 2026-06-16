@@ -94,7 +94,7 @@ export function SearchDropdown({ query, adult = false, onSelect }: Props) {
               {/* Cover */}
               <div className="w-8 h-11 rounded-lg overflow-hidden bg-muted shrink-0">
                 {rec.cover_url ? (
-                  <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                  <img src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`} alt={rec.title} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
                     <BookOpen size={10} className="text-muted-foreground opacity-40" />
@@ -138,3 +138,4 @@ export function SearchDropdown({ query, adult = false, onSelect }: Props) {
     </div>
   )
 }
+

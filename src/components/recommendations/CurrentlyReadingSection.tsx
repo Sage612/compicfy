@@ -152,7 +152,7 @@ export function CurrentlyReadingSection({ initialItems, lists, listsHref = '/das
                       >
                         {rec.cover_url ? (
                           <img
-                            src={rec.cover_url}
+                            src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
                             alt={rec.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />

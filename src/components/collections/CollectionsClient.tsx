@@ -115,7 +115,7 @@ function StackedCover({
     return (
       <div className="absolute inset-0">
         {coverUrl ? (
-          <img src={coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
+          <img src={`/api/image-proxy?url=${encodeURIComponent(coverUrl)}`} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
         ) : (
           <div className={cn('absolute inset-0 bg-gradient-to-br', themeGrad)} />
         )}
@@ -129,7 +129,7 @@ function StackedCover({
   return (
     <div className="absolute inset-0">
       {/* Dominant — full bleed */}
-      <img src={dominant} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
+      <img src={`/api/image-proxy?url=${encodeURIComponent(dominant)}`} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
 
       {/* Stacked thumbnails bottom-right */}
       {stack.length > 0 && (
@@ -147,7 +147,7 @@ function StackedCover({
                 transform:  `rotate(${i % 2 === 0 ? 5 : -4}deg) translateY(${i * 2}px)`,
               }}
             >
-              <img src={url} alt="" className="w-full h-full object-cover" aria-hidden />
+              <img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="" className="w-full h-full object-cover" aria-hidden />
             </div>
           ))}
         </div>
@@ -512,7 +512,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                     {!isOwner && username && (
                       <div className="flex items-center gap-1.5">
                         {avatar ? (
-                          <img src={avatar} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
+                          <img src={`/api/image-proxy?url=${encodeURIComponent(avatar)}`} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
                         ) : (
                           <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
                             <span className="text-[7px] text-white font-bold">{username[0].toUpperCase()}</span>
@@ -624,7 +624,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                     {!isOwner && username && (
                       <div className="flex items-center gap-1.5">
                         {avatar ? (
-                          <img src={avatar} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
+                          <img src={`/api/image-proxy?url=${encodeURIComponent(avatar)}`} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
                         ) : (
                           <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
                             <span className="text-[7px] text-white font-bold">{username[0].toUpperCase()}</span>
@@ -693,13 +693,13 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                             covers.length === 1 ? 'flex-1' :
                             covers.length === 2 ? 'flex-1' :
                             covers.length === 3 && i === 0 ? 'w-1/2' : 'flex-1')}>
-                            <img src={url} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300" />
+                            <img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300" />
                             <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
                           </div>
                         ))}
                       </div>
                     ) : col.cover_url ? (
-                      <img src={col.cover_url} alt={col.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                      <img src={`/api/image-proxy?url=${encodeURIComponent(col.cover_url)}`} alt={col.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
                     ) : null}
                     <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
                     <div className="absolute top-2 right-2">

@@ -240,12 +240,12 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
         <div className="relative h-72 overflow-hidden">
           {dominant ? (
             <>
-              <img src={dominant} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
+              <img src={`/api/image-proxy?url=${encodeURIComponent(dominant)}`} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
               <div className={cn('absolute inset-0 bg-gradient-to-br opacity-40 to-transparent', theme.gradient)} />
             </>
           ) : collection.cover_url ? (
             <>
-              <img src={collection.cover_url} alt={currentTitle} className="absolute inset-0 w-full h-full object-cover" />
+              <img src={`/api/image-proxy?url=${encodeURIComponent(collection.cover_url)}`} alt={currentTitle} className="absolute inset-0 w-full h-full object-cover" />
               <div className={cn('absolute inset-0 bg-gradient-to-br opacity-40 to-transparent', theme.gradient)} />
             </>
           ) : (
@@ -271,7 +271,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                     opacity:    1 - i * 0.1,
                   }}
                 >
-                  <img src={url} alt="" className="w-full h-full object-cover" aria-hidden />
+                  <img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="" className="w-full h-full object-cover" aria-hidden />
                 </div>
               ))}
             </div>
@@ -325,7 +325,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             {collection.profiles && (
               <div className="flex items-center gap-2">
                 {collection.profiles.avatar_url ? (
-                  <img src={collection.profiles.avatar_url} alt={collection.profiles.username}
+                  <img src={`/api/image-proxy?url=${encodeURIComponent(collection.profiles.avatar_url)}`} alt={collection.profiles.username}
                     className="w-5 h-5 rounded-full object-cover border border-border" />
                 ) : (
                   <div className={cn('w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border border-border', theme.bg, theme.text)}>
@@ -453,12 +453,12 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                     covers.length === 1 ? 'flex-1' :
                     covers.length === 2 ? 'flex-1' :
                     covers.length >= 3 && i === 0 ? 'w-2/5' : 'flex-1')}>
-                    <img src={url} alt="" className="w-full h-full object-cover" aria-hidden />
+                    <img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="" className="w-full h-full object-cover" aria-hidden />
                   </div>
                 ))}
               </div>
             ) : collection.cover_url ? (
-              <img src={collection.cover_url} alt={currentTitle} className="absolute inset-0 w-full h-full object-cover" />
+              <img src={`/api/image-proxy?url=${encodeURIComponent(collection.cover_url)}`} alt={currentTitle} className="absolute inset-0 w-full h-full object-cover" />
             ) : (
               <div className={cn('absolute inset-0 bg-gradient-to-br to-transparent', theme.gradient)} />
             )}
@@ -511,7 +511,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             {collection.profiles && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 {collection.profiles.avatar_url && (
-                  <img src={collection.profiles.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover border border-border" />
+                  <img src={`/api/image-proxy?url=${encodeURIComponent(collection.profiles.avatar_url)}`} alt="" className="w-5 h-5 rounded-full object-cover border border-border" />
                 )}
                 <span>Curated by</span>
                 <Link href={`/profile/${collection.profiles.username}`} className={cn('font-semibold hover:underline', theme.text)}>
