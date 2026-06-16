@@ -85,7 +85,7 @@ async function findMangaUpdatesID(title: string, author?: string | null, artist?
   }
 }
 
-// ── MangaBaka (debug logging enabled) ────────────────────────────
+// ── MangaBaka ─────────────────────────────────────────────────────
 async function findMangaBakaID(title: string, author?: string | null, artist?: string | null): Promise<string | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -99,7 +99,6 @@ async function findMangaBakaID(title: string, author?: string | null, artist?: s
     const data = await res.json()
     console.log(`[MB ID] Response preview: ${JSON.stringify(data).slice(0, 300)}`)
 
-    // Try different possible response shapes
     const list = data.data ?? data.results ?? data ?? []
     const candidates = list.map((r: any) => ({
       id:     String(r.id ?? r.series_id ?? ''),
@@ -247,10 +246,13 @@ async function logIDCheck(supabase: any, log: IDCheckLog) {
   }
 }
 
+// ── FIXED: Only count 4 IDs (removed mangadex_id) ─────────────────
 function countExternalIds(comic: any): number {
   return [
-    comic.mangaupdates_id, comic.mangabaka_id, comic.mangadex_id,
-    comic.anilist_id,      comic.mal_id,
+    comic.mangaupdates_id,
+    comic.mangabaka_id,
+    comic.anilist_id,
+    comic.mal_id,
   ].filter(id => id && String(id).trim()).length
 }
 
@@ -292,13 +294,14 @@ export async function GET(req: Request) {
 
     try {
       const currentIdCount = countExternalIds(comic)
-      if (currentIdCount === 5) {
+      // FIXED: Max is now 4 (MU, MB, AL, MAL)
+      if (currentIdCount === 4) {
         skippedComplete++
         await supabase.from('recommendations').update({ last_id_check: timestamp }).eq('id', comic.id)
         logs.push({
           comic_id: comic.id, comic_title: comic.title,
           databases_checked: [], ids_found: {},
-          status: 'skipped_complete', total_ids_found: 5,
+          status: 'skipped_complete', total_ids_found: 4,
           reason: 'Already complete', timestamp,
         })
         continue
@@ -307,17 +310,17 @@ export async function GET(req: Request) {
       const ids = await findExternalIds(comic.title, comic.author, comic.artist)
       const totalFound = Object.values(ids).filter(Boolean).length
 
+      // FIXED: Only merge 4 IDs (exclude mangadex_id)
       const mergedIds = {
         mangaupdates_id: comic.mangaupdates_id || ids.mangaupdates_id,
         mangabaka_id:    comic.mangabaka_id    || ids.mangabaka_id,
-        mangadex_id:     comic.mangadex_id     || ids.mangadex_id,
         anilist_id:      comic.anilist_id      || ids.anilist_id,
         mal_id:          comic.mal_id          || ids.mal_id,
       }
 
       const newIdCount = countExternalIds(mergedIds)
       let status: IDCheckLog['status'] = 'found_none'
-      if (newIdCount === 5) status = 'found_all'
+      if (newIdCount === 4) status = 'found_all'
       else if (totalFound > 0) status = 'found_some'
 
       if (totalFound > 0) {
@@ -338,7 +341,7 @@ export async function GET(req: Request) {
         comic_title:       comic.title,
         comic_author:      comic.author,
         comic_artist:      comic.artist,
-        databases_checked: ['MU', 'MB', 'MD', 'AL', 'MAL'],
+        databases_checked: ['MU', 'MB', 'AL', 'MAL'],
         ids_found:         mergedIds,
         status,
         total_ids_found:   newIdCount,

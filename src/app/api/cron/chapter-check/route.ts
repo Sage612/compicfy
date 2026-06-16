@@ -74,7 +74,7 @@ async function getLatestChapterFromMU(id: string): Promise<{ chapter: number | n
   return { chapter: null, platforms: [] }
 }
 
-// ── MangaBaka (debug logging) ─────────────────────────────────────
+// ── MangaBaka ─────────────────────────────────────────────────────
 async function getLatestChapterFromMangaBaka(id: string): Promise<{ chapter: number | null; platforms: string[] }> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -87,7 +87,6 @@ async function getLatestChapterFromMangaBaka(id: string): Promise<{ chapter: num
     }
     const data = await res.json()
     console.log(`[MB Chapter] Response preview: ${JSON.stringify(data).slice(0, 300)}`)
-    // Try multiple possible field names
     const ch = data?.data?.total_chapters ?? data?.total_chapters ?? data?.chapters ?? data?.latest_chapter
     if (ch && !isNaN(Number(ch))) return { chapter: Number(ch), platforms: [] }
   } catch (err) {
@@ -149,41 +148,92 @@ async function getLatestChapterFromJikan(id: string): Promise<{ chapter: number 
   return { chapter: null, platforms: [] }
 }
 
-// ── Main chapter getter (sequential, order: MU → MB → MD → AL → MAL) ──
+// ── Main chapter getter — QUERIES ALL SOURCES, PICKS BEST ──────
 async function getLatestChapterCount(comic: any): Promise<{ chapter: number | null; source: string | null; tried: string[] }> {
+  const results: { source: string; chapter: number | null }[] = []
   const tried: string[] = []
 
+  // Query all sources in parallel
+  const queries = []
+
   if (comic.mangaupdates_id) {
-    tried.push('MangaUpdates')
-    const { chapter: ch } = await getLatestChapterFromMU(comic.mangaupdates_id)
-    if (ch) return { chapter: ch, source: 'MangaUpdates', tried }
+    queries.push(
+      getLatestChapterFromMU(comic.mangaupdates_id).then(r => ({ source: 'MangaUpdates', ...r }))
+    )
   }
-
   if (comic.mangabaka_id) {
-    tried.push('MangaBaka')
-    const { chapter: ch } = await getLatestChapterFromMangaBaka(comic.mangabaka_id)
-    if (ch) return { chapter: ch, source: 'MangaBaka', tried }
+    queries.push(
+      getLatestChapterFromMangaBaka(comic.mangabaka_id).then(r => ({ source: 'MangaBaka', ...r }))
+    )
   }
-
   if (comic.mangadex_id) {
-    tried.push('MangaDex')
-    const { chapter: ch } = await getLatestChapterFromMangaDex(comic.mangadex_id)
-    if (ch) return { chapter: ch, source: 'MangaDex', tried }
+    queries.push(
+      getLatestChapterFromMangaDex(comic.mangadex_id).then(r => ({ source: 'MangaDex', ...r }))
+    )
   }
-
   if (comic.anilist_id) {
-    tried.push('AniList')
-    const { chapter: ch } = await getLatestChapterFromAniList(comic.anilist_id)
-    if (ch) return { chapter: ch, source: 'AniList', tried }
+    queries.push(
+      getLatestChapterFromAniList(comic.anilist_id).then(r => ({ source: 'AniList', ...r }))
+    )
   }
-
   if (comic.mal_id) {
-    tried.push('Jikan')
-    const { chapter: ch } = await getLatestChapterFromJikan(comic.mal_id)
-    if (ch) return { chapter: ch, source: 'Jikan', tried }
+    queries.push(
+      getLatestChapterFromJikan(comic.mal_id).then(r => ({ source: 'Jikan', ...r }))
+    )
   }
 
-  return { chapter: null, source: null, tried }
+  if (queries.length === 0) {
+    return { chapter: null, source: null, tried: [] }
+  }
+
+  const allResults = await Promise.all(queries)
+
+  for (const r of allResults) {
+    tried.push(r.source)
+    results.push({ source: r.source, chapter: r.chapter })
+  }
+
+  // Filter to valid chapters
+  const valid = results.filter(r => r.chapter !== null && r.chapter > 0)
+
+  if (valid.length === 0) {
+    return { chapter: null, source: null, tried }
+  }
+
+  // If only one source returned a value, use it
+  if (valid.length === 1) {
+    return { chapter: valid[0].chapter, source: valid[0].source, tried }
+  }
+
+  // Count occurrences of each chapter value
+  const counts: Record<number, { count: number; sources: string[] }> = {}
+  for (const r of valid) {
+    const ch = r.chapter!
+    if (!counts[ch]) counts[ch] = { count: 0, sources: [] }
+    counts[ch].count++
+    counts[ch].sources.push(r.source)
+  }
+
+  // Find the most common chapter count
+  let maxCount = 0
+  let bestChapter: number | null = null
+  let bestSources: string[] = []
+
+  for (const [ch, data] of Object.entries(counts)) {
+    if (data.count > maxCount) {
+      maxCount = data.count
+      bestChapter = Number(ch)
+      bestSources = data.sources
+    }
+  }
+
+  // If there's a tie, use the highest chapter count
+  if (bestChapter === null) {
+    const highest = valid.reduce((a, b) => (a.chapter! > b.chapter! ? a : b))
+    return { chapter: highest.chapter, source: highest.source, tried }
+  }
+
+  return { chapter: bestChapter, source: bestSources.join(', '), tried }
 }
 
 // ── Main handler ──────────────────────────────────────────────────
@@ -248,7 +298,6 @@ export async function GET(req: Request) {
           .update({ chapter_count: newChapterCount, last_chapter_check: timestamp })
           .eq('id', comic.id)
 
-        // Notify users who are tracking this comic
         const { data: trackers } = await supabase
           .from('reading_list_items')
           .select('list_id, reading_lists!inner(user_id)')
