@@ -31,19 +31,6 @@ function normalize(str: string): string {
 }
 
 // ── Smart match ───────────────────────────────────────────────────
-// Strategy:
-//   Pass 1: exact title   + author/artist confirmation  → most confident
-//   Pass 2: exact title   only                          → accepted
-//   Pass 3: contains match + author/artist confirmation → handles "(2022)" suffix variants
-//   Pass 4: never         — no match without some signal
-//
-// "Contains match" means: after normalizing both strings,
-//   one starts-with or fully contains the other.
-//   e.g. "the novels extra" is contained in "the novels extra 2022" → match
-//
-// Author/artist confirmation uses bidirectional includes so name order
-// differences ("Lee, Sung-Woo" vs "Sung Woo Lee") still resolve.
-
 function smartMatch(
   query:       string,
   candidates:  { id: string; title: string; author?: string; artist?: string }[],
@@ -76,7 +63,6 @@ function smartMatch(
   }
 
   // Pass 3 — bidirectional contains + author/artist required
-  // Handles DB titles like "The Novel's Extra (2022)" when we search "The Novel's Extra"
   if (na || nr) {
     for (const c of candidates) {
       const ct = normalize(c.title)
@@ -89,8 +75,6 @@ function smartMatch(
 }
 
 // ── Build all query titles ─────────────────────────────────────────
-// Uses the main title + any alternative_titles stored on the rec.
-// We deduplicate and try each until we get a match.
 function buildQueryTitles(title: string, alternativeTitles?: string[] | null): string[] {
   const seen = new Set<string>()
   const out:  string[] = []
@@ -130,8 +114,7 @@ async function findMangaUpdatesID(
   return null
 }
 
-// ── MangaBaka ─────────────────────────────────────────────────────
-// Fixed domain: api.mangabaka.org (was api.mangabaka.dev — now 404s)
+// ── MangaBaka (UPDATED) ───────────────────────────────────────────
 async function findMangaBakaID(
   titles: string[], author?: string | null, artist?: string | null,
 ): Promise<string | null> {
@@ -140,15 +123,35 @@ async function findMangaBakaID(
       await new Promise(r => setTimeout(r, API_DELAY_MS))
       const res = await fetchWithTimeout(
         `https://api.mangabaka.org/series/search?q=${encodeURIComponent(title)}&limit=15`,
+        {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+          }
+        }
       )
-      if (!res.ok) continue
-      const data       = await res.json()
-      const candidates = (data.data ?? data.results ?? []).map((r: any) => ({
+      
+      if (!res.ok) {
+        console.error(`MB server responded with status: ${res.status} for "${title}"`)
+        continue
+      }
+      
+      const text = await res.text()
+      if (!text.trim().startsWith('{')) {
+        console.error(`MB returned non-JSON payload (probably Cloudflare wall) for "${title}"`)
+        continue
+      }
+      
+      const data = JSON.parse(text)
+      const rawResults = data.data ?? data.results ?? data.series ?? []
+      const candidates = (Array.isArray(rawResults) ? rawResults : []).map((r: any) => ({
         id:     String(r.id ?? r.series_id ?? ''),
         title:  r.title ?? r.name ?? '',
         author: r.author ?? '',
         artist: r.artist ?? '',
       }))
+      
       const match = smartMatch(title, candidates, author, artist)
       if (match) return match
     } catch (err) {
@@ -172,7 +175,6 @@ async function findMangaDexID(
       const data       = await res.json()
       const candidates = (data.data ?? []).map((r: any) => {
         const attr       = r.attributes ?? {}
-        // MangaDex stores titles in multiple languages — try en first, then any
         const titleEn    = attr.title?.en || Object.values(attr.title ?? {})[0] || ''
         const rels       = r.relationships ?? []
         const authorName = rels.find((rel: any) => rel.type === 'author')?.attributes?.name ?? ''
@@ -357,7 +359,6 @@ export async function GET(req: Request) {
     try {
       const currentIdCount = countExternalIds(comic)
 
-      // All 5 IDs already confirmed — skip
       if (currentIdCount === 5) {
         skippedComplete++
         await supabase.from('recommendations').update({ last_id_check: timestamp }).eq('id', comic.id)
@@ -373,7 +374,6 @@ export async function GET(req: Request) {
       const ids        = await findExternalIds(comic.title, comic.author, comic.artist, comic.alternative_titles)
       const totalFound = Object.values(ids).filter(Boolean).length
 
-      // Merge: never overwrite a confirmed existing ID
       const mergedIds = {
         mangaupdates_id: comic.mangaupdates_id || ids.mangaupdates_id,
         mangabaka_id:    comic.mangabaka_id    || ids.mangabaka_id,
