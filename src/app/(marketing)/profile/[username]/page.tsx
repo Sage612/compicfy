@@ -22,6 +22,13 @@ import { ProfileBadges } from '@/components/profile/ProfileBadges'
 
 const GHOST_ID = '00000000-0000-0000-0000-000000000000'
 
+// Inline image proxy helper to route external covers safely
+const proxyCover = (url: string | null): string => {
+  if (!url) return ''
+  if (url.startsWith('/') || url.startsWith('blob:')) return url
+  return `/api/proxy/image?url=${encodeURIComponent(url)}`
+}
+
 interface Props {
   params: Promise<{ username: string }>
 }
@@ -399,7 +406,7 @@ export default async function ProfilePage({ params }: Props) {
             )}
           </div>
 
-          {/* ── Genres + Taste Identity — merged, compact ── */}
+          {/* ── Genres + Taste Identity ── */}
           {favoriteGenres.length > 0 && !isGhost && (
             <div className="mb-3 space-y-2">
               {/* Genres */}
@@ -412,7 +419,6 @@ export default async function ProfilePage({ params }: Props) {
                   </Link>
                 ))}
               </div>
-              {/* Taste tag inline below genres, no section header */}
               <TasteTags genres={favoriteGenres} compact />
             </div>
           )}
