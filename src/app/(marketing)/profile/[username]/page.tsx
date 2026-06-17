@@ -484,7 +484,7 @@ export default async function ProfilePage({ params }: Props) {
             <div className="flex gap-4 p-4">
               <div className="w-20 h-28 sm:w-24 sm:h-32 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                 {pinnedRec.cover_url
-                  ? <img src={pinnedRec.cover_url} alt={pinnedRec.title} className="w-full h-full object-cover" />
+                  ? <img src={proxyCover(pinnedRec.cover_url)} alt={pinnedRec.title} className="w-full h-full object-cover" />
                   : <div className="w-full h-full flex items-center justify-center"><BookOpen size={20} className="text-muted-foreground opacity-40" /></div>
                 }
               </div>

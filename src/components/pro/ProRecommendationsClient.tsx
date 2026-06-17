@@ -26,7 +26,7 @@ type Rec = {
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
-  manhwa:  'bg-blue-500/10 text-blue-500 border-blue-500/20',
+  manhwa:  'bg-teal-500/10 text-teal-500 border-teal-500/20',
   manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
   webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
   comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
@@ -186,7 +186,7 @@ export default function ProRecommendationsClient({
                 {/* Cover */}
                 <div className="w-12 h-16 sm:w-14 sm:h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                   {rec.cover_url
-                    ? <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                    ? <img src={proxyCover(rec.cover_url)} alt={rec.title} className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-muted-foreground opacity-40" /></div>}
                 </div>
 

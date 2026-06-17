@@ -512,7 +512,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                     {!isOwner && username && (
                       <div className="flex items-center gap-1.5">
                         {avatar ? (
-                          <img src={`/api/image-proxy?url=${encodeURIComponent(avatar)}`} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
+                          <img src={avatar} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
                         ) : (
                           <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
                             <span className="text-[7px] text-white font-bold">{username[0].toUpperCase()}</span>
@@ -624,7 +624,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                     {!isOwner && username && (
                       <div className="flex items-center gap-1.5">
                         {avatar ? (
-                          <img src={`/api/image-proxy?url=${encodeURIComponent(avatar)}`} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
+                          <img src={avatar} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
                         ) : (
                           <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
                             <span className="text-[7px] text-white font-bold">{username[0].toUpperCase()}</span>

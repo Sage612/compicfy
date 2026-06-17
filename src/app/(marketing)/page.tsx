@@ -260,7 +260,7 @@ export default async function HomePage() {
                   <div className="relative w-60 rounded-lg overflow-hidden border border-border shadow-2xl">
                     {spotlight.cover_url ? (
                       <img
-                        src={spotlight.cover_url}
+                        src={proxyCover(spotlight.cover_url)}
                         alt={spotlight.title}
                         className="w-full aspect-[3/4] object-cover group-hover:scale-105 transition-transform duration-500"
                       />

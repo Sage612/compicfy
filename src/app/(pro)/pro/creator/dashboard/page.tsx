@@ -169,7 +169,7 @@ export default async function ProCreatorDashboardPage() {
 
         <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <ProAvatar
-            src={profile.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(profile.avatar_url)}` : undefined}
+            src={profile.avatar_url ? profile.avatar_url : undefined}
             fallback={initials}
             size="lg"
             isPro={isPro}
@@ -516,7 +516,7 @@ export default async function ProCreatorDashboardPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <Avatar className="h-5 w-5 shrink-0">
-                      <AvatarImage src={review.profiles?.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(review.profiles.avatar_url)}` : undefined} />
+                      <AvatarImage src={review.profiles?.avatar_url ? review.profiles.avatar_url : undefined} />
                       <AvatarFallback className="text-[8px] bg-muted">{review.profiles?.username?.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <span className="text-[11px] font-semibold truncate">@{review.profiles?.username}</span>

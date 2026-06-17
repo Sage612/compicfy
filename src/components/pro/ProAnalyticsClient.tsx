@@ -270,7 +270,7 @@ export function ProAnalyticsClient({ recommendations, analytics }: Props) {
                   {/* Cover */}
                   <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                     {rec.cover_url ? (
-                      <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                      <img src={proxyCover(rec.cover_url)} alt={rec.title} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <BookOpen size={12} className="text-muted-foreground opacity-40" />

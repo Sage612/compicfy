@@ -34,7 +34,7 @@ const TAG_DEFINITIONS: TagDef[] = [
   { tag: 'Mecha Pilot',           emoji: '🤖',  color: 'bg-teal-500/10   text-teal-500   border-teal-500/20',   requires: ['Mecha'] },
 
   // Format specialists
-  { tag: 'Manhwa Devotee',        emoji: '????', color: 'bg-blue-400/10 text-blue-400 border-blue-400/20', requires: ['Manhwa'] },
+  { tag: 'Manhwa Devotee',        emoji: '????', color: 'bg-teal-400/10 text-teal-400 border-teal-400/20', requires: ['Manhwa'] },
   { tag: 'Manhua Collector',      emoji: '🇨🇳', color: 'bg-amber-400/10  text-amber-400  border-amber-400/20',  requires: ['Manhua'] },
 
   // Demo specialists

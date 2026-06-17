@@ -96,7 +96,7 @@ export default async function CreatorDashboardPage() {
           <div className="relative shrink-0">
             <div className="absolute -inset-1 rounded-full bg-teal-500/20 blur-sm" />
             <Avatar className="relative h-14 w-14 border-2 border-teal-500/40">
-              <AvatarImage src={profile.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(profile.avatar_url)}` : undefined} />
+              <AvatarImage src={profile.avatar_url ? profile.avatar_url : undefined} />
               <AvatarFallback className="text-lg bg-teal-500 text-white font-bold">{initials}</AvatarFallback>
             </Avatar>
           </div>
@@ -307,7 +307,7 @@ export default async function CreatorDashboardPage() {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <Avatar className="h-5 w-5 shrink-0">
-                      <AvatarImage src={review.profiles?.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(review.profiles.avatar_url)}` : undefined} />
+                      <AvatarImage src={review.profiles?.avatar_url ? review.profiles.avatar_url : undefined} />
                       <AvatarFallback className="text-[8px] bg-muted">{review.profiles?.username?.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <span className="text-[11px] font-semibold truncate">@{review.profiles?.username}</span>

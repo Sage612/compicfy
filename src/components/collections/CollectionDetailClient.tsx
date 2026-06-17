@@ -325,7 +325,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             {collection.profiles && (
               <div className="flex items-center gap-2">
                 {collection.profiles.avatar_url ? (
-                  <img src={`/api/image-proxy?url=${encodeURIComponent(collection.profiles.avatar_url)}`} alt={collection.profiles.username}
+                  <img src={collection.profiles.avatar_url} alt={collection.profiles.username}
                     className="w-5 h-5 rounded-full object-cover border border-border" />
                 ) : (
                   <div className={cn('w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border border-border', theme.bg, theme.text)}>
@@ -511,7 +511,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             {collection.profiles && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 {collection.profiles.avatar_url && (
-                  <img src={`/api/image-proxy?url=${encodeURIComponent(collection.profiles.avatar_url)}`} alt="" className="w-5 h-5 rounded-full object-cover border border-border" />
+                  <img src={collection.profiles.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover border border-border" />
                 )}
                 <span>Curated by</span>
                 <Link href={`/profile/${collection.profiles.username}`} className={cn('font-semibold hover:underline', theme.text)}>

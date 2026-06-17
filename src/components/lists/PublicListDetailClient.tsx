@@ -226,7 +226,7 @@ function proxyCover(url: string | null | undefined): string | null {
             {owner && (
               <Link href={`/profile/${owner.username}`} className="flex items-center gap-2 group">
                 <Avatar className="h-6 w-6">
-                  <AvatarImage src={owner.avatar_url ? `/api/image-proxy?url=${encodeURIComponent(owner.avatar_url)}` : undefined} />
+                  <AvatarImage src={owner.avatar_url ? owner.avatar_url : undefined} />
                   <AvatarFallback className="text-[10px] font-black bg-gradient-to-br from-primary to-violet-500 text-white">
                     {ownerInitials}
                   </AvatarFallback>

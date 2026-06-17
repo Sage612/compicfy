@@ -45,7 +45,7 @@ export default async function ReaderReviewsPage() {
                 <div className="flex items-start gap-3">
                   <div className="w-12 h-16 rounded-lg overflow-hidden bg-muted shrink-0">
                     {rec?.cover_url
-                      ? <img src={rec.cover_url} alt={rec.title} className="w-full h-full object-cover" />
+                      ? <img src={proxyCover(rec.cover_url)} alt={rec.title} className="w-full h-full object-cover" />
                       : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-muted-foreground opacity-40" /></div>
                     }
                   </div>

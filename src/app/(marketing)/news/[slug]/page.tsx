@@ -107,7 +107,7 @@ export default async function NewsDetailPage({ params }: Props) {
         {news.cover_url && (
           <div className="aspect-[16/9] rounded-2xl overflow-hidden bg-muted">
             <img
-              src={news.cover_url}
+              src={proxyCover(news.cover_url)}
               alt={news.cover_alt ?? news.title}
               className="w-full h-full object-cover"
             />

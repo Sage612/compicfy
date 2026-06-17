@@ -50,7 +50,7 @@ export function TrendingSidebar({ trending }: Props) {
                   </span>
                   <div className="w-8 h-10 rounded-lg overflow-hidden bg-muted shrink-0">
                     {item.cover_url ? (
-                      <img src={item.cover_url} alt={item.title} className="w-full h-full object-cover" />
+                      <img src={proxyCover(item.cover_url)} alt={item.title} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <BookOpen size={10} className="text-muted-foreground opacity-40" />
