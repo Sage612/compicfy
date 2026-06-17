@@ -35,7 +35,7 @@ export const metadata: Metadata = {
 }
 
 const GENRES = [
-  { label: 'I need something addictive',     emoji: '⚔️',  href: '/browse?genre=Action'        },
+  { label: 'I need something addictive',    emoji: '⚔️',  href: '/browse?genre=Action'        },
   { label: 'Give me butterflies',            emoji: '🌸',  href: '/browse?genre=Romance'       },
   { label: 'Take me somewhere else',         emoji: '✨',  href: '/browse?genre=Fantasy'       },
   { label: 'I just want to laugh',           emoji: '😂',  href: '/browse?genre=Comedy'        },
@@ -71,6 +71,15 @@ const RANK_STYLES: Record<number, { bg: string; text: string }> = {
   0: { bg: 'bg-amber-500/20', text: 'text-amber-400' },
   1: { bg: 'bg-slate-400/20', text: 'text-slate-400' },
   2: { bg: 'bg-amber-700/20', text: 'text-amber-600' },
+}
+
+// ── Type-Safe Image Proxy Helper ────────────────────────────────────
+function proxyCover(url: string | null | undefined): string {
+  if (!url) return ""
+  if (url.startsWith('data:')) return url
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
 export default async function HomePage() {
@@ -153,7 +162,6 @@ export default async function HomePage() {
       <section className="relative overflow-hidden min-h-[92vh] flex flex-col items-center justify-center">
         <div className="absolute inset-0 bg-background" />
 
-        {/* Single subtle red glow — not three overlapping blobs */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full bg-primary/6 dark:bg-primary/8 blur-[120px]" />
         </div>
@@ -162,10 +170,9 @@ export default async function HomePage() {
           <ParticleCanvas />
         </div>
 
-        {/* Decorative comic panel outlines */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none hidden md:block">
           <div className="absolute top-16 right-20 w-32 h-44 rounded border border-border/40 rotate-6" />
-          <div className="absolute top-8  right-40 w-24 h-32 rounded border border-border/30 -rotate-3" />
+          <div className="absolute top-8   right-40 w-24 h-32 rounded border border-border/30 -rotate-3" />
           <div className="absolute top-40 right-12 w-16 h-24 rounded border border-border/20 rotate-12" />
           <div className="absolute bottom-20 right-52 w-28 h-36 rounded border border-border/30 -rotate-6" />
         </div>
@@ -184,7 +191,6 @@ export default async function HomePage() {
                     <span className="text-primary">
                       obsession.
                     </span>
-                    {/* Simple underline — no gradient SVG */}
                     <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary/40 rounded-full" />
                   </span>
                 </h1>
@@ -239,7 +245,6 @@ export default async function HomePage() {
                       </div>
                     </div>
                   ))}
-                {/* Always show community pill regardless of count */}
                 <div className="flex items-center gap-2 text-sm">
                   <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary">
                     <Users size={14} />
@@ -399,7 +404,7 @@ export default async function HomePage() {
                     isLoggedIn={!!user}
                     rankStyle={rankStyle}
                   />
-                )
+                );
               })}
             </div>
 
@@ -491,7 +496,6 @@ export default async function HomePage() {
       {/* ── CTA BANNER ── */}
       <section className="max-w-7xl mx-auto px-4 py-14 w-full">
         <div className="relative overflow-hidden rounded-lg p-8 md:p-12 bg-card border border-border">
-          {/* Single subtle red glow — not three blobs */}
           <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-primary/8 blur-3xl pointer-events-none" />
           <div className="absolute top-0 left-0 right-0 h-px bg-primary/20 pointer-events-none" />
           <div className="relative max-w-2xl space-y-5">
