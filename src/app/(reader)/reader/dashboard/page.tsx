@@ -22,6 +22,17 @@ const TYPE_COLORS: Record<string, string> = {
   comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
 }
 
+function proxyCover(url: string | null | undefined): string {
+  if (!url) return "" // Returning an empty string satisfies the 'string' requirement
+  if (url.startsWith('data:')) return url
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
+
+
 export default async function ReaderDashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
