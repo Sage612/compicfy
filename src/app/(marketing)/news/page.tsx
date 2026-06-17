@@ -90,16 +90,6 @@ async function NewsGrid({ searchParams }: Props) {
 export default async function NewsPage({ searchParams }: Props) {
   const supabase = await createClient()
 
-  /*
-    Carousel feed: latest 10 published articles ordered by published_at.
-    The NewsCarousel component handles the daily shuffle client-side
-    using a seeded PRNG so the order is consistent all day and
-    changes automatically at midnight without any cron job.
-
-    We intentionally do NOT order by view_count here — popular articles
-    would get permanently stuck at the top. Instead every article gets
-    a daily rotation slot so newer content surfaces naturally.
-  */
   const { data: carouselNews } = await supabase
     .from('news')
     .select('*')

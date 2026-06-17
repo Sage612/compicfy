@@ -40,6 +40,15 @@ const categoryLabels: Record<string, string> = {
   announcement: '📢 Announcement',
 }
 
+// ── Type-Safe Image Proxy Helper ────────────────────────────────────
+function proxyCover(url: string | null | undefined): string {
+  if (!url) return ""
+  if (url.startsWith('data:')) return url
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 export default async function NewsDetailPage({ params }: Props) {
   const { slug } = await params
   const supabase = await createClient()
