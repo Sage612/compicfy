@@ -2,6 +2,16 @@ import Link from 'next/link'
 import { BookOpen, TrendingUp, MessageSquare, PenLine } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+function proxyCover(url: string | null | undefined): string {
+  if (!url) return "" // Returning an empty string satisfies the 'string' requirement
+  if (url.startsWith('data:')) return url
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
+
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10   text-rose-500',
   manhwa:  'bg-teal-500/10 text-teal-500',
