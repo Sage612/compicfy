@@ -34,20 +34,7 @@ export function SpeedDialFAB({
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  // Hide on admin/dashboard pages
-  const hidden =
-    pathname.startsWith('/admin') ||
-    pathname.startsWith('/reader/dashboard') ||
-    pathname.startsWith('/pro/reader/dashboard') ||
-    pathname.startsWith('/creator/dashboard') ||
-    pathname.startsWith('/pro/creator/dashboard')
-
-  if (hidden || !userId) return null
-
-  const listAtLimit       = !isProUser && userListCount >= FREE_LIST_LIMIT
-  const collectionAtLimit = !isProUser && userCollectionCount >= FREE_COLLECTION_LIMIT
-
-  // Close on outside click
+  // 1. Run all hooks unconditionally first
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
@@ -55,6 +42,20 @@ export function SpeedDialFAB({
     if (open) document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [open])
+
+  // 2. Compute hidden logic safely below hooks
+  const hidden =
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/reader/dashboard') ||
+    pathname.startsWith('/pro/reader/dashboard') ||
+    pathname.startsWith('/creator/dashboard') ||
+    pathname.startsWith('/pro/creator/dashboard')
+
+  // 3. Early return condition sits safely right before variables used strictly in the layout
+  if (hidden || !userId) return null
+
+  const listAtLimit       = !isProUser && userListCount >= FREE_LIST_LIMIT
+  const collectionAtLimit = !isProUser && userCollectionCount >= FREE_COLLECTION_LIMIT
 
   const handleNewList = () => {
     if (listAtLimit) {
@@ -106,7 +107,7 @@ export function SpeedDialFAB({
 
   return (
     <>
-      {/* ── Backdrop — only when open, closes on tap ── */}
+      {/* ─── Backdrop — only when open, closes on tap ─── */}
       {open && (
         <div
           className="lg:hidden fixed inset-0 z-40"
@@ -114,12 +115,12 @@ export function SpeedDialFAB({
         />
       )}
 
-      {/* ── FAB container — w-fit so it never blocks taps when closed ── */}
+      {/* ─── FAB container — w-fit so it never blocks taps when closed ─── */}
       <div
         ref={ref}
         className="lg:hidden fixed bottom-20 right-4 z-50 flex flex-col items-end gap-3 w-fit"
       >
-        {/* ── Action buttons — only rendered when open so they have zero hit area when closed ── */}
+        {/* ─── Action buttons — only rendered when open so they have zero hit area when closed ─── */}
         {open && (
           <div className="flex flex-col items-end gap-2.5 w-fit">
             {actions.map((action, i) => {
@@ -160,7 +161,7 @@ export function SpeedDialFAB({
           </div>
         )}
 
-        {/* ── Main FAB ── */}
+        {/* ─── Main FAB ─── */}
         <button
           onClick={() => setOpen(o => !o)}
           className={cn(
