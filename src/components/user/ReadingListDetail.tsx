@@ -5,8 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import {
-  ArrowLeft, BookOpen, Trash2, Globe, Lock,
+import { ArrowLeft, BookOpen, Trash2, Globe, Lock,
   Loader2, BookMarked, ChevronRight, Crown, Sparkles,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'

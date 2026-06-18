@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import {
-  Plus, Pencil, Trash2, Eye, EyeOff, Sparkles, Loader2,
+import { Plus, Pencil, Trash2, Eye, EyeOff, Sparkles, Loader2,
   Globe, ExternalLink, ChevronDown, ChevronUp, DollarSign,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'

@@ -3,6 +3,13 @@ import { redirect } from 'next/navigation'
 import { ReadingListsClient } from '@/components/user/ReadingListsClient'
 import type { Metadata } from 'next'
 
+// Inline image proxy helper to route external covers safely
+const proxyCover = (url: string | null): string => {
+  if (!url) return ''
+  if (url.startsWith('/') || url.startsWith('blob:')) return url
+  return \/api/proxy/image?url=\\
+}
+
 export const metadata: Metadata = { title: 'Reading Lists | Pro' }
 
 export default async function ProReaderListsPage() {

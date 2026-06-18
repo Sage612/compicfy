@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import {
-  Globe, Lock, Bookmark, BookmarkCheck,
+import {Globe, Lock, Bookmark, BookmarkCheck,
   ArrowLeft, Loader2, Trash2, Share2, BookOpen, Layers,
   Pencil, X, Check, Sparkles,
 } from 'lucide-react'

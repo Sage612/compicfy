@@ -15,8 +15,7 @@ import { GenreSelector } from './GenreSelector'
 import { PlatformSelector } from './PlatformSelector'
 import { SubmissionGuidelineBanner } from '@/components/recommendations/SubmissionGuidelineBanner'
 import { toast } from 'sonner'
-import {
-  Loader2, BookOpen, Info, AlertTriangle, Sparkles,
+import {Loader2, BookOpen, Info, AlertTriangle, Sparkles,
   Tag, FileText, Globe, Crown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'

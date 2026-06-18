@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import {
-  BookOpen, Radar, LayoutList,
+import {BookOpen, Radar, LayoutList,
   BookMarked, Check, ArrowRight,
   Sparkles, Globe, Bell, Loader2, ThumbsUp, Bookmark, PenLine,
   User as UserIcon,
@@ -21,6 +20,16 @@ interface Props {
   initialGenres: string[]
   next:          string
 }
+
+function proxyCover(url: string | null | undefined): string {
+  if (!url) return "" // Returning an empty string satisfies the 'string' requirement
+  if (url.startsWith('data:')) return url
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 
 const STEPS = ['welcome', 'genres', 'discover', 'tour', 'done'] as const
 type Step = typeof STEPS[number]
@@ -353,7 +362,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres, n
                   return (
                     <div key={comic.id} className="group relative rounded-2xl border border-border overflow-hidden bg-muted/30 flex flex-col">
                       <div className="relative aspect-[3/4] bg-muted overflow-hidden">
-                        <ComicImage src={comic.cover_url} alt={comic.title} />
+                        <ComicImage src={proxyCover(comic.cover_url)} alt={comic.title} />
                         <span className="absolute top-2 left-2 text-[10px] font-black uppercase px-1.5 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-sm z-10">
                           {comic.type}
                         </span>

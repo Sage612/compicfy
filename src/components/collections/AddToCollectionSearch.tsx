@@ -5,6 +5,13 @@ import { Search, BookOpen, Plus, X, Loader2, Check, Layers } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
+// Inline image proxy helper to route external covers safely
+const proxyCover = (url: string | null): string => {
+  if (!url) return ''
+  if (url.startsWith('/') || url.startsWith('blob:')) return url
+  return \/api/proxy/image?url=\\
+}
+
 interface SearchResult {
   id:            string
   title:         string

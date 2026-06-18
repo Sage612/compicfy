@@ -6,8 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import {
-  Layers, Globe, BookOpen, Star, Share2,
+import {Layers, Globe, BookOpen, Star, Share2,
   Loader2, BookMarked, Plus, Crown, X, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
