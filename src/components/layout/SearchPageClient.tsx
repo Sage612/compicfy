@@ -11,6 +11,15 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 
+function proxyCover(url: string | null | undefined): string {
+  if (!url) return "" // Returning an empty string satisfies the 'string' requirement
+  if (url.startsWith('data:')) return url
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 // ── Types ─────────────────────────────────────────────────────────
 
 interface DBResult {
