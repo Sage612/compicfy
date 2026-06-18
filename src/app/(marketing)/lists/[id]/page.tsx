@@ -3,13 +3,6 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-
-// Inline image proxy helper to route external covers safely
-const proxyCover = (url: string | null): string => {
-  if (!url) return ''
-  if (url.startsWith('/') || url.startsWith('blob:')) return url
-  return \/api/proxy/image?url=\\
-}
   BookOpen, Globe, ArrowLeft, BookMarked, ThumbsUp, Lock,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'

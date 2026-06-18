@@ -6,13 +6,6 @@ import { AddToListButton } from '@/components/recommendations/AddToListButton'
 import { AddToCollectionButton } from '@/components/collections/AddToCollectionButton'
 import { SimilarComics } from '@/components/recommendations/SimilarComics'
 import {
-
-// Inline image proxy helper to route external covers safely
-const proxyCover = (url: string | null): string => {
-  if (!url) return ''
-  if (url.startsWith('/') || url.startsWith('blob:')) return url
-  return \/api/proxy/image?url=\\
-}
   BookOpen, Calendar, Hash, User, Palette,
   Globe, ExternalLink, ArrowLeft, ShieldAlert,
   Star, ThumbsUp, Bookmark, MessageSquare,

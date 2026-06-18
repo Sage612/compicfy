@@ -8,13 +8,6 @@ import { TrendingSidebar } from '@/components/feed/TrendingSidebar'
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 
-// Inline image proxy helper to route external covers safely
-const proxyCover = (url: string | null): string => {
-  if (!url) return ''
-  if (url.startsWith('/') || url.startsWith('blob:')) return url
-  return \/api/proxy/image?url=\\
-}
-
 export const metadata: Metadata = { title: 'Feed' }
 
 interface Props {
