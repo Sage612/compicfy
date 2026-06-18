@@ -7,6 +7,16 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'My Reviews' }
 
+function proxyCover(url: string | null | undefined): string {
+  if (!url) return "" // Returning an empty string satisfies the 'string' requirement
+  if (url.startsWith('data:')) return url
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
+
 export default async function ReaderReviewsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
