@@ -5,7 +5,6 @@ const BATCH_SIZE         = 10
 const API_DELAY_MS       = 600
 const REQUEST_TIMEOUT_MS = 8000
 
-// ── Fetch with timeout ────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
   const timeoutId  = setTimeout(() => controller.abort(), timeoutMs)
@@ -20,7 +19,6 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQU
   }
 }
 
-// ── Logging ───────────────────────────────────────────────────────
 interface CheckLog {
   comic_id:          string
   comic_title:       string
@@ -49,6 +47,7 @@ async function logChapterCheck(supabase: any, log: CheckLog) {
 }
 
 // ── MangaUpdates ──────────────────────────────────────────────────
+// Most reliable for ongoing series — community-updated, fast
 async function getChapterFromMU(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -63,22 +62,43 @@ async function getChapterFromMU(id: string): Promise<number | null> {
   }
 }
 
-// ── MangaDex ──────────────────────────────────────────────────────
-async function getChapterFromMangaDex(id: string): Promise<number | null> {
+async function getChapterFromMangaDexFeed(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
-    const res = await fetchWithTimeout(`https://api.mangadex.org/manga/${id}`)
+    const url = `https://api.mangadex.org/manga/${id}/feed?limit=1&order[chapter]=desc&translatedLanguage[]=en&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic`
+    const res = await fetchWithTimeout(url)
+    if (!res.ok) return null
+    const data    = await res.json()
+    const chapter = data?.data?.[0]?.attributes?.chapter
+    return chapter && !isNaN(Number(chapter)) ? Math.floor(Number(chapter)) : null
+  } catch (err) {
+    console.error(`MD feed error for ${id}:`, err)
+    return null
+  }
+}
+
+// ── Kitsu ─────────────────────────────────────────────────────────
+// chapterCount is community-maintained and reliable for ongoing series
+// Pure public REST, no auth, no Cloudflare block
+async function getChapterFromKitsu(id: string): Promise<number | null> {
+  try {
+    await new Promise(r => setTimeout(r, API_DELAY_MS))
+    const res = await fetchWithTimeout(
+      `https://kitsu.io/api/edge/manga/${id}`,
+      { headers: { 'Accept': 'application/vnd.api+json' } }
+    )
     if (!res.ok) return null
     const data = await res.json()
-    const ch   = data?.data?.attributes?.lastChapter
+    const ch   = data?.data?.attributes?.chapterCount
     return ch && !isNaN(Number(ch)) ? Number(ch) : null
   } catch (err) {
-    console.error(`MD chapter error for ${id}:`, err)
+    console.error(`Kitsu chapter error for ${id}:`, err)
     return null
   }
 }
 
 // ── Jikan (MAL) ───────────────────────────────────────────────────
+// Good for completed series, mostly null for ongoing
 async function getChapterFromJikan(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -94,6 +114,7 @@ async function getChapterFromJikan(id: string): Promise<number | null> {
 }
 
 // ── AniList ───────────────────────────────────────────────────────
+// Good for completed series, mostly null for ongoing — final fallback
 async function getChapterFromAniList(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -113,26 +134,50 @@ async function getChapterFromAniList(id: string): Promise<number | null> {
   }
 }
 
-// ── Resolve chapter count across sources (MangaBaka removed — API non-functional) ──
-async function resolveChapterCount(comic: any): Promise<{ chapter: number | null; source: string | null; tried: string[] }> {
+async function resolveChapterCount(comic: any): Promise<{
+  chapter: number | null
+  source:  string | null
+  tried:   string[]
+}> {
   const tried: string[] = []
 
+  // ── Primary: MangaUpdates ──────────────────────────────────────
   let muChapter: number | null = null
   if (comic.mangaupdates_id) {
     tried.push('MangaUpdates')
     muChapter = await getChapterFromMU(comic.mangaupdates_id)
   }
 
+  // ── Confirmation 1: MangaDex feed ─────────────────────────────
   let mdChapter: number | null = null
   if (comic.mangadex_id) {
-    tried.push('MangaDex')
-    mdChapter = await getChapterFromMangaDex(comic.mangadex_id)
+    tried.push('MangaDex-feed')
+    mdChapter = await getChapterFromMangaDexFeed(comic.mangadex_id)
   }
 
+  // MU + MD feed agree → highest confidence
   if (muChapter !== null && mdChapter !== null && Math.abs(muChapter - mdChapter) <= 1) {
     return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried }
   }
 
+  // ── Confirmation 2: Kitsu ──────────────────────────────────────
+  let kitsuChapter: number | null = null
+  if (comic.kitsu_id) {
+    tried.push('Kitsu')
+    kitsuChapter = await getChapterFromKitsu(comic.kitsu_id)
+  }
+
+  // MU + Kitsu agree
+  if (muChapter !== null && kitsuChapter !== null && Math.abs(muChapter - kitsuChapter) <= 1) {
+    return { chapter: Math.max(muChapter, kitsuChapter), source: 'MU+Kitsu confirmed', tried }
+  }
+
+  // MD feed + Kitsu agree
+  if (mdChapter !== null && kitsuChapter !== null && Math.abs(mdChapter - kitsuChapter) <= 1) {
+    return { chapter: Math.max(mdChapter, kitsuChapter), source: 'MD+Kitsu confirmed', tried }
+  }
+
+  // ── Fallback: MAL ──────────────────────────────────────────────
   let malChapter: number | null = null
   if (comic.mal_id) {
     tried.push('MAL')
@@ -146,30 +191,39 @@ async function resolveChapterCount(comic: any): Promise<{ chapter: number | null
     if (mdChapter !== null && Math.abs(malChapter - mdChapter) <= 1) {
       return { chapter: Math.max(malChapter, mdChapter), source: 'MD+MAL confirmed', tried }
     }
+    if (kitsuChapter !== null && Math.abs(malChapter - kitsuChapter) <= 1) {
+      return { chapter: Math.max(malChapter, kitsuChapter), source: 'Kitsu+MAL confirmed', tried }
+    }
   }
 
+  // ── Final fallback: AniList ────────────────────────────────────
   if (comic.anilist_id) {
     tried.push('AniList')
     const alChapter = await getChapterFromAniList(comic.anilist_id)
     if (alChapter !== null) {
       if (muChapter !== null && Math.abs(alChapter - muChapter) <= 1) {
-        return { chapter: Math.max(alChapter, muChapter), source: 'MU+AniList confirmed', tried }
+        return { chapter: Math.max(alChapter, muChapter), source: 'MU+AL confirmed', tried }
       }
       if (mdChapter !== null && Math.abs(alChapter - mdChapter) <= 1) {
-        return { chapter: Math.max(alChapter, mdChapter), source: 'MD+AniList confirmed', tried }
+        return { chapter: Math.max(alChapter, mdChapter), source: 'MD+AL confirmed', tried }
       }
-      if (malChapter !== null && Math.abs(alChapter - malChapter) <= 1) {
-        return { chapter: Math.max(alChapter, malChapter), source: 'MAL+AniList confirmed', tried }
+      if (kitsuChapter !== null && Math.abs(alChapter - kitsuChapter) <= 1) {
+        return { chapter: Math.max(alChapter, kitsuChapter), source: 'Kitsu+AL confirmed', tried }
       }
-      if (muChapter === null && mdChapter === null && malChapter === null) {
+      // AniList solo — only trust if nothing else returned anything
+      if (muChapter === null && mdChapter === null && kitsuChapter === null && malChapter === null) {
         return { chapter: alChapter, source: 'AniList', tried }
       }
     }
   }
 
-  if (muChapter !== null)  return { chapter: muChapter,  source: 'MangaUpdates (unconfirmed)', tried }
-  if (mdChapter !== null)  return { chapter: mdChapter,  source: 'MangaDex (unconfirmed)',      tried }
-  if (malChapter !== null) return { chapter: malChapter, source: 'MAL (unconfirmed)',           tried }
+  // ── Best single unconfirmed value ──────────────────────────────
+  // Priority: MU > MD feed > Kitsu > MAL
+  // MU is most reliable single source for ongoing series
+  if (muChapter !== null)    return { chapter: muChapter,    source: 'MangaUpdates (unconfirmed)', tried }
+  if (mdChapter !== null)    return { chapter: mdChapter,    source: 'MangaDex-feed (unconfirmed)', tried }
+  if (kitsuChapter !== null) return { chapter: kitsuChapter, source: 'Kitsu (unconfirmed)',         tried }
+  if (malChapter !== null)   return { chapter: malChapter,   source: 'MAL (unconfirmed)',           tried }
 
   return { chapter: null, source: null, tried }
 }
@@ -190,7 +244,7 @@ export async function GET(req: Request) {
 
   const { data: comics, error } = await supabase
     .from('recommendations')
-    .select('id, title, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id')
+    .select('id, title, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, kitsu_id')
     .eq('is_approved', true)
     .eq('status', 'ongoing')
     .or(`last_chapter_check.is.null,last_chapter_check.lt.${cutoff}`)
@@ -206,7 +260,7 @@ export async function GET(req: Request) {
   }
 
   let updated = 0
-  const results  = []
+  const results: any[] = []
   const logs: CheckLog[] = []
 
   for (const comic of comics) {
@@ -242,7 +296,7 @@ export async function GET(req: Request) {
           .in('status', ['reading', 'plan_to_read'])
 
         if (trackers && trackers.length > 0) {
-          const userIds       = [...new Set(trackers.map((t: any) => t.reading_lists?.user_id).filter(Boolean))]
+          const userIds = [...new Set(trackers.map((t: any) => t.reading_lists?.user_id).filter(Boolean))]
           const notifications = userIds.map((userId: string) => ({
             user_id: userId,
             type:    'system',
@@ -250,7 +304,6 @@ export async function GET(req: Request) {
             content: `New chapters available, now at chapter ${newChapterCount}`,
             data:    { recommendation_id: comic.id, new_chapter_count: newChapterCount, old_chapter_count: comic.chapter_count },
           }))
-
           await supabase.from('notifications').insert(notifications)
         }
 

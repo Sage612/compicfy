@@ -6,7 +6,17 @@ const COOLDOWN_HOURS     = 5
 const API_DELAY_MS       = 600
 const REQUEST_TIMEOUT_MS = 8000
 
-// ── Fetch with timeout ────────────────────────────────────────────
+interface MangaDexCandidate {
+  id: string
+  title: string
+  author: string
+  artist: string
+  mu: string | null
+  mal: string | null
+  al: string | null
+  kt: string | null
+}
+
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
   const timeoutId  = setTimeout(() => controller.abort(), timeoutMs)
@@ -23,17 +33,13 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQU
 
 // ── Normalize ─────────────────────────────────────────────────────
 function normalize(str: string): string {
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
+  return str.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim()
 }
 
 // ── Smart match ───────────────────────────────────────────────────
 function smartMatch(
-  query:       string,
-  candidates:  { id: string; title: string; author?: string; artist?: string }[],
+  query:      string,
+  candidates: { id: string; title: string; author?: string; artist?: string }[],
   authorHint?: string | null,
   artistHint?: string | null,
 ): string | null {
@@ -41,19 +47,18 @@ function smartMatch(
   const na = authorHint ? normalize(authorHint) : null
   const nr = artistHint ? normalize(artistHint) : null
 
-  const authorArtistConfirmed = (c: { author?: string; artist?: string }): boolean => {
+  const confirmed = (c: { author?: string; artist?: string }): boolean => {
     if (!na && !nr) return false
     const ca = c.author ? normalize(c.author) : ''
     const cr = c.artist ? normalize(c.artist) : ''
-    const authorMatch = na ? (ca.includes(na) || na.includes(ca)) : false
-    const artistMatch = nr ? (cr.includes(nr) || nr.includes(cr)) : false
-    return authorMatch || artistMatch
+    return (na ? ca.includes(na) || na.includes(ca) : false) ||
+           (nr ? cr.includes(nr) || nr.includes(cr) : false)
   }
 
-  // Pass 1 — exact title + author/artist
+  // Pass 1 — exact + author/artist
   if (na || nr) {
     for (const c of candidates) {
-      if (normalize(c.title) === nq && authorArtistConfirmed(c)) return c.id
+      if (normalize(c.title) === nq && confirmed(c)) return c.id
     }
   }
 
@@ -62,22 +67,20 @@ function smartMatch(
     if (normalize(c.title) === nq) return c.id
   }
 
-  // Pass 3 — bidirectional contains + author/artist required
+  // Pass 3 — contains match + author/artist required
   if (na || nr) {
     for (const c of candidates) {
       const ct = normalize(c.title)
-      const isContained = ct.includes(nq) || nq.includes(ct)
-      if (isContained && ct !== nq && authorArtistConfirmed(c)) return c.id
+      if ((ct.includes(nq) || nq.includes(ct)) && ct !== nq && confirmed(c)) return c.id
     }
   }
 
   return null
 }
 
-// ── Build all query titles ─────────────────────────────────────────
 function buildQueryTitles(title: string, alternativeTitles?: string[] | null): string[] {
   const seen = new Set<string>()
-  const out:  string[] = []
+  const out: string[] = []
   for (const t of [title, ...(alternativeTitles ?? [])]) {
     const n = normalize(t)
     if (n && !seen.has(n)) { seen.add(n); out.push(t) }
@@ -85,7 +88,80 @@ function buildQueryTitles(title: string, alternativeTitles?: string[] | null): s
   return out
 }
 
-// ── MangaUpdates ──────────────────────────────────────────────────
+// ── MangaDex — search + cross-link extraction ─────────────────────
+async function findMangaDexIDAndCrossLinks(
+  titles: string[],
+  author?: string | null,
+  artist?: string | null,
+): Promise<{ mangadex_id: string | null; crossLinks: Record<string, string> }> {
+  for (const title of titles) {
+    try {
+      await new Promise(r => setTimeout(r, API_DELAY_MS))
+      const res = await fetchWithTimeout(
+        `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=15&includes[]=author&includes[]=artist`,
+      )
+      if (!res.ok) continue
+      const data = await res.json()
+
+      const entries: MangaDexCandidate[] = (data.data ?? []).map((r: any) => {
+        const attr       = r.attributes ?? {}
+        const titleEn    = attr.title?.en || Object.values(attr.title ?? {})[0] || ''
+        const rels       = r.relationships ?? []
+        const authorName = rels.find((rel: any) => rel.type === 'author')?.attributes?.name ?? ''
+        const artistName = rels.find((rel: any) => rel.type === 'artist')?.attributes?.name ?? ''
+        const links      = attr.links ?? {}
+        return {
+          id:     String(r.id ?? ''),
+          title:  String(titleEn),
+          author: authorName,
+          artist: artistName,
+          mu:     links.mu  ? String(links.mu)  : null,
+          mal:    links.mal ? String(links.mal)  : null,
+          al:     links.al  ? String(links.al)   : null,
+          kt:     links.kt  ? String(links.kt)   : null,
+        }
+      })
+
+      const matchId = smartMatch(title, entries, author, artist)
+      if (matchId) {
+        const matched = entries.find((e: MangaDexCandidate) => e.id === matchId)
+        const crossLinks: Record<string, string> = {}
+        if (matched?.mu)  crossLinks.mangaupdates_id = matched.mu
+        if (matched?.mal) crossLinks.mal_id          = matched.mal
+        if (matched?.al)  crossLinks.anilist_id      = matched.al
+        if (matched?.kt)  crossLinks.kitsu_id        = matched.kt
+        return { mangadex_id: matchId, crossLinks }
+      }
+    } catch (err) {
+      console.error(`MD error for "${title}":`, err)
+    }
+  }
+  return { mangadex_id: null, crossLinks: {} }
+}
+
+// ── Enrich cross-links from existing MangaDex ID ─────────────────
+async function enrichFromMangaDexLinks(
+  mangadexId: string,
+): Promise<Record<string, string>> {
+  try {
+    await new Promise(r => setTimeout(r, API_DELAY_MS))
+    const res = await fetchWithTimeout(`https://api.mangadex.org/manga/${mangadexId}`)
+    if (!res.ok) return {}
+    const data  = await res.json()
+    const links = data?.data?.attributes?.links ?? {}
+    const out: Record<string, string> = {}
+    if (links.mu)  out.mangaupdates_id = String(links.mu)
+    if (links.mal) out.mal_id          = String(links.mal)
+    if (links.al)  out.anilist_id      = String(links.al)
+    if (links.kt)  out.kitsu_id        = String(links.kt)
+    return out
+  } catch (err) {
+    console.error(`MD enrich error for ${mangadexId}:`, err)
+    return {}
+  }
+}
+
+// ── MangaUpdates — fallback search ────────────────────────────────
 async function findMangaUpdatesID(
   titles: string[], author?: string | null, artist?: string | null,
 ): Promise<string | null> {
@@ -100,10 +176,10 @@ async function findMangaUpdatesID(
       if (!res.ok) continue
       const data       = await res.json()
       const candidates = (data.results ?? []).map((r: any) => ({
-        id:     String(r.record?.series_id ?? ''),
-        title:  r.record?.title ?? '',
-        author: r.record?.author ?? '',
-        artist: r.record?.artist ?? '',
+        id:      String(r.record?.series_id ?? ''),
+        title:   r.record?.title ?? '',
+        author:  r.record?.author ?? '',
+        artist:  r.record?.artist ?? '',
       }))
       const match = smartMatch(title, candidates, author, artist)
       if (match) return match
@@ -114,36 +190,7 @@ async function findMangaUpdatesID(
   return null
 }
 
-// ── MangaDex ──────────────────────────────────────────────────────
-async function findMangaDexID(
-  titles: string[], author?: string | null, artist?: string | null,
-): Promise<string | null> {
-  for (const title of titles) {
-    try {
-      await new Promise(r => setTimeout(r, API_DELAY_MS))
-      const res = await fetchWithTimeout(
-        `https://api.mangadex.org/manga?title=${encodeURIComponent(title)}&limit=15&includes[]=author&includes[]=artist`,
-      )
-      if (!res.ok) continue
-      const data       = await res.json()
-      const candidates = (data.data ?? []).map((r: any) => {
-        const attr       = r.attributes ?? {}
-        const titleEn    = attr.title?.en || Object.values(attr.title ?? {})[0] || ''
-        const rels       = r.relationships ?? []
-        const authorName = rels.find((rel: any) => rel.type === 'author')?.attributes?.name ?? ''
-        const artistName = rels.find((rel: any) => rel.type === 'artist')?.attributes?.name ?? ''
-        return { id: String(r.id ?? ''), title: String(titleEn), author: authorName, artist: artistName }
-      })
-      const match = smartMatch(title, candidates, author, artist)
-      if (match) return match
-    } catch (err) {
-      console.error(`MD error for "${title}":`, err)
-    }
-  }
-  return null
-}
-
-// ── AniList ───────────────────────────────────────────────────────
+// ── AniList — fallback search ─────────────────────────────────────
 async function findAniListID(
   titles: string[], author?: string | null, artist?: string | null,
 ): Promise<string | null> {
@@ -163,10 +210,10 @@ async function findAniListID(
         const authorName = edges.find((e: any) => e.role?.toLowerCase().includes('story'))?.node?.name?.full ?? ''
         const artistName = edges.find((e: any) => e.role?.toLowerCase().includes('art'))?.node?.name?.full ?? ''
         return {
-          id:     String(r.id ?? ''),
-          title:  r.title?.english || r.title?.romaji || r.title?.native || '',
-          author: authorName,
-          artist: artistName,
+          id:      String(r.id ?? ''),
+          title:   r.title?.english || r.title?.romaji || r.title?.native || '',
+          author:  authorName,
+          artist:  artistName,
         }
       })
       const match = smartMatch(title, candidates, author, artist)
@@ -178,7 +225,7 @@ async function findAniListID(
   return null
 }
 
-// ── Jikan (MAL) ───────────────────────────────────────────────────
+// ── Jikan (MAL) — fallback search ────────────────────────────────
 async function findJikanID(
   titles: string[], author?: string | null, artist?: string | null,
 ): Promise<string | null> {
@@ -195,10 +242,10 @@ async function findJikanID(
         const authorName = authors.find((a: any) => a.type === 'Story')?.name ?? authors[0]?.name ?? ''
         const artistName = authors.find((a: any) => a.type === 'Art')?.name ?? ''
         return {
-          id:     String(r.mal_id ?? ''),
-          title:  r.title_english || r.title || '',
-          author: authorName,
-          artist: artistName,
+          id:      String(r.mal_id ?? ''),
+          title:   r.title_english || r.title || '',
+          author:  authorName,
+          artist:  artistName,
         }
       })
       const match = smartMatch(title, candidates, author, artist)
@@ -210,27 +257,45 @@ async function findJikanID(
   return null
 }
 
-// ── Main ID finder (MangaBaka removed — API non-functional) ────────
+// ── Main ID finder ───────────────────────────────────────────────
 async function findExternalIds(
-  title:             string,
-  author?:           string | null,
-  artist?:           string | null,
+  title:              string,
+  author?:            string | null,
+  artist?:            string | null,
   alternativeTitles?: string[] | null,
+  existingMangaDexId?: string | null,
 ): Promise<Record<string, string | undefined>> {
   const ids:    Record<string, string | undefined> = {}
   const titles = buildQueryTitles(title, alternativeTitles)
 
-  const muId  = await findMangaUpdatesID(titles, author, artist)
-  if (muId)  ids.mangaupdates_id = muId
+  if (existingMangaDexId) {
+    const crossLinks = await enrichFromMangaDexLinks(existingMangaDexId)
+    Object.assign(ids, crossLinks)
+    ids.mangadex_id = existingMangaDexId
+  }
 
-  const mdId  = await findMangaDexID(titles, author, artist)
-  if (mdId)  ids.mangadex_id = mdId
+  if (!ids.mangadex_id) {
+    const { mangadex_id, crossLinks } = await findMangaDexIDAndCrossLinks(titles, author, artist)
+    if (mangadex_id) {
+      ids.mangadex_id = mangadex_id
+      Object.assign(ids, crossLinks)
+    }
+  }
 
-  const alId  = await findAniListID(titles, author, artist)
-  if (alId)  ids.anilist_id = alId
+  if (!ids.mangaupdates_id) {
+    const muId = await findMangaUpdatesID(titles, author, artist)
+    if (muId) ids.mangaupdates_id = muId
+  }
 
-  const malId = await findJikanID(titles, author, artist)
-  if (malId) ids.mal_id = malId
+  if (!ids.anilist_id) {
+    const alId = await findAniListID(titles, author, artist)
+    if (alId) ids.anilist_id = alId
+  }
+
+  if (!ids.mal_id) {
+    const malId = await findJikanID(titles, author, artist)
+    if (malId) ids.mal_id = malId
+  }
 
   return ids
 }
@@ -263,7 +328,6 @@ async function logIDCheck(supabase: any, log: IDCheckLog) {
   }
 }
 
-// Total external ID sources tracked: MangaUpdates, MangaDex, AniList, MAL (MangaBaka removed)
 const TOTAL_ID_SOURCES = 4
 
 function countExternalIds(comic: any): number {
@@ -324,7 +388,14 @@ export async function GET(req: Request) {
         continue
       }
 
-      const ids        = await findExternalIds(comic.title, comic.author, comic.artist, comic.alternative_titles)
+      const ids = await findExternalIds(
+        comic.title,
+        comic.author,
+        comic.artist,
+        comic.alternative_titles,
+        comic.mangadex_id,
+      )
+
       const totalFound = Object.values(ids).filter(Boolean).length
 
       const mergedIds = {
@@ -357,7 +428,7 @@ export async function GET(req: Request) {
         comic_title:       comic.title,
         comic_author:      comic.author,
         comic_artist:      comic.artist,
-        databases_checked: ['MU', 'MD', 'AL', 'Jikan'],
+        databases_checked: ['MD-crosslinks', 'MU', 'AL', 'Jikan'],
         ids_found:         mergedIds,
         status,
         total_ids_found:   newIdCount,

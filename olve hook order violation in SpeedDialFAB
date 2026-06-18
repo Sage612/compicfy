@@ -1,0 +1,84 @@
+[1mdiff --git a/src/components/layout/SpeedDialFAB.tsx b/src/components/layout/SpeedDialFAB.tsx[m
+[1mindex 0526bb6..cc8e16c 100644[m
+[1m--- a/src/components/layout/SpeedDialFAB.tsx[m
+[1m+++ b/src/components/layout/SpeedDialFAB.tsx[m
+[36m@@ -34,7 +34,16 @@[m [mexport function SpeedDialFAB({[m
+   const [open, setOpen] = useState(false)[m
+   const ref = useRef<HTMLDivElement>(null)[m
+ [m
+[31m-  // Hide on admin/dashboard pages[m
+[32m+[m[32m  // 1. Run all hooks unconditionally first[m
+[32m+[m[32m  useEffect(() => {[m
+[32m+[m[32m    const handleClick = (e: MouseEvent) => {[m
+[32m+[m[32m      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)[m
+[32m+[m[32m    }[m
+[32m+[m[32m    if (open) document.addEventListener('mousedown', handleClick)[m
+[32m+[m[32m    return () => document.removeEventListener('mousedown', handleClick)[m
+[32m+[m[32m  }, [open])[m
+[32m+[m
+[32m+[m[32m  // 2. Compute hidden logic safely below hooks[m
+   const hidden =[m
+     pathname.startsWith('/admin') ||[m
+     pathname.startsWith('/reader/dashboard') ||[m
+[36m@@ -42,20 +51,12 @@[m [mexport function SpeedDialFAB({[m
+     pathname.startsWith('/creator/dashboard') ||[m
+     pathname.startsWith('/pro/creator/dashboard')[m
+ [m
+[32m+[m[32m  // 3. Early return condition sits safely right before variables used strictly in the layout[m
+   if (hidden || !userId) return null[m
+ [m
+   const listAtLimit       = !isProUser && userListCount >= FREE_LIST_LIMIT[m
+   const collectionAtLimit = !isProUser && userCollectionCount >= FREE_COLLECTION_LIMIT[m
+ [m
+[31m-  // Close on outside click[m
+[31m-  useEffect(() => {[m
+[31m-    const handleClick = (e: MouseEvent) => {[m
+[31m-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)[m
+[31m-    }[m
+[31m-    if (open) document.addEventListener('mousedown', handleClick)[m
+[31m-    return () => document.removeEventListener('mousedown', handleClick)[m
+[31m-  }, [open])[m
+[31m-[m
+   const handleNewList = () => {[m
+     if (listAtLimit) {[m
+       toast.error(`Free users can create up to ${FREE_LIST_LIMIT} lists — upgrade to Pro`)[m
+[36m@@ -106,7 +107,7 @@[m [mexport function SpeedDialFAB({[m
+ [m
+   return ([m
+     <>[m
+[31m-      {/* ── Backdrop — only when open, closes on tap ── */}[m
+[32m+[m[32m      {/* ─── Backdrop — only when open, closes on tap ─── */}[m
+       {open && ([m
+         <div[m
+           className="lg:hidden fixed inset-0 z-40"[m
+[36m@@ -114,12 +115,12 @@[m [mexport function SpeedDialFAB({[m
+         />[m
+       )}[m
+ [m
+[31m-      {/* ── FAB container — w-fit so it never blocks taps when closed ── */}[m
+[32m+[m[32m      {/* ─── FAB container — w-fit so it never blocks taps when closed ─── */}[m
+       <div[m
+         ref={ref}[m
+         className="lg:hidden fixed bottom-20 right-4 z-50 flex flex-col items-end gap-3 w-fit"[m
+       >[m
+[31m-        {/* ── Action buttons — only rendered when open so they have zero hit area when closed ── */}[m
+[32m+[m[32m        {/* ─── Action buttons — only rendered when open so they have zero hit area when closed ─── */}[m
+         {open && ([m
+           <div className="flex flex-col items-end gap-2.5 w-fit">[m
+             {actions.map((action, i) => {[m
+[36m@@ -160,7 +161,7 @@[m [mexport function SpeedDialFAB({[m
+           </div>[m
+         )}[m
+ [m
+[31m-        {/* ── Main FAB ── */}[m
+[32m+[m[32m        {/* ─── Main FAB ─── */}[m
+         <button[m
+           onClick={() => setOpen(o => !o)}[m
+           className={cn([m
+[36m@@ -179,4 +180,4 @@[m [mexport function SpeedDialFAB({[m
+       </div>[m
+     </>[m
+   )[m
+[31m-}[m
+\ No newline at end of file[m
+[32m+[m[32m}[m
