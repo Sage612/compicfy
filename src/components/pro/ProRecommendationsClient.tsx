@@ -16,6 +16,15 @@ import { PinButton } from '@/components/recommendations/PinButton'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
+function proxyCover(url: string | null | undefined): string {
+  if (!url) return "" // Returning an empty string satisfies the 'string' requirement
+  if (url.startsWith('data:')) return url
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
 type Rec = {
   id: string; title: string; type: string; cover_url: string | null
   is_approved: boolean; rejection_reason: string | null
