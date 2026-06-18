@@ -63,42 +63,6 @@ async function getChapterFromMU(id: string): Promise<number | null> {
   }
 }
 
-// ── MangaBaka (UPDATED) ───────────────────────────────────────────
-async function getChapterFromMangaBaka(id: string): Promise<number | null> {
-  try {
-    await new Promise(r => setTimeout(r, API_DELAY_MS))
-    const res = await fetchWithTimeout(
-      `https://api.mangabaka.org/series/${id}`,
-      {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      }
-    )
-    
-    if (!res.ok) {
-      console.error(`MB chapter endpoint returned status: ${res.status} for ID ${id}`)
-      return null
-    }
-    
-    const text = await res.text()
-    if (!text.trim().startsWith('{')) {
-      console.error(`MB chapter endpoint returned non-JSON format for ID ${id}`)
-      return null
-    }
-    
-    const data = JSON.parse(text)
-    const rawCh = data?.data?.total_chapters ?? data?.total_chapters ?? data?.latest_chapter ?? data?.data?.latest_chapter
-    
-    return rawCh !== null && rawCh !== undefined && !isNaN(Number(rawCh)) ? Number(rawCh) : null
-  } catch (err) {
-    console.error(`MB chapter error for ${id}:`, err)
-    return null
-  }
-}
-
 // ── MangaDex ──────────────────────────────────────────────────────
 async function getChapterFromMangaDex(id: string): Promise<number | null> {
   try {
@@ -149,6 +113,7 @@ async function getChapterFromAniList(id: string): Promise<number | null> {
   }
 }
 
+// ── Resolve chapter count across sources (MangaBaka removed — API non-functional) ──
 async function resolveChapterCount(comic: any): Promise<{ chapter: number | null; source: string | null; tried: string[] }> {
   const tried: string[] = []
 
@@ -158,47 +123,28 @@ async function resolveChapterCount(comic: any): Promise<{ chapter: number | null
     muChapter = await getChapterFromMU(comic.mangaupdates_id)
   }
 
-  let mbChapter: number | null = null
-  if (comic.mangabaka_id) {
-    tried.push('MangaBaka')
-    mbChapter = await getChapterFromMangaBaka(comic.mangabaka_id)
-  }
-
-  if (muChapter !== null && mbChapter !== null) {
-    if (Math.abs(muChapter - mbChapter) <= 1) {
-      return { chapter: Math.max(muChapter, mbChapter), source: 'MU+MB confirmed', tried }
-    }
-  }
-
+  let mdChapter: number | null = null
   if (comic.mangadex_id) {
     tried.push('MangaDex')
-    const mdChapter = await getChapterFromMangaDex(comic.mangadex_id)
-    if (mdChapter !== null) {
-      if (muChapter !== null && Math.abs(mdChapter - muChapter) <= 1) {
-        return { chapter: Math.max(mdChapter, muChapter), source: 'MU+MD confirmed', tried }
-      }
-      if (mbChapter !== null && Math.abs(mdChapter - mbChapter) <= 1) {
-        return { chapter: Math.max(mdChapter, mbChapter), source: 'MB+MD confirmed', tried }
-      }
-      if (muChapter === null && mbChapter === null) {
-        return { chapter: mdChapter, source: 'MangaDex', tried }
-      }
-    }
+    mdChapter = await getChapterFromMangaDex(comic.mangadex_id)
   }
 
+  if (muChapter !== null && mdChapter !== null && Math.abs(muChapter - mdChapter) <= 1) {
+    return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried }
+  }
+
+  let malChapter: number | null = null
   if (comic.mal_id) {
     tried.push('MAL')
-    const malChapter = await getChapterFromJikan(comic.mal_id)
-    if (malChapter !== null) {
-      if (muChapter !== null && Math.abs(malChapter - muChapter) <= 1) {
-        return { chapter: Math.max(malChapter, muChapter), source: 'MU+MAL confirmed', tried }
-      }
-      if (mbChapter !== null && Math.abs(malChapter - mbChapter) <= 1) {
-        return { chapter: Math.max(malChapter, mbChapter), source: 'MB+MAL confirmed', tried }
-      }
-      if (muChapter === null && mbChapter === null) {
-        return { chapter: malChapter, source: 'MAL', tried }
-      }
+    malChapter = await getChapterFromJikan(comic.mal_id)
+  }
+
+  if (malChapter !== null) {
+    if (muChapter !== null && Math.abs(malChapter - muChapter) <= 1) {
+      return { chapter: Math.max(malChapter, muChapter), source: 'MU+MAL confirmed', tried }
+    }
+    if (mdChapter !== null && Math.abs(malChapter - mdChapter) <= 1) {
+      return { chapter: Math.max(malChapter, mdChapter), source: 'MD+MAL confirmed', tried }
     }
   }
 
@@ -206,12 +152,24 @@ async function resolveChapterCount(comic: any): Promise<{ chapter: number | null
     tried.push('AniList')
     const alChapter = await getChapterFromAniList(comic.anilist_id)
     if (alChapter !== null) {
-      return { chapter: alChapter, source: 'AniList', tried }
+      if (muChapter !== null && Math.abs(alChapter - muChapter) <= 1) {
+        return { chapter: Math.max(alChapter, muChapter), source: 'MU+AniList confirmed', tried }
+      }
+      if (mdChapter !== null && Math.abs(alChapter - mdChapter) <= 1) {
+        return { chapter: Math.max(alChapter, mdChapter), source: 'MD+AniList confirmed', tried }
+      }
+      if (malChapter !== null && Math.abs(alChapter - malChapter) <= 1) {
+        return { chapter: Math.max(alChapter, malChapter), source: 'MAL+AniList confirmed', tried }
+      }
+      if (muChapter === null && mdChapter === null && malChapter === null) {
+        return { chapter: alChapter, source: 'AniList', tried }
+      }
     }
   }
 
-  if (muChapter !== null) return { chapter: muChapter, source: 'MangaUpdates (unconfirmed)', tried }
-  if (mbChapter !== null) return { chapter: mbChapter, source: 'MangaBaka (unconfirmed)',   tried }
+  if (muChapter !== null)  return { chapter: muChapter,  source: 'MangaUpdates (unconfirmed)', tried }
+  if (mdChapter !== null)  return { chapter: mdChapter,  source: 'MangaDex (unconfirmed)',      tried }
+  if (malChapter !== null) return { chapter: malChapter, source: 'MAL (unconfirmed)',           tried }
 
   return { chapter: null, source: null, tried }
 }
@@ -232,7 +190,7 @@ export async function GET(req: Request) {
 
   const { data: comics, error } = await supabase
     .from('recommendations')
-    .select('id, title, chapter_count, mangaupdates_id, mangabaka_id, mangadex_id, anilist_id, mal_id')
+    .select('id, title, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id')
     .eq('is_approved', true)
     .eq('status', 'ongoing')
     .or(`last_chapter_check.is.null,last_chapter_check.lt.${cutoff}`)

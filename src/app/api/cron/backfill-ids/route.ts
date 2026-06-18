@@ -114,53 +114,6 @@ async function findMangaUpdatesID(
   return null
 }
 
-// ── MangaBaka (UPDATED) ───────────────────────────────────────────
-async function findMangaBakaID(
-  titles: string[], author?: string | null, artist?: string | null,
-): Promise<string | null> {
-  for (const title of titles) {
-    try {
-      await new Promise(r => setTimeout(r, API_DELAY_MS))
-      const res = await fetchWithTimeout(
-        `https://api.mangabaka.org/series/search?q=${encodeURIComponent(title)}&limit=15`,
-        {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache'
-          }
-        }
-      )
-      
-      if (!res.ok) {
-        console.error(`MB server responded with status: ${res.status} for "${title}"`)
-        continue
-      }
-      
-      const text = await res.text()
-      if (!text.trim().startsWith('{')) {
-        console.error(`MB returned non-JSON payload (probably Cloudflare wall) for "${title}"`)
-        continue
-      }
-      
-      const data = JSON.parse(text)
-      const rawResults = data.data ?? data.results ?? data.series ?? []
-      const candidates = (Array.isArray(rawResults) ? rawResults : []).map((r: any) => ({
-        id:     String(r.id ?? r.series_id ?? ''),
-        title:  r.title ?? r.name ?? '',
-        author: r.author ?? '',
-        artist: r.artist ?? '',
-      }))
-      
-      const match = smartMatch(title, candidates, author, artist)
-      if (match) return match
-    } catch (err) {
-      console.error(`MB error for "${title}":`, err)
-    }
-  }
-  return null
-}
-
 // ── MangaDex ──────────────────────────────────────────────────────
 async function findMangaDexID(
   titles: string[], author?: string | null, artist?: string | null,
@@ -257,7 +210,7 @@ async function findJikanID(
   return null
 }
 
-// ── Main ID finder ────────────────────────────────────────────────
+// ── Main ID finder (MangaBaka removed — API non-functional) ────────
 async function findExternalIds(
   title:             string,
   author?:           string | null,
@@ -269,9 +222,6 @@ async function findExternalIds(
 
   const muId  = await findMangaUpdatesID(titles, author, artist)
   if (muId)  ids.mangaupdates_id = muId
-
-  const mbId  = await findMangaBakaID(titles, author, artist)
-  if (mbId)  ids.mangabaka_id = mbId
 
   const mdId  = await findMangaDexID(titles, author, artist)
   if (mdId)  ids.mangadex_id = mdId
@@ -313,9 +263,12 @@ async function logIDCheck(supabase: any, log: IDCheckLog) {
   }
 }
 
+// Total external ID sources tracked: MangaUpdates, MangaDex, AniList, MAL (MangaBaka removed)
+const TOTAL_ID_SOURCES = 4
+
 function countExternalIds(comic: any): number {
   return [
-    comic.mangaupdates_id, comic.mangabaka_id, comic.mangadex_id,
+    comic.mangaupdates_id, comic.mangadex_id,
     comic.anilist_id,      comic.mal_id,
   ].filter(id => id && String(id).trim()).length
 }
@@ -336,7 +289,7 @@ export async function GET(req: Request) {
 
   const { data: comics, error } = await supabase
     .from('recommendations')
-    .select('id, title, alternative_titles, author, artist, mangaupdates_id, mangabaka_id, mangadex_id, anilist_id, mal_id, last_id_check')
+    .select('id, title, alternative_titles, author, artist, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check')
     .eq('is_approved', true)
     .or(`last_id_check.is.null,last_id_check.lt.${cooloffCutoff}`)
     .limit(BATCH_SIZE)
@@ -359,13 +312,13 @@ export async function GET(req: Request) {
     try {
       const currentIdCount = countExternalIds(comic)
 
-      if (currentIdCount === 5) {
+      if (currentIdCount === TOTAL_ID_SOURCES) {
         skippedComplete++
         await supabase.from('recommendations').update({ last_id_check: timestamp }).eq('id', comic.id)
         logs.push({
           comic_id: comic.id, comic_title: comic.title,
           databases_checked: [], ids_found: {},
-          status: 'skipped_complete', total_ids_found: 5,
+          status: 'skipped_complete', total_ids_found: TOTAL_ID_SOURCES,
           reason: 'Already complete', timestamp,
         })
         continue
@@ -376,7 +329,6 @@ export async function GET(req: Request) {
 
       const mergedIds = {
         mangaupdates_id: comic.mangaupdates_id || ids.mangaupdates_id,
-        mangabaka_id:    comic.mangabaka_id    || ids.mangabaka_id,
         mangadex_id:     comic.mangadex_id     || ids.mangadex_id,
         anilist_id:      comic.anilist_id      || ids.anilist_id,
         mal_id:          comic.mal_id          || ids.mal_id,
@@ -384,8 +336,8 @@ export async function GET(req: Request) {
 
       const newIdCount = countExternalIds(mergedIds)
       let status: IDCheckLog['status'] = 'found_none'
-      if (newIdCount === 5)    status = 'found_all'
-      else if (totalFound > 0) status = 'found_some'
+      if (newIdCount === TOTAL_ID_SOURCES) status = 'found_all'
+      else if (totalFound > 0)             status = 'found_some'
 
       if (totalFound > 0) {
         await supabase.from('recommendations')
@@ -405,7 +357,7 @@ export async function GET(req: Request) {
         comic_title:       comic.title,
         comic_author:      comic.author,
         comic_artist:      comic.artist,
-        databases_checked: ['MU', 'MB', 'MD', 'AL', 'Jikan'],
+        databases_checked: ['MU', 'MD', 'AL', 'Jikan'],
         ids_found:         mergedIds,
         status,
         total_ids_found:   newIdCount,

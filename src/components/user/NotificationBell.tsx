@@ -79,50 +79,74 @@ export function NotificationBell({ userId }: { userId: string }) {
   const [notifHref,   setNotifHref]   = useState('/reader/dashboard/notifications')
   const supabase = createClient()
 
+  // ── Resolve dashboard-aware notifications href ──────────────────
   useEffect(() => {
+    let isMounted = true
+
     const fetchProfile = async () => {
       const { data: { user: currentUser } } = await supabase.auth.getUser()
-      if (!currentUser) return
+      if (!currentUser || !isMounted) return
+
       const { data: profile } = await (supabase as any)
         .from('profiles')
         .select('role, is_pro, pro_expires_at, user_type')
         .eq('id', currentUser.id)
         .single()
-      if (!profile) return
+
+      if (!profile || !isMounted) return
+
       const isPro = profile.role === 'admin' || profile.role === 'moderator' ||
         (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
       const userType = (profile.user_type ?? 'reader') as UserType
       const routes = getDashboardRoutes(userType, isPro)
-      setNotifHref(routes.notifications)
+
+      if (isMounted) setNotifHref(routes.notifications)
     }
+
     fetchProfile()
+    return () => { isMounted = false }
   }, [])
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchNotifications = useCallback(async (): Promise<Notification[] | null> => {
     const res  = await fetch('/api/notifications')
     const data = await res.json()
-    setNotifications(data.notifications ?? [])
+    return data.notifications ?? []
   }, [])
 
+  // ── Check existing push-notification permission/token state ─────
   useEffect(() => {
+    let isMounted = true
+
     const checkPush = async () => {
       if (!('Notification' in window) || !('serviceWorker' in navigator)) return
-      if (Notification.permission === 'denied') { setPushEnabled(false); return }
-      if (Notification.permission !== 'granted') { setPushEnabled(false); return }
+      if (Notification.permission === 'denied') { if (isMounted) setPushEnabled(false); return }
+      if (Notification.permission !== 'granted') { if (isMounted) setPushEnabled(false); return }
       try {
         const { getFirebaseMessaging } = await import('@/lib/firebase/client')
         const { getToken } = await import('firebase/messaging')
         const messaging = await getFirebaseMessaging()
-        if (!messaging) { setPushEnabled(false); return }
+        if (!messaging) { if (isMounted) setPushEnabled(false); return }
         const token = await getToken(messaging, { vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY })
-        setPushEnabled(!!token)
-      } catch { setPushEnabled(false) }
+        if (isMounted) setPushEnabled(!!token)
+      } catch {
+        if (isMounted) setPushEnabled(false)
+      }
     }
+
     checkPush()
+    return () => { isMounted = false }
   }, [])
 
+  // ── Initial fetch + realtime subscription ────────────────────────
   useEffect(() => {
-    fetchNotifications()
+    let isMounted = true
+
+    const loadInitial = async () => {
+      const result = await fetchNotifications()
+      if (isMounted && result) setNotifications(result)
+    }
+    loadInitial()
+
     const channelName = `notifications:${userId}:${Date.now()}`
     const channel = supabase
       .channel(channelName)
@@ -130,10 +154,15 @@ export function NotificationBell({ userId }: { userId: string }) {
         event: 'INSERT', schema: 'public', table: 'notifications',
         filter: `user_id=eq.${userId}`,
       }, (payload) => {
+        if (!isMounted) return
         setNotifications(prev => [payload.new as Notification, ...prev])
       })
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+
+    return () => {
+      isMounted = false
+      supabase.removeChannel(channel)
+    }
   }, [userId, fetchNotifications])
 
   const unreadCount = notifications.filter(n => !n.is_read).length
