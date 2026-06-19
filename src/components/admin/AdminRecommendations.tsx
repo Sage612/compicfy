@@ -361,6 +361,29 @@ export function AdminRecommendations() {
     setBulkLoading(false)
   }
 
+  const handleBulkDelete = async () => {
+    if (selected.size === 0) return
+    if (!window.confirm(`Permanently delete ${selected.size} recommendation${selected.size !== 1 ? 's' : ''}? This cannot be undone.`)) return
+    const ids = Array.from(selected)
+    setBulkLoading(true)
+    let ok = 0, fail = 0
+    for (let i = 0; i < ids.length; i += 5) {
+      await Promise.all(ids.slice(i, i + 5).map(async id => {
+        try {
+          const res = await fetch(`/api/admin/recommendations/${id}`, { method: 'DELETE' })
+          res.ok ? ok++ : fail++
+        } catch { fail++ }
+      }))
+    }
+    if (ok > 0) {
+      toast.success(`${ok} deleted`)
+      setRecs(prev => prev.filter(r => !selected.has(r.id)))
+      setSelected(new Set())
+    }
+    if (fail > 0) toast.error(`${fail} failed to delete`)
+    setBulkLoading(false)
+  }
+
   const BulkToolbar = () => {
     const [bulkRejectReason, setBulkRejectReason] = useState('')
     const [showRejectInput, setShowRejectInput]   = useState(false)
@@ -390,6 +413,10 @@ export function AdminRecommendations() {
             </Button>
             <Button size="sm" variant="outline" className="gap-2 text-red-500 border-red-500/30 hover:bg-red-500/10" onClick={() => setShowRejectInput(v => !v)} disabled={bulkLoading}>
               <XCircle size={13} /> Reject selected
+            </Button>
+            <Button size="sm" variant="outline" className="gap-2 text-red-600 border-red-600/30 hover:bg-red-600/10" onClick={handleBulkDelete} disabled={bulkLoading}>
+              {bulkLoading ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              Delete selected
             </Button>
           </div>
         )}
