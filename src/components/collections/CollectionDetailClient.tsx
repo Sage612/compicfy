@@ -110,7 +110,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
       }
       setSaved(!saved)
       // Use server count as source of truth — DB trigger keeps it accurate
-      if (data.save_count !== undefined) setSaveCount(data.save_count)
+      if (typeof data.save_count === 'number') setSaveCount(data.save_count)
       toast.success(saved ? 'Removed from saved' : 'Collection saved!')
     } catch { toast.error('Failed to update') }
     finally { setSavingState(false) }

@@ -71,7 +71,7 @@ function proxyCover(url: string | null | undefined): string | null {
       const data = await res.json()
       if (!res.ok) { toast.error('Failed to update'); return }
       setStarred(!starred)
-      setStarCount(data.star_count ?? starCount)
+     if (typeof data.star_count === 'number') setStarCount(data.star_count)
       toast.success(starred ? 'Removed star' : 'List starred!')
     } catch { toast.error('Failed to update') }
     finally { setStarring(false) }
