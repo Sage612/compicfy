@@ -26,7 +26,7 @@ const GHOST_ID = '00000000-0000-0000-0000-000000000000'
 const proxyCover = (url: string | null): string => {
   if (!url) return ''
   if (url.startsWith('/') || url.startsWith('blob:')) return url
-  return `/api/proxy/image?url=${encodeURIComponent(url)}`
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
 interface Props {

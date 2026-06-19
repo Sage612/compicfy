@@ -16,23 +16,45 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { toast } from 'sonner'
 import type { User } from '@supabase/supabase-js'
 import { getDashboardRoutes, getProfileRoute, type UserType } from '@/lib/utils/routes'
+import {
+  getCachedProfile, setCachedProfile, clearCachedProfile, deriveIsPro,
+} from '@/lib/utils/profile-cache'
 
 export function MobileNav() {
   const pathname                            = usePathname()
   const router                              = useRouter()
-  const [user,         setUser]             = useState<User | null>(null)
-  const [isPro,        setIsPro]            = useState(false)
-  const [userType,     setUserType]         = useState<UserType>('reader')
-  const [authReady,    setAuthReady]        = useState(false)
-  const [visible,      setVisible]          = useState(true)
+  const [user,           setUser]           = useState<User | null>(null)
+  const [isPro,          setIsPro]          = useState(false)
+  const [userType,       setUserType]       = useState<UserType>('reader')
+  const [authReady,      setAuthReady]      = useState(false)
+  const [visible,        setVisible]        = useState(true)
   const [showAuthPrompt, setShowAuthPrompt] = useState(false)
-  const [profileOpen,  setProfileOpen]      = useState(false)
-  const [avatarUrl,    setAvatarUrl]        = useState<string | null>(null)
-  const [displayName,  setDisplayName]      = useState<string | null>(null)
-  const [username,     setUsername]         = useState<string | null>(null)
-  const [showPro,      setShowPro]          = useState<null | boolean>(null)
+  const [profileOpen,    setProfileOpen]    = useState(false)
+  const [avatarUrl,      setAvatarUrl]      = useState<string | null>(null)
+  const [displayName,    setDisplayName]    = useState<string | null>(null)
+  const [username,       setUsername]       = useState<string | null>(null)
+  const [showPro,        setShowPro]        = useState<null | boolean>(null)
   const lastScrollY                         = useRef(0)
   const supabase                            = createClient()
+
+  // ── Helper: apply a profile object to all state setters ──────────
+  const applyProfile = (profile: {
+    avatar_url: string | null
+    display_name: string | null
+    username: string
+    role: string
+    user_type: string
+    is_pro: boolean | null
+    pro_expires_at: string | null
+  }) => {
+    const proActive = deriveIsPro(profile)
+    setAvatarUrl(profile.avatar_url)
+    setDisplayName(profile.display_name || profile.username)
+    setUsername(profile.username)
+    setUserType((profile.user_type as UserType) ?? 'reader')
+    setIsPro(proActive)
+    setShowPro(proActive || profile.role === 'admin' || profile.role === 'moderator' ? false : true)
+  }
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -40,6 +62,14 @@ export function MobileNav() {
       setUser(currentUser)
 
       if (currentUser) {
+        // ── 1. Paint instantly from cache if available ────────────
+        const cached = getCachedProfile()
+        if (cached) {
+          applyProfile(cached)
+          setAuthReady(true)   // nav interactive immediately with correct routes
+        }
+
+        // ── 2. Always fetch fresh in background ───────────────────
         const { data: profile } = await (supabase as any)
           .from('profiles')
           .select('is_pro, pro_expires_at, role, avatar_url, display_name, username, user_type')
@@ -47,34 +77,49 @@ export function MobileNav() {
           .single()
 
         if (profile) {
-          setAvatarUrl(profile.avatar_url)
-          setDisplayName(profile.display_name || profile.username)
-          setUsername(profile.username)
-          setUserType((profile.user_type as UserType) ?? 'reader')
-          const proActive =
-            profile.role === 'admin' ||
-            (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-          setIsPro(proActive)
-          setShowPro(proActive || profile.role === 'admin' ? false : true)
+          setCachedProfile(profile)   // refresh cache
+          applyProfile(profile)
         } else {
           setShowPro(true)
         }
+
+        // If no cache existed, mark ready after fetch
+        if (!cached) setAuthReady(true)
       } else {
         setShowPro(true)
+        setAuthReady(true)
       }
-      setAuthReady(true)
     }
     checkAuth()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
+        // Logout — clear cache immediately
+        clearCachedProfile()
         setUser(null); setIsPro(false); setAvatarUrl(null)
         setDisplayName(null); setUsername(null); setShowPro(true)
         setUserType('reader')
+        setAuthReady(true)
       } else {
-        setUser(session.user)
+        // Auth state changed — re-fetch profile so routes stay correct
+        const fetchProfile = async () => {
+          const { data: profile } = await (supabase as any)
+            .from('profiles')
+            .select('is_pro, pro_expires_at, role, avatar_url, display_name, username, user_type')
+            .eq('id', session.user.id)
+            .single()
+          if (profile) {
+            setCachedProfile(profile)
+            setUser(session.user)
+            applyProfile(profile)
+          } else {
+            setUser(session.user)
+            setShowPro(true)
+          }
+          setAuthReady(true)
+        }
+        fetchProfile()
       }
-      setAuthReady(true)
     })
     return () => subscription.unsubscribe()
   }, [supabase])
@@ -93,6 +138,7 @@ export function MobileNav() {
 
   const handleSignOut = async () => {
     setProfileOpen(false)
+    clearCachedProfile()
     await supabase.auth.signOut()
     toast.success('Signed out')
     router.push('/')
@@ -184,13 +230,14 @@ export function MobileNav() {
               </button>
             </div>
 
-            {/* Nav items — type aware */}
+            {/* Nav items */}
             {[
-              profileRoute ? { href: profileRoute,       label: 'View Profile',  icon: UserIcon,                          accent: false } : null,
-              {               href: routes.dashboard,    label: dashboardLabel,  icon: isCreator ? Palette : LayoutDashboard, accent: isPro  },
-              {               href: routes.notifications,label: 'Notifications', icon: Bell,                              accent: false },
-              {               href: routes.settings,     label: 'Settings',      icon: Settings,                          accent: false },
-              {               href: routes.billing,      label: billingLabel,    icon: isPro ? Crown : CreditCard,         accent: isPro },
+              profileRoute ?
+               { href: profileRoute,        label: 'View Profile',  icon: UserIcon,                              accent: false } : null,
+              {               href: routes.dashboard,     label: dashboardLabel,  icon: isCreator ? Palette : LayoutDashboard, accent: isPro  },
+              {               href: routes.notifications, label: 'Notifications', icon: Bell,                                  accent: false },
+              {               href: routes.settings,      label: 'Settings',      icon: Settings,                              accent: false },
+              {               href: routes.billing,       label: billingLabel,    icon: isPro ? Crown : CreditCard,            accent: isPro },
             ].filter(Boolean).map((item) => {
               if (!item) return null
               const { href, label, icon: Icon, accent } = item
@@ -264,21 +311,18 @@ export function MobileNav() {
 
           {user ? (
             <>
-              {/* Home */}
               <Link href="/" className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
                 <House size={19} strokeWidth={pathname === '/' ? 2.5 : 1.75}
                   className={cn(pathname === '/' ? 'text-primary' : 'text-muted-foreground')} />
                 <span className={cn('text-[10px] font-semibold', pathname === '/' ? 'text-primary' : 'text-muted-foreground')}>Home</span>
               </Link>
 
-              {/* Browse */}
               <Link href="/browse" className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
                 <Radar size={19} strokeWidth={pathname.startsWith('/browse') ? 2.5 : 1.75}
                   className={cn(pathname.startsWith('/browse') ? 'text-primary' : 'text-muted-foreground')} />
                 <span className={cn('text-[10px] font-semibold', pathname.startsWith('/browse') ? 'text-primary' : 'text-muted-foreground')}>Browse</span>
               </Link>
 
-              {/* Rec FAB */}
               <Link href={routes.newRec} className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
                 <div className={cn(
                   'w-10 h-10 rounded-full flex items-center justify-center shadow-md',
@@ -293,14 +337,12 @@ export function MobileNav() {
                 </span>
               </Link>
 
-              {/* Feed */}
               <Link href="/feed" className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
                 <LayoutList size={19} strokeWidth={pathname.startsWith('/feed') ? 2.5 : 1.75}
                   className={cn(pathname.startsWith('/feed') ? 'text-primary' : 'text-muted-foreground')} />
                 <span className={cn('text-[10px] font-semibold', pathname.startsWith('/feed') ? 'text-primary' : 'text-muted-foreground')}>Feed</span>
               </Link>
 
-              {/* Profile — avatar */}
               <button onClick={() => setProfileOpen(true)} className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
                 <div className={cn('w-7 h-7 rounded-full overflow-hidden ring-2 transition-all',
                   profileOpen
@@ -328,7 +370,6 @@ export function MobileNav() {
             </>
           ) : (
             <>
-              {/* Logged out */}
               <Link href="/" className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
                 <House size={19} strokeWidth={pathname === '/' ? 2.5 : 1.75}
                   className={cn(pathname === '/' ? 'text-primary' : 'text-muted-foreground')} />

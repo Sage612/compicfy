@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
- LayoutDashboard, Settings, LogOut, BookOpen,
+  LayoutDashboard, Settings, LogOut, BookOpen,
   User as UserIcon, Bell, Crown, CreditCard,
   Sparkles, Palette, Sun, Moon, Monitor,
 } from 'lucide-react'
@@ -25,26 +25,25 @@ import { NotificationBell } from '@/components/user/NotificationBell'
 import { MobileTabBar } from '@/components/layout/MobileTabBar'
 import { getDashboardRoutes, getProfileRoute, type UserType } from '@/lib/utils/routes'
 import { NavRail } from '@/components/layout/NavRail'
+import {
+  getCachedProfile, setCachedProfile, clearCachedProfile, deriveIsPro,
+} from '@/lib/utils/profile-cache'
 
 function LogoMark({ className }: { className?: string }) {
   return (
-    <svg 
-      viewBox="0 0 44 44" 
-      fill="none" 
-      xmlns="http://www.w3.org/2000/svg" 
-      className={className} 
+    <svg
+      viewBox="0 0 44 44"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
       aria-hidden="true"
     >
-      {/* Speech bubble body */}
       <rect x="2" y="2" width="36" height="30" rx="8" className="fill-[#0ea5b0]" />
-      {/* Bubble tail */}
       <path d="M9 32 L5 43 L20 33.5" className="fill-[#0ea5b0]" />
-      {/* C letterform - Always dark per brand guidelines */}
-      <path 
+      <path
         d="M28 11.5 C25 9 19.5 9 16.5 12 C13.5 15 13.5 20.5 16.5 23.5 C19.5 26.5 25 26.5 28 24"
         stroke="#111111" strokeWidth="3.5" strokeLinecap="round" fill="none"
       />
-      {/* Period after C - Always dark per brand guidelines */}
       <circle cx="30" cy="24.5" r="2.2" fill="#111111" />
     </svg>
   )
@@ -55,27 +54,26 @@ export function Header() {
   const router              = useRouter()
   const { theme, setTheme } = useTheme()
 
-  const [mounted,      setMounted]      = useState(false)
-  const [user,         setUser]         = useState<User | null>(null)
-  const [avatarUrl,    setAvatarUrl]    = useState<string | null>(null)
-  const [displayName,  setDisplayName]  = useState<string | null>(null)
-  const [username,     setUsername]     = useState<string | null>(null)
-  // Mobile-only scroll hide — desktop header is always visible
+  const [mounted,       setMounted]       = useState(false)
+  const [user,          setUser]          = useState<User | null>(null)
+  const [avatarUrl,     setAvatarUrl]     = useState<string | null>(null)
+  const [displayName,   setDisplayName]   = useState<string | null>(null)
+  const [username,      setUsername]      = useState<string | null>(null)
   const [mobileVisible, setMobileVisible] = useState(true)
-  const [isPro,        setIsPro]        = useState(false)
-  const [role,         setRole]         = useState<string>('user')
-  const [userType,     setUserType]     = useState<UserType>('reader')
-  const [authReady,    setAuthReady]    = useState(false)
-  const [showPro,      setShowPro]      = useState<null | boolean>(null)
-  const lastScrollY                     = useRef(0)
-  const supabase                        = createClient()
+  const [isPro,         setIsPro]         = useState(false)
+  const [role,          setRole]          = useState<string>('user')
+  const [userType,      setUserType]      = useState<UserType>('reader')
+  const [authReady,     setAuthReady]     = useState(false)
+  const [showPro,       setShowPro]       = useState<null | boolean>(null)
+  const lastScrollY                       = useRef(0)
+  const supabase                          = createClient()
 
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY
-      if (currentY < 60)                        setMobileVisible(true)
+      if (currentY < 60)                           setMobileVisible(true)
       else if (currentY > lastScrollY.current + 4) setMobileVisible(false)
       else if (currentY < lastScrollY.current - 4) setMobileVisible(true)
       lastScrollY.current = currentY
@@ -95,6 +93,26 @@ export function Header() {
     return () => window.removeEventListener('keydown', handler)
   }, [router])
 
+  // ── Helper: apply a profile object to all state setters ──────────
+  const applyProfile = (profile: {
+    avatar_url: string | null
+    display_name: string | null
+    username: string
+    role: string
+    user_type: string
+    is_pro: boolean | null
+    pro_expires_at: string | null
+  }) => {
+    const proActive = deriveIsPro(profile)
+    setAvatarUrl(profile.avatar_url)
+    setDisplayName(profile.display_name || profile.username)
+    setUsername(profile.username)
+    setRole(profile.role)
+    setUserType((profile.user_type as UserType) ?? 'reader')
+    setIsPro(proActive)
+    setShowPro(proActive || profile.role === 'admin' || profile.role === 'moderator' ? false : true)
+  }
+
   useEffect(() => {
     const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
@@ -102,6 +120,14 @@ export function Header() {
       setUser(currentUser)
 
       if (currentUser) {
+        // ── 1. Paint instantly from cache if available ────────────
+        const cached = getCachedProfile()
+        if (cached) {
+          applyProfile(cached)
+          setAuthReady(true)   // nav is interactive immediately with correct routes
+        }
+
+        // ── 2. Always fetch fresh in background ───────────────────
         const { data: profile } = await (supabase as any)
           .from('profiles')
           .select('avatar_url, display_name, username, is_pro, pro_expires_at, role, user_type')
@@ -109,33 +135,26 @@ export function Header() {
           .single()
 
         if (profile) {
-          setAvatarUrl(profile.avatar_url)
-          setDisplayName(profile.display_name || profile.username)
-          setUsername(profile.username)
-          setRole(profile.role)
-          setUserType((profile.user_type as UserType) ?? 'reader')
-
-          const proActive =
-            profile.role === 'admin' ||
-            (profile.is_pro &&
-              (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-
-          setIsPro(proActive)
-          setShowPro(proActive || profile.role === 'admin' ? false : true)
+          setCachedProfile(profile)   // refresh cache with latest data
+          applyProfile(profile)
         } else {
           setShowPro(true)
         }
+
+        // If there was no cache, mark ready after the fetch completes
+        if (!cached) setAuthReady(true)
       } else {
         setShowPro(true)
+        setAuthReady(true)
       }
-
-      setAuthReady(true)
     }
     getUser()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
       if (!session?.user) {
+        // Logout — clear cache immediately so stale pro state can't bleed through
+        clearCachedProfile()
+        setUser(null)
         setAvatarUrl(null)
         setDisplayName(null)
         setUsername(null)
@@ -143,14 +162,35 @@ export function Header() {
         setRole('user')
         setUserType('reader')
         setShowPro(true)
+        setAuthReady(true)
+      } else {
+        // Auth state changed (login/token refresh) — re-fetch profile
+        // so routes update without requiring a hard reload
+        const fetchProfile = async () => {
+          const { data: profile } = await (supabase as any)
+            .from('profiles')
+            .select('avatar_url, display_name, username, is_pro, pro_expires_at, role, user_type')
+            .eq('id', session.user.id)
+            .single()
+          if (profile) {
+            setCachedProfile(profile)
+            setUser(session.user)
+            applyProfile(profile)
+          } else {
+            setUser(session.user)
+            setShowPro(true)
+          }
+          setAuthReady(true)
+        }
+        fetchProfile()
       }
-      setAuthReady(true)
     })
 
     return () => subscription.unsubscribe()
   }, [supabase])
 
   const handleSignOut = async () => {
+    clearCachedProfile()
     await supabase.auth.signOut()
     toast.success('Signed out')
     router.push('/')
@@ -180,7 +220,7 @@ export function Header() {
 
   return (
     <>
-      {/* ── MOBILE HEADER — hides on scroll ── */}
+      {/* ── MOBILE HEADER ── */}
       <header className={cn(
         'fixed top-0 left-0 right-0 z-50 lg:hidden px-3 pt-3',
         'transition-transform duration-300',
@@ -192,7 +232,6 @@ export function Header() {
           'border border-border/60',
           'rounded-full shadow-lg shadow-black/10',
         )}>
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
             <LogoMark className="w-6 h-6" />
             <span className="font-black text-[13px] tracking-tight leading-none">
@@ -227,7 +266,7 @@ export function Header() {
         </div>
       </header>
 
-      {/* ── DESKTOP HEADER — always visible, never hides on scroll ── */}
+      {/* ── DESKTOP HEADER ── */}
       <header className="fixed top-0 left-0 right-0 z-50 hidden lg:flex px-6 pt-3">
         <div className={cn(
           'w-full max-w-6xl mx-auto',
@@ -236,7 +275,6 @@ export function Header() {
           'border border-border/60',
           'rounded-full shadow-lg shadow-black/10',
         )}>
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0 group">
             <LogoMark className="w-7 h-7" />
             <span className="font-black text-[14px] tracking-tight leading-none">
@@ -244,10 +282,8 @@ export function Header() {
             </span>
           </Link>
 
-          {/* Center — empty, nav moved to rail */}
           <div className="flex-1" />
 
-          {/* Right side */}
           <div className="flex items-center gap-1">
             <GlobalSearch />
 
@@ -299,7 +335,6 @@ export function Header() {
             ) : (
               <div className="flex items-center gap-1 ml-1">
 
-                {/* Rec button — rounded-lg not rounded-full */}
                 <Link href={routes.newRec}>
                   <Button
                     size="sm"
@@ -319,7 +354,6 @@ export function Header() {
 
                 <NotificationBell userId={user.id} />
 
-                {/* Avatar dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button className={cn(
@@ -453,7 +487,6 @@ export function Header() {
         </div>
       </header>
 
-      {/* Nav Rail — desktop only, rendered here to share auth state */}
       {authReady && (
         <NavRail
           isLoggedIn={!!user}
