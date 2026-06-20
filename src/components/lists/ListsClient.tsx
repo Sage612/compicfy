@@ -10,6 +10,7 @@ import {Layers, Globe, BookOpen, Star, Share2,
   Loader2, BookMarked, Plus, Crown, X, Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { ListsSkeleton } from '@/components/lists/ListsSkeleton'
 
 const FREE_LIST_LIMIT = 5
@@ -125,6 +126,7 @@ export function ListsClient({
   const [loading,    setLoading]    = useState(true)
   const [starringId, setStarringId] = useState<string | null>(null)
   const [starredSet, setStarredSet] = useState<Set<string>>(() => new Set(starredListIds))
+  const [authPrompt, setAuthPrompt] = useState(false)
 
   // Create form state
   const searchParams = useSearchParams()
@@ -159,7 +161,7 @@ export function ListsClient({
   }
 
   const handleNewListClick = () => {
-    if (!userId) { toast.error('Log in to create lists'); return }
+    if (!userId) { setAuthPrompt(true); return }
     if (atLimit) {
       toast.error(`Free users can create up to ${FREE_LIST_LIMIT} lists — upgrade to Pro for unlimited`)
       return
@@ -191,7 +193,7 @@ export function ListsClient({
 
   const handleStar = async (id: string, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
-    if (!userId) { toast.error('Log in to star lists'); return }
+    if (!userId) { setAuthPrompt(true); return }
     const isStarred = starredSet.has(id)
     setStarringId(id)
     try {
@@ -519,6 +521,14 @@ export function ListsClient({
                 </div>
               )
             })}
+            <AuthPromptModal
+              open={authPrompt}
+              onClose={() => setAuthPrompt(false)}
+              config={{
+                action: 'star and save lists',
+                icon:   <Star size={24} className="text-amber-500" />,
+              }}
+            />
           </div>
         </>
       )}

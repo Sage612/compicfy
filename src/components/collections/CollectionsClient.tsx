@@ -14,6 +14,7 @@ import {
   Bookmark, BookmarkCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { CollectionsSkeleton } from '@/components/collections/CollectionsSkeleton'
 
 interface Collection {
@@ -173,6 +174,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
   const [savingId,    setSavingId]    = useState<string | null>(null)
   const [savedIds,    setSavedIds]    = useState<Set<string>>(() => new Set(savedCollectionIds))
+  const [authPrompt, setAuthPrompt] = useState(false)
 
   const [form, setForm] = useState({
     title:        '',
@@ -267,7 +269,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
 
   const handleSave = async (id: string, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
-    if (!userId) { toast.error('Log in to save collections'); return }
+    if (!userId) { setAuthPrompt(true); return }
     const isSaved = savedIds.has(id)
     setSavingId(id)
     try {
@@ -787,6 +789,14 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
                 </div>
               )
             })}
+            <AuthPromptModal
+              open={authPrompt}
+              onClose={() => setAuthPrompt(false)}
+              config={{
+                action: 'save collections',
+                icon:   <Bookmark size={24} className="text-primary" />,
+              }}
+            />
           </div>
         </>
       )}
