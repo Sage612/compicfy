@@ -2,19 +2,19 @@ import { Crown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  role?: string
-  isPro?: boolean
-  size?: 'sm' | 'md'
+  role?:      string
+  isPro?:     boolean
+  size?:      'sm' | 'md'
   className?: string
+  label?:     string
 }
 
-export function ProBadge({ role, isPro, size = 'md', className }: Props) {
+export function ProBadge({ role, isPro, size = 'md', className, label }: Props) {
   const isAdmin = role === 'admin'
-  const isMod = role === 'moderator'
+  const isMod   = role === 'moderator'
 
   if (!isAdmin && !isMod && !isPro) return null
 
-  // Admin badge — primary/violet
   if (isAdmin) {
     return (
       <span className={cn(
@@ -24,12 +24,11 @@ export function ProBadge({ role, isPro, size = 'md', className }: Props) {
         className
       )}>
         <Crown size={size === 'sm' ? 8 : 9} className="fill-primary" />
-        Admin
+        {label ?? 'Admin'}
       </span>
     )
   }
 
-  // Mod badge — blue
   if (isMod) {
     return (
       <span className={cn(
@@ -39,12 +38,11 @@ export function ProBadge({ role, isPro, size = 'md', className }: Props) {
         className
       )}>
         <Crown size={size === 'sm' ? 8 : 9} />
-        Mod
+        {label ?? 'Mod'}
       </span>
     )
   }
 
-  // Pro badge — gold (distinctly gold, not amber)
   return (
     <span className={cn(
       'inline-flex items-center gap-1 rounded-full font-bold border',
@@ -53,7 +51,7 @@ export function ProBadge({ role, isPro, size = 'md', className }: Props) {
       className
     )}>
       <Crown size={size === 'sm' ? 8 : 9} className="fill-yellow-400" />
-      Pro
+      {label ?? 'Pro'}
     </span>
   )
 }

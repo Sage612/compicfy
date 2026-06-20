@@ -178,10 +178,7 @@ export default async function ProCreatorDashboardPage() {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-lg font-black truncate">{profile.display_name || profile.username}</h1>
-              <ProBadge role={profile.role} isPro={isPro} />
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-teal-500/15 text-teal-600 dark:text-teal-400 border border-teal-500/25">
-                <Palette size={8} />Pro Creator
-              </span>
+              <ProBadge role={profile.role} isPro={isPro} label={isAdmin ? 'Admin' : 'Pro Creator'} />
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {isAdmin ? 'Admin · Lifetime Pro' : `Pro Studio · ${profile.pro_expires_at ? `Renews ${formatDate(profile.pro_expires_at)}` : 'Lifetime access'}`}

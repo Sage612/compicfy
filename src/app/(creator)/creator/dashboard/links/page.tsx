@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { SettingsForm } from '@/components/user/SettingsForm'
+import { CreatorLinksClient } from '@/components/creator/CreatorLinksClient'
+import { Link as LinkIcon } from 'lucide-react'
 import type { Metadata } from 'next'
-import type { Profile } from '@/types/database.types'
 
 export const metadata: Metadata = { title: 'Creator Links' }
 
@@ -13,29 +13,37 @@ export default async function CreatorLinksPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('*')
+    .select('comic_url, patreon_url, kickstarter_url, is_pro, pro_expires_at, role')
     .eq('id', user.id)
-    .single()
+    .single() as { data: any }
 
   if (!profile) redirect('/login')
 
-  const isAdmin = ['admin', 'moderator'].includes((profile as any).role ?? '')
-  const isPro   = isAdmin || ((profile as any).is_pro &&
-    (!(profile as any).pro_expires_at || new Date((profile as any).pro_expires_at) > new Date()))
+  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
+  const isPro   = isAdmin || (profile?.is_pro &&
+    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Creator Links</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Add your links so readers can find and support your work directly from your profile.
-        </p>
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
+          <LinkIcon size={16} className="text-teal-500" />
+        </div>
+        <div>
+          <h1 className="text-xl font-black tracking-tight">Creator Links</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Let readers find and support your work directly.
+          </p>
+        </div>
       </div>
-      <SettingsForm
-        profile={profile as Profile}
+      <CreatorLinksClient
         userId={user.id}
+        initialValues={{
+          comic_url:       profile.comic_url,
+          patreon_url:     profile.patreon_url,
+          kickstarter_url: profile.kickstarter_url,
+        }}
         isPro={isPro}
-        defaultSection="creator-links"
       />
     </div>
   )
