@@ -12,6 +12,7 @@ import {Globe, Lock, Bookmark, BookmarkCheck,
 } from 'lucide-react'
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { AddToCollectionSearch } from '@/components/collections/AddToCollectionSearch'
+import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { cn } from '@/lib/utils'
 import type { Recommendation } from '@/types/database.types'
 
@@ -72,6 +73,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
   const [savingState, setSavingState] = useState(false)
   const [saveCount,   setSaveCount]   = useState(collection.save_count)
   const [removingId,  setRemovingId]  = useState<string | null>(null)
+  const [authPrompt, setAuthPrompt]   = useState(false)
   const [items,       setItems]       = useState<CollectionItem[]>(collection.collection_items ?? [])
 
   const [showEdit, setShowEdit] = useState(false)
@@ -100,7 +102,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
     : saveCount > 0 ? `${saveCount}` : 'Save'
 
   const handleSave = async () => {
-    if (!isLoggedIn) { toast.error('Log in to save collections'); return }
+    if (!isLoggedIn) { setAuthPrompt(true); return }
     setSavingState(true)
     try {
       const res  = await fetch(`/api/collections/${collection.id}/save`, { method: saved ? 'DELETE' : 'POST' })
@@ -109,7 +111,6 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
         toast.error('Failed to update'); return
       }
       setSaved(!saved)
-      // Use server count as source of truth — DB trigger keeps it accurate
       if (typeof data.save_count === 'number') setSaveCount(data.save_count)
       toast.success(saved ? 'Removed from saved' : 'Collection saved!')
     } catch { toast.error('Failed to update') }
@@ -556,6 +557,14 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             </div>
           </div>
         )}
+        <AuthPromptModal
+        open={authPrompt}
+        onClose={() => setAuthPrompt(false)}
+        config={{
+          action: 'save this collection',
+          icon:   <Bookmark size={24} className="text-primary" />,
+        }}
+      />
       </div>
 
     </div>

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { AddToTrackerSearch } from '@/components/recommendations/AddToTrackerSearch'
+import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -51,6 +52,7 @@ export function PublicListDetailClient({
   const [editName,   setEditName]   = useState(initialList.name)
   const [editDesc,   setEditDesc]   = useState(initialList.description ?? '')
   const [editPublic, setEditPublic] = useState(initialList.is_public)
+  const [authPrompt, setAuthPrompt] = useState(false)
 
 function proxyCover(url: string | null | undefined): string | null {
   if (!url) return null
@@ -64,14 +66,14 @@ function proxyCover(url: string | null | undefined): string | null {
 }
 
   const handleStar = async () => {
-    if (!isLoggedIn) { toast.error('Log in to star lists'); return }
+    if (!isLoggedIn) { setAuthPrompt(true); return }
     setStarring(true)
     try {
       const res  = await fetch(`/api/lists/${list.id}/star`, { method: starred ? 'DELETE' : 'POST' })
       const data = await res.json()
       if (!res.ok) { toast.error('Failed to update'); return }
       setStarred(!starred)
-     if (typeof data.star_count === 'number') setStarCount(data.star_count)
+      if (typeof data.star_count === 'number') setStarCount(data.star_count)
       toast.success(starred ? 'Removed star' : 'List starred!')
     } catch { toast.error('Failed to update') }
     finally { setStarring(false) }
@@ -341,6 +343,14 @@ function proxyCover(url: string | null | undefined): string | null {
           })}
         </div>
       )}
+      <AuthPromptModal
+        open={authPrompt}
+        onClose={() => setAuthPrompt(false)}
+        config={{
+          action: 'star this list',
+          icon:   <Star size={24} className="text-amber-500" />,
+        }}
+      />
     </>
   )
 }

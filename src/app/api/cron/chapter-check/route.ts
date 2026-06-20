@@ -4,7 +4,10 @@ import { createClient } from '@supabase/supabase-js'
 const BATCH_SIZE         = 10
 const API_DELAY_MS       = 600
 const REQUEST_TIMEOUT_MS = 8000
+const LOCK_NAME          = 'chapter_checker'
+const LOCK_DURATION_MS   = 55_000 // just under the 1-minute cron interval
 
+// ── Fetch with timeout ────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
   const timeoutId  = setTimeout(() => controller.abort(), timeoutMs)
@@ -19,6 +22,7 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQU
   }
 }
 
+// ── Logging ───────────────────────────────────────────────────────
 interface CheckLog {
   comic_id:          string
   comic_title:       string
@@ -26,7 +30,7 @@ interface CheckLog {
   database_success:  string | null
   old_chapter_count: number | null
   new_chapter_count: number | null
-  status:            'success' | 'no_update' | 'failed'
+  status:            'success' | 'no_update' | 'failed' | 'skipped_no_ids'
   reason?:           string
   error?:            string
   timestamp:         string
@@ -47,7 +51,6 @@ async function logChapterCheck(supabase: any, log: CheckLog) {
 }
 
 // ── MangaUpdates ──────────────────────────────────────────────────
-// Most reliable for ongoing — community-updated, covers manhwa well
 async function getChapterFromMU(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -62,57 +65,22 @@ async function getChapterFromMU(id: string): Promise<number | null> {
   }
 }
 
-// ── MangaDex chapter feed ─────────────────────────────────────────
-// Uses actual uploaded chapter numbers sorted descending.
-// Much more accurate than lastChapter which is often stale or null.
-// No language filter — manhwa/manhua often only exist in non-EN scanlations.
-// All content ratings included so we don't miss adult-rated series.
-async function getChapterFromMangaDexFeed(id: string): Promise<number | null> {
+// ── MangaDex ──────────────────────────────────────────────────────
+async function getChapterFromMangaDex(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
-    const url = [
-      `https://api.mangadex.org/manga/${id}/feed`,
-      `?limit=1`,
-      `&order[chapter]=desc`,
-      `&contentRating[]=safe`,
-      `&contentRating[]=suggestive`,
-      `&contentRating[]=erotica`,
-      `&contentRating[]=pornographic`,
-    ].join('')
-    const res = await fetchWithTimeout(url)
-    if (!res.ok) return null
-    const data    = await res.json()
-    const chapter = data?.data?.[0]?.attributes?.chapter
-    // Floor it — chapter "47.5" should count as 47
-    return chapter && !isNaN(Number(chapter)) ? Math.floor(Number(chapter)) : null
-  } catch (err) {
-    console.error(`MD feed error for ${id}:`, err)
-    return null
-  }
-}
-
-// ── Kitsu ─────────────────────────────────────────────────────────
-// chapterCount community-maintained, good for ongoing
-// Public REST, no auth required, no Cloudflare block
-async function getChapterFromKitsu(id: string): Promise<number | null> {
-  try {
-    await new Promise(r => setTimeout(r, API_DELAY_MS))
-    const res = await fetchWithTimeout(
-      `https://kitsu.io/api/edge/manga/${id}`,
-      { headers: { 'Accept': 'application/vnd.api+json' } }
-    )
+    const res = await fetchWithTimeout(`https://api.mangadex.org/manga/${id}`)
     if (!res.ok) return null
     const data = await res.json()
-    const ch   = data?.data?.attributes?.chapterCount
+    const ch   = data?.data?.attributes?.lastChapter
     return ch && !isNaN(Number(ch)) ? Number(ch) : null
   } catch (err) {
-    console.error(`Kitsu chapter error for ${id}:`, err)
+    console.error(`MD chapter error for ${id}:`, err)
     return null
   }
 }
 
 // ── Jikan (MAL) ───────────────────────────────────────────────────
-// Reliable for completed series, mostly null for ongoing
 async function getChapterFromJikan(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -128,7 +96,6 @@ async function getChapterFromJikan(id: string): Promise<number | null> {
 }
 
 // ── AniList ───────────────────────────────────────────────────────
-// Reliable for completed series, mostly null for ongoing — final fallback
 async function getChapterFromAniList(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -148,47 +115,26 @@ async function getChapterFromAniList(id: string): Promise<number | null> {
   }
 }
 
-async function resolveChapterCount(comic: any): Promise<{
-  chapter: number | null
-  source:  string | null
-  tried:   string[]
-}> {
+// ── Resolve chapter count across sources (MangaBaka removed — API non-functional) ──
+async function resolveChapterCount(comic: any): Promise<{ chapter: number | null; source: string | null; tried: string[] }> {
   const tried: string[] = []
 
-  // ── Primary ───────────────────────────────────────────────────
   let muChapter: number | null = null
   if (comic.mangaupdates_id) {
     tried.push('MangaUpdates')
     muChapter = await getChapterFromMU(comic.mangaupdates_id)
   }
 
-  // ── Confirmation 1: MD feed ───────────────────────────────────
   let mdChapter: number | null = null
   if (comic.mangadex_id) {
-    tried.push('MangaDex-feed')
-    mdChapter = await getChapterFromMangaDexFeed(comic.mangadex_id)
+    tried.push('MangaDex')
+    mdChapter = await getChapterFromMangaDex(comic.mangadex_id)
   }
 
   if (muChapter !== null && mdChapter !== null && Math.abs(muChapter - mdChapter) <= 1) {
     return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried }
   }
 
-  // ── Confirmation 2: Kitsu ─────────────────────────────────────
-  let kitsuChapter: number | null = null
-  if (comic.kitsu_id) {
-    tried.push('Kitsu')
-    kitsuChapter = await getChapterFromKitsu(comic.kitsu_id)
-  }
-
-  if (muChapter !== null && kitsuChapter !== null && Math.abs(muChapter - kitsuChapter) <= 1) {
-    return { chapter: Math.max(muChapter, kitsuChapter), source: 'MU+Kitsu confirmed', tried }
-  }
-
-  if (mdChapter !== null && kitsuChapter !== null && Math.abs(mdChapter - kitsuChapter) <= 1) {
-    return { chapter: Math.max(mdChapter, kitsuChapter), source: 'MD+Kitsu confirmed', tried }
-  }
-
-  // ── Fallback: MAL ─────────────────────────────────────────────
   let malChapter: number | null = null
   if (comic.mal_id) {
     tried.push('MAL')
@@ -196,41 +142,61 @@ async function resolveChapterCount(comic: any): Promise<{
   }
 
   if (malChapter !== null) {
-    if (muChapter !== null && Math.abs(malChapter - muChapter) <= 1)
+    if (muChapter !== null && Math.abs(malChapter - muChapter) <= 1) {
       return { chapter: Math.max(malChapter, muChapter), source: 'MU+MAL confirmed', tried }
-    if (mdChapter !== null && Math.abs(malChapter - mdChapter) <= 1)
+    }
+    if (mdChapter !== null && Math.abs(malChapter - mdChapter) <= 1) {
       return { chapter: Math.max(malChapter, mdChapter), source: 'MD+MAL confirmed', tried }
-    if (kitsuChapter !== null && Math.abs(malChapter - kitsuChapter) <= 1)
-      return { chapter: Math.max(malChapter, kitsuChapter), source: 'Kitsu+MAL confirmed', tried }
+    }
   }
 
-  // ── Final fallback: AniList ───────────────────────────────────
   if (comic.anilist_id) {
     tried.push('AniList')
     const alChapter = await getChapterFromAniList(comic.anilist_id)
     if (alChapter !== null) {
-      if (muChapter !== null && Math.abs(alChapter - muChapter) <= 1)
-        return { chapter: Math.max(alChapter, muChapter), source: 'MU+AL confirmed', tried }
-      if (mdChapter !== null && Math.abs(alChapter - mdChapter) <= 1)
-        return { chapter: Math.max(alChapter, mdChapter), source: 'MD+AL confirmed', tried }
-      if (kitsuChapter !== null && Math.abs(alChapter - kitsuChapter) <= 1)
-        return { chapter: Math.max(alChapter, kitsuChapter), source: 'Kitsu+AL confirmed', tried }
-      if (malChapter !== null && Math.abs(alChapter - malChapter) <= 1)
-        return { chapter: Math.max(alChapter, malChapter), source: 'MAL+AL confirmed', tried }
-      // Solo AniList — only if nothing else returned anything at all
-      if (muChapter === null && mdChapter === null && kitsuChapter === null && malChapter === null)
+      if (muChapter !== null && Math.abs(alChapter - muChapter) <= 1) {
+        return { chapter: Math.max(alChapter, muChapter), source: 'MU+AniList confirmed', tried }
+      }
+      if (mdChapter !== null && Math.abs(alChapter - mdChapter) <= 1) {
+        return { chapter: Math.max(alChapter, mdChapter), source: 'MD+AniList confirmed', tried }
+      }
+      if (malChapter !== null && Math.abs(alChapter - malChapter) <= 1) {
+        return { chapter: Math.max(alChapter, malChapter), source: 'MAL+AniList confirmed', tried }
+      }
+      if (muChapter === null && mdChapter === null && malChapter === null) {
         return { chapter: alChapter, source: 'AniList', tried }
+      }
     }
   }
 
-  // ── Best single unconfirmed ───────────────────────────────────
-  // MU > MD feed > Kitsu > MAL — in order of reliability for ongoing
-  if (muChapter !== null)    return { chapter: muChapter,    source: 'MangaUpdates (unconfirmed)', tried }
-  if (mdChapter !== null)    return { chapter: mdChapter,    source: 'MangaDex-feed (unconfirmed)', tried }
-  if (kitsuChapter !== null) return { chapter: kitsuChapter, source: 'Kitsu (unconfirmed)',         tried }
-  if (malChapter !== null)   return { chapter: malChapter,   source: 'MAL (unconfirmed)',           tried }
+  if (muChapter !== null)  return { chapter: muChapter,  source: 'MangaUpdates (unconfirmed)', tried }
+  if (mdChapter !== null)  return { chapter: mdChapter,  source: 'MangaDex (unconfirmed)',      tried }
+  if (malChapter !== null) return { chapter: malChapter, source: 'MAL (unconfirmed)',           tried }
 
   return { chapter: null, source: null, tried }
+}
+
+// ── Lock helpers ──────────────────────────────────────────────────
+async function acquireLock(supabase: any): Promise<boolean> {
+  const { data: existing } = await supabase
+    .from('cron_locks')
+    .select('locked_until')
+    .eq('job_name', LOCK_NAME)
+    .maybeSingle()
+
+  if (existing && new Date(existing.locked_until) > new Date()) {
+    return false
+  }
+
+  await supabase
+    .from('cron_locks')
+    .upsert({ job_name: LOCK_NAME, locked_until: new Date(Date.now() + LOCK_DURATION_MS).toISOString() })
+
+  return true
+}
+
+async function releaseLock(supabase: any) {
+  await supabase.from('cron_locks').delete().eq('job_name', LOCK_NAME)
 }
 
 // ── Main handler ──────────────────────────────────────────────────
@@ -245,113 +211,128 @@ export async function GET(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
-  const cutoff = new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString()
-
-  const { data: comics, error } = await supabase
-    .from('recommendations')
-    .select('id, title, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, kitsu_id')
-    .eq('is_approved', true)
-    .eq('status', 'ongoing')
-    .or(`last_chapter_check.is.null,last_chapter_check.lt.${cutoff}`)
-    .limit(BATCH_SIZE)
-
-  if (error) {
-    console.error('DB error:', error)
-    return NextResponse.json({ error: 'DB fetch failed' }, { status: 500 })
+  const gotLock = await acquireLock(supabase)
+  if (!gotLock) {
+    return NextResponse.json({ message: 'Previous run still in progress, skipping this tick' })
   }
 
-  if (!comics || comics.length === 0) {
-    return NextResponse.json({ checked: 0, updated: 0, logs: [] })
-  }
+  try {
+    const cutoff = new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString()
 
-  let updated = 0
-  const results: any[] = []
-  const logs: CheckLog[] = []
+    const { data: comics, error } = await supabase
+      .from('recommendations')
+      .select('id, title, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id')
+      .eq('is_approved', true)
+      .eq('status', 'ongoing')
+      .or(`last_chapter_check.is.null,last_chapter_check.lt.${cutoff}`)
+      // ── Skip comics with zero external IDs — let id-checker claim
+      // them first. Without this, a freshly-submitted comic gets
+      // picked up by chapter-check before id-check ever runs, wasting
+      // a batch slot on a guaranteed "no valid ID" failure.
+      .or('mangaupdates_id.not.is.null,mangadex_id.not.is.null,anilist_id.not.is.null,mal_id.not.is.null')
+      .limit(BATCH_SIZE)
 
-  for (const comic of comics) {
-    const timestamp = new Date().toISOString()
+    if (error) {
+      console.error('DB error:', error)
+      return NextResponse.json({ error: 'DB fetch failed' }, { status: 500 })
+    }
 
-    try {
-      const { chapter: newChapterCount, source, tried } = await resolveChapterCount(comic)
+    if (!comics || comics.length === 0) {
+      return NextResponse.json({ checked: 0, updated: 0, logs: [] })
+    }
 
-      const logEntry: CheckLog = {
-        comic_id:          comic.id,
-        comic_title:       comic.title,
-        database_tried:    tried,
-        database_success:  source,
-        old_chapter_count: comic.chapter_count,
-        new_chapter_count: newChapterCount,
-        status:            'no_update',
-        timestamp,
-      }
+    let updated = 0
+    const results  = []
+    const logs: CheckLog[] = []
 
-      await supabase.from('recommendations')
-        .update({ last_chapter_check: timestamp })
-        .eq('id', comic.id)
+    for (const comic of comics) {
+      const timestamp = new Date().toISOString()
 
-      if (newChapterCount && newChapterCount > (comic.chapter_count ?? 0)) {
-        await supabase.from('recommendations')
-          .update({ chapter_count: newChapterCount, last_chapter_check: timestamp })
-          .eq('id', comic.id)
+      try {
+        const { chapter: newChapterCount, source, tried } = await resolveChapterCount(comic)
 
-        const { data: trackers } = await supabase
-          .from('reading_list_items')
-          .select('list_id, reading_lists!inner(user_id)')
-          .eq('recommendation_id', comic.id)
-          .in('status', ['reading', 'plan_to_read'])
-
-        if (trackers && trackers.length > 0) {
-          const userIds = [...new Set(trackers.map((t: any) => t.reading_lists?.user_id).filter(Boolean))]
-          const notifications = userIds.map((userId: string) => ({
-            user_id: userId,
-            type:    'system',
-            title:   `📖 ${comic.title} updated`,
-            content: `New chapters available — now at chapter ${newChapterCount}`,
-            data:    { recommendation_id: comic.id, new_chapter_count: newChapterCount, old_chapter_count: comic.chapter_count },
-          }))
-          await supabase.from('notifications').insert(notifications)
+        const logEntry: CheckLog = {
+          comic_id:          comic.id,
+          comic_title:       comic.title,
+          database_tried:    tried,
+          database_success:  source,
+          old_chapter_count: comic.chapter_count,
+          new_chapter_count: newChapterCount,
+          status:            'no_update',
+          timestamp,
         }
 
-        updated++
-        logEntry.status = 'success'
-        results.push({
-          id:       comic.id,
-          title:    comic.title,
-          old:      comic.chapter_count,
-          new:      newChapterCount,
-          source,
-          notified: trackers?.length ?? 0,
+        await supabase.from('recommendations')
+          .update({ last_chapter_check: timestamp })
+          .eq('id', comic.id)
+
+        if (newChapterCount && newChapterCount > (comic.chapter_count ?? 0)) {
+          await supabase.from('recommendations')
+            .update({ chapter_count: newChapterCount, last_chapter_check: timestamp })
+            .eq('id', comic.id)
+
+          const { data: trackers } = await supabase
+            .from('reading_list_items')
+            .select('list_id, reading_lists!inner(user_id)')
+            .eq('recommendation_id', comic.id)
+            .in('status', ['reading', 'plan_to_read'])
+
+          if (trackers && trackers.length > 0) {
+            const userIds       = [...new Set(trackers.map((t: any) => t.reading_lists?.user_id).filter(Boolean))]
+            const notifications = userIds.map((userId: string) => ({
+              user_id: userId,
+              type:    'system',
+              title:   `📖 ${comic.title} updated`,
+              content: `New chapters available, now at chapter ${newChapterCount}`,
+              data:    { recommendation_id: comic.id, new_chapter_count: newChapterCount, old_chapter_count: comic.chapter_count },
+            }))
+
+            await supabase.from('notifications').insert(notifications)
+          }
+
+          updated++
+          logEntry.status = 'success'
+          results.push({
+            id:       comic.id,
+            title:    comic.title,
+            old:      comic.chapter_count,
+            new:      newChapterCount,
+            source,
+            notified: trackers?.length ?? 0,
+          })
+        } else if (newChapterCount === null) {
+          logEntry.status = 'failed'
+          logEntry.reason = 'No valid ID or all APIs returned null'
+        }
+
+        logs.push(logEntry)
+
+      } catch (err: any) {
+        console.error(`Failed to check ${comic.title}:`, err)
+        logs.push({
+          comic_id:          comic.id,
+          comic_title:       comic.title,
+          database_tried:    [],
+          database_success:  null,
+          old_chapter_count: comic.chapter_count,
+          new_chapter_count: null,
+          status:            'failed',
+          error:             err?.message ?? 'Unknown error',
+          timestamp,
         })
-      } else if (newChapterCount === null) {
-        logEntry.status = 'failed'
-        logEntry.reason = 'No valid ID or all APIs returned null'
       }
-
-      logs.push(logEntry)
-
-    } catch (err: any) {
-      console.error(`Failed to check ${comic.title}:`, err)
-      logs.push({
-        comic_id:          comic.id,
-        comic_title:       comic.title,
-        database_tried:    [],
-        database_success:  null,
-        old_chapter_count: comic.chapter_count,
-        new_chapter_count: null,
-        status:            'failed',
-        error:             err?.message ?? 'Unknown error',
-        timestamp,
-      })
     }
+
+    for (const log of logs) await logChapterCheck(supabase, log)
+
+    return NextResponse.json({
+      checked:    comics.length,
+      updated,
+      results,
+      logs_count: logs.length,
+      logs:       logs.slice(0, 5),
+    })
+  } finally {
+    await releaseLock(supabase)
   }
-
-  for (const log of logs) await logChapterCheck(supabase, log)
-
-  return NextResponse.json({
-    checked:    comics.length,
-    updated,
-    results,
-    logs_count: logs.length,
-    logs:       logs.slice(0, 5),
-  })
 }
