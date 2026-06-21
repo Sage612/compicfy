@@ -39,16 +39,9 @@ export default async function CreatorAudiencePage() {
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
-            <Users size={16} className="text-violet-500" />
-          </div>
-          <div>
-            <h1 className="text-xl font-black tracking-tight">Audience</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">People who follow your work.</p>
-          </div>
-        </div>
+      <div>
+        <h1 className="text-2xl font-black tracking-tight">Audience</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">People who follow your work.</p>
       </div>
 
       {/* Stats */}

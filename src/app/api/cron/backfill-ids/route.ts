@@ -6,7 +6,8 @@ const COOLDOWN_HOURS     = 5
 const API_DELAY_MS       = 600
 const REQUEST_TIMEOUT_MS = 8000
 const LOCK_NAME          = 'id_checker'
-const LOCK_DURATION_MS   = 55_000 // just under the 1-minute cron interval
+const LOCK_DURATION_MS   = 55_000
+const YEAR_TOLERANCE     = 1
 
 // ── Fetch with timeout ────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
@@ -23,7 +24,6 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQU
   }
 }
 
-// ── Normalize ─────────────────────────────────────────────────────
 function normalize(str: string): string {
   return str
     .toLowerCase()
@@ -32,7 +32,6 @@ function normalize(str: string): string {
     .trim()
 }
 
-// ── Candidate shape ───────────────────────────────────────────────
 interface Candidate {
   id:      string
   title:   string
@@ -41,13 +40,20 @@ interface Candidate {
   year?:   number | null
 }
 
-// ── Smart match — now disambiguates by year when title/author ties exist ──
+// ── Smart match — year weight depends on confidence tier ───────────
+// When yearConfidence === 'confirmed', year acts as a real disambiguator
+// (same as before). When 'unverified' (the common case for fresh
+// submissions sourced from whatever platform the submitter read on),
+// year is only used as a tiebreaker between candidates that already
+// tie on title+author — it can no longer cause a correct match to be
+// rejected just because the submitter's guessed year is off.
 function smartMatch(
-  query:      string,
-  candidates: Candidate[],
-  authorHint?: string | null,
-  artistHint?: string | null,
-  yearHint?:   number | null,
+  query:          string,
+  candidates:     Candidate[],
+  authorHint?:    string | null,
+  artistHint?:    string | null,
+  yearHint?:      number | null,
+  yearConfidence: 'unverified' | 'confirmed' = 'unverified',
 ): string | null {
   const nq = normalize(query)
   const na = authorHint ? normalize(authorHint) : null
@@ -62,42 +68,47 @@ function smartMatch(
     return authorMatch || artistMatch
   }
 
-  // ±1 year slack — sources disagree on "release year" vs "first chapter year"
-  // often enough that exact equality is too strict.
   const yearConfirmed = (c: Candidate): boolean => {
     if (!yearHint || !c.year) return false
-    return Math.abs(c.year - yearHint) <= 1
+    return Math.abs(c.year - yearHint) <= YEAR_TOLERANCE
   }
 
   const exactTitleMatches = candidates.filter(c => normalize(c.title) === nq)
 
-  // Pass 0 — exact title + year confirmed. Strongest available signal,
-  // and the one that actually fixes the "multiple entries, same title,
-  // different printing/adaptation" problem (e.g. Novel's Extra on MU).
-  if (yearHint) {
+  // Pass 0 — exact title + year, ONLY as a hard signal when year is
+  // already confirmed (i.e. this isn't the first-ever match attempt
+  // and a prior cycle already cross-checked it).
+  if (yearHint && yearConfidence === 'confirmed') {
     const yearMatch = exactTitleMatches.find(yearConfirmed)
     if (yearMatch) return yearMatch.id
   }
 
-  // Pass 1 — exact title + author/artist + year ALL agree, when multiple
-  // candidates tie on title alone. Covers cases where author/artist data
-  // is too thin to disambiguate alone but year tips it.
-  if ((na || nr) && yearHint && exactTitleMatches.length > 1) {
-    const best = exactTitleMatches.find(c => authorArtistConfirmed(c) && yearConfirmed(c))
-    if (best) return best.id
-  }
-
-  // Pass 2 — exact title + author/artist (no year available/confirmed)
+  // Pass 1 — exact title + author/artist (the reliable signal regardless
+  // of year confidence)
   if (na || nr) {
     const match = exactTitleMatches.find(authorArtistConfirmed)
     if (match) return match.id
   }
 
-  // Pass 3 — exact title only. True fallback now — only reached when no
-  // year and no author/artist signal exists to disambiguate ties.
+  // Pass 1.5 — when title+author ties exist and we have an UNVERIFIED
+  // year, use it only to break the tie between otherwise-equal
+  // candidates — never to reject a candidate outright.
+  if ((na || nr) && yearHint && exactTitleMatches.length > 1) {
+    const tiedOnAuthor = exactTitleMatches.filter(authorArtistConfirmed)
+    if (tiedOnAuthor.length > 1) {
+      const closest = tiedOnAuthor.find(yearConfirmed)
+      if (closest) return closest.id
+    }
+  }
+
+  // Pass 2 — exact title only, with unverified-year tiebreak among ties
+  if (exactTitleMatches.length > 1 && yearHint) {
+    const yearTiebreak = exactTitleMatches.find(yearConfirmed)
+    if (yearTiebreak) return yearTiebreak.id
+  }
   if (exactTitleMatches.length > 0) return exactTitleMatches[0].id
 
-  // Pass 4 — bidirectional contains + author/artist required
+  // Pass 3 — bidirectional contains + author/artist required
   if (na || nr) {
     for (const c of candidates) {
       const ct = normalize(c.title)
@@ -106,8 +117,9 @@ function smartMatch(
     }
   }
 
-  // Pass 5 — bidirectional contains + year confirmed (no author/artist available)
-  if (yearHint) {
+  // Pass 4 — bidirectional contains + CONFIRMED year only (unverified
+  // year is too weak a signal to use without title/author backing here)
+  if (yearHint && yearConfidence === 'confirmed') {
     for (const c of candidates) {
       const ct = normalize(c.title)
       const isContained = ct.includes(nq) || nq.includes(ct)
@@ -118,7 +130,6 @@ function smartMatch(
   return null
 }
 
-// ── Build all query titles ─────────────────────────────────────────
 function buildQueryTitles(title: string, alternativeTitles?: string[] | null): string[] {
   const seen = new Set<string>()
   const out:  string[] = []
@@ -131,8 +142,9 @@ function buildQueryTitles(title: string, alternativeTitles?: string[] | null): s
 
 // ── MangaUpdates ──────────────────────────────────────────────────
 async function findMangaUpdatesID(
-  titles: string[], author?: string | null, artist?: string | null, year?: number | null,
-): Promise<string | null> {
+  titles: string[], author?: string | null, artist?: string | null,
+  year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
+): Promise<{ id: string | null; year: number | null }> {
   for (const title of titles) {
     try {
       await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -148,22 +160,25 @@ async function findMangaUpdatesID(
         title:  r.record?.title ?? '',
         author: r.record?.author ?? '',
         artist: r.record?.artist ?? '',
-        // MangaUpdates exposes "year" directly on the record
         year:   r.record?.year ? Number(r.record.year) : null,
       }))
-      const match = smartMatch(title, candidates, author, artist, year)
-      if (match) return match
+      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence)
+      if (matchId) {
+        const matched = candidates.find(c => c.id === matchId)
+        return { id: matchId, year: matched?.year ?? null }
+      }
     } catch (err) {
       console.error(`MU error for "${title}":`, err)
     }
   }
-  return null
+  return { id: null, year: null }
 }
 
 // ── MangaDex ──────────────────────────────────────────────────────
 async function findMangaDexID(
-  titles: string[], author?: string | null, artist?: string | null, year?: number | null,
-): Promise<string | null> {
+  titles: string[], author?: string | null, artist?: string | null,
+  year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
+): Promise<{ id: string | null; year: number | null }> {
   for (const title of titles) {
     try {
       await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -183,23 +198,26 @@ async function findMangaDexID(
           title:  String(titleEn),
           author: authorName,
           artist: artistName,
-          // MangaDex exposes "year" directly on attributes
           year:   attr.year ? Number(attr.year) : null,
         }
       })
-      const match = smartMatch(title, candidates, author, artist, year)
-      if (match) return match
+      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence)
+      if (matchId) {
+        const matched = candidates.find(c => c.id === matchId)
+        return { id: matchId, year: matched?.year ?? null }
+      }
     } catch (err) {
       console.error(`MD error for "${title}":`, err)
     }
   }
-  return null
+  return { id: null, year: null }
 }
 
 // ── AniList ───────────────────────────────────────────────────────
 async function findAniListID(
-  titles: string[], author?: string | null, artist?: string | null, year?: number | null,
-): Promise<string | null> {
+  titles: string[], author?: string | null, artist?: string | null,
+  year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
+): Promise<{ id: string | null; year: number | null }> {
   for (const title of titles) {
     try {
       await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -220,23 +238,26 @@ async function findAniListID(
           title:  r.title?.english || r.title?.romaji || r.title?.native || '',
           author: authorName,
           artist: artistName,
-          // AniList exposes year via startDate.year
           year:   r.startDate?.year ? Number(r.startDate.year) : null,
         }
       })
-      const match = smartMatch(title, candidates, author, artist, year)
-      if (match) return match
+      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence)
+      if (matchId) {
+        const matched = candidates.find(c => c.id === matchId)
+        return { id: matchId, year: matched?.year ?? null }
+      }
     } catch (err) {
       console.error(`AL error for "${title}":`, err)
     }
   }
-  return null
+  return { id: null, year: null }
 }
 
 // ── Jikan (MAL) ───────────────────────────────────────────────────
 async function findJikanID(
-  titles: string[], author?: string | null, artist?: string | null, year?: number | null,
-): Promise<string | null> {
+  titles: string[], author?: string | null, artist?: string | null,
+  year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
+): Promise<{ id: string | null; year: number | null }> {
   for (const title of titles) {
     try {
       await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -249,7 +270,6 @@ async function findJikanID(
         const authors    = r.authors ?? []
         const authorName = authors.find((a: any) => a.type === 'Story')?.name ?? authors[0]?.name ?? ''
         const artistName = authors.find((a: any) => a.type === 'Art')?.name ?? ''
-        // Jikan exposes "published.from" as an ISO date string
         const publishedYear = r.published?.from ? new Date(r.published.from).getFullYear() : null
         return {
           id:     String(r.mal_id ?? ''),
@@ -259,50 +279,94 @@ async function findJikanID(
           year:   publishedYear,
         }
       })
-      const match = smartMatch(title, candidates, author, artist, year)
-      if (match) return match
+      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence)
+      if (matchId) {
+        const matched = candidates.find(c => c.id === matchId)
+        return { id: matchId, year: matched?.year ?? null }
+      }
     } catch (err) {
       console.error(`Jikan error for "${title}":`, err)
     }
   }
-  return null
+  return { id: null, year: null }
 }
 
-// ── Main ID finder (MangaBaka removed — API non-functional) ────────
+// ── Main ID finder — now also returns each source's resolved year,
+// so the caller can derive consensus and auto-correct year_released ──
 async function findExternalIds(
   title:              string,
   author?:            string | null,
   artist?:            string | null,
   alternativeTitles?: string[] | null,
   year?:              number | null,
-): Promise<Record<string, string | undefined>> {
-  const ids:    Record<string, string | undefined> = {}
+  yearConfidence?:    'unverified' | 'confirmed',
+): Promise<{
+  ids:   Record<string, string | undefined>
+  years: Record<string, number | null>
+}> {
+  const ids:   Record<string, string | undefined> = {}
+  const years: Record<string, number | null>       = {}
   const titles = buildQueryTitles(title, alternativeTitles)
 
-  const muId  = await findMangaUpdatesID(titles, author, artist, year)
-  if (muId)  ids.mangaupdates_id = muId
+  const mu = await findMangaUpdatesID(titles, author, artist, year, yearConfidence)
+  if (mu.id) { ids.mangaupdates_id = mu.id; years.mangaupdates_id = mu.year }
 
-  const mdId  = await findMangaDexID(titles, author, artist, year)
-  if (mdId)  ids.mangadex_id = mdId
+  const md = await findMangaDexID(titles, author, artist, year, yearConfidence)
+  if (md.id) { ids.mangadex_id = md.id; years.mangadex_id = md.year }
 
-  const alId  = await findAniListID(titles, author, artist, year)
-  if (alId)  ids.anilist_id = alId
+  const al = await findAniListID(titles, author, artist, year, yearConfidence)
+  if (al.id) { ids.anilist_id = al.id; years.anilist_id = al.year }
 
-  const malId = await findJikanID(titles, author, artist, year)
-  if (malId) ids.mal_id = malId
+  const mal = await findJikanID(titles, author, artist, year, yearConfidence)
+  if (mal.id) { ids.mal_id = mal.id; years.mal_id = mal.year }
 
-  return ids
+  return { ids, years }
 }
 
-// ── Logging ───────────────────────────────────────────────────────
+// ── Derive year consensus from resolved source years ────────────────
+// If 2+ sources agree (within tolerance), that's the corrected year
+// and confidence becomes 'confirmed'. If sources disagree with each
+// other, we don't guess — leave year_released untouched and flag.
+function deriveYearConsensus(
+  years: Record<string, number | null>,
+): { consensusYear: number | null; outlierSources: string[] } {
+  const entries = Object.entries(years).filter(([, y]) => y !== null) as [string, number][]
+  if (entries.length === 0) return { consensusYear: null, outlierSources: [] }
+  if (entries.length === 1) return { consensusYear: entries[0][1], outlierSources: [] }
+
+  // Group by year (within tolerance) and find the largest agreeing cluster
+  const clusters: { year: number; sources: string[] }[] = []
+  for (const [source, year] of entries) {
+    const existing = clusters.find(c => Math.abs(c.year - year) <= YEAR_TOLERANCE)
+    if (existing) existing.sources.push(source)
+    else clusters.push({ year, sources: [source] })
+  }
+  clusters.sort((a, b) => b.sources.length - a.sources.length)
+
+  const winner = clusters[0]
+  if (winner.sources.length < 2) {
+    // No agreement among any 2 sources — too ambiguous to auto-correct
+    return { consensusYear: null, outlierSources: entries.map(([s]) => s) }
+  }
+
+  const outlierSources = entries
+    .filter(([s, y]) => !winner.sources.includes(s) || Math.abs(y - winner.year) > YEAR_TOLERANCE)
+    .map(([s]) => s)
+
+  return { consensusYear: winner.year, outlierSources }
+}
+
 interface IDCheckLog {
   comic_id:          string
   comic_title:       string
   comic_author?:     string
   comic_artist?:     string
-  comic_year?:       number | null
+  comic_year_before?: number | null
+  comic_year_after?:  number | null
+  year_corrected:     boolean
   databases_checked: string[]
   ids_found:         Record<string, string | undefined>
+  outlier_sources:   string[]
   status:            'found_all' | 'found_some' | 'found_none' | 'skipped_complete'
   total_ids_found:   number
   reason?:           string
@@ -323,7 +387,6 @@ async function logIDCheck(supabase: any, log: IDCheckLog) {
   }
 }
 
-// Total external ID sources tracked: MangaUpdates, MangaDex, AniList, MAL (MangaBaka removed)
 const TOTAL_ID_SOURCES = 4
 
 function countExternalIds(comic: any): number {
@@ -333,7 +396,6 @@ function countExternalIds(comic: any): number {
   ].filter(id => id && String(id).trim()).length
 }
 
-// ── Lock helpers ──────────────────────────────────────────────────
 async function acquireLock(supabase: any): Promise<boolean> {
   const { data: existing } = await supabase
     .from('cron_locks')
@@ -341,9 +403,7 @@ async function acquireLock(supabase: any): Promise<boolean> {
     .eq('job_name', LOCK_NAME)
     .maybeSingle()
 
-  if (existing && new Date(existing.locked_until) > new Date()) {
-    return false // still locked by a previous, still-running invocation
-  }
+  if (existing && new Date(existing.locked_until) > new Date()) return false
 
   await supabase
     .from('cron_locks')
@@ -356,7 +416,6 @@ async function releaseLock(supabase: any) {
   await supabase.from('cron_locks').delete().eq('job_name', LOCK_NAME)
 }
 
-// ── Main handler ──────────────────────────────────────────────────
 export async function GET(req: Request) {
   const secret = req.headers.get('x-cron-secret')
   if (secret !== process.env.CRON_SECRET) {
@@ -378,7 +437,7 @@ export async function GET(req: Request) {
 
     const { data: comics, error } = await supabase
       .from('recommendations')
-      .select('id, title, alternative_titles, author, artist, year_released, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check')
+      .select('id, title, alternative_titles, author, artist, year_released, year_confidence, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check')
       .eq('is_approved', true)
       .or(`last_id_check.is.null,last_id_check.lt.${cooloffCutoff}`)
       .limit(BATCH_SIZE)
@@ -392,33 +451,33 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: 'No comics need checking', processed: 0 })
     }
 
-    let foundAll = 0, foundSome = 0, foundNone = 0, skippedComplete = 0
+    let foundAll = 0, foundSome = 0, foundNone = 0, skippedComplete = 0, yearsCorrected = 0
     const logs: IDCheckLog[] = []
 
     for (const comic of comics) {
       const timestamp = new Date().toISOString()
 
       try {
-        const currentIdCount = countExternalIds(comic)
+        const currentIdCount  = countExternalIds(comic)
+        const yearConfidence: 'unverified' | 'confirmed' = comic.year_confidence ?? 'unverified'
 
-        if (currentIdCount === TOTAL_ID_SOURCES) {
+        if (currentIdCount === TOTAL_ID_SOURCES && yearConfidence === 'confirmed') {
           skippedComplete++
           await supabase.from('recommendations').update({ last_id_check: timestamp }).eq('id', comic.id)
           logs.push({
             comic_id: comic.id, comic_title: comic.title,
-            databases_checked: [], ids_found: {},
+            comic_year_before: comic.year_released, comic_year_after: comic.year_released,
+            year_corrected: false,
+            databases_checked: [], ids_found: {}, outlier_sources: [],
             status: 'skipped_complete', total_ids_found: TOTAL_ID_SOURCES,
-            reason: 'Already complete', timestamp,
+            reason: 'Already complete and year confirmed', timestamp,
           })
           continue
         }
 
-        const ids = await findExternalIds(
-          comic.title,
-          comic.author,
-          comic.artist,
-          comic.alternative_titles,
-          comic.year_released ?? null,
+        const { ids, years } = await findExternalIds(
+          comic.title, comic.author, comic.artist, comic.alternative_titles,
+          comic.year_released ?? null, yearConfidence,
         )
         const totalFound = Object.values(ids).filter(Boolean).length
 
@@ -429,34 +488,60 @@ export async function GET(req: Request) {
           mal_id:          comic.mal_id          || ids.mal_id,
         }
 
-        const newIdCount = countExternalIds(mergedIds)
+        const { consensusYear, outlierSources } = deriveYearConsensus(years)
+
+        const updatePayload: Record<string, any> = { ...mergedIds, last_id_check: timestamp }
+        let yearCorrected = false
+
+        // Auto-correct year_released when 2+ sources agree, and either
+        // we had no year before, or the agreed year disagrees with what
+        // we have (the actual fix for the Solo Leveling-style problem).
+        if (consensusYear !== null) {
+          const currentYear = comic.year_released ?? null
+          const disagrees    = currentYear === null || Math.abs(currentYear - consensusYear) > YEAR_TOLERANCE
+          if (disagrees) {
+            updatePayload.year_released   = consensusYear
+            updatePayload.year_confidence = 'confirmed'
+            yearCorrected = true
+            yearsCorrected++
+          } else if (yearConfidence === 'unverified') {
+            // Already matched the consensus by coincidence — upgrade confidence
+            updatePayload.year_confidence = 'confirmed'
+          }
+        }
+
+        // Clear IDs from sources that are clear outliers vs. a now-confirmed
+        // consensus — these are the likely-wrong matches (mostly MAL/Jikan
+        // in practice) that should be re-resolved next cycle with a
+        // trustworthy year now available.
+        if (consensusYear !== null && outlierSources.length > 0) {
+          for (const src of outlierSources) {
+            updatePayload[src] = null
+          }
+        }
+
+        await supabase.from('recommendations').update(updatePayload).eq('id', comic.id)
+
+        const newIdCount = countExternalIds({ ...mergedIds, ...updatePayload })
         let status: IDCheckLog['status'] = 'found_none'
         if (newIdCount === TOTAL_ID_SOURCES) status = 'found_all'
         else if (totalFound > 0)             status = 'found_some'
-
-        if (totalFound > 0) {
-          await supabase.from('recommendations')
-            .update({ ...mergedIds, last_id_check: timestamp })
-            .eq('id', comic.id)
-          if (status === 'found_all') foundAll++
-          else foundSome++
-        } else {
-          await supabase.from('recommendations')
-            .update({ last_id_check: timestamp })
-            .eq('id', comic.id)
-          foundNone++
-        }
+        if (totalFound > 0) { if (status === 'found_all') foundAll++; else foundSome++ }
+        else foundNone++
 
         logs.push({
-          comic_id:          comic.id,
-          comic_title:       comic.title,
-          comic_author:      comic.author,
-          comic_artist:      comic.artist,
-          comic_year:        comic.year_released ?? null,
-          databases_checked: ['MU', 'MD', 'AL', 'Jikan'],
-          ids_found:         mergedIds,
+          comic_id:           comic.id,
+          comic_title:        comic.title,
+          comic_author:       comic.author,
+          comic_artist:       comic.artist,
+          comic_year_before:  comic.year_released ?? null,
+          comic_year_after:   updatePayload.year_released ?? comic.year_released ?? null,
+          year_corrected:     yearCorrected,
+          databases_checked:  ['MU', 'MD', 'AL', 'Jikan'],
+          ids_found:          mergedIds,
+          outlier_sources:    outlierSources,
           status,
-          total_ids_found:   newIdCount,
+          total_ids_found:    newIdCount,
           timestamp,
         })
 
@@ -468,7 +553,9 @@ export async function GET(req: Request) {
           .eq('id', comic.id)
         logs.push({
           comic_id: comic.id, comic_title: comic.title,
-          databases_checked: [], ids_found: {},
+          comic_year_before: comic.year_released ?? null, comic_year_after: comic.year_released ?? null,
+          year_corrected: false,
+          databases_checked: [], ids_found: {}, outlier_sources: [],
           status: 'found_none', total_ids_found: 0,
           reason: err?.message ?? 'Unknown error', timestamp,
         })
@@ -483,6 +570,7 @@ export async function GET(req: Request) {
       found_some:       foundSome,
       found_none:       foundNone,
       skipped_complete: skippedComplete,
+      years_corrected:  yearsCorrected,
       logs_count:       logs.length,
     })
   } finally {

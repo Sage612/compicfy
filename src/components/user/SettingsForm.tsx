@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { AvatarUpload } from './AvatarUpload'
 import { DeleteAccountSection } from '@/components/user/DeleteAccountSection'
 import { toast } from 'sonner'
-import { Loader2, X, User, Heart, Shield, Globe, Sun, Moon, Monitor, Palette, AlertTriangle, PenLine, BookOpen } from 'lucide-react'
+import { Loader2, X, User, Heart, Shield, Globe, Sun, Moon, Monitor, Palette, AlertTriangle } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
 import type { Profile } from '@/types/database.types'
 import { AdultContentToggle } from '@/components/user/AdultContentToggle'
@@ -24,9 +24,6 @@ const settingsSchema = z.object({
   display_name:    z.string().max(50, 'Max 50 characters').optional(),
   bio:             z.string().max(500, 'Max 500 characters').optional(),
   website:         z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  patreon_url:     z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  kickstarter_url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  comic_url:       z.string().url('Must be a valid URL').optional().or(z.literal('')),
 })
 
 type SettingsFormValues = z.infer<typeof settingsSchema>
@@ -75,9 +72,6 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
       display_name:    profile.display_name || '',
       bio:             profile.bio || '',
       website:         profile.website || '',
-      patreon_url:     (profile as any).patreon_url || '',
-      kickstarter_url: (profile as any).kickstarter_url || '',
-      comic_url:       (profile as any).comic_url || '',
     },
   })
 
@@ -119,9 +113,6 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
         display_name:    data.display_name || null,
         bio:             data.bio || null,
         website:         data.website || null,
-        patreon_url:     data.patreon_url     || null,
-        kickstarter_url: data.kickstarter_url || null,
-        comic_url:       data.comic_url       || null,
         favorite_genres: selectedGenres,
         updated_at:      new Date().toISOString(),
       }
@@ -206,59 +197,6 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
           {errors.website && <p className="text-xs text-destructive">{errors.website.message}</p>}
         </div>
       </FormSection>
-
-      {/* Creator Links — creators only */}
-      {(profile as any).user_type === 'creator' && (
-      <FormSection icon={PenLine} title="Creator Links" accent="bg-teal-500">
-        <p className="text-sm text-muted-foreground">
-          Add your links so readers can find and support your work directly from your profile.
-        </p>
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="comic_url" className="text-sm font-semibold flex items-center gap-1.5">
-              <BookOpen size={13} />
-              Comic / Webtoon URL
-            </Label>
-            <Input
-              id="comic_url"
-              {...register('comic_url')}
-              placeholder="https://webtoons.com/your-comic"
-              type="url"
-              className="h-10"
-            />
-            {errors.comic_url && <p className="text-xs text-destructive">{errors.comic_url.message}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="patreon_url" className="text-sm font-semibold flex items-center gap-1.5">
-              <span className="text-[13px]">🎨</span>
-              Patreon
-            </Label>
-            <Input
-              id="patreon_url"
-              {...register('patreon_url')}
-              placeholder="https://patreon.com/yourpage"
-              type="url"
-              className="h-10"
-            />
-            {errors.patreon_url && <p className="text-xs text-destructive">{errors.patreon_url.message}</p>}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="kickstarter_url" className="text-sm font-semibold flex items-center gap-1.5">
-              <span className="text-[13px]">🚀</span>
-              Kickstarter Campaign
-            </Label>
-            <Input
-              id="kickstarter_url"
-              {...register('kickstarter_url')}
-              placeholder="https://kickstarter.com/projects/your-campaign"
-              type="url"
-              className="h-10"
-            />
-            {errors.kickstarter_url && <p className="text-xs text-destructive">{errors.kickstarter_url.message}</p>}
-          </div>
-        </div>
-     </FormSection>
-      )}
 
       {/* Theme Preference — all users */}
       <FormSection icon={Palette} title="Theme Preference" accent="bg-primary">

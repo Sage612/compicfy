@@ -5,7 +5,7 @@ import { BillingClient } from '@/components/pro/BillingClient'
 import { Button } from '@/components/ui/button'
 import {
   Crown, Zap, CheckCircle2, ArrowRight,
-  Palette, Sparkles, CreditCard,
+  Palette, Sparkles,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import type { Metadata } from 'next'
@@ -48,14 +48,9 @@ export default async function CreatorBillingPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
-          <CreditCard size={16} className="text-teal-500" />
-        </div>
-        <div>
-          <h1 className="text-xl font-black tracking-tight">Billing</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Manage your creator subscription.</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-black tracking-tight">Billing</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">Manage your creator subscription.</p>
       </div>
 
       {/* Current plan card */}
