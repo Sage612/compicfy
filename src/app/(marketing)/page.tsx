@@ -73,7 +73,6 @@ const RANK_STYLES: Record<number, { bg: string; text: string }> = {
   2: { bg: 'bg-amber-700/20', text: 'text-amber-600' },
 }
 
-// ── Type-Safe Image Proxy Helper ────────────────────────────────────
 function proxyCover(url: string | null | undefined): string {
   if (!url) return ""
   if (url.startsWith('data:')) return url
@@ -131,7 +130,6 @@ export default async function HomePage() {
   const activity     = (recentActivity  ?? []) as any[]
   const contributors = (topContributors ?? []) as any[]
 
-  // Fetch approved counts for contributors in one query
   const contributorIds = contributors.map((c: any) => c.id)
   const approvedCounts: Record<string, number> = {}
   if (contributorIds.length > 0) {
@@ -225,26 +223,32 @@ export default async function HomePage() {
                 )}
               </div>
 
-              {/* Stats */}
               <div className="flex flex-wrap gap-5 pt-2 justify-center md:justify-start">
                 {[
-                  { label: 'Comics Shared', value: totalComics,  icon: BookOpen,      color: 'text-rose-500',  bg: 'bg-rose-500/10'  },
-                  { label: 'Reviews',       value: totalReviews, icon: MessageSquare, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                  { label: 'Comics Shared', value: totalComics,  icon: BookOpen,      color: 'text-rose-500',  bg: 'bg-rose-500/10',  threshold: 20 },
+                  { label: 'Reviews',       value: totalReviews, icon: MessageSquare, color: 'text-amber-500', bg: 'bg-amber-500/10', threshold: 20 },
                 ]
                   .filter(({ value }) => value > 0)
-                  .map(({ label, value, icon: Icon, color, bg }) => (
-                    <div key={label} className="flex items-center gap-2 text-sm">
-                      <div className={`w-8 h-8 rounded ${bg} flex items-center justify-center ${color}`}>
-                        <Icon size={14} />
+                  .map(({ label, value, icon: Icon, color, bg, threshold }) => {
+                    const isCredible = value >= threshold
+                    return (
+                      <div key={label} className="flex items-center gap-2 text-sm">
+                        <div className={`w-8 h-8 rounded ${bg} flex items-center justify-center ${color}`}>
+                          <Icon size={14} />
+                        </div>
+                        <div>
+                          {isCredible ? (
+                            <p className="font-bold text-foreground tabular-nums leading-tight">
+                              <AnimatedCounter target={value} suffix="+" />
+                            </p>
+                          ) : (
+                            <p className="font-bold text-foreground leading-tight">Growing</p>
+                          )}
+                          <p className="text-xs text-muted-foreground leading-tight">{label}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-foreground tabular-nums leading-tight">
-                          <AnimatedCounter target={value} suffix="+" />
-                        </p>
-                        <p className="text-xs text-muted-foreground leading-tight">{label}</p>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 <div className="flex items-center gap-2 text-sm">
                   <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center text-primary">
                     <Users size={14} />

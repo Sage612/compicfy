@@ -237,11 +237,17 @@ export default async function ProfilePage({ params }: Props) {
 
   const lists: ReadingList[] = isGhost ? [] : await Promise.all(
     (listsData ?? []).map(async (list: any) => {
-      const { count } = await supabase
-        .from('reading_list_items')
-        .select('*', { count: 'exact', head: true })
-        .eq('list_id', list.id)
-      return { ...list, item_count: count ?? 0 }
+      const [{ count }, { data: coverItems }] = await Promise.all([
+        supabase.from('reading_list_items').select('*', { count: 'exact', head: true }).eq('list_id', list.id),
+        supabase.from('reading_list_items')
+          .select('recommendations(cover_url)')
+          .eq('list_id', list.id)
+          .limit(4),
+      ])
+      const coverUrls = (coverItems ?? [])
+        .map((i: any) => i.recommendations?.cover_url)
+        .filter(Boolean) as string[]
+      return { ...list, item_count: count ?? 0, _cover_urls: coverUrls }
     })
   )
 
@@ -583,30 +589,94 @@ export default async function ProfilePage({ params }: Props) {
             <div className="h-0.5 flex-1 bg-gradient-to-r from-primary/40 to-transparent" />
             <span className="text-xs text-muted-foreground shrink-0">{lists.length} public</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {lists.map((list) => (
-              <Link key={list.id} href={`/lists/${list.id}`} className="group relative p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200 space-y-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                      <BookMarked size={14} className="text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-black truncate group-hover:text-primary transition-colors">{list.name}</p>
-                      {list.description && <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{list.description}</p>}
-                    </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {lists.map((list, idx) => {
+              const THEME_GRAD: Record<number, string> = {
+                0: 'from-primary/60 via-primary/20 to-primary/5',
+                1: 'from-violet-500/60 via-violet-500/20 to-violet-500/5',
+                2: 'from-rose-500/60 via-rose-500/20 to-rose-500/5',
+                3: 'from-amber-500/60 via-amber-500/20 to-amber-500/5',
+                4: 'from-emerald-500/60 via-emerald-500/20 to-emerald-500/5',
+                5: 'from-indigo-500/60 via-indigo-500/20 to-indigo-500/5',
+              }
+              const THEME_BORDER: Record<number, string> = {
+                0: 'border-primary/30',     1: 'border-violet-500/30',
+                2: 'border-rose-500/30',    3: 'border-amber-500/30',
+                4: 'border-emerald-500/30', 5: 'border-indigo-500/30',
+              }
+              const THEME_ACCENT: Record<number, string> = {
+                0: 'text-primary',     1: 'text-violet-400',
+                2: 'text-rose-400',    3: 'text-amber-400',
+                4: 'text-emerald-400', 5: 'text-indigo-400',
+              }
+              const ti        = idx % 6
+              const themeGrad = THEME_GRAD[ti]
+              const covers    = (list as any)._cover_urls ?? []
+              const dominant  = covers[0] ?? null
+              const stack     = covers.slice(1, 3)
+
+              return (
+                <Link key={list.id} href={`/lists/${list.id}`}
+                  className={`group relative rounded-2xl border overflow-hidden h-36 cursor-pointer ${THEME_BORDER[ti]}`}
+                >
+                  {/* Background */}
+                  <div className="absolute inset-0">
+                    {dominant ? (
+                      <img src={`/api/image-proxy?url=${encodeURIComponent(dominant)}`} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
+                    ) : (
+                      <div className={`absolute inset-0 bg-gradient-to-br ${themeGrad}`} />
+                    )}
                   </div>
-                  <Globe size={12} className="text-emerald-500 shrink-0 mt-1" />
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <BookOpen size={11} className="text-primary/60" />
-                    <span><strong className="text-foreground font-black">{list.item_count}</strong> comic{list.item_count !== 1 ? 's' : ''}</span>
+
+                  {/* Stacked thumbnails */}
+                  {stack.length > 0 && (
+                    <div className="absolute bottom-10 right-2 flex items-end z-10">
+                      {stack.map((url: string, i: number) => (
+                        <div key={i} className="relative rounded-lg overflow-hidden border-2 border-black/40 shadow-xl"
+                          style={{
+                            width: 28 - i * 4, height: 38 - i * 5,
+                            marginLeft: i === 0 ? 0 : -8,
+                            zIndex: stack.length - i,
+                            opacity: 1 - i * 0.15,
+                            transform: `rotate(${i % 2 === 0 ? 5 : -4}deg) translateY(${i * 2}px)`,
+                          }}>
+                          <img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="" className="w-full h-full object-cover" aria-hidden />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Dark scrim */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+
+                  {/* Top badge */}
+                  <div className="absolute top-2 left-2 z-20">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm">
+                      <Globe size={7} /> Public
+                    </span>
                   </div>
-                  <span className="text-[10px] font-bold text-primary group-hover:translate-x-0.5 transition-transform">View →</span>
-                </div>
-              </Link>
-            ))}
+
+                  {/* Comic count badge */}
+                  {list.item_count > 0 && (
+                    <div className="absolute top-2 right-2 z-20">
+                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10 ${THEME_ACCENT[ti]}`}>
+                        <BookOpen size={7} /> {list.item_count}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Bottom info */}
+                  <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1">
+                    <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">
+                      {list.name}
+                    </p>
+                    {list.description && (
+                      <p className="text-white/60 text-[9px] line-clamp-1">{list.description}</p>
+                    )}
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         </section>
       )}

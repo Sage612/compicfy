@@ -6,10 +6,10 @@ import { CurrentlyReadingSection } from '@/components/recommendations/CurrentlyR
 import { Button } from '@/components/ui/button'
 import {
   BookOpen, Bookmark, Plus, Settings, Flame, ArrowRight,
-  BookMarked, ChevronRight, LayoutList, Users, UserPlus, Radar, Star,
+  BookMarked, ChevronRight, LayoutList, Users, UserPlus, Radar, Star,Target, Zap,
 } from 'lucide-react'
 import Link from 'next/link'
-import { formatDate, timeAgo } from '@/lib/utils/format'
+import { formatDate, formatNumber, timeAgo } from '@/lib/utils/format'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Dashboard' }
@@ -78,6 +78,23 @@ export default async function ReaderDashboardPage() {
       : Promise.resolve({ data: [] }),
     supabase.from('reading_lists').select('id, name').eq('user_id', user.id).order('created_at', { ascending: false }),
   ])
+
+  // ── Usage limits (free users only) ────────────────────────────
+  const { count: followingCount2 } = await supabase
+    .from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id)
+
+  const { count: collectionsCount } = await (supabase as any)
+    .from('collections').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
+
+  const recCount              = profile.total_recommendations ?? 0
+  const FREE_REC_LIMIT        = 50
+  const FREE_FOLLOW_LIMIT     = 50
+  const FREE_LIST_LIMIT       = 5
+  const FREE_COLLECTION_LIMIT = 3
+  const recPct                = Math.min((recCount / FREE_REC_LIMIT) * 100, 100)
+  const followPct             = Math.min(((followingCount ?? 0) / FREE_FOLLOW_LIMIT) * 100, 100)
+  const listPct               = Math.min(((listsCount ?? 0) / FREE_LIST_LIMIT) * 100, 100)
+  const collectionPct         = Math.min(((collectionsCount ?? 0) / FREE_COLLECTION_LIMIT) * 100, 100)
 
   const feedItems = (rawFeedItems ?? []).map((r: any) => {
     const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
@@ -151,6 +168,47 @@ export default async function ReaderDashboardPage() {
         hasBio={!!profile.bio}
         hasWebsite={!!profile.website}
       />
+
+      {/* ── Free usage limits ────────────────────────────────────── */}
+      <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Target size={13} className="text-muted-foreground" />
+            <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Free Plan Limits</span>
+          </div>
+          <Link href="/pricing">
+            <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 border-amber-500/30 text-amber-600 hover:bg-amber-500/10">
+              <Zap size={9} />Upgrade
+            </Button>
+          </Link>
+        </div>
+        <div className="space-y-2.5">
+          {[
+            { label: 'Recommendations', current: recCount,                   limit: FREE_REC_LIMIT,        pct: recPct,         color: 'bg-violet-500' },
+            { label: 'Following',       current: followingCount ?? 0,        limit: FREE_FOLLOW_LIMIT,     pct: followPct,      color: 'bg-primary'    },
+            { label: 'Reading Lists',   current: listsCount ?? 0,            limit: FREE_LIST_LIMIT,       pct: listPct,        color: 'bg-teal-500'   },
+            { label: 'Collections',     current: collectionsCount ?? 0,      limit: FREE_COLLECTION_LIMIT, pct: collectionPct,  color: 'bg-indigo-500' },
+          ].map(({ label, current, limit, pct, color }) => (
+            <div key={label} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground">{label}</span>
+                <span className={`text-[10px] font-semibold tabular-nums ${pct >= 80 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+                  {current} / {limit}
+                </span>
+              </div>
+              <div className="h-1 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${pct >= 90 ? 'bg-amber-500' : color}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Upgrade to Pro Reader for unlimited recommendations, follows, lists, collections and more.
+        </p>
+      </div>
 
       {/* Stats */}
       <div>
