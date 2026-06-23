@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, BookOpen, Bookmark, Star, Bell,
   Settings, BookMarked, CreditCard, Crown, Plus,
-  Users, Link as LinkIcon, Palette,
+  Users, Link as LinkIcon, Palette, Layers,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -17,6 +17,7 @@ const READER_NAV = [
   { href: '/reader/dashboard/recommendations',          label: 'My Recs',         icon: BookOpen,        exact: false, isSubmit: false },
   { href: '/reader/dashboard/saved',                    label: 'Saved Comics',    icon: Bookmark,        exact: false, isSubmit: false },
   { href: '/reader/dashboard/lists',                    label: 'Reading Lists',   icon: BookMarked,      exact: false, isSubmit: false },
+  { href: '/reader/dashboard/collections',              label: 'Collections',     icon: Layers,          exact: false, isSubmit: false },
   { href: '/reader/dashboard/reviews',                  label: 'My Reviews',      icon: Star,            exact: false, isSubmit: false },
   { href: '/reader/dashboard/notifications',            label: 'Notifications',   icon: Bell,            exact: false, isSubmit: false },
   { href: '/reader/dashboard/settings',                 label: 'Settings',        icon: Settings,        exact: false, isSubmit: false },
@@ -66,8 +67,7 @@ export function DashboardNav() {
     getProfile()
   }, [])
 
-  const navItems = userType === 'creator' ? CREATOR_NAV : READER_NAV
-  const accentColor = userType === 'creator' ? 'teal' : 'primary'
+  const navItems    = userType === 'creator' ? CREATOR_NAV : READER_NAV
 
   return (
     <nav className="flex flex-col gap-0.5">

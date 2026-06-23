@@ -174,7 +174,7 @@ export default async function ReaderDashboardPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Target size={13} className="text-muted-foreground" />
-            <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Free Plan Limits</span>
+            <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Free Plan constraints</span>
           </div>
           <Link href="/pricing">
             <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 border-amber-500/30 text-amber-600 hover:bg-amber-500/10">

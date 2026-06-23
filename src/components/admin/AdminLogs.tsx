@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
+import { Loader2, RefreshCw, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 
@@ -87,6 +88,9 @@ export function AdminLogs() {
   const [page,       setPage]       = useState(1)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [filter,     setFilter]     = useState<string>('')
+  const [search,     setSearch]     = useState<string>('')
+  const [searchInput, setSearchInput] = useState<string>('')
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const fetchLogs = async (currentPage = 1, append = false) => {
     setLoading(true)
@@ -94,6 +98,7 @@ export function AdminLogs() {
       const url = new URL('/api/admin/logs', window.location.origin)
       url.searchParams.set('page', String(currentPage))
       if (filter) url.searchParams.set('action', filter)
+      if (search) url.searchParams.set('search', search)
       const res  = await fetch(url.toString())
       const data = await res.json()
       if (append) setLogs(prev => [...prev, ...(data.logs ?? [])])
@@ -110,7 +115,21 @@ export function AdminLogs() {
     setPage(1)
     fetchLogs(1, false)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter])
+  }, [filter, search])
+
+  // Debounce search input → search state
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value)
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    searchDebounceRef.current = setTimeout(() => {
+      setSearch(value.trim())
+    }, 400)
+  }
+
+  const clearSearch = () => {
+    setSearchInput('')
+    setSearch('')
+  }
 
   const getActionStyle = (action: string) => {
     const key = Object.keys(ACTION_COLORS).find(k => action.includes(k))
@@ -119,7 +138,6 @@ export function AdminLogs() {
 
   const renderLogDetails = (log: LogEntry) => {
 
-    // ── Auto-approval ──────────────────────────────────────────────
     if (log.action === 'auto_approved' || log.action === 'flagged_for_review') {
       return (
         <div className="space-y-2 text-sm">
@@ -155,11 +173,9 @@ export function AdminLogs() {
       )
     }
 
-    // ── Submission ─────────────────────────────────────────────────
     if (log.action === 'auto_rec_submit') {
       return (
         <div className="space-y-3 text-sm">
-          {/* 2-col on mobile, 3-col on sm+ */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <div>
               <span className="text-muted-foreground text-xs">Type</span>
@@ -209,7 +225,6 @@ export function AdminLogs() {
           {log.submission?.ids && Object.values(log.submission.ids).some(Boolean) && (
             <div className="pt-2 border-t">
               <span className="text-muted-foreground text-xs">External IDs</span>
-              {/* 2-col on mobile, 3-col on sm+ */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mt-1 text-xs">
                 {log.submission.ids.mu  && <div className="bg-muted px-2 py-1 rounded"><span className="text-muted-foreground">MU:</span> {log.submission.ids.mu}</div>}
                 {log.submission.ids.al  && <div className="bg-muted px-2 py-1 rounded"><span className="text-muted-foreground">AL:</span> {log.submission.ids.al}</div>}
@@ -227,11 +242,9 @@ export function AdminLogs() {
       )
     }
 
-    // ── Chapter check ──────────────────────────────────────────────
     if (log.action === 'chapter_check') {
       return (
         <div className="space-y-2 text-sm">
-          {/* Stack to 2-col on mobile, 4-col on sm+ */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div>
               <span className="text-muted-foreground text-xs">Database</span>
@@ -267,14 +280,12 @@ export function AdminLogs() {
       )
     }
 
-    // ── ID check ───────────────────────────────────────────────────
     if (log.action === 'id_check') {
       return (
         <div className="space-y-2 text-sm">
           <div className="grid grid-cols-2 gap-2">
             <div>
               <span className="text-muted-foreground text-xs">IDs Found</span>
-              {/* Fixed: was /6, now /5 after Kuroiru removal */}
               <p className="font-bold text-emerald-600 mt-0.5">{log.id_check?.total}/5</p>
             </div>
             <div>
@@ -288,7 +299,6 @@ export function AdminLogs() {
           {log.id_check?.found && Object.keys(log.id_check.found).length > 0 && (
             <div className="pt-2 border-t">
               <span className="text-muted-foreground text-xs">Found</span>
-              {/* 1-col on mobile, 2-col on sm+ */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 mt-1 text-xs">
                 {Object.entries(log.id_check.found).map(([key, val]) =>
                   val ? (
@@ -305,11 +315,9 @@ export function AdminLogs() {
       )
     }
 
-    // ── Summary ────────────────────────────────────────────────────
     if (log.action.includes('summary')) {
       return (
         <div className="space-y-2 text-sm">
-          {/* 2-col on mobile, 4-col on sm+ */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div>
               <span className="text-muted-foreground text-xs">Submitted</span>
@@ -345,7 +353,6 @@ export function AdminLogs() {
       )
     }
 
-    // ── Fallback ───────────────────────────────────────────────────
     return (
       <div className="text-sm text-muted-foreground">
         <pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-48">
@@ -358,21 +365,47 @@ export function AdminLogs() {
   return (
     <div className="space-y-4">
 
-      {/* Header row */}
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground shrink-0">{logs.length} logs</p>
+      {/* ── Search + Refresh row ── */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Input
+            value={searchInput}
+            onChange={e => handleSearchChange(e.target.value)}
+            placeholder="Search by title, username, action…"
+            className="h-9 pl-8 pr-8 text-sm rounded-xl"
+          />
+          {searchInput && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
         <Button
           variant="outline"
           size="sm"
           onClick={() => { setPage(1); fetchLogs(1, false) }}
-          className="gap-1.5 shrink-0"
+          className="gap-1.5 shrink-0 h-9"
         >
           <RefreshCw size={13} />
           <span className="hidden sm:inline">Refresh</span>
         </Button>
       </div>
 
-      {/* Filter chips — scrollable single row on mobile */}
+      {/* ── Results count ── */}
+      <p className="text-sm text-muted-foreground">
+        {loading ? 'Loading…' : (
+          <>
+            <span className="font-black text-foreground">{logs.length}</span> log{logs.length !== 1 ? 's' : ''}
+            {search && <span className="ml-1">matching <span className="text-primary font-semibold">"{search}"</span></span>}
+          </>
+        )}
+      </p>
+
+      {/* ── Filter chips ── */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
         <button
           onClick={() => setFilter('')}
@@ -401,13 +434,24 @@ export function AdminLogs() {
         ))}
       </div>
 
-      {/* Log list */}
+      {/* ── Log list ── */}
       {loading && logs.length === 0 ? (
         <div className="flex justify-center py-16">
           <Loader2 size={24} className="animate-spin text-muted-foreground" />
         </div>
       ) : logs.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">No logs found</div>
+        <div className="text-center py-12 text-muted-foreground">
+          {search ? (
+            <div className="space-y-2">
+              <p className="text-sm">No logs matching <span className="font-semibold text-foreground">"{search}"</span></p>
+              <button onClick={clearSearch} className="text-xs text-primary hover:underline">
+                Clear search
+              </button>
+            </div>
+          ) : (
+            <p>No logs found</p>
+          )}
+        </div>
       ) : (
         <div className="rounded-lg border border-border bg-card overflow-hidden divide-y divide-border">
           {logs.map((log) => {
@@ -429,7 +473,6 @@ export function AdminLogs() {
                   </Avatar>
 
                   <div className="flex-1 min-w-0">
-                    {/* Top line: username + badge + time */}
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs font-semibold">@{log.profile?.username || 'System'}</span>
                       <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0', style.color, style.bg)}>
@@ -438,15 +481,16 @@ export function AdminLogs() {
                       <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
                         {timeAgo(log.created_at)}
                       </span>
-                      {isExpanded ? <ChevronUp size={13} className="shrink-0 text-muted-foreground" /> : <ChevronDown size={13} className="shrink-0 text-muted-foreground" />}
+                      {isExpanded
+                        ? <ChevronUp size={13} className="shrink-0 text-muted-foreground" />
+                        : <ChevronDown size={13} className="shrink-0 text-muted-foreground" />
+                      }
                     </div>
 
-                    {/* Title */}
                     <p className="text-xs text-foreground mt-0.5 line-clamp-2 leading-snug">
                       {log.summary.title}
                     </p>
 
-                    {/* Inline alerts */}
                     {log.summary.reason && (
                       <p className="text-[10px] text-amber-600 mt-0.5 line-clamp-1">⚠️ {log.summary.reason}</p>
                     )}

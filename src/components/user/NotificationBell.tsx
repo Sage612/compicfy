@@ -71,6 +71,26 @@ async function unsubscribeFromPush(): Promise<boolean> {
   } catch { return false }
 }
 
+/** Resolve the href for a notification.
+ *  Follow notifications must use username-based routes — /profile/:uuid 404s. */
+function getNotifHref(
+  notif: Notification,
+  fallback: string,
+): string {
+  const data = notif.data ?? {}
+
+  if (notif.type === 'follow') {
+    // Prefer username route; fall back to dashboard notifications page
+    if (data.follower_username) return `/reader/${data.follower_username}`
+    // UUID fallback would 404 — send to notifications page instead
+    return fallback
+  }
+
+  if (data.recommendation_id) return `/comic/${data.recommendation_id}`
+
+  return fallback
+}
+
 export function NotificationBell({ userId }: { userId: string }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [open,        setOpen]        = useState(false)
@@ -202,7 +222,6 @@ export function NotificationBell({ userId }: { userId: string }) {
     } finally { setPushLoading(false) }
   }
 
-  // Show up to 8 in dropdown
   const preview = notifications.slice(0, 8)
 
   return (
@@ -286,11 +305,7 @@ export function NotificationBell({ userId }: { userId: string }) {
             </div>
           ) : (
             preview.map((notif) => {
-              const href = notif.data?.recommendation_id
-                ? `/comic/${notif.data.recommendation_id}`
-                : notif.data?.follower_id
-                ? `/profile/${notif.data.follower_id}`
-                : notifHref
+              const href = getNotifHref(notif, notifHref)
 
               return (
                 <Link

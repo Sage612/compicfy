@@ -6,6 +6,7 @@ const API_DELAY_MS       = 600
 const REQUEST_TIMEOUT_MS = 8000
 const LOCK_NAME          = 'chapter_checker'
 const LOCK_DURATION_MS   = 55_000 // just under the 1-minute cron interval
+const ID_LOCK_NAME       = 'id_checker'
 
 // ── Fetch with timeout ────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
@@ -30,7 +31,7 @@ interface CheckLog {
   database_success:  string | null
   old_chapter_count: number | null
   new_chapter_count: number | null
-  status:            'success' | 'no_update' | 'failed' | 'skipped_no_ids'
+  status:            'success' | 'no_update' | 'failed' | 'skipped_no_ids' | 'skipped_id_checker_active'
   reason?:           string
   error?:            string
   timestamp:         string
@@ -115,7 +116,7 @@ async function getChapterFromAniList(id: string): Promise<number | null> {
   }
 }
 
-// ── Resolve chapter count across sources (MangaBaka removed — API non-functional) ──
+// ── Resolve chapter count across sources ──
 async function resolveChapterCount(comic: any): Promise<{ chapter: number | null; source: string | null; tried: string[] }> {
   const tried: string[] = []
 
@@ -195,6 +196,16 @@ async function acquireLock(supabase: any): Promise<boolean> {
   return true
 }
 
+async function isIdCheckerActive(supabase: any): Promise<boolean> {
+  const { data: idLock } = await supabase
+    .from('cron_locks')
+    .select('locked_until')
+    .eq('job_name', ID_LOCK_NAME)
+    .maybeSingle()
+
+  return !!(idLock && new Date(idLock.locked_until) > new Date())
+}
+
 async function releaseLock(supabase: any) {
   await supabase.from('cron_locks').delete().eq('job_name', LOCK_NAME)
 }
@@ -211,6 +222,11 @@ export async function GET(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
+  // FIX: Back off if id_checker is currently populating identifiers
+  if (await isIdCheckerActive(supabase)) {
+    return NextResponse.json({ message: 'ID Checker lock is active. Yielding chapter validation execution.' })
+  }
+
   const gotLock = await acquireLock(supabase)
   if (!gotLock) {
     return NextResponse.json({ message: 'Previous run still in progress, skipping this tick' })
@@ -221,15 +237,13 @@ export async function GET(req: Request) {
 
     const { data: comics, error } = await supabase
       .from('recommendations')
-      .select('id, title, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id')
+      .select('id, title, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check')
       .eq('is_approved', true)
       .eq('status', 'ongoing')
       .or(`last_chapter_check.is.null,last_chapter_check.lt.${cutoff}`)
-      // ── Skip comics with zero external IDs — let id-checker claim
-      // them first. Without this, a freshly-submitted comic gets
-      // picked up by chapter-check before id-check ever runs, wasting
-      // a batch slot on a guaranteed "no valid ID" failure.
-      .or('mangaupdates_id.not.is.null,mangadex_id.not.is.null,anilist_id.not.is.null,mal_id.not.is.null')
+      // FIX: Ensure id_checker has systematically processed the row (even if all IDs turned out null)
+      // before chapter checker evaluates external logs.
+      .not('last_id_check', 'is', null)
       .limit(BATCH_SIZE)
 
     if (error) {
@@ -247,6 +261,26 @@ export async function GET(req: Request) {
 
     for (const comic of comics) {
       const timestamp = new Date().toISOString()
+
+      // Skip evaluation safely if the item lacks valid tracker IDs completely
+      if (!comic.mangaupdates_id && !comic.mangadex_id && !comic.anilist_id && !comic.mal_id) {
+        await supabase.from('recommendations')
+          .update({ last_chapter_check: timestamp })
+          .eq('id', comic.id)
+          
+        logs.push({
+          comic_id:          comic.id,
+          comic_title:       comic.title,
+          database_tried:    [],
+          database_success:  null,
+          old_chapter_count: comic.chapter_count,
+          new_chapter_count: null,
+          status:            'skipped_no_ids',
+          reason:            'Skipped tracking: No valid external platform mappings discovered by ID Checker.',
+          timestamp,
+        })
+        continue
+      }
 
       try {
         const { chapter: newChapterCount, source, tried } = await resolveChapterCount(comic)

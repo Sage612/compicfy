@@ -28,7 +28,8 @@ interface TabItem {
 }
 
 interface MobileTabBarProps {
-  isPro?: boolean
+  isPro?:     boolean
+  isLoggedIn?: boolean
 }
 
 const DASHBOARD_PREFIXES = [
@@ -39,19 +40,25 @@ const DASHBOARD_PREFIXES = [
   '/admin',
 ]
 
-export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
+// Header height is ~64px (h-12 + pt-3 = 48+12 = 60px, round to 64)
+// Tab bar height is ~44px (py-2 + content)
+const HEADER_H = 64
+
+export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBarProps) {
   const pathname     = usePathname()
   const searchParams = useSearchParams()
   const scrollRef    = useRef<HTMLDivElement>(null)
-  const [visible, setVisible]   = useState(true)
+
+  // headerVisible mirrors the header's own visibility state
+  const [headerVisible, setHeaderVisible] = useState(true)
   const lastScrollY = useRef(0)
 
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY
-      if (currentY < 60)                           setVisible(true)
-      else if (currentY > lastScrollY.current + 4) setVisible(false)
-      else if (currentY < lastScrollY.current - 4) setVisible(true)
+      if (currentY < 60)                           setHeaderVisible(true)
+      else if (currentY > lastScrollY.current + 4) setHeaderVisible(false)
+      else if (currentY < lastScrollY.current - 4) setHeaderVisible(true)
       lastScrollY.current = currentY
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
@@ -69,12 +76,14 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
     }] : []),
 
     ...(!isOnDashboard ? [
-      { label: 'Collections', href: '/collections',          icon: <Layers     size={13} strokeWidth={2} /> },
-      // Public community lists — labelled "Lists Hub" to distinguish from dashboard "My Lists"
-      { label: 'Lists Hub',   href: '/lists',                icon: <Globe      size={13} strokeWidth={2} /> },
-      { label: 'News',        href: '/news',                 icon: <Newspaper  size={13} strokeWidth={2} /> },
-      { label: 'Trending',    href: '/browse?sort=trending', icon: <Flame      size={13} strokeWidth={2} /> },
-      { label: 'New Releases',href: '/browse?sort=recent',   icon: <TrendingUp size={13} strokeWidth={2} /> },
+      { label: 'Collections', href: '/collections',          icon: <Layers      size={13} strokeWidth={2} /> },
+      { label: 'Lists Hub',   href: '/lists',                icon: <Globe       size={13} strokeWidth={2} /> },
+      // Only show News tab when logged in — MobileNav already shows it for logged-out users
+      ...(isLoggedIn ? [
+        { label: 'News',      href: '/news',                 icon: <Newspaper   size={13} strokeWidth={2} /> },
+      ] : []),
+      { label: 'Trending',    href: '/browse?sort=trending', icon: <Flame       size={13} strokeWidth={2} /> },
+      { label: 'New Releases',href: '/browse?sort=recent',   icon: <TrendingUp  size={13} strokeWidth={2} /> },
       { label: 'Shop & Merch',href: '/affiliate',            icon: <ShoppingBag size={13} strokeWidth={2} /> },
       {
         label:    'Discord',
@@ -101,12 +110,19 @@ export function MobileTabBar({ isPro = false }: MobileTabBarProps) {
     ] : []),
   ]
 
+  // When the header is visible:  top = HEADER_H px (sits right below header)
+  // When the header is hidden:   top = 0px (slides up to fill where header was)
+  // The transition animates between these two positions smoothly.
+  const topValue = headerVisible ? `${HEADER_H}px` : '0px'
+
   return (
-    <div className={cn(
-      'fixed top-[64px] left-0 right-0 z-40 lg:hidden',
-      'transition-transform duration-300',
-      !visible && '-translate-y-[calc(100%+64px)]',
-    )}>
+    <div
+      className="fixed left-0 right-0 z-40 lg:hidden"
+      style={{
+        top:        topValue,
+        transition: 'top 300ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
+    >
       <div className="relative">
         <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-6 z-10 bg-gradient-to-r from-background/80 to-transparent" />
         <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-6 z-10 bg-gradient-to-l from-background/80 to-transparent" />

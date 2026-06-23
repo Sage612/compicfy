@@ -4,15 +4,31 @@ import Link from 'next/link'
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { Bookmark, Radar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
 import type { Recommendation } from '@/types/database.types'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Saved Comics' }
 
+const FREE_SAVE_LIMIT = 50
+
 export default async function ReaderSavedPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  // Check pro status
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, is_pro, pro_expires_at')
+    .eq('id', user.id)
+    .single() as { data: any }
+
+  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
+  const isPro   = isAdmin || (
+    profile?.is_pro &&
+    (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+  )
 
   const { data: saves } = await supabase
     .from('saves')
@@ -24,12 +40,22 @@ export default async function ReaderSavedPage() {
     .map((s: any) => Array.isArray(s.recommendations) ? s.recommendations[0] : s.recommendations)
     .filter(Boolean) as Recommendation[]
 
+  const saveCount      = comics.length
+  const showBanner     = !isPro && saveCount >= Math.floor(FREE_SAVE_LIMIT * 0.8) // show at 80%
+  const atLimit        = !isPro && saveCount >= FREE_SAVE_LIMIT
+  const savePercentage = Math.min(100, Math.round((saveCount / FREE_SAVE_LIMIT) * 100))
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-black tracking-tight truncate">Saved Comics</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{comics.length} saved</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {isPro
+              ? `${saveCount} saved`
+              : `${saveCount} / ${FREE_SAVE_LIMIT} saved`
+            }
+          </p>
         </div>
         <Link href="/browse" className="shrink-0">
           <Button size="sm" className="gap-1.5">
@@ -37,6 +63,21 @@ export default async function ReaderSavedPage() {
           </Button>
         </Link>
       </div>
+
+      {/* Save limit banner — show at 80% capacity */}
+      {showBanner && (
+        <UpgradeBanner
+          current={saveCount}
+          limit={FREE_SAVE_LIMIT}
+          feature="saved comics"
+          message={
+            atLimit
+              ? `You've reached your save limit`
+              : `You're approaching your save limit`
+          }
+          dismissible
+        />
+      )}
 
       {!comics.length ? (
         <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border space-y-4">

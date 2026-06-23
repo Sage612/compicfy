@@ -65,6 +65,29 @@ const TYPE_META: Record<string, {
   },
 }
 
+/** Resolve the href for a notification.
+ *  Follow notifications must use the username-based profile route.
+ *  /profile/:uuid does not exist and will 404. */
+function getHref(notif: Notification): string | null {
+  const data = notif.data ?? {}
+
+  switch (notif.type) {
+    case 'vote':
+    case 'review':
+    case 'feature':
+      return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
+
+    case 'follow':
+      // Use username route — UUID route doesn't exist
+      if (data.follower_username) return `/reader/${data.follower_username}`
+      // If no username in data (old notifications), return null (no link)
+      return null
+
+    default:
+      return null
+  }
+}
+
 export function NotificationsClient({
   initialNotifications,
 }: {
@@ -74,24 +97,6 @@ export function NotificationsClient({
   const [isClearingAll, setIsClearingAll] = useState(false)
 
   const getMeta = (type: string) => TYPE_META[type] ?? TYPE_META.system
-
-  const getHref = (notif: Notification) => {
-    const data = notif.data ?? {}
-    switch (notif.type) {
-      case 'vote':
-      case 'review':
-      case 'feature':
-        return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
-      case 'follow':
-        return data.follower_username
-          ? `/reader/${data.follower_username}`
-          : data.follower_id
-          ? `/profile/${data.follower_id}`
-          : null
-      default:
-        return null
-    }
-  }
 
   const dismiss = async (id: string) => {
     try {

@@ -40,13 +40,6 @@ interface Candidate {
   year?:   number | null
 }
 
-// ── Smart match — year weight depends on confidence tier ───────────
-// When yearConfidence === 'confirmed', year acts as a real disambiguator
-// (same as before). When 'unverified' (the common case for fresh
-// submissions sourced from whatever platform the submitter read on),
-// year is only used as a tiebreaker between candidates that already
-// tie on title+author — it can no longer cause a correct match to be
-// rejected just because the submitter's guessed year is off.
 function smartMatch(
   query:          string,
   candidates:     Candidate[],
@@ -75,24 +68,16 @@ function smartMatch(
 
   const exactTitleMatches = candidates.filter(c => normalize(c.title) === nq)
 
-  // Pass 0 — exact title + year, ONLY as a hard signal when year is
-  // already confirmed (i.e. this isn't the first-ever match attempt
-  // and a prior cycle already cross-checked it).
   if (yearHint && yearConfidence === 'confirmed') {
     const yearMatch = exactTitleMatches.find(yearConfirmed)
     if (yearMatch) return yearMatch.id
   }
 
-  // Pass 1 — exact title + author/artist (the reliable signal regardless
-  // of year confidence)
   if (na || nr) {
     const match = exactTitleMatches.find(authorArtistConfirmed)
     if (match) return match.id
   }
 
-  // Pass 1.5 — when title+author ties exist and we have an UNVERIFIED
-  // year, use it only to break the tie between otherwise-equal
-  // candidates — never to reject a candidate outright.
   if ((na || nr) && yearHint && exactTitleMatches.length > 1) {
     const tiedOnAuthor = exactTitleMatches.filter(authorArtistConfirmed)
     if (tiedOnAuthor.length > 1) {
@@ -101,14 +86,12 @@ function smartMatch(
     }
   }
 
-  // Pass 2 — exact title only, with unverified-year tiebreak among ties
   if (exactTitleMatches.length > 1 && yearHint) {
     const yearTiebreak = exactTitleMatches.find(yearConfirmed)
     if (yearTiebreak) return yearTiebreak.id
   }
   if (exactTitleMatches.length > 0) return exactTitleMatches[0].id
 
-  // Pass 3 — bidirectional contains + author/artist required
   if (na || nr) {
     for (const c of candidates) {
       const ct = normalize(c.title)
@@ -117,8 +100,6 @@ function smartMatch(
     }
   }
 
-  // Pass 4 — bidirectional contains + CONFIRMED year only (unverified
-  // year is too weak a signal to use without title/author backing here)
   if (yearHint && yearConfidence === 'confirmed') {
     for (const c of candidates) {
       const ct = normalize(c.title)
@@ -140,7 +121,6 @@ function buildQueryTitles(title: string, alternativeTitles?: string[] | null): s
   return out
 }
 
-// ── MangaUpdates ──────────────────────────────────────────────────
 async function findMangaUpdatesID(
   titles: string[], author?: string | null, artist?: string | null,
   year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
@@ -174,7 +154,6 @@ async function findMangaUpdatesID(
   return { id: null, year: null }
 }
 
-// ── MangaDex ──────────────────────────────────────────────────────
 async function findMangaDexID(
   titles: string[], author?: string | null, artist?: string | null,
   year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
@@ -213,7 +192,6 @@ async function findMangaDexID(
   return { id: null, year: null }
 }
 
-// ── AniList ───────────────────────────────────────────────────────
 async function findAniListID(
   titles: string[], author?: string | null, artist?: string | null,
   year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
@@ -253,7 +231,6 @@ async function findAniListID(
   return { id: null, year: null }
 }
 
-// ── Jikan (MAL) ───────────────────────────────────────────────────
 async function findJikanID(
   titles: string[], author?: string | null, artist?: string | null,
   year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
@@ -291,8 +268,6 @@ async function findJikanID(
   return { id: null, year: null }
 }
 
-// ── Main ID finder — now also returns each source's resolved year,
-// so the caller can derive consensus and auto-correct year_released ──
 async function findExternalIds(
   title:              string,
   author?:            string | null,
@@ -323,10 +298,6 @@ async function findExternalIds(
   return { ids, years }
 }
 
-// ── Derive year consensus from resolved source years ────────────────
-// If 2+ sources agree (within tolerance), that's the corrected year
-// and confidence becomes 'confirmed'. If sources disagree with each
-// other, we don't guess — leave year_released untouched and flag.
 function deriveYearConsensus(
   years: Record<string, number | null>,
 ): { consensusYear: number | null; outlierSources: string[] } {
@@ -334,7 +305,6 @@ function deriveYearConsensus(
   if (entries.length === 0) return { consensusYear: null, outlierSources: [] }
   if (entries.length === 1) return { consensusYear: entries[0][1], outlierSources: [] }
 
-  // Group by year (within tolerance) and find the largest agreeing cluster
   const clusters: { year: number; sources: string[] }[] = []
   for (const [source, year] of entries) {
     const existing = clusters.find(c => Math.abs(c.year - year) <= YEAR_TOLERANCE)
@@ -345,7 +315,6 @@ function deriveYearConsensus(
 
   const winner = clusters[0]
   if (winner.sources.length < 2) {
-    // No agreement among any 2 sources — too ambiguous to auto-correct
     return { consensusYear: null, outlierSources: entries.map(([s]) => s) }
   }
 
@@ -493,9 +462,6 @@ export async function GET(req: Request) {
         const updatePayload: Record<string, any> = { ...mergedIds, last_id_check: timestamp }
         let yearCorrected = false
 
-        // Auto-correct year_released when 2+ sources agree, and either
-        // we had no year before, or the agreed year disagrees with what
-        // we have (the actual fix for the Solo Leveling-style problem).
         if (consensusYear !== null) {
           const currentYear = comic.year_released ?? null
           const disagrees    = currentYear === null || Math.abs(currentYear - consensusYear) > YEAR_TOLERANCE
@@ -505,15 +471,10 @@ export async function GET(req: Request) {
             yearCorrected = true
             yearsCorrected++
           } else if (yearConfidence === 'unverified') {
-            // Already matched the consensus by coincidence — upgrade confidence
             updatePayload.year_confidence = 'confirmed'
           }
         }
 
-        // Clear IDs from sources that are clear outliers vs. a now-confirmed
-        // consensus — these are the likely-wrong matches (mostly MAL/Jikan
-        // in practice) that should be re-resolved next cycle with a
-        // trustworthy year now available.
         if (consensusYear !== null && outlierSources.length > 0) {
           for (const src of outlierSources) {
             updatePayload[src] = null

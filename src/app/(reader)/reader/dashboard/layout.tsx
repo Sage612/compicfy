@@ -18,7 +18,7 @@ export default async function ReaderDashboardLayout({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, is_pro, pro_expires_at, recommendation_count_this_month, user_type')
+    .select('role, is_pro, pro_expires_at, user_type')
     .eq('id', user.id)
     .single() as { data: any }
 
@@ -37,7 +37,25 @@ export default async function ReaderDashboardLayout({
     if (isPro) redirect('/pro/reader/dashboard')
   }
 
-  const recCount = profile?.recommendation_count_this_month ?? 0
+  // ── Live monthly rec count — never stale ──
+  // Count only recs submitted since the 1st of the current calendar month.
+  let recCount = 0
+  if (!isAdmin) {
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+
+    const { count } = await supabase
+      .from('recommendations')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', startOfMonth.toISOString())
+
+    recCount = count ?? 0
+  }
+
+  const FREE_REC_LIMIT = 50
+  const showBanner     = !isAdmin && recCount >= 20
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -47,13 +65,17 @@ export default async function ReaderDashboardLayout({
           <DashboardNav />
         </aside>
         <main className="dashboard-main flex-1 min-w-0 overflow-auto pb-24 md:pb-0">
-          {!isAdmin && recCount >= 20 && (
+          {showBanner && (
             <div className="px-4 pt-4">
               <UpgradeBanner
                 current={recCount}
-                limit={50}
+                limit={FREE_REC_LIMIT}
                 feature="recommendations this month"
-                message="You're getting close to your monthly limit"
+                message={
+                  recCount >= FREE_REC_LIMIT
+                    ? `You've reached your monthly recommendation limit`
+                    : `You're approaching your monthly recommendation limit`
+                }
                 dismissible
               />
             </div>
