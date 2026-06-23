@@ -10,7 +10,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Saved Comics' }
 
-const FREE_SAVE_LIMIT = 50
+const FREE_SAVE_LIMIT = 100
 
 export default async function ReaderSavedPage() {
   const supabase = await createClient()

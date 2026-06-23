@@ -6,7 +6,7 @@ import { CurrentlyReadingSection } from '@/components/recommendations/CurrentlyR
 import { Button } from '@/components/ui/button'
 import {
   BookOpen, Bookmark, Plus, Settings, Flame, ArrowRight,
-  BookMarked, ChevronRight, LayoutList, Users, UserPlus, Radar, Star,Target, Zap,
+  BookMarked, ChevronRight, LayoutList, Users, UserPlus, Radar, Star, Target, Zap,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, formatNumber, timeAgo } from '@/lib/utils/format'
@@ -23,15 +23,12 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 function proxyCover(url: string | null | undefined): string {
-  if (!url) return "" // Returning an empty string satisfies the 'string' requirement
+  if (!url) return ''
   if (url.startsWith('data:')) return url
   if (url.startsWith('/')) return url
   if (url.includes('/api/image-proxy')) return url
-
   return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
-
-
 
 export default async function ReaderDashboardPage() {
   const supabase = await createClient()
@@ -49,11 +46,17 @@ export default async function ReaderDashboardPage() {
 
   const followingIds = (followData ?? []).map((f: any) => f.following_id)
 
+  // ── Live monthly rec count — current calendar month only ──
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1)
+  startOfMonth.setHours(0, 0, 0, 0)
+
   const [
     { count: listsCount },
     { count: savedCount },
     { count: followingCount },
     { count: reviewCount },
+    { count: monthlyRecCount },
     { data: currentlyReading },
     { data: rawFeedItems },
     { data: listsForTracker },
@@ -62,6 +65,12 @@ export default async function ReaderDashboardPage() {
     supabase.from('saves').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
     supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+    // Monthly rec count — only recs submitted since the 1st of this month
+    supabase
+      .from('recommendations')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', startOfMonth.toISOString()),
     supabase.from('reading_list_items')
       .select('id, list_id, status, progress_chapter, last_read_at, added_at, reading_lists!inner(user_id), recommendations(id, title, cover_url, type, status, chapter_count)')
       .eq('reading_lists.user_id', user.id).eq('status', 'reading')
@@ -80,13 +89,10 @@ export default async function ReaderDashboardPage() {
   ])
 
   // ── Usage limits (free users only) ────────────────────────────
-  const { count: followingCount2 } = await supabase
-    .from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id)
-
   const { count: collectionsCount } = await (supabase as any)
     .from('collections').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
 
-  const recCount              = profile.total_recommendations ?? 0
+  const recCount              = monthlyRecCount ?? 0   // ← live monthly count, not all-time total
   const FREE_REC_LIMIT        = 50
   const FREE_FOLLOW_LIMIT     = 50
   const FREE_LIST_LIMIT       = 5
@@ -174,7 +180,7 @@ export default async function ReaderDashboardPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Target size={13} className="text-muted-foreground" />
-            <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Free Plan constraints</span>
+            <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Free Plan Limits</span>
           </div>
           <Link href="/pricing">
             <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 border-amber-500/30 text-amber-600 hover:bg-amber-500/10">
@@ -184,10 +190,10 @@ export default async function ReaderDashboardPage() {
         </div>
         <div className="space-y-2.5">
           {[
-            { label: 'Recommendations', current: recCount,                   limit: FREE_REC_LIMIT,        pct: recPct,         color: 'bg-violet-500' },
-            { label: 'Following',       current: followingCount ?? 0,        limit: FREE_FOLLOW_LIMIT,     pct: followPct,      color: 'bg-primary'    },
-            { label: 'Reading Lists',   current: listsCount ?? 0,            limit: FREE_LIST_LIMIT,       pct: listPct,        color: 'bg-teal-500'   },
-            { label: 'Collections',     current: collectionsCount ?? 0,      limit: FREE_COLLECTION_LIMIT, pct: collectionPct,  color: 'bg-indigo-500' },
+            { label: 'Recs this month', current: recCount,              limit: FREE_REC_LIMIT,        pct: recPct,        color: 'bg-violet-500' },
+            { label: 'Following',       current: followingCount ?? 0,   limit: FREE_FOLLOW_LIMIT,     pct: followPct,     color: 'bg-primary'    },
+            { label: 'Reading Lists',   current: listsCount ?? 0,       limit: FREE_LIST_LIMIT,       pct: listPct,       color: 'bg-teal-500'   },
+            { label: 'Collections',     current: collectionsCount ?? 0, limit: FREE_COLLECTION_LIMIT, pct: collectionPct, color: 'bg-indigo-500' },
           ].map(({ label, current, limit, pct, color }) => (
             <div key={label} className="space-y-1">
               <div className="flex items-center justify-between">
@@ -206,7 +212,7 @@ export default async function ReaderDashboardPage() {
           ))}
         </div>
         <p className="text-[10px] text-muted-foreground">
-          Upgrade to Pro Reader for unlimited recommendations, follows, lists, collections and more.
+          Upgrade to Pro for unlimited recommendations, follows, lists, collections and more.
         </p>
       </div>
 
