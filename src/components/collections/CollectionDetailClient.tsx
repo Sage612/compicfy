@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import {Globe, Lock, Bookmark, BookmarkCheck,
+import {
+  Globe, Lock, Bookmark, BookmarkCheck,
   ArrowLeft, Loader2, Trash2, Share2, BookOpen, Layers,
-  Pencil, X, Check, Sparkles,
+  Pencil, X, Check
 } from 'lucide-react'
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { AddToCollectionSearch } from '@/components/collections/AddToCollectionSearch'
@@ -20,7 +21,7 @@ interface CollectionItem {
   id:              string
   position:        number
   note:            string | null
-  recommendations: Recommendation
+  recommendations: Recommendation | null
 }
 
 interface Collection {
@@ -79,7 +80,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
   const [items,       setItems]       = useState<CollectionItem[]>(collection.collection_items ?? [])
 
   const [showEdit, setShowEdit] = useState(false)
-  const [saving,   setSaving]   = useState(false)
+  const [saving,    setSaving]   = useState(false)
   const [editForm, setEditForm] = useState({
     title:        collection.title,
     description:  collection.description ?? '',
@@ -94,11 +95,14 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
   const [currentPublished, setCurrentPublished] = useState(collection.is_published)
 
   const theme       = THEME_STYLES[currentTheme] ?? THEME_STYLES.primary
-  const covers      = items.map(i => i.recommendations?.cover_url).filter(Boolean).slice(0, 6) as string[]
+  
+  // ── SAFE COVERS EXTRACTION ──
+  const covers      = (items ?? [])
+                        .map(i => i?.recommendations?.cover_url)
+                        .filter((url): url is string => typeof url === 'string' && url.length > 0)
   const dominant    = covers[0] ?? null
   const stackCovers = covers.slice(1, 4)
 
-  // ── Save button label — always show real count from DB (trigger keeps it accurate) ──
   const saveLabel = saved
     ? saveCount > 0 ? `${saveCount} saved` : 'Saved'
     : saveCount > 0 ? `${saveCount}` : 'Save'
@@ -144,11 +148,10 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
       setShowEdit(false)
       toast.success('Collection updated!')
     } catch { toast.error('Failed to update collection') }
-    finally { setSaving(false) }
+    finally { setSaving(false) } 
   }
 
   const handleAdded = (comicId: string, title: string) => {
-    // Reload the page to get full recommendation data for the new item
     window.location.reload()
   }
 
@@ -237,8 +240,6 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
           MOBILE (hidden sm+)
       ══════════════════════════════════════════════════════════════════════ */}
       <div className="sm:hidden">
-
-        {/* Full-bleed hero */}
         <div className="relative h-72 overflow-hidden">
           {dominant ? (
             <>
@@ -254,10 +255,8 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             <div className={cn('absolute inset-0 bg-gradient-to-br to-transparent', theme.gradient)} />
           )}
 
-          {/* Bottom fade */}
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
 
-          {/* Stacked thumbnails */}
           {stackCovers.length > 0 && (
             <div className="absolute bottom-6 right-4 flex items-end">
               {stackCovers.map((url, i) => (
@@ -279,14 +278,12 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             </div>
           )}
 
-          {/* Back */}
           <div className="absolute top-4 left-4 z-20">
             <Link href={backHref} className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 text-white">
               <ArrowLeft size={16} />
             </Link>
           </div>
 
-          {/* Status */}
           <div className="absolute top-4 right-4 z-20">
             {currentPublished
               ? <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={9} /> Public</span>
@@ -295,11 +292,8 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
           </div>
         </div>
 
-        {/* Info card overlapping hero */}
         <div className="px-4 -mt-8 relative z-10 space-y-3 pb-8">
           <div className={cn('rounded-2xl border bg-card/95 backdrop-blur-sm p-4 shadow-2xl space-y-3', theme.border)}>
-
-            {/* Title + meta */}
             <div className="space-y-1.5">
               <h1 className="text-xl font-black tracking-tight leading-tight">{currentTitle}</h1>
               <div className="flex items-center gap-2 text-[11px] text-muted-foreground flex-wrap">
@@ -323,7 +317,6 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
               <p className="text-xs text-muted-foreground leading-relaxed">{currentDesc}</p>
             )}
 
-            {/* Curator */}
             {collection.profiles && (
               <div className="flex items-center gap-2">
                 {collection.profiles.avatar_url ? (
@@ -331,7 +324,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                     className="w-5 h-5 rounded-full object-cover border border-border" />
                 ) : (
                   <div className={cn('w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border border-border', theme.bg, theme.text)}>
-                    {collection.profiles.username[0].toUpperCase()}
+                    {collection.profiles?.username ? collection.profiles.username[0].toUpperCase() : 'C'}
                   </div>
                 )}
                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
@@ -343,65 +336,34 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
               </div>
             )}
 
-            {/* Action buttons */}
             <div className="flex gap-2 pt-0.5">
               {isOwner ? (
                 <>
-                  <button
-                    onClick={handleShare}
-                    className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-xs font-semibold"
-                  >
-                    <Share2 size={13} />
-                    Share
+                  <button onClick={handleShare} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-xs font-semibold">
+                    <Share2 size={13} /> Share
                   </button>
-                  <button
-                    onClick={() => setShowEdit(true)}
-                    className={cn('flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border transition-colors text-xs font-semibold', theme.border, theme.text, theme.bg)}
-                  >
-                    <Pencil size={13} />
-                    Edit
+                  <button onClick={() => setShowEdit(true)} className={cn('flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border transition-colors text-xs font-semibold', theme.border, theme.text, theme.bg)}>
+                    <Pencil size={13} /> Edit
                   </button>
                 </>
               ) : (
                 <>
-                  <button
-                    onClick={handleSave}
-                    disabled={savingState}
-                    className={cn(
-                      'flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl transition-colors text-xs font-semibold',
-                      saved
-                        ? cn('border', theme.border, theme.text, theme.bg)
-                        : 'bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {savingState
-                      ? <Loader2 size={13} className="animate-spin" />
-                      : saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />
-                    }
+                  <button onClick={handleSave} disabled={savingState} className={cn('flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl transition-colors text-xs font-semibold', saved ? cn('border', theme.border, theme.text, theme.bg) : 'bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground')}>
+                    {savingState ? <Loader2 size={13} className="animate-spin" /> : saved ? <BookmarkCheck size={13} /> : <Bookmark size={13} />}
                     {saveLabel}
                   </button>
-
-                  <button
-                    onClick={handleShare}
-                    className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-xs font-semibold"
-                  >
-                    <Share2 size={13} />
-                    Share
+                  <button onClick={handleShare} className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl bg-muted/70 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors text-xs font-semibold">
+                    <Share2 size={13} /> Share
                   </button>
                 </>
               )}
             </div>
           </div>
 
-          {/* Add comic search — owner only */}
           {isOwner && (
-            <AddToCollectionSearch
-              collectionId={collection.id}
-              onAdded={handleAdded}
-            />
+            <AddToCollectionSearch collectionId={collection.id} onAdded={handleAdded} />
           )}
 
-          {/* Comics grid */}
           {items.length === 0 ? (
             <div className="text-center py-12 rounded-2xl border border-dashed border-border space-y-3">
               <div className="w-10 h-10 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto">
@@ -412,25 +374,23 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
             </div>
           ) : (
             <div className="space-y-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-1">
-                Comics in this collection
-              </p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground pt-1">Comics in this collection</p>
               <div className="grid grid-cols-2 gap-3">
-                {items.map((item) => (
-                  <div key={item.id} className="relative group/item">
-                    <ComicCard recommendation={item.recommendations} />
-                    {isOwner && (
-                      <button
-                        onClick={() => handleRemoveItem(item.id, item.recommendations.id)}
-                        disabled={removingId === item.id}
-                        className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-destructive"
-                      >
-                        {removingId === item.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
-                      </button>
-                    )}
-                    {item.note && <p className="text-[10px] text-muted-foreground mt-1 px-1 line-clamp-2 italic">"{item.note}"</p>}
-                  </div>
-                ))}
+                {items.map((item) => {
+                  if (!item?.recommendations) return null;
+                  return (
+                    <div key={item.id} className="relative group/item">
+                      <ComicCard recommendation={item.recommendations} />
+                      {isOwner && (
+                        <button onClick={() => handleRemoveItem(item.id, item.recommendations!.id)} disabled={removingId === item.id}
+                          className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-destructive">
+                          {removingId === item.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                        </button>
+                      )}
+                      {item.note && <p className="text-[10px] text-muted-foreground mt-1 px-1 line-clamp-2 italic">"{item.note}"</p>}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -441,9 +401,8 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
           DESKTOP (hidden on mobile)
       ══════════════════════════════════════════════════════════════════════ */}
       <div className="hidden sm:block max-w-4xl mx-auto px-4 py-8 space-y-8">
-
         <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft size={13} /> All Collections
+          <ArrowLeft size={13} /> {backLabel}
         </Link>
 
         <div className={cn('rounded-2xl border overflow-hidden', theme.border)}>
@@ -492,12 +451,10 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <Button size="sm" variant="outline" onClick={handleShare} className="h-8 text-xs gap-1.5">
-                  <Share2 size={12} />
-                  <span className="hidden sm:inline">Share</span>
+                  <Share2 size={12} /> <span className="hidden sm:inline">Share</span>
                 </Button>
                 {!isOwner && (
-                  <Button size="sm" variant={saved ? 'default' : 'outline'} onClick={handleSave} disabled={savingState}
-                    className={cn('gap-1.5 h-8 text-xs', saved && 'bg-primary')}>
+                  <Button size="sm" variant={saved ? 'default' : 'outline'} onClick={handleSave} disabled={savingState} className={cn('gap-1.5 h-8 text-xs', saved && 'bg-primary')}>
                     {savingState ? <Loader2 size={12} className="animate-spin" /> : saved ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
                     <span className="hidden sm:inline">{saveLabel}</span>
                   </Button>
@@ -524,12 +481,8 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
           </div>
         </div>
 
-        {/* Add comic search — owner only */}
         {isOwner && (
-          <AddToCollectionSearch
-            collectionId={collection.id}
-            onAdded={handleAdded}
-          />
+          <AddToCollectionSearch collectionId={collection.id} onAdded={handleAdded} />
         )}
 
         {items.length === 0 ? (
@@ -544,32 +497,33 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
           <div className="space-y-4">
             <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Comics in this collection</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {items.map((item) => (
-                <div key={item.id} className="relative group/item">
-                  <ComicCard recommendation={item.recommendations} />
-                  {isOwner && (
-                    <button onClick={() => handleRemoveItem(item.id, item.recommendations.id)} disabled={removingId === item.id}
-                      className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-destructive">
-                      {removingId === item.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
-                    </button>
-                  )}
-                  {item.note && <p className="text-[10px] text-muted-foreground mt-1 px-1 line-clamp-2 italic">"{item.note}"</p>}
-                </div>
-              ))}
+              {items.map((item) => {
+                if (!item?.recommendations) return null;
+                return (
+                  <div key={item.id} className="relative group/item">
+                    <ComicCard recommendation={item.recommendations} />
+                    {isOwner && (
+                      <button onClick={() => handleRemoveItem(item.id, item.recommendations!.id)} disabled={removingId === item.id}
+                        className="absolute top-2 right-2 z-20 w-6 h-6 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity hover:bg-destructive">
+                        {removingId === item.id ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                      </button>
+                    )}
+                    {item.note && <p className="text-[10px] text-muted-foreground mt-1 px-1 line-clamp-2 italic">"{item.note}"</p>}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
         <AuthPromptModal
-        open={authPrompt}
-        onClose={() => setAuthPrompt(false)}
-        config={{
-          action: 'save this collection',
-          icon:   <Bookmark size={24} className="text-primary" />,
-        }}
-      />
+          open={authPrompt}
+          onClose={() => setAuthPrompt(false)}
+          config={{
+            action: 'save this collection',
+            icon:   <Bookmark size={24} className="text-primary" />,
+          }}
+        />
       </div>
-
     </div>
   )
 }
-
