@@ -15,7 +15,6 @@ export default async function ReaderDashboardCollectionDetailPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Fetch collection with items and profiles
   const { data: collection } = await (supabase as any)
     .from('collections')
     .select(`
@@ -35,20 +34,20 @@ export default async function ReaderDashboardCollectionDetailPage({
 
   if (!collection) notFound()
 
-  // Only the owner can access via dashboard — redirect others to public page
-  if (collection.user_id !== user.id) {
-    redirect(`/collections/${id}`)
-  }
+  // Non-owners get redirected to the public page
+  if (collection.user_id !== user.id) redirect(`/collections/${id}`)
 
-  // Sort items by position
+  // Filter out any items with null recommendations (deleted comics)
+  // then sort by position — this prevents ComicCard crash on undefined props
   const sorted = {
     ...collection,
-    collection_items: [...(collection.collection_items ?? [])].sort(
-      (a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)
-    ),
+    // Ensure theme_color always has a valid value
+    theme_color: collection.theme_color ?? 'primary',
+    collection_items: [...(collection.collection_items ?? [])]
+      .filter((item: any) => item.recommendations != null)
+      .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
   }
 
-  // Check if saved (owner won't have this but component needs it)
   const { data: saveRow } = await (supabase as any)
     .from('collection_saves')
     .select('id')

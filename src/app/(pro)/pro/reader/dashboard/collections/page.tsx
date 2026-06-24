@@ -22,7 +22,6 @@ export default async function ProReaderCollectionsPage() {
     (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
   )
 
-  // Pro users have no collection limit — no upsell banner needed
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <CollectionsClient
@@ -31,6 +30,7 @@ export default async function ProReaderCollectionsPage() {
         ownOnly
         basePath="/pro/reader/dashboard/collections"
         savedCollectionIds={[]}
+        showMobileCreate
       />
     </div>
   )

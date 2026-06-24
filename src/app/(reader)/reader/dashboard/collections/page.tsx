@@ -2,11 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CollectionsClient } from '@/components/collections/CollectionsClient'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
+import { FREE_LIMITS } from '@/lib/utils/constants'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'My Collections' }
-
-const FREE_COLLECTION_LIMIT = 3
 
 export default async function ReaderCollectionsPage() {
   const supabase = await createClient()
@@ -25,27 +24,26 @@ export default async function ReaderCollectionsPage() {
     (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
   )
 
-  // Count collections for upsell banner (server-side, no flash)
-  const { count: collectionCount } = await (supabase as any)
+  // Count for upsell banner — uses global FREE_LIMITS constant, never hardcoded
+  const { count } = await (supabase as any)
     .from('collections')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
 
-  const count       = collectionCount ?? 0
-  const showBanner  = !isPro && count >= FREE_COLLECTION_LIMIT
-  const nearLimit   = !isPro && count >= FREE_COLLECTION_LIMIT - 1
+  const collectionCount = count ?? 0
+  const limit           = FREE_LIMITS.collections
+  const showBanner      = !isPro && collectionCount >= limit - 1  // show when 1 away or at limit
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-0">
-      {/* Pro upsell — shown when at or near the free collection limit */}
-      {(showBanner || nearLimit) && (
+      {showBanner && (
         <div className="mb-6">
           <UpgradeBanner
-            current={count}
-            limit={FREE_COLLECTION_LIMIT}
+            current={collectionCount}
+            limit={limit}
             feature="collections"
             message={
-              showBanner
+              collectionCount >= limit
                 ? `You've reached your free collection limit`
                 : `You're close to your free collection limit`
             }
@@ -54,13 +52,13 @@ export default async function ReaderCollectionsPage() {
         </div>
       )}
 
-      {/* CollectionsClient in ownOnly mode — fetches user's own collections via API */}
       <CollectionsClient
         userId={user.id}
         isProUser={isPro}
         ownOnly
         basePath="/reader/dashboard/collections"
         savedCollectionIds={[]}
+        showMobileCreate  // signals component to show create button on mobile too
       />
     </div>
   )

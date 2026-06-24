@@ -158,14 +158,18 @@ function StackedCover({
 }
 
 interface Props {
-  userId:               string | null
-  isProUser:            boolean
-  ownOnly?:             boolean
-  basePath?:            string
-  savedCollectionIds?:  string[]
+  userId: string | null
+  isProUser: boolean
+  ownOnly?: boolean
+  basePath?: string
+  savedCollectionIds?: string[]
+  showMobileCreate?: boolean
 }
 
-export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath = '/collections', savedCollectionIds = [] }: Props) {
+export function CollectionsClient({ userId, isProUser, ownOnly = false,
+  basePath = '/collections', savedCollectionIds = [],
+ showMobileCreate = false,        
+ }: Props) {
   const [collections, setCollections] = useState<Collection[]>([])
   const [loading,     setLoading]     = useState(true)
   const searchParams = useSearchParams()
@@ -333,7 +337,11 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
           <Button
             size="sm"
             onClick={() => atLimit ? toast.error('Upgrade to Pro for unlimited collections') : setShowCreate(true)}
-            className={cn('gap-1.5 shrink-0 hidden sm:inline-flex', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}
+            className={cn(
+              'gap-1.5 shrink-0',
+              showMobileCreate ? 'inline-flex' : 'hidden sm:inline-flex',   // show on mobile when in dashboard
+              atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90'
+                )}
           >
             {atLimit ? <Crown size={14} /> : <Plus size={14} />}
             <span>{atLimit ? 'Upgrade for More' : 'New Collection'}</span>

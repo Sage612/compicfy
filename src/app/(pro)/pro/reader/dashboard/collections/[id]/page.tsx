@@ -34,15 +34,14 @@ export default async function ProReaderDashboardCollectionDetailPage({
 
   if (!collection) notFound()
 
-  if (collection.user_id !== user.id) {
-    redirect(`/collections/${id}`)
-  }
+  if (collection.user_id !== user.id) redirect(`/collections/${id}`)
 
   const sorted = {
     ...collection,
-    collection_items: [...(collection.collection_items ?? [])].sort(
-      (a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)
-    ),
+    theme_color: collection.theme_color ?? 'primary',
+    collection_items: [...(collection.collection_items ?? [])]
+      .filter((item: any) => item.recommendations != null)
+      .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
   }
 
   const { data: saveRow } = await (supabase as any)

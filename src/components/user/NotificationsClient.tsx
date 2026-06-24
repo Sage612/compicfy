@@ -2,9 +2,9 @@
 
 import { useState } from 'react'
 import {
-  BellOff, Trash2, ThumbsUp,
+  BellOff, Trash2, ThumbsUp, BookOpen,
   MessageSquare, UserPlus, AlertCircle,
-  Star, Zap, CheckCircle2,
+  Star, Zap, CheckCircle2, Check,
 } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -14,7 +14,7 @@ import { toast } from 'sonner'
 interface Notification {
   id:         string
   user_id:    string
-  type:       'vote' | 'review' | 'reply' | 'feature' | 'achievement' | 'system' | 'follow'
+  type:       'vote' | 'review' | 'reply' | 'feature' | 'achievement' | 'system' | 'follow' | 'chapter_update'
   title:      string
   content:    string | null
   data:       any
@@ -24,37 +24,55 @@ interface Notification {
 }
 
 const TYPE_META: Record<string, { icon: React.ReactNode; colorClass: string; label: string }> = {
-  vote:        { icon: <ThumbsUp    size={13} className="text-emerald-500" />, colorClass: 'bg-emerald-500/10 border-emerald-500/20', label: 'Vote'        },
-  review:      { icon: <Star        size={13} className="text-amber-500"   />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Review'      },
-  reply:       { icon: <MessageSquare size={13} className="text-blue-500"  />, colorClass: 'bg-blue-500/10 border-blue-500/20',       label: 'Reply'       },
-  follow:      { icon: <UserPlus    size={13} className="text-violet-500"  />, colorClass: 'bg-violet-500/10 border-violet-500/20',   label: 'Follow'      },
-  feature:     { icon: <Zap         size={13} className="text-amber-500"   />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Featured'    },
-  achievement: { icon: <CheckCircle2 size={13} className="text-teal-500"   />, colorClass: 'bg-teal-500/10 border-teal-500/20',       label: 'Achievement' },
-  system:      { icon: <AlertCircle size={13} className="text-muted-foreground" />, colorClass: 'bg-muted border-border/60',          label: 'System'      },
+  vote:           { icon: <ThumbsUp      size={13} className="text-emerald-500" />, colorClass: 'bg-emerald-500/10 border-emerald-500/20', label: 'Vote'          },
+  review:         { icon: <Star          size={13} className="text-amber-500"   />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Review'        },
+  reply:          { icon: <MessageSquare size={13} className="text-blue-500"    />, colorClass: 'bg-blue-500/10 border-blue-500/20',       label: 'Reply'         },
+  follow:         { icon: <UserPlus      size={13} className="text-violet-500"  />, colorClass: 'bg-violet-500/10 border-violet-500/20',   label: 'Follow'        },
+  feature:        { icon: <Zap           size={13} className="text-amber-500"   />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Featured'      },
+  achievement:    { icon: <CheckCircle2  size={13} className="text-teal-500"    />, colorClass: 'bg-teal-500/10 border-teal-500/20',       label: 'Achievement'   },
+  chapter_update: { icon: <BookOpen      size={13} className="text-primary"     />, colorClass: 'bg-primary/10 border-primary/20',         label: 'New Chapter'   },
+  system:         { icon: <AlertCircle   size={13} className="text-muted-foreground" />, colorClass: 'bg-muted border-border/60',          label: 'System'        },
 }
 
 const FILTERS = [
-  { key: 'all',         label: 'All'          },
-  { key: 'vote',        label: 'Votes'        },
-  { key: 'follow',      label: 'Follows'      },
-  { key: 'review',      label: 'Reviews'      },
-  { key: 'feature',     label: 'Featured'     },
-  { key: 'achievement', label: 'Achievements' },
-  { key: 'system',      label: 'System'       },
+  { key: 'all',            label: 'All'          },
+  { key: 'vote',           label: 'Votes'        },
+  { key: 'follow',         label: 'Follows'      },
+  { key: 'review',         label: 'Reviews'      },
+  { key: 'feature',        label: 'Featured'     },
+  { key: 'chapter_update', label: 'Chapters'     },
+  { key: 'achievement',    label: 'Achievements' },
+  { key: 'system',         label: 'System'       },
 ] as const
 
 type FilterKey = typeof FILTERS[number]['key']
 
-/** profileBase: e.g. "/reader" or "/creator" — never hardcoded, passed from server */
+/**
+ * Resolve the href for a notification.
+ * Every type that can link somewhere does — never returns null for known types
+ * with sufficient data. Falls back to null only when data is missing.
+ */
 function getHref(notif: Notification, profileBase: string): string | null {
   const data = notif.data ?? {}
+
   switch (notif.type) {
     case 'vote':
     case 'review':
+    case 'reply':
     case 'feature':
+    case 'chapter_update':
       return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
+
     case 'follow':
-      return data.follower_username ? `${profileBase}/${data.follower_username}` : null
+      // profileBase e.g. "/reader" or "/creator" — never hardcoded
+      if (data.follower_username) return `${profileBase}/${data.follower_username}`
+      return null
+
+    case 'achievement':
+    case 'system':
+      // Link to recommendation if available, otherwise no link
+      return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
+
     default:
       return null
   }
@@ -68,12 +86,45 @@ interface Props {
 
 export function NotificationsClient({ initialNotifications, profileBase = '/reader' }: Props) {
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications)
-  const [isClearingAll, setIsClearingAll] = useState(false)
-  const [activeFilter,  setActiveFilter]  = useState<FilterKey>('all')
+  const [isClearingAll,   setIsClearingAll]   = useState(false)
+  const [isMarkingAll,    setIsMarkingAll]    = useState(false)
+  const [activeFilter,    setActiveFilter]    = useState<FilterKey>('all')
 
   const getMeta = (type: string) => TYPE_META[type] ?? TYPE_META.system
 
-  const dismiss = async (id: string) => {
+  // ── Mark single notification as read ──────────────────────────────────────
+  const markOneRead = async (id: string) => {
+    const notif = notifications.find(n => n.id === id)
+    if (!notif || notif.is_read) return
+    try {
+      await fetch(`/api/notifications/${id}/read`, { method: 'PATCH' })
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n))
+    } catch {
+      // silent — navigation still works even if read marking fails
+    }
+  }
+
+  // ── Mark all as read ───────────────────────────────────────────────────────
+  const markAllRead = async () => {
+    if (isMarkingAll) return
+    const unread = notifications.filter(n => !n.is_read)
+    if (!unread.length) return
+    setIsMarkingAll(true)
+    try {
+      await fetch('/api/notifications', { method: 'PATCH' })
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+      toast.success('All marked as read')
+    } catch {
+      toast.error('Failed to mark all read')
+    } finally {
+      setIsMarkingAll(false)
+    }
+  }
+
+  // ── Dismiss single ─────────────────────────────────────────────────────────
+  const dismiss = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault()
+    e.stopPropagation()
     try {
       const res = await fetch(`/api/notifications/${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
@@ -82,6 +133,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
     } catch { toast.error('Could not dismiss') }
   }
 
+  // ── Clear all ──────────────────────────────────────────────────────────────
   const dismissAll = async () => {
     if (isClearingAll) return
     setIsClearingAll(true)
@@ -93,8 +145,8 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
     finally { setIsClearingAll(false) }
   }
 
-  const filtered    = activeFilter === 'all' ? notifications : notifications.filter(n => n.type === activeFilter)
-  const unreadCount = notifications.filter(n => !n.is_read).length
+  const filtered     = activeFilter === 'all' ? notifications : notifications.filter(n => n.type === activeFilter)
+  const unreadCount  = notifications.filter(n => !n.is_read).length
   const presentTypes = new Set(notifications.map(n => n.type))
   const visibleFilters = FILTERS.filter(f => f.key === 'all' || presentTypes.has(f.key as any))
 
@@ -106,7 +158,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
         </div>
         <div>
           <p className="font-black text-sm">All caught up</p>
-          <p className="text-xs text-muted-foreground mt-1">Votes, reviews, and follows will appear here.</p>
+          <p className="text-xs text-muted-foreground mt-1">Votes, reviews, follows and chapter updates will appear here.</p>
         </div>
       </div>
     )
@@ -149,21 +201,35 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
       </div>
 
       {/* ── Control bar ── */}
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-muted-foreground">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground shrink-0">
           <span className="font-black text-foreground">{unreadCount}</span> unread
           {activeFilter !== 'all' && (
             <span className="ml-1 text-muted-foreground/60">· {filtered.length} {activeFilter}</span>
           )}
         </span>
-        <button
-          onClick={dismissAll}
-          disabled={isClearingAll}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors px-2 py-1 rounded-lg hover:bg-destructive/5"
-        >
-          <Trash2 size={11} className={isClearingAll ? 'animate-pulse' : ''} />
-          {isClearingAll ? 'Clearing…' : 'Clear all'}
-        </button>
+        <div className="flex items-center gap-1.5">
+          {/* Mark all read */}
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllRead}
+              disabled={isMarkingAll}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary disabled:opacity-50 transition-colors px-2 py-1 rounded-lg hover:bg-primary/5"
+            >
+              <Check size={11} className={isMarkingAll ? 'animate-pulse' : ''} />
+              {isMarkingAll ? 'Marking…' : 'Mark all read'}
+            </button>
+          )}
+          {/* Clear all */}
+          <button
+            onClick={dismissAll}
+            disabled={isClearingAll}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors px-2 py-1 rounded-lg hover:bg-destructive/5"
+          >
+            <Trash2 size={11} className={isClearingAll ? 'animate-pulse' : ''} />
+            {isClearingAll ? 'Clearing…' : 'Clear all'}
+          </button>
+        </div>
       </div>
 
       {/* ── List ── */}
@@ -178,30 +244,44 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
           {filtered.map(notif => {
             const meta = getMeta(notif.type)
             const href = getHref(notif, profileBase)
+
             const inner = (
               <div className={cn(
                 'group relative flex gap-3 p-4 rounded-2xl border transition-all duration-200',
-                notif.is_read ? 'border-border bg-card hover:border-border/80' : 'border-primary/20 bg-primary/5 hover:border-primary/30'
+                notif.is_read
+                  ? 'border-border bg-card hover:border-border/80'
+                  : 'border-primary/20 bg-primary/5 hover:border-primary/30'
               )}>
-                {!notif.is_read && <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full bg-primary" />}
+                {/* Unread left bar */}
+                {!notif.is_read && (
+                  <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full bg-primary" />
+                )}
+
+                {/* Type icon */}
                 <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border mt-0.5', meta.colorClass)}>
                   {meta.icon}
                 </div>
+
+                {/* Content */}
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 space-y-0.5">
                       <p className={cn('text-sm leading-snug', !notif.is_read ? 'font-semibold text-foreground' : 'text-foreground/80')}>
                         {notif.title}
                       </p>
-                      {notif.content && <p className="text-xs text-muted-foreground leading-relaxed">{notif.content}</p>}
+                      {notif.content && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">{notif.content}</p>
+                      )}
                     </div>
+                    {/* Dismiss button */}
                     <button
-                      onClick={e => { e.preventDefault(); e.stopPropagation(); dismiss(notif.id) }}
+                      onClick={e => dismiss(e, notif.id)}
                       className="text-muted-foreground/40 hover:text-destructive shrink-0 p-1 rounded-lg hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
                       aria-label="Dismiss"
                     >✕</button>
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className={cn('inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black border uppercase tracking-wide', meta.colorClass)}>
                       {meta.label}
                     </span>
@@ -211,7 +291,26 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
                 </div>
               </div>
             )
-            return href ? <Link key={notif.id} href={href} className="block">{inner}</Link> : <div key={notif.id}>{inner}</div>
+
+            // Clicking navigates AND marks as read
+            return href ? (
+              <Link
+                key={notif.id}
+                href={href}
+                className="block"
+                onClick={() => markOneRead(notif.id)}
+              >
+                {inner}
+              </Link>
+            ) : (
+              <div
+                key={notif.id}
+                onClick={() => markOneRead(notif.id)}
+                className={notif.is_read ? '' : 'cursor-pointer'}
+              >
+                {inner}
+              </div>
+            )
           })}
         </div>
       )}
