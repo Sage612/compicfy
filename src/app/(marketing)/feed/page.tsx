@@ -169,7 +169,7 @@ export default async function FeedPage({ searchParams }: Props) {
               <p className="text-muted-foreground text-sm">
                 {activeTab === 'following'
                   ? 'Latest from people you follow'
-                  : 'Discover what the community is recommending'}
+                  : 'See what the community is recommending'}
               </p>
             </div>
           </div>
