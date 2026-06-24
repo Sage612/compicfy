@@ -9,6 +9,7 @@ import {
   BookOpen, Plus, Eye, ThumbsUp, ThumbsDown,
   Clock, CheckCircle2, XCircle, Pencil, Trash2,
   Search, Bookmark, MessageSquare, Loader2, Pin,
+  FileText, Send,
 } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -17,7 +18,7 @@ import { PinButton } from '@/components/recommendations/PinButton'
 import { AppealButton } from '@/components/user/AppealButton'
 import { createClient } from '@/lib/supabase/client'
 
-type FilterKey = 'all' | 'approved' | 'pending' | 'rejected'
+type FilterKey = 'all' | 'approved' | 'pending' | 'rejected' | 'drafts'
 
 const TYPE_COLORS: Record<string, string> = {
   manga:   'bg-rose-500/10  text-rose-500  border-rose-500/20',
@@ -40,6 +41,8 @@ interface Rec {
   cover_url:        string | null
   type:             string
   is_approved:      boolean
+  is_draft:         boolean
+  draft_saved_at:   string | null
   upvotes:          number
   downvotes:        number
   view_count:       number
@@ -71,11 +74,12 @@ export function RecsClient({
   const router   = useRouter()
   const supabase = createClient()
 
-  const [recs,       setRecs]       = useState<Rec[]>(initialRecs)
-  const [filter,     setFilter]     = useState<FilterKey>('all')
-  const [search,     setSearch]     = useState('')
-  const [deletingId, setDeletingId] = useState<string | null>(null)
-  const [pinnedId,   setPinnedId]   = useState<string | null>(null)
+  const [recs,          setRecs]          = useState<Rec[]>(initialRecs)
+  const [filter,        setFilter]        = useState<FilterKey>('all')
+  const [search,        setSearch]        = useState('')
+  const [deletingId,    setDeletingId]    = useState<string | null>(null)
+  const [pinnedId,      setPinnedId]      = useState<string | null>(null)
+  const [submittingId,  setSubmittingId]  = useState<string | null>(null)
 
   useEffect(() => {
     const fetchPinned = async () => {
@@ -91,40 +95,84 @@ export function RecsClient({
     fetchPinned()
   }, [])
 
-  const getStatus = (rec: Rec) => {
+  const getStatus = (rec: Rec): FilterKey => {
+    if (rec.is_draft)         return 'drafts'
     if (rec.is_approved)      return 'approved'
     if (rec.rejection_reason) return 'rejected'
     return 'pending'
   }
 
   const counts = {
-    all:      recs.length,
-    approved: recs.filter(r => r.is_approved).length,
-    pending:  recs.filter(r => !r.is_approved && !r.rejection_reason).length,
-    rejected: recs.filter(r => !!r.rejection_reason).length,
+    all:      recs.filter(r => !r.is_draft).length,
+    approved: recs.filter(r => r.is_approved && !r.is_draft).length,
+    pending:  recs.filter(r => !r.is_approved && !r.rejection_reason && !r.is_draft).length,
+    rejected: recs.filter(r => !!r.rejection_reason && !r.is_draft).length,
+    drafts:   recs.filter(r => r.is_draft).length,
   }
 
   const visible = recs.filter(rec => {
-    const matchFilter = filter === 'all' || getStatus(rec) === filter
+    const matchFilter =
+      filter === 'all'
+        ? !rec.is_draft
+        : getStatus(rec) === filter
     const matchSearch = !search.trim() || rec.title.toLowerCase().includes(search.toLowerCase())
     return matchFilter && matchSearch
   })
 
-  const handleDelete = useCallback(async (id: string, title: string) => {
+  const handleDelete = useCallback(async (id: string, title: string, isDraft: boolean) => {
     if (!confirm(`Delete "${title}"? This cannot be undone.`)) return
     setDeletingId(id)
     try {
-      const res = await fetch(`/api/recommendations/${id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error()
+      if (isDraft) {
+        const res = await fetch('/api/recommendations/drafts', {
+          method:  'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ draft_id: id }),
+        })
+        if (!res.ok) throw new Error()
+      } else {
+        const res = await fetch(`/api/recommendations/${id}`, { method: 'DELETE' })
+        if (!res.ok) throw new Error()
+      }
       setRecs(prev => prev.filter(r => r.id !== id))
       if (pinnedId === id) setPinnedId(null)
-      toast.success('Recommendation deleted')
+      toast.success(isDraft ? 'Draft deleted' : 'Recommendation deleted')
     } catch {
       toast.error('Failed to delete')
     } finally {
       setDeletingId(null)
     }
   }, [pinnedId])
+
+  const handleSubmitDraft = useCallback(async (id: string, title: string) => {
+    setSubmittingId(id)
+    try {
+      const res = await fetch('/api/recommendations/drafts', {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ draft_id: id }),
+      })
+      const json = await res.json()
+
+      if (json.peak_hour) {
+        toast.warning("Still busy right now — try submitting a bit later!")
+        return
+      }
+
+      if (!res.ok) throw new Error(json.error)
+
+      // Promote in local state
+      setRecs(prev => prev.map(r =>
+        r.id === id ? { ...r, is_draft: false, draft_saved_at: null } : r
+      ))
+      toast.success(`"${title}" submitted successfully!`)
+      setFilter('pending')
+    } catch {
+      toast.error('Failed to submit draft')
+    } finally {
+      setSubmittingId(null)
+    }
+  }, [])
 
   const accent = {
     amber: {
@@ -136,6 +184,7 @@ export function RecsClient({
       edit:    'hover:border-amber-500/40 hover:text-amber-600',
       pinned:  'border-amber-500/40 bg-amber-500/5',
       pro:     'text-amber-600 font-semibold',
+      draft:   'border-amber-500/20 bg-amber-500/5',
     },
     teal: {
       header:  'bg-teal-500/10 text-teal-500',
@@ -146,6 +195,7 @@ export function RecsClient({
       edit:    'hover:border-teal-500/40 hover:text-teal-600',
       pinned:  'border-teal-500/40 bg-teal-500/5',
       pro:     'text-teal-600 font-semibold',
+      draft:   'border-teal-500/20 bg-teal-500/5',
     },
     primary: {
       header:  'bg-primary/10 text-primary',
@@ -156,6 +206,7 @@ export function RecsClient({
       edit:    'hover:border-primary/40 hover:text-primary',
       pinned:  'border-primary/40 bg-primary/5',
       pro:     'text-primary font-semibold',
+      draft:   'border-primary/20 bg-primary/5',
     },
   }[accentColor]
 
@@ -164,12 +215,13 @@ export function RecsClient({
     { key: 'approved', label: 'Approved' },
     { key: 'pending',  label: 'Pending'  },
     { key: 'rejected', label: 'Rejected' },
+    { key: 'drafts',   label: 'Drafts'   },
   ]
 
   return (
     <div className="space-y-5">
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           {isPro && (
@@ -178,7 +230,6 @@ export function RecsClient({
             </div>
           )}
           <div className="min-w-0">
-            {/* Title + PRO badge on one line, never wraps */}
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-black tracking-tight truncate">My Recommendations</h1>
               {isPro && (
@@ -187,26 +238,23 @@ export function RecsClient({
                 </span>
               )}
             </div>
-            {/* Stats row — compact, wraps gracefully on small screens */}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap mt-0.5">
               <span>{counts.all} total</span>
               {counts.approved > 0 && (
-                <>
-                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
-                  <span className="text-emerald-500 font-semibold">{counts.approved} live</span>
-                </>
+                <><span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
+                <span className="text-emerald-500 font-semibold">{counts.approved} live</span></>
               )}
               {counts.pending > 0 && (
-                <>
-                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
-                  <span className="text-amber-500 font-semibold">{counts.pending} pending</span>
-                </>
+                <><span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
+                <span className="text-amber-500 font-semibold">{counts.pending} pending</span></>
               )}
               {counts.rejected > 0 && (
-                <>
-                  <span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
-                  <span className="text-red-500 font-semibold">{counts.rejected} rejected</span>
-                </>
+                <><span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
+                <span className="text-red-500 font-semibold">{counts.rejected} rejected</span></>
+              )}
+              {counts.drafts > 0 && (
+                <><span className="w-1 h-1 rounded-full bg-muted-foreground/30 shrink-0" />
+                <span className="text-muted-foreground font-semibold">{counts.drafts} draft{counts.drafts !== 1 ? 's' : ''}</span></>
               )}
             </div>
           </div>
@@ -218,7 +266,7 @@ export function RecsClient({
         </Link>
       </div>
 
-      {/* ── Empty state ── */}
+      {/* Empty state */}
       {!recs.length ? (
         <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border space-y-4 text-center">
           <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center', accent.header)}>
@@ -264,14 +312,19 @@ export function RecsClient({
                 className={cn(
                   'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all',
                   filter === key
-                    ? accent.tab
+                    ? key === 'drafts'
+                      ? 'bg-muted text-muted-foreground border-border'
+                      : accent.tab
                     : 'bg-card text-muted-foreground border-border hover:text-foreground'
                 )}
               >
+                {key === 'drafts' && <FileText size={11} />}
                 {label}
                 <span className={cn(
                   'inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-black',
-                  filter === key ? accent.tabDot : 'bg-muted text-muted-foreground'
+                  filter === key
+                    ? key === 'drafts' ? 'bg-muted-foreground/20 text-muted-foreground' : accent.tabDot
+                    : 'bg-muted text-muted-foreground'
                 )}>
                   {counts[key]}
                 </span>
@@ -282,69 +335,90 @@ export function RecsClient({
           {/* No results */}
           {visible.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-border text-center space-y-2">
-              <Search size={20} className="text-muted-foreground opacity-40" />
-              <p className="font-black text-sm">No matches</p>
-              <button
-                onClick={() => { setSearch(''); setFilter('all') }}
-                className="text-xs text-primary hover:underline"
-              >
-                Clear filters
-              </button>
+              {filter === 'drafts' ? (
+                <>
+                  <FileText size={20} className="text-muted-foreground opacity-40" />
+                  <p className="font-black text-sm">No drafts saved</p>
+                  <p className="text-xs text-muted-foreground">Drafts appear here during peak hours</p>
+                </>
+              ) : (
+                <>
+                  <Search size={20} className="text-muted-foreground opacity-40" />
+                  <p className="font-black text-sm">No matches</p>
+                  <button
+                    onClick={() => { setSearch(''); setFilter('all') }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Clear filters
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <div className="space-y-2">
               {visible.map(rec => {
-                const status     = getStatus(rec)
-                const typeStyle  = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
-                const isDeleting = deletingId === rec.id
-                const isPinned   = pinnedId === rec.id
-                const isEdited   = rec.updated_at !== rec.created_at
-                const coverSrc   = proxyCover(rec.cover_url)
+                const status      = getStatus(rec)
+                const typeStyle   = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
+                const isDeleting  = deletingId  === rec.id
+                const isSubmitting= submittingId === rec.id
+                const isPinned    = pinnedId === rec.id
+                const isEdited    = rec.updated_at !== rec.created_at
+                const coverSrc    = proxyCover(rec.cover_url)
+                const isDraft     = rec.is_draft
 
                 return (
                   <div
                     key={rec.id}
                     className={cn(
                       'rounded-2xl border bg-card transition-colors overflow-hidden',
-                      isPinned ? accent.pinned : `border-border ${accent.hover}`
+                      isDraft   ? accent.draft  :
+                      isPinned  ? accent.pinned :
+                      `border-border ${accent.hover}`
                     )}
                   >
+                    {/* Draft banner */}
+                    {isDraft && (
+                      <div className="flex items-center gap-1.5 px-3 pt-2.5 pb-0">
+                        <FileText size={10} className="text-muted-foreground" />
+                        <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wide">
+                          Draft · saved {timeAgo(rec.draft_saved_at ?? rec.created_at)}
+                        </span>
+                      </div>
+                    )}
+
                     {/* Top row */}
                     <div className="flex gap-3 p-3">
-
                       {/* Cover */}
                       <div className="relative w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0">
                         {coverSrc ? (
-                          <img
-                            src={coverSrc}
-                            alt={rec.title}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={coverSrc} alt={rec.title} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <BookOpen size={16} className="text-muted-foreground opacity-40" />
                           </div>
                         )}
-                        {/* Status dot */}
-                        <div className={cn(
-                          'absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center',
-                          status === 'approved' ? 'bg-emerald-500' :
-                          status === 'pending'  ? 'bg-amber-500'   : 'bg-red-500'
-                        )}>
-                          {status === 'approved'
-                            ? <CheckCircle2 size={11} className="text-white" />
-                            : status === 'pending'
-                            ? <Clock size={11} className="text-white" />
-                            : <XCircle size={11} className="text-white" />
-                          }
-                        </div>
+                        {/* Status dot — only for non-drafts */}
+                        {!isDraft && (
+                          <div className={cn(
+                            'absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center',
+                            status === 'approved' ? 'bg-emerald-500' :
+                            status === 'pending'  ? 'bg-amber-500'   : 'bg-red-500'
+                          )}>
+                            {status === 'approved'
+                              ? <CheckCircle2 size={11} className="text-white" />
+                              : status === 'pending'
+                              ? <Clock size={11} className="text-white" />
+                              : <XCircle size={11} className="text-white" />
+                            }
+                          </div>
+                        )}
                       </div>
 
                       {/* Info */}
                       <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
                         <div className="flex items-start justify-between gap-2">
                           <p className="font-black text-sm leading-snug">{rec.title}</p>
-                          {isPinned && (
+                          {isPinned && !isDraft && (
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black bg-amber-500/10 text-amber-600 border border-amber-500/20 shrink-0">
                               <Pin size={8} />Pinned
                             </span>
@@ -357,27 +431,29 @@ export function RecsClient({
                           </span>
                           <span className="text-[9px] text-muted-foreground">
                             {timeAgo(rec.created_at)}
-                            {isEdited && <span className="italic ml-1 opacity-60">· edited</span>}
+                            {isEdited && !isDraft && <span className="italic ml-1 opacity-60">· edited</span>}
                           </span>
                         </div>
 
-                        <div className="flex items-center gap-2.5 text-[10px] text-muted-foreground flex-wrap">
-                          <span className="flex items-center gap-0.5">
-                            <ThumbsUp size={9} className="text-emerald-500" />{rec.upvotes}
-                          </span>
-                          <span className="flex items-center gap-0.5">
-                            <ThumbsDown size={9} className="text-red-400" />{rec.downvotes}
-                          </span>
-                          <span className="flex items-center gap-0.5">
-                            <Eye size={9} className="text-blue-400" />{rec.view_count ?? 0}
-                          </span>
-                          <span className="flex items-center gap-0.5">
-                            <Bookmark size={9} className="text-violet-400" />{rec.save_count ?? 0}
-                          </span>
-                          <span className="flex items-center gap-0.5">
-                            <MessageSquare size={9} className="text-amber-400" />{rec.review_count ?? 0}
-                          </span>
-                        </div>
+                        {!isDraft && (
+                          <div className="flex items-center gap-2.5 text-[10px] text-muted-foreground flex-wrap">
+                            <span className="flex items-center gap-0.5">
+                              <ThumbsUp size={9} className="text-emerald-500" />{rec.upvotes}
+                            </span>
+                            <span className="flex items-center gap-0.5">
+                              <ThumbsDown size={9} className="text-red-400" />{rec.downvotes}
+                            </span>
+                            <span className="flex items-center gap-0.5">
+                              <Eye size={9} className="text-blue-400" />{rec.view_count ?? 0}
+                            </span>
+                            <span className="flex items-center gap-0.5">
+                              <Bookmark size={9} className="text-violet-400" />{rec.save_count ?? 0}
+                            </span>
+                            <span className="flex items-center gap-0.5">
+                              <MessageSquare size={9} className="text-amber-400" />{rec.review_count ?? 0}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -404,50 +480,69 @@ export function RecsClient({
 
                     {/* Actions */}
                     <div className="flex items-center gap-1.5 px-3 pb-3">
-                      <Link href={`${editBasePath}/${rec.id}/edit`} className="flex-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className={cn('h-8 text-xs gap-1 w-full', accent.edit)}
-                        >
-                          <Pencil size={11} />Edit
-                        </Button>
-                      </Link>
-
-                      {status === 'approved' && (
-                        <Link href={`/comic/${rec.id}`} className="flex-1">
+                      {isDraft ? (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => handleSubmitDraft(rec.id, rec.title)}
+                            disabled={isSubmitting}
+                            className="flex-1 h-8 text-xs gap-1 bg-primary hover:bg-primary/90 border-0 text-primary-foreground"
+                          >
+                            {isSubmitting
+                              ? <Loader2 size={11} className="animate-spin" />
+                              : <Send size={11} />
+                            }
+                            {isSubmitting ? 'Submitting…' : 'Submit Now'}
+                          </Button>
+                          <Link href={`${editBasePath}/${rec.id}/edit`} className="shrink-0">
+                            <Button variant="outline" size="sm" className={cn('h-8 text-xs gap-1', accent.edit)}>
+                              <Pencil size={11} />Edit
+                            </Button>
+                          </Link>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="h-8 text-xs gap-1 w-full hover:border-primary/40 hover:text-primary"
+                            onClick={() => handleDelete(rec.id, rec.title, true)}
+                            disabled={isDeleting}
+                            className="h-8 text-xs gap-1 hover:border-destructive/40 hover:text-destructive shrink-0"
                           >
-                            <Eye size={11} />View
+                            {isDeleting ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
                           </Button>
-                        </Link>
+                        </>
+                      ) : (
+                        <>
+                          <Link href={`${editBasePath}/${rec.id}/edit`} className="flex-1">
+                            <Button variant="outline" size="sm" className={cn('h-8 text-xs gap-1 w-full', accent.edit)}>
+                              <Pencil size={11} />Edit
+                            </Button>
+                          </Link>
+                          {status === 'approved' && (
+                            <Link href={`/comic/${rec.id}`} className="flex-1">
+                              <Button variant="outline" size="sm" className="h-8 text-xs gap-1 w-full hover:border-primary/40 hover:text-primary">
+                                <Eye size={11} />View
+                              </Button>
+                            </Link>
+                          )}
+                          {status === 'approved' && (
+                            <PinButton
+                              key={`pin-${rec.id}-${pinnedId ?? 'none'}`}
+                              recommendationId={rec.id}
+                              isPinned={isPinned}
+                              size="xs"
+                              onPinChange={newPinnedId => setPinnedId(newPinnedId)}
+                            />
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(rec.id, rec.title, false)}
+                            disabled={isDeleting}
+                            className="h-8 text-xs gap-1 hover:border-destructive/40 hover:text-destructive shrink-0"
+                          >
+                            {isDeleting ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                          </Button>
+                        </>
                       )}
-
-                      {status === 'approved' && (
-                        <PinButton
-                          key={`pin-${rec.id}-${pinnedId ?? 'none'}`}
-                          recommendationId={rec.id}
-                          isPinned={isPinned}
-                          size="xs"
-                          onPinChange={newPinnedId => setPinnedId(newPinnedId)}
-                        />
-                      )}
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(rec.id, rec.title)}
-                        disabled={isDeleting}
-                        className="h-8 text-xs gap-1 hover:border-destructive/40 hover:text-destructive shrink-0"
-                      >
-                        {isDeleting
-                          ? <Loader2 size={11} className="animate-spin" />
-                          : <Trash2 size={11} />
-                        }
-                      </Button>
                     </div>
                   </div>
                 )

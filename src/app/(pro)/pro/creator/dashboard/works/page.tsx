@@ -11,10 +11,10 @@ export default async function ProCreatorWorksPage() {
   if (!user) redirect('/login')
 
   const { data: recs } = await supabase
-    .from('recommendations')
-    .select('id, title, cover_url, type, is_approved, upvotes, downvotes, view_count, review_count, save_count, created_at, updated_at, rejection_reason, appeal_status')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+  .from('recommendations')
+  .select('id, title, cover_url, type, is_approved, is_draft, draft_saved_at, upvotes, downvotes, view_count, review_count, save_count, created_at, updated_at, rejection_reason, appeal_status')
+  .eq('user_id', user.id)
+  .order('created_at', { ascending: false })
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">

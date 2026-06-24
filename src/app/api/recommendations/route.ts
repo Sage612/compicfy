@@ -1,11 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { recommendationSchema } from '@/lib/utils/validators'
-import { enforceRecLimit } from '@/lib/utils/proEnforce'
+import {
+  enforceRecLimit,
+  enforceDailyRecLimit,
+  incrementDailyCount,
+  checkGlobalDailyCap,
+  incrementGlobalCount,
+  getUserContributionScore,
+} from '@/lib/utils/proEnforce'
 
 type ExistingRec = {
-  id: string
-  title: string
+  id:          string
+  title:       string
   is_approved: boolean
 }
 
@@ -24,7 +31,7 @@ export async function GET(request: Request) {
     const adult  = searchParams.get('adult')  === 'true'
     const offset = (page - 1) * limit
 
-    // @ts-expect-error - Supabase doesn't have full type definitions for custom RPC functions
+    // @ts-expect-error - custom RPC
     const { data, error } = await supabase.rpc('search_recommendations', {
       p_query:  q      || null,
       p_type:   type   || null,
@@ -42,6 +49,7 @@ export async function GET(request: Request) {
       .from('recommendations')
       .select('*', { count: 'exact', head: true })
       .eq('is_approved', true)
+      .eq('is_draft', false)
 
     if (adult) {
       countQuery = countQuery.in('content_rating', ['adult', 'mature'])
@@ -93,13 +101,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Your account has been banned' }, { status: 403 })
     }
 
-    // ── Enforce monthly recommendation limit for free users ──
-    const { allowed, error: limitError } = await enforceRecLimit(user.id)
-    if (!allowed) return limitError!
+    const isAdminOrMod = ['admin', 'moderator'].includes(profile?.role ?? '')
 
-    const body = await request.json()
+    // ── Monthly limit (free users only) ───────────────────────────────────────
+    const { allowed: monthlyOk, error: monthlyError } = await enforceRecLimit(user.id)
+    if (!monthlyOk) return monthlyError!
+
+    // ── Daily limit (all non-admin users) ─────────────────────────────────────
+    if (!isAdminOrMod) {
+      const { allowed: dailyOk, error: dailyError } = await enforceDailyRecLimit(user.id)
+      if (!dailyOk) return dailyError!
+    }
+
+    const body   = await request.json()
+    const asDraft = body.save_as_draft === true
+
     const parsed = recommendationSchema.safeParse(body)
-
     if (!parsed.success) {
       return NextResponse.json(
         { error: 'Validation failed', details: parsed.error.issues },
@@ -109,30 +126,88 @@ export async function POST(request: Request) {
 
     const data = parsed.data
 
-    // Duplicate title check
-    const { data: existing } = (await supabase
-      .from('recommendations')
-      .select('id, title, is_approved')
-      .ilike('title', data.title.trim())
-      .single()) as { data: ExistingRec | null }
+    // ── Skip duplicate check for drafts ───────────────────────────────────────
+    if (!asDraft) {
+      const { data: existing } = (await supabase
+        .from('recommendations')
+        .select('id, title, is_approved')
+        .ilike('title', data.title.trim())
+        .eq('is_draft', false)
+        .single()) as { data: ExistingRec | null }
 
-    if (existing) {
-      return NextResponse.json(
-        {
-          error:       'duplicate',
-          message:     `"${existing.title}" has already been recommended.`,
-          existing_id: existing.id,
-          is_approved: existing.is_approved,
-        },
-        { status: 409 }
-      )
+      if (existing) {
+        return NextResponse.json(
+          {
+            error:       'duplicate',
+            message:     `"${existing.title}" has already been recommended.`,
+            existing_id: existing.id,
+            is_approved: existing.is_approved,
+          },
+          { status: 409 }
+        )
+      }
     }
 
-    const isAdminOrMod    = ['admin', 'moderator'].includes(profile?.role ?? '')
-    const isAutoApproved  = isAdminOrMod
+    // ── Global daily cap check (non-admin, non-draft path) ────────────────────
+    if (!isAdminOrMod && !asDraft) {
+      const { isPeakHour, capReached } = await checkGlobalDailyCap()
 
-    // Pro flag — used to prioritise in admin review queue
-    // Admin/mod always count as pro for this purpose
+      if (isPeakHour) {
+        // Check user contribution score to decide auto-draft vs hold
+        const score        = await getUserContributionScore(user.id)
+        const highTrust    = score >= 50  // trusted contributor threshold
+
+        // Save as draft regardless — return peak_hour signal to frontend
+        const insertDraft = {
+          user_id:            user.id,
+          title:              data.title,
+          description:        data.description,
+          type:               data.type,
+          status:             data.status,
+          genres:             data.genres,
+          official_platforms: data.official_platforms,
+          cover_url:          data.cover_url    || null,
+          content_rating:     data.content_rating,
+          why_recommend:      data.why_recommend || null,
+          author:             data.author        || null,
+          artist:             data.artist        || null,
+          year_released:      data.year_released || null,
+          chapter_count:      data.chapter_count || null,
+          is_approved:        false,
+          is_draft:           true,
+          draft_saved_at:     new Date().toISOString(),
+          is_pro_submission:  !!(profile?.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())),
+          mangaupdates_id:    body.mangaupdates_id || null,
+          anilist_id:         body.anilist_id      || null,
+          mal_id:             body.mal_id          || null,
+          mangadex_id:        body.mangadex_id     || null,
+        }
+
+        const { data: draft, error: draftError } = await (supabase as any)
+          .from('recommendations')
+          .insert(insertDraft as any)
+          .select()
+          .single()
+
+        if (draftError) {
+          return NextResponse.json({ error: draftError.message }, { status: 500 })
+        }
+
+        return NextResponse.json(
+          {
+            peak_hour:  true,
+            high_trust: highTrust,
+            draft_id:   draft.id,
+            message:    capReached
+              ? 'peak_cap'
+              : 'peak_spike',
+          },
+          { status: 202 }  // 202 Accepted = saved but not yet processed
+        )
+      }
+    }
+
+    const isAutoApproved  = isAdminOrMod
     const isProSubmission = isAdminOrMod || !!(
       profile?.is_pro &&
       (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
@@ -154,7 +229,9 @@ export async function POST(request: Request) {
       year_released:      data.year_released || null,
       chapter_count:      data.chapter_count || null,
       is_approved:        isAutoApproved,
-      is_pro_submission:  isProSubmission,   // Pro queue priority
+      is_draft:           asDraft,
+      draft_saved_at:     asDraft ? new Date().toISOString() : null,
+      is_pro_submission:  isProSubmission,
       mangaupdates_id:    body.mangaupdates_id || null,
       anilist_id:         body.anilist_id      || null,
       mal_id:             body.mal_id          || null,
@@ -169,6 +246,14 @@ export async function POST(request: Request) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // ── Increment counters only for real submissions ───────────────────────────
+    if (!asDraft) {
+      await Promise.all([
+        incrementDailyCount(user.id),
+        incrementGlobalCount(),
+      ])
     }
 
     return NextResponse.json({ recommendation }, { status: 201 })
