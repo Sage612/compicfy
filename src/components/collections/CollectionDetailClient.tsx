@@ -66,9 +66,11 @@ interface Props {
   isSaved:    boolean
   isOwner:    boolean
   isLoggedIn: boolean
+  backHref?: string  
+  backLabel?: string
 }
 
-export function CollectionDetailClient({ collection, isSaved: initialSaved, isOwner, isLoggedIn }: Props) {
+export function CollectionDetailClient({ collection, isSaved: initialSaved, isOwner, isLoggedIn, backHref = '/collections', backLabel = 'All Collections', }: Props) {
   const [saved,       setSaved]       = useState(initialSaved)
   const [savingState, setSavingState] = useState(false)
   const [saveCount,   setSaveCount]   = useState(collection.save_count)
@@ -279,7 +281,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
 
           {/* Back */}
           <div className="absolute top-4 left-4 z-20">
-            <Link href="/collections" className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 text-white">
+            <Link href={backHref} className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm border border-white/10 text-white">
               <ArrowLeft size={16} />
             </Link>
           </div>
@@ -440,7 +442,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
       ══════════════════════════════════════════════════════════════════════ */}
       <div className="hidden sm:block max-w-4xl mx-auto px-4 py-8 space-y-8">
 
-        <Link href="/collections" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft size={13} /> All Collections
         </Link>
 

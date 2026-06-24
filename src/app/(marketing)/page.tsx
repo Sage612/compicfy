@@ -401,10 +401,7 @@ export default async function HomePage() {
         <section className="border-y border-border">
           <div className="max-w-7xl mx-auto px-4 py-12 space-y-8">
             <div className="text-center space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-amber-500/20 bg-amber-500/5 text-amber-600 text-xs font-bold uppercase tracking-widest">
-                <Trophy size={11} />
-                Top Contributors
-              </div>
+             
               <h2 className="text-2xl font-black tracking-tight">The people behind the picks</h2>
               <p className="text-muted-foreground text-sm max-w-sm mx-auto">
                 Real readers sharing what they love.
@@ -445,10 +442,7 @@ export default async function HomePage() {
         <section className="border-y border-border">
           <div className="max-w-7xl mx-auto px-4 py-14 space-y-10">
             <div className="text-center space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-primary/20 bg-primary/5 text-primary text-xs font-bold uppercase tracking-widest">
-                <Star size={11} />
-                Curated by readers
-              </div>
+              
               <h2 className="text-2xl font-black tracking-tight">Collections & reading lists</h2>
               <p className="text-muted-foreground text-sm max-w-sm mx-auto">
                 Themed picks and reading journeys, built by the community.
