@@ -163,7 +163,7 @@ export function ListsClient({
   const handleNewListClick = () => {
     if (!userId) { setAuthPrompt(true); return }
     if (atLimit) {
-      toast.error(`Free users can create up to ${FREE_LIST_LIMIT} lists — upgrade to Pro for unlimited`)
+      toast.error(`Free users can create up to ${FREE_LIST_LIMIT} lists upgrade to Pro for unlimited`)
       return
     }
     setShowCreate(true)
@@ -228,7 +228,7 @@ export function ListsClient({
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
-            <p className="text-muted-foreground text-sm">Curated reading journeys from the community</p>
+            <p className="text-muted-foreground text-sm">reading journeys from the community</p>
           </div>
         </div>
 

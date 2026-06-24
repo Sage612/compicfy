@@ -319,7 +319,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false, basePath
           <div>
             <h1 className="text-2xl font-black tracking-tight">Collections</h1>
             <p className="text-muted-foreground text-sm">
-              Curated comic picks, themed and shareable
               {!isProUser && userId && (
                 <span className="text-muted-foreground/60 ml-1">
                   · {Math.max(0, FREE_LIMIT - collections.filter(c => c.user_id === userId).length)} free slot{FREE_LIMIT - collections.filter(c => c.user_id === userId).length !== 1 ? 's' : ''} remaining

@@ -178,7 +178,7 @@ export function FeedList({
           </p>
           <div className="flex gap-3 justify-center mt-6">
             <Link href="/browse">
-              <Button className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:opacity-90 border-0 shadow-md shadow-primary/20" size="sm">
+              <Button className="gap-2 bg-primary hover:opacity-90 border-0 shadow-md shadow-primary/20" size="sm">
                 <Radar size={14} />
                 Discover Comics
               </Button>
@@ -209,7 +209,7 @@ export function FeedList({
                     key={contributor.id}
                     className="flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/30 transition-colors"
                   >
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
+                    <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
                       {contributor.avatar_url
                         ? <img src={contributor.avatar_url} alt={initials} className="w-full h-full object-cover" />
                         : initials
@@ -268,7 +268,7 @@ export function FeedList({
         </p>
         <Link href="/feed?tab=discover" className="mt-6">
           <Button variant="outline" size="sm" className="gap-2">
-            <BookOpen size={14} />
+            <LayoutList size={14} />
             Try Discover Instead
           </Button>
         </Link>
