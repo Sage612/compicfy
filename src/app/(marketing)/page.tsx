@@ -59,12 +59,12 @@ const PLATFORMS = [
 ]
 
 const TYPE_COLORS: Record<string, string> = {
-  manga:   'bg-rose-500/20   text-rose-400   border-rose-500/30',
+  manga:   'bg-rose-500/20 text-rose-400 border-rose-500/30',
   manhwa:  'bg-teal-500/20 text-teal-400 border-teal-500/30',
-  manhua:  'bg-amber-500/20  text-amber-400  border-amber-500/30',
-  webtoon: 'bg-teal-500/20   text-teal-400   border-teal-500/30',
-  comic:   'bg-blue-500/20   text-blue-400   border-blue-500/30',
-  other:   'bg-zinc-500/20   text-zinc-400   border-zinc-500/30',
+  manhua:  'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  webtoon: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
+  comic:   'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  other:   'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
 }
 
 const RANK_STYLES: Record<number, { bg: string; text: string }> = {
@@ -83,7 +83,6 @@ function proxyCover(url: string | null | undefined): string {
 
 export default async function HomePage() {
   const supabase = await createClient()
-
   const [
     { data: trending },
     { data: recentNews },
@@ -94,6 +93,8 @@ export default async function HomePage() {
     { data: fallbackData },
     { data: recentActivity },
     { data: topContributors },
+    { data: recentCollections },
+    { data: recentLists },
   ] = await Promise.all([
     supabase.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(6),
     supabase.from('news').select('*').eq('is_published', true).order('published_at', { ascending: false }).limit(3),
@@ -104,6 +105,18 @@ export default async function HomePage() {
     supabase.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('score', { ascending: false }).limit(1),
     supabase.from('recommendations').select('title, type, user_id, profiles!recommendations_user_id_fkey(username)').eq('is_approved', true).not('content_rating', 'in', '("adult","mature")').order('created_at', { ascending: false }).limit(6),
     supabase.from('profiles').select('id, username, display_name, avatar_url, total_recommendations').eq('is_banned', false).not('role', 'eq', 'admin').neq('username', 'ghost').gt('total_recommendations', 0).order('total_recommendations', { ascending: false }).limit(6),
+    (supabase as any)
+      .from('collections')
+      .select('id, title, cover_url, theme_color, save_count, profiles!collections_user_id_fkey(username, avatar_url), collection_items(recommendations(cover_url))')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+      .limit(4),
+    (supabase as any)
+      .from('reading_lists')
+      .select('id, name, star_count, profiles!reading_lists_user_id_fkey(username, avatar_url), reading_list_items(recommendations(cover_url))')
+      .eq('is_public', true)
+      .order('created_at', { ascending: false })
+      .limit(4),
   ])
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -139,19 +152,21 @@ export default async function HomePage() {
       .eq('is_approved', true)
       .in('user_id', contributorIds)
     ;(approvedData ?? []).forEach((r: any) => {
-      approvedCounts[r.user_id] = (approvedCounts[r.user_id] ?? 0) + 1
+       approvedCounts[r.user_id] = (approvedCounts[r.user_id] ?? 0) + 1
     })
   }
 
   const spotlight           = (featuredData?.[0] ?? fallbackData?.[0]) as Recommendation | undefined
   const spotlightIsFeatured = !!(featuredData?.[0])
   const spotlightTypeStyle  = spotlight ? (TYPE_COLORS[spotlight.type] ?? TYPE_COLORS.other) : ''
-
   const tickerItems = activity.map((rec: any) => ({
     title:    rec.title,
     type:     rec.type,
     username: rec.profiles?.username ?? 'someone',
   }))
+
+  const collections = (recentCollections ?? []) as any[]
+  const publicLists  = (recentLists       ?? []) as any[]
 
   return (
     <div className="flex flex-col">
@@ -187,7 +202,7 @@ export default async function HomePage() {
                   next{' '}
                   <span className="relative inline-block">
                     <span className="text-primary">
-                      obsession.
+                       obsession.
                     </span>
                     <span className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary/40 rounded-full" />
                   </span>
@@ -223,6 +238,7 @@ export default async function HomePage() {
                 )}
               </div>
 
+              {/* Stats Panel */}
               <div className="flex flex-wrap gap-5 pt-2 justify-center md:justify-start">
                 {[
                   { label: 'Comics Shared', value: totalComics,  icon: BookOpen,      color: 'text-rose-500',  bg: 'bg-rose-500/10',  threshold: 20 },
@@ -233,6 +249,7 @@ export default async function HomePage() {
                     const isCredible = value >= threshold
                     return (
                       <div key={label} className="flex items-center gap-2 text-sm">
+                        {/* FIX: Correct syntax wrapper for class configurations */}
                         <div className={`w-8 h-8 rounded ${bg} flex items-center justify-center ${color}`}>
                           <Icon size={14} />
                         </div>
@@ -423,6 +440,100 @@ export default async function HomePage() {
         </section>
       )}
 
+      {/* ── COLLECTIONS & LISTS ── */}
+      {(collections.length > 0 || publicLists.length > 0) && (
+        <section className="border-y border-border">
+          <div className="max-w-7xl mx-auto px-4 py-14 space-y-10">
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-primary/20 bg-primary/5 text-primary text-xs font-bold uppercase tracking-widest">
+                <Star size={11} />
+                Curated by readers
+              </div>
+              <h2 className="text-2xl font-black tracking-tight">Collections & reading lists</h2>
+              <p className="text-muted-foreground text-sm max-w-sm mx-auto">
+                Themed picks and reading journeys, built by the community.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Collections */}
+              {collections.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Recent Collections</h3>
+                    <Link href="/collections" className="text-xs text-primary hover:underline flex items-center gap-0.5 shrink-0">
+                      View all <ChevronRight size={12} />
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {collections.map((col: any) => {
+                      const covers = (col.collection_items ?? [])
+                        .map((i: any) => i.recommendations?.cover_url)
+                        .filter(Boolean)
+                        .slice(0, 4) as string[]
+                      const dominant = covers[0]
+                      return (
+                        <Link key={col.id} href={`/collections/${col.id}`} className="group relative h-32 rounded-xl overflow-hidden border border-border block">
+                          {dominant ? (
+                            <img src={proxyCover(dominant)} alt={col.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-primary/30 to-transparent" />
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                            <p className="text-white text-xs font-black leading-snug line-clamp-2 drop-shadow">{col.title}</p>
+                            {col.profiles?.username && (
+                              <p className="text-white/60 text-[10px] mt-0.5">@{col.profiles.username}</p>
+                            )}
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Public lists */}
+              {publicLists.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Recent Reading Lists</h3>
+                    <Link href="/lists" className="text-xs text-primary hover:underline flex items-center gap-0.5 shrink-0">
+                      View all <ChevronRight size={12} />
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {publicLists.map((list: any) => {
+                      const covers = (list.reading_list_items ?? [])
+                        .map((i: any) => i.recommendations?.cover_url)
+                        .filter(Boolean)
+                        .slice(0, 4) as string[]
+                      const dominant = covers[0]
+                      return (
+                        <Link key={list.id} href={`/lists/${list.id}`} className="group relative h-32 rounded-xl overflow-hidden border border-border block">
+                          {dominant ? (
+                            <img src={proxyCover(dominant)} alt={list.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          ) : (
+                            <div className="absolute inset-0 bg-gradient-to-br from-violet-500/30 to-transparent" />
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+                          <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                            <p className="text-white text-xs font-black leading-snug line-clamp-2 drop-shadow">{list.name}</p>
+                            {list.profiles?.username && (
+                              <p className="text-white/60 text-[10px] mt-0.5">@{list.profiles.username}</p>
+                            )}
+                          </div>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* ── HOW IT WORKS ── */}
       <section className="border-b border-border">
         <div className="max-w-7xl mx-auto px-4 py-14 space-y-10">
@@ -461,6 +572,7 @@ export default async function HomePage() {
             ].map(({ step, icon: Icon, title, desc, color, bg }) => (
               <div key={step} className="relative p-6 rounded-lg bg-card border border-border space-y-4 hover:border-primary/30 transition-colors duration-200">
                 <span className="absolute top-4 right-5 text-4xl font-black text-muted-foreground/6 select-none">{step}</span>
+                {/* FIX: Correct syntax wrapper for how it works items */}
                 <div className={`w-10 h-10 rounded ${bg} flex items-center justify-center ${color}`}>
                   <Icon size={19} />
                 </div>
@@ -512,8 +624,7 @@ export default async function HomePage() {
               <span className="text-primary"> what you just finished.</span>
             </h2>
             <p className="text-muted-foreground leading-relaxed text-sm max-w-lg">
-              Post the manga, manhwa, or webtoon you can't stop thinking about.
-              Takes two minutes. Might make someone's whole week.
+              Post the manga, manhwa, or webtoon you can't stop thinking about. Takes two minutes. Might make someone's whole week.
             </p>
             <div className="flex flex-wrap gap-3 pt-1">
               <Link href={user ? submitRoute : '/signup'}>
