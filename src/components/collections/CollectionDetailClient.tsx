@@ -331,13 +331,14 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                     className="w-5 h-5 rounded-full object-cover border border-border" />
                 ) : (
                   <div className={cn('w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold border border-border', theme.bg, theme.text)}>
-                    {collection.profiles.username[0].toUpperCase()}
+                    {(collection.profiles.username ?? '?')[0].toUpperCase()}
+
                   </div>
                 )}
                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                   <span>by</span>
-                  <Link href={`/profile/${collection.profiles.username}`} className={cn('font-semibold hover:underline', theme.text)}>
-                    @{collection.profiles.username}
+                  <Link href={`/profile/${collection.profiles.username ?? ''}`} className={cn('font-semibold hover:underline', theme.text)}>
+                    @{collection.profiles.username ?? 'unknown'}
                   </Link>
                 </div>
               </div>
@@ -516,8 +517,8 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                   <img src={collection.profiles.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover border border-border" />
                 )}
                 <span>Curated by</span>
-                <Link href={`/profile/${collection.profiles.username}`} className={cn('font-semibold hover:underline', theme.text)}>
-                  @{collection.profiles.username}
+                <Link href={`/profile/${collection.profiles.username ?? ''}`} className={cn('font-semibold hover:underline', theme.text)}>
+                  @{collection.profiles.username ?? 'unknown'}
                 </Link>
               </div>
             )}
