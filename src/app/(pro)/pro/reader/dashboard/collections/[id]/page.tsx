@@ -15,61 +15,55 @@ export default async function ProReaderDashboardCollectionDetailPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: collection } = await (supabase as any)
-    .from('collections')
-    .select(`
-      id, user_id, title, description, cover_url, theme_color,
-      is_published, save_count, view_count, created_at,
-      profiles ( username, display_name, avatar_url, verified_recommender ),
-      collection_items (
-        id, position, note,
-       recommendations (
-          id, title, cover_url, type, status, genres,
-          upvotes, downvotes, score, author, year_released,
-          description, is_approved, content_rating,
-          save_count, review_count, view_count,
-          official_platforms, why_recommend,
-          created_at, updated_at, user_id,
-          rejection_reason, appeal_status,
-          is_pro_submission, is_featured,
-          is_ai_generated, ai_model,
-          alternative_titles, themes, content_warnings,
-          chapter_count, artist, publisher,
-          original_language, cover_credit, banner_url,
-          best_for, pros, cons, daily_votes,
-          last_daily_reset, report_count,
-          official_links, is_official_only,
-          year_ended, featured_at, reviewed_by,
-          reviewed_at, appeal_text, appeal_submitted_at,
-          mangaupdates_id, anilist_id, mal_id,
-          mangadex_id, mangabaka_id, kuroiru_id
-        )
-      )
-    `)
+  const { data: collection } = await supabase
+    .from('collections' as any)
+    .select('id, user_id, title, description, cover_url, theme_color, is_published, save_count, view_count, created_at')
     .eq('id', id)
     .single()
 
   if (!collection) notFound()
-  if (collection.user_id !== user.id) redirect(`/collections/${id}`)
+  if ((collection as any).user_id !== user.id) redirect(`/collections/${id}`)
 
-  const normaliseItem = (item: any) => {
-    const rec = Array.isArray(item.recommendations)
-      ? item.recommendations[0]
-      : item.recommendations
-    return { ...item, recommendations: rec }
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('username, display_name, avatar_url, verified_recommender')
+    .eq('id', (collection as any).user_id)
+    .single()
+
+  const { data: items } = await supabase
+    .from('collection_items' as any)
+    .select(`
+      id, position, note,
+      recommendations (
+        id, title, cover_url, type, status, genres,
+        upvotes, downvotes, score, author, year_released,
+        description, is_approved, content_rating,
+        save_count, review_count, view_count,
+        official_platforms, why_recommend,
+        created_at, updated_at, user_id
+      )
+    `)
+    .eq('collection_id', id)
+    .order('position', { ascending: true })
+
+  const normalisedItems = ((items ?? []) as any[])
+    .map((item: any) => ({
+      ...item,
+      recommendations: Array.isArray(item.recommendations)
+        ? item.recommendations[0]
+        : item.recommendations,
+    }))
+    .filter((item: any) => item.recommendations?.id != null)
+
+  const assembled = {
+    ...(collection as any),
+    theme_color:      (collection as any).theme_color ?? 'primary',
+    profiles:         profile ?? null,
+    collection_items: normalisedItems,
   }
 
-  const sorted = {
-    ...collection,
-    theme_color: collection.theme_color ?? 'primary',
-    collection_items: [...(collection.collection_items ?? [])]
-      .map(normaliseItem)
-      .filter((item: any) => item.recommendations?.id != null)
-      .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
-  }
-
-  const { data: saveRow } = await (supabase as any)
-    .from('collection_saves')
+  const { data: saveRow } = await supabase
+    .from('collection_saves' as any)
     .select('id')
     .eq('collection_id', id)
     .eq('user_id', user.id)
@@ -78,7 +72,7 @@ export default async function ProReaderDashboardCollectionDetailPage({
   return (
     <div className="pb-8">
       <CollectionDetailClient
-        collection={sorted}
+        collection={assembled}
         isSaved={!!saveRow}
         isOwner={true}
         isLoggedIn={true}
