@@ -33,14 +33,21 @@ export default async function ProReaderDashboardCollectionDetailPage({
     .single()
 
   if (!collection) notFound()
-
   if (collection.user_id !== user.id) redirect(`/collections/${id}`)
+
+  const normaliseItem = (item: any) => {
+    const rec = Array.isArray(item.recommendations)
+      ? item.recommendations[0]
+      : item.recommendations
+    return { ...item, recommendations: rec }
+  }
 
   const sorted = {
     ...collection,
     theme_color: collection.theme_color ?? 'primary',
     collection_items: [...(collection.collection_items ?? [])]
-      .filter((item: any) => item.recommendations != null)
+      .map(normaliseItem)
+      .filter((item: any) => item.recommendations?.id != null)
       .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
   }
 

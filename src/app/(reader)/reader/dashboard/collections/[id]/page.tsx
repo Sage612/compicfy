@@ -33,18 +33,24 @@ export default async function ReaderDashboardCollectionDetailPage({
     .single()
 
   if (!collection) notFound()
-
-  // Non-owners get redirected to the public page
   if (collection.user_id !== user.id) redirect(`/collections/${id}`)
 
-  // Filter out any items with null recommendations (deleted comics)
-  // then sort by position — this prevents ComicCard crash on undefined props
+  // Supabase sometimes returns nested relations as arrays — normalise to objects
+  const normaliseItem = (item: any) => {
+    const rec = Array.isArray(item.recommendations)
+      ? item.recommendations[0]
+      : item.recommendations
+    return { ...item, recommendations: rec }
+  }
+
   const sorted = {
     ...collection,
-    // Ensure theme_color always has a valid value
+    // Guard: theme_color must be a valid key; default to 'primary' if missing
     theme_color: collection.theme_color ?? 'primary',
     collection_items: [...(collection.collection_items ?? [])]
-      .filter((item: any) => item.recommendations != null)
+      .map(normaliseItem)
+      // Filter out items where recommendation is missing or has no id
+      .filter((item: any) => item.recommendations?.id != null)
       .sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0)),
   }
 

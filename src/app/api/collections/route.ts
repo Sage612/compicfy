@@ -1,29 +1,24 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-
-const FREE_COLLECTION_LIMIT = 3
+import { enforceCollectionLimit } from '@/lib/utils/proEnforce'
 
 export async function GET(request: Request) {
   try {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const userId   = searchParams.get('user_id')
-    const contains = searchParams.get('contains') // recommendation_id
+    const contains = searchParams.get('contains')
     const page     = parseInt(searchParams.get('page')  ?? '1')
     const limit    = parseInt(searchParams.get('limit') ?? '12')
     const offset   = (page - 1) * limit
 
-    // ── Special: return only the current user's collections that contain a given comic ──
     if (contains) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return NextResponse.json({ collections: [] })
 
       const { data, error } = await (supabase as any)
         .from('collections')
-        .select(`
-          id, title,
-          collection_items!inner(recommendation_id)
-        `)
+        .select(`id, title, collection_items!inner(recommendation_id)`)
         .eq('user_id', user.id)
         .eq('collection_items.recommendation_id', contains)
 
@@ -31,7 +26,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ collections: data ?? [] })
     }
 
-    // ── Normal listing ──
     let query = (supabase as any)
       .from('collections')
       .select(`
@@ -79,33 +73,9 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, is_pro, pro_expires_at')
-      .eq('id', user.id)
-      .single()
-
-    const isProOrAdmin = (profile as any)?.role === 'admin' ||
-      ((profile as any)?.is_pro &&
-        (!(profile as any)?.pro_expires_at ||
-          new Date((profile as any).pro_expires_at) > new Date()))
-
-    if (!isProOrAdmin) {
-      const { count } = await (supabase as any)
-        .from('collections')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-
-      if ((count ?? 0) >= FREE_COLLECTION_LIMIT) {
-        return NextResponse.json(
-          {
-            error:   'limit_reached',
-            message: `Free users can create up to ${FREE_COLLECTION_LIMIT} collections. Upgrade to Pro for unlimited.`,
-          },
-          { status: 403 }
-        )
-      }
-    }
+    // ── Single source of truth via proEnforce ─────────────────────────────────
+    const { allowed, error: limitError } = await enforceCollectionLimit(user.id)
+    if (!allowed) return limitError!
 
     const { title, description, cover_url, theme_color, is_published } = await request.json()
 

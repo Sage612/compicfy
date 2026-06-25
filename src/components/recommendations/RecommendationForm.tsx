@@ -18,11 +18,11 @@ import { toast } from 'sonner'
 import {Loader2, BookOpen, Info, AlertTriangle, Sparkles,
   Tag, FileText, Globe, Crown,
 } from 'lucide-react'
+import { PeakHourModal } from '@/components/recommendations/PeakHourModal'
+import { FREE_LIMITS } from '@/lib/utils/constants'
 import { cn } from '@/lib/utils'
 import { MangaSearch } from './MangaSearch'
 import { createClient } from '@/lib/supabase/client'
-
-const FREE_REC_LIMIT = 50
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Max 200 characters'),
@@ -122,6 +122,11 @@ export function RecommendationForm({ userId }: Props) {
 
   const [monthlyCount, setMonthlyCount] = useState<number | null>(null)
   const [isPro,        setIsPro]        = useState<boolean | null>(null)
+  const [peakHourModal, setPeakHourModal] = useState<{
+  open:        boolean
+  messageType: 'peak_spike' | 'peak_cap'
+  draftId:     string | null
+}>({ open: false, messageType: 'peak_spike', draftId: null })
   const supabase = createClient()
 
   useEffect(() => {
@@ -159,9 +164,9 @@ export function RecommendationForm({ userId }: Props) {
     fetchUsage()
   }, [supabase])
 
-  const atRecLimit   = isPro === false && monthlyCount !== null && monthlyCount >= FREE_REC_LIMIT
-  const nearRecLimit = isPro === false && monthlyCount !== null && monthlyCount >= FREE_REC_LIMIT - 5
-  const usagePct     = monthlyCount !== null ? Math.min(100, Math.round((monthlyCount / FREE_REC_LIMIT) * 100)) : 0
+  const atRecLimit   = isPro === false && monthlyCount !== null && monthlyCount >= FREE_LIMITS.recommendations_per_month
+  const nearRecLimit = isPro === false && monthlyCount !== null && monthlyCount >= FREE_LIMITS.recommendations_per_month - 5
+  const usagePct     = monthlyCount !== null ? Math.min(100, Math.round((monthlyCount / FREE_LIMITS.recommendations_per_month) * 100)) : 0
 
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = useForm<FormValues>({
     resolver: zodResolver(formSchema) as any,
@@ -203,53 +208,78 @@ export function RecommendationForm({ userId }: Props) {
   }
 
   const onSubmit = async (data: FormValues) => {
-    if (duplicateWarning) return
-    if (atRecLimit) {
-      toast.error('Monthly limit reached. Upgrade to Pro for unlimited submissions.')
+  if (duplicateWarning) return
+  if (atRecLimit) {
+    toast.error('Monthly limit reached. Upgrade to Pro for unlimited submissions.')
+    return
+  }
+  setSubmitting(true)
+  try {
+    const response = await fetch('/api/recommendations', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ ...data, ...externalIds }),
+    })
+    const result = await response.json()
+
+    // ── Peak hour — system saved as draft automatically ───────────────────────
+    if (response.status === 202 && result.peak_hour) {
+      setPeakHourModal({
+        open:        true,
+        messageType: result.message === 'peak_cap' ? 'peak_cap' : 'peak_spike',
+        draftId:     result.draft_id,
+      })
       return
     }
-    setSubmitting(true)
-    try {
-      const response = await fetch('/api/recommendations', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ ...data, ...externalIds }),
+
+    if (response.status === 409 && result.error === 'duplicate') {
+      toast.error(result.message, {
+        description: result.is_approved
+          ? 'View the existing recommendation instead.'
+          : 'This comic is already pending review.',
+        action: result.is_approved
+          ? { label: 'View Comic', onClick: () => router.push(`/comic/${result.existing_id}`) }
+          : undefined,
+        duration: 6000,
       })
-      const result = await response.json()
+      return
+    }
 
-      if (response.status === 409 && result.error === 'duplicate') {
-        toast.error(result.message, {
-          description: result.is_approved ? 'View the existing recommendation instead.' : 'This comic is already pending review.',
-          action: result.is_approved ? { label: 'View Comic', onClick: () => router.push(`/comic/${result.existing_id}`) } : undefined,
-          duration: 6000,
-        })
-        return
-      }
+    if (response.status === 403) {
+      toast.error(
+        <div className="flex flex-col gap-1.5">
+          <p className="font-black text-sm">Monthly limit reached</p>
+          <p className="text-xs text-muted-foreground">{result.message}</p>
+          <Link href="/pricing" className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5">
+            <Crown size={11} />Upgrade to Pro for unlimited
+          </Link>
+        </div>,
+        { duration: 6000 }
+      )
+      return
+    }
 
-      if (response.status === 403) {
-        toast.error(
-          <div className="flex flex-col gap-1.5">
-            <p className="font-black text-sm">Monthly limit reached</p>
-            <p className="text-xs text-muted-foreground">{result.message}</p>
-            <Link href="/pricing" className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5">
-              <Crown size={11} />
-              Upgrade to Pro for unlimited
-            </Link>
-          </div>,
-          { duration: 6000 }
-        )
-        return
-      }
+    if (response.status === 429) {
+      toast.error(result.message ?? 'Daily limit reached. Try again tomorrow.')
+      return
+    }
 
-      if (!response.ok) { toast.error(result.error || 'Failed to submit'); return }
-      toast.success(result.recommendation.is_approved ? 'Recommendation published!' : 'Recommendation submitted for review!')
-      router.push(isPro ? '/pro/reader/dashboard/recommendations' : '/reader/dashboard/recommendations')
-      router.refresh()
-    } catch (error) {
-      console.error(error)
-      toast.error('Something went wrong')
-    } finally { setSubmitting(false) }
+    if (!response.ok) { toast.error(result.error || 'Failed to submit'); return }
+
+    toast.success(
+      result.recommendation.is_approved
+        ? 'Recommendation published!'
+        : 'Recommendation submitted for review!'
+    )
+    router.push(isPro ? '/pro/reader/dashboard/recommendations' : '/reader/dashboard/recommendations')
+    router.refresh()
+  } catch (error) {
+    console.error(error)
+    toast.error('Something went wrong')
+  } finally {
+    setSubmitting(false)
   }
+}
 
   const handleMangaSelect = (result: any) => {
     setValue('title',       result.title              || '')
@@ -287,7 +317,7 @@ export function RecommendationForm({ userId }: Props) {
             <div className="flex items-center gap-2">
               <BookOpen size={13} className={atRecLimit ? 'text-red-500' : nearRecLimit ? 'text-amber-500' : 'text-muted-foreground'} />
               <span className="text-xs font-semibold">
-                {monthlyCount} / {FREE_REC_LIMIT} recommendations this month
+                {monthlyCount} / {FREE_LIMITS.recommendations_per_month} recommendations this month
               </span>
             </div>
             {(atRecLimit || nearRecLimit) && (
@@ -310,7 +340,7 @@ export function RecommendationForm({ userId }: Props) {
             <div className="flex items-start gap-2">
               <AlertTriangle size={13} className="text-red-500 shrink-0 mt-0.5" />
               <p className="text-xs text-red-600 font-medium">
-                You've used all {FREE_REC_LIMIT} recommendations for this month.{' '}
+                You've used all {FREE_LIMITS.recommendations_per_month} recommendations for this month.{' '}
                 <Link href="/pricing" className="underline font-bold">Upgrade to Pro</Link> for unlimited submissions.
               </p>
             </div>
@@ -601,6 +631,21 @@ export function RecommendationForm({ userId }: Props) {
           )}
         </Button>
       </div>
+
+      <PeakHourModal
+          isOpen={peakHourModal.open}
+          onClose={() => setPeakHourModal(p => ({ ...p, open: false }))}
+          messageType={peakHourModal.messageType}
+          onSaveDraft={async () => {
+            // Draft was already auto-saved by the server — just redirect to dashboard
+            router.push(
+              isPro
+                ? '/pro/reader/dashboard/recommendations'
+                : '/reader/dashboard/recommendations'
+            )
+            router.refresh()
+          }}
+      />
     </form>
   )
 }

@@ -166,6 +166,9 @@ export type Database = {
           appeal_text: string | null
           appeal_submitted_at: string | null
           is_pro_submission: boolean
+          // Draft fields
+          is_draft:        boolean
+          draft_saved_at:  string | null
           created_at: string
           updated_at: string
         }
@@ -216,6 +219,8 @@ export type Database = {
           appeal_text?: string | null
           appeal_submitted_at?: string | null
           is_pro_submission?: boolean
+          is_draft:        boolean
+          draft_saved_at:  string | null
         }
         Update: {
           title?: string
@@ -262,6 +267,8 @@ export type Database = {
           appeal_text?: string | null
           appeal_submitted_at?: string | null
           is_pro_submission?: boolean
+          is_draft:        boolean
+          draft_saved_at:  string | null
           updated_at?: string
         }
       }
@@ -677,6 +684,96 @@ export type Database = {
         }
         Update: Record<string, never>
       }
+
+      daily_submission_counts: {
+        Row: {
+          id:         string
+          user_id:    string
+          date:       string
+          count:      number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?:     string
+          user_id: string
+          date:    string
+          count?:  number
+        }
+        Update: {
+          count?:      number
+          updated_at?: string
+        }
+      }
+
+      global_daily_stats: {
+        Row: {
+          id:                     string
+          date:                   string
+          total_submissions:      number
+          peak_hour_triggered:    boolean
+          peak_hour_triggered_at: string | null
+          updated_at:             string
+        }
+        Insert: {
+          id?:                     string
+          date:                    string
+          total_submissions?:      number
+          peak_hour_triggered?:    boolean
+          peak_hour_triggered_at?: string | null
+        }
+        Update: {
+          total_submissions?:      number
+          peak_hour_triggered?:    boolean
+          peak_hour_triggered_at?: string | null
+          updated_at?:             string
+        }
+      }
+    }
+
+    daily_submission_counts: {
+      Row: {
+        id:         string
+        user_id:    string
+        date:       string
+        count:      number
+        created_at: string
+        updated_at: string
+      }
+      Insert: {
+        id?:      string
+        user_id:  string
+        date:     string
+        count?:   number
+      }
+      Update: {
+        count?:      number
+        updated_at?: string
+      }
+    }
+
+    global_daily_stats: {
+      Row: {
+        id:                      string
+        date:                    string
+        total_submissions:       number
+        peak_hour_triggered:     boolean
+        peak_hour_triggered_at:  string | null
+        updated_at:              string
+      }
+      Insert: {
+        id?:                     string
+        date:                    string
+        total_submissions?:      number
+        peak_hour_triggered?:    boolean
+        peak_hour_triggered_at?: string | null
+      }
+      Update: {
+        total_submissions?:      number
+        peak_hour_triggered?:    boolean
+        peak_hour_triggered_at?: string | null
+        updated_at?:             string
+      }
     }
 
     Views: Record<string, never>
@@ -692,7 +789,15 @@ export type Database = {
           upvotes: number
           score: number
           daily_votes: number
-        }[]
+          increment_daily_submission_count: {
+            Args: { p_user_id: string; p_date: string }
+            Returns: void
+          }
+          increment_global_daily_count: {
+            Args: { p_date: string }
+            Returns: void
+          }
+          }[]
       }
       get_featured_comics: {
         Args: Record<string, never>
@@ -712,6 +817,8 @@ export type Database = {
     Enums: Record<string, never>
   }
 }
+
+
 
 // ─── Convenience type exports ───────────────────────────────────────────────
 
@@ -761,6 +868,11 @@ export type ReadingList           = Database['public']['Tables']['reading_lists'
 export type ReadingListItem       = Database['public']['Tables']['reading_list_items']['Row']
 export type ReadingListItemInsert = Database['public']['Tables']['reading_list_items']['Insert']
 export type ReadingListItemUpdate = Database['public']['Tables']['reading_list_items']['Update']
+
+export type DailySubmissionCount       = Database['public']['Tables']['daily_submission_counts']['Row']
+export type DailySubmissionCountInsert = Database['public']['Tables']['daily_submission_counts']['Insert']
+export type GlobalDailyStats           = Database['public']['Tables']['global_daily_stats']['Row']
+export type GlobalDailyStatsInsert     = Database['public']['Tables']['global_daily_stats']['Insert']
 
 // ─── API Response & Error Types ────────────────────────────────────────────
 

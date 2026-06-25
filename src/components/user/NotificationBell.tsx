@@ -14,7 +14,7 @@ interface Notification {
 
 export function NotificationBell({ userId }: { userId: string }) {
   const [unreadCount, setUnreadCount] = useState(0)
-  const [notifHref,   setNotifHref]   = useState('/reader/dashboard/notifications')
+  const [notifHref,   setNotifHref]   = useState<string | null>(null) // null = not resolved yet
   const router   = useRouter()
   const supabase = createClient()
 
@@ -39,6 +39,7 @@ export function NotificationBell({ userId }: { userId: string }) {
     return () => { isMounted = false }
   }, [])
 
+  // ── Fetch unread count + realtime subscription ──────────────────
   const fetchUnread = useCallback(async () => {
     const res  = await fetch('/api/notifications')
     const data = await res.json()
@@ -61,8 +62,9 @@ export function NotificationBell({ userId }: { userId: string }) {
 
   return (
     <button
-      onClick={() => router.push(notifHref)}
-      className="relative h-8 w-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors outline-none"
+      onClick={() => { if (notifHref) router.push(notifHref) }}
+      disabled={!notifHref}
+      className="relative h-8 w-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors outline-none disabled:opacity-60 disabled:cursor-wait"
       aria-label="Go to notifications"
     >
       <Bell size={16} />

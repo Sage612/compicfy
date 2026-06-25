@@ -59,12 +59,13 @@ export async function POST(request: Request) {
     // ── Follower profile ──────────────────────────────────────────
     const { data: followerProfile } = await supabase
       .from('profiles')
-      .select('username, display_name')
+      .select('username, display_name, user_type')
       .eq('id', user.id)
       .single()
 
     const followerUsername    = (followerProfile as any)?.username    ?? 'someone'
     const followerDisplayName = (followerProfile as any)?.display_name ?? followerUsername
+    const followerUserType    = (followerProfile as any)?.user_type   ?? 'reader'
     const name = followerDisplayName || followerUsername
 
     try {
@@ -75,7 +76,11 @@ export async function POST(request: Request) {
           type:    'follow',
           title:   `${name} started following you`,
           content: `@${followerUsername} is now following you.`,
-          data:    { follower_id: user.id, username: followerUsername },
+          data: {
+            follower_id:       user.id,
+            follower_username: followerUsername,   // ← used by NotificationsClient for routing
+            follower_type:     followerUserType,   // ← so we build /reader/ vs /creator/ correctly
+          },
         })
     } catch (notifErr) {
       console.error('[follows/POST] notification error (non-fatal):', notifErr)
