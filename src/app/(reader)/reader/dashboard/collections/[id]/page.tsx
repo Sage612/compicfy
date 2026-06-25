@@ -24,9 +24,27 @@ export default async function ReaderDashboardCollectionDetailPage({
       collection_items (
         id, position, note,
         recommendations (
-          id, title, cover_url, type, status, genres,
-          upvotes, downvotes, score, author, year_released
-        )
+            id, title, cover_url, type, status, genres,
+            upvotes, downvotes, score, author, year_released,
+            description, is_approved, content_rating,
+            save_count, review_count, view_count,
+            official_platforms, why_recommend,
+            created_at, updated_at, user_id,
+            rejection_reason, appeal_status,
+            is_pro_submission, is_featured,
+            is_ai_generated, ai_model,
+            alternative_titles, themes, content_warnings,
+            chapter_count, artist, publisher,
+            original_language, cover_credit, banner_url,
+            best_for, pros, cons, daily_votes,
+            last_daily_reset, report_count,
+            official_links, is_official_only,
+            year_ended, featured_at, reviewed_by,
+            reviewed_at, appeal_text, appeal_submitted_at,
+            mangaupdates_id, anilist_id, mal_id,
+            mangadex_id, mangabaka_id, kuroiru_id,
+            is_draft, draft_saved_at
+          )
       )
     `)
     .eq('id', id)
