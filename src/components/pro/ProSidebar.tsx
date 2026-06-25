@@ -6,18 +6,17 @@ import {
   LayoutDashboard, BookOpen, Bookmark, Bell,
   Settings, BookMarked, Trophy, Download, CreditCard,
   Star, Plus, Crown, Sparkles, Shield, BarChart2,
-  Users, Link as LinkIcon, Eye, Palette,
+  Users, Link as LinkIcon, Palette, Layers,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
 const PRO_READER_ITEMS = [
-  { href: '/pro/reader/dashboard',                          label: 'Pro Dashboard', icon: LayoutDashboard, exact: true  },
-  { href: '/pro/reader/dashboard/analytics',                label: 'Analytics',     icon: BarChart2                    },
-  { href: '/pro/reader/dashboard/analytics',                label: 'Profile Views', icon: Eye                          },
-  { href: '/pro/reader/dashboard/export',                   label: 'Export Lists',  icon: Download                     },
-  { href: '/pro/reader/dashboard/leaderboard',              label: 'Leaderboard',   icon: Trophy                       },
+  { href: '/pro/reader/dashboard',           label: 'Pro Dashboard', icon: LayoutDashboard, exact: true  },
+  { href: '/pro/reader/dashboard/analytics', label: 'Analytics',     icon: BarChart2                    },
+  { href: '/pro/reader/dashboard/export',    label: 'Export Lists',  icon: Download                     },
+  { href: '/pro/reader/dashboard/leaderboard', label: 'Leaderboard', icon: Trophy                       },
 ]
 
 const PRO_READER_PLATFORM = [
@@ -25,6 +24,7 @@ const PRO_READER_PLATFORM = [
   { href: '/pro/reader/dashboard/recommendations',     label: 'My Recs',       icon: BookOpen   },
   { href: '/pro/reader/dashboard/saved',               label: 'Saved Comics',  icon: Bookmark   },
   { href: '/pro/reader/dashboard/lists',               label: 'Reading Lists', icon: BookMarked },
+  { href: '/pro/reader/dashboard/collections',         label: 'Collections',   icon: Layers     },
   { href: '/pro/reader/dashboard/reviews',             label: 'My Reviews',    icon: Star       },
   { href: '/pro/reader/dashboard/notifications',       label: 'Notifications', icon: Bell       },
   { href: '/pro/reader/dashboard/settings',            label: 'Settings',      icon: Settings   },
@@ -32,18 +32,18 @@ const PRO_READER_PLATFORM = [
 ]
 
 const PRO_CREATOR_ITEMS = [
-  { href: '/pro/creator/dashboard',                    label: 'Studio',        icon: LayoutDashboard, exact: true },
-  { href: '/pro/creator/dashboard/analytics',          label: 'Analytics',     icon: BarChart2                   },
-  { href: '/pro/creator/dashboard/audience',           label: 'Audience',      icon: Users                       },
+  { href: '/pro/creator/dashboard',          label: 'Studio',    icon: LayoutDashboard, exact: true },
+  { href: '/pro/creator/dashboard/analytics', label: 'Analytics', icon: BarChart2                  },
+  { href: '/pro/creator/dashboard/audience', label: 'Audience',  icon: Users                       },
 ]
 
 const PRO_CREATOR_PLATFORM = [
-  { href: '/pro/creator/dashboard/works/new',          label: 'Add Work',      icon: Plus,      isSubmit: true },
-  { href: '/pro/creator/dashboard/works',              label: 'My Works',      icon: BookOpen   },
-  { href: '/pro/creator/dashboard/links',              label: 'My Links',      icon: LinkIcon   },
-  { href: '/pro/creator/dashboard/notifications',      label: 'Notifications', icon: Bell       },
-  { href: '/pro/creator/dashboard/settings',           label: 'Settings',      icon: Settings   },
-  { href: '/pro/creator/dashboard/billing',            label: 'Billing',       icon: CreditCard },
+  { href: '/pro/creator/dashboard/works/new',     label: 'Add Work',      icon: Plus,      isSubmit: true },
+  { href: '/pro/creator/dashboard/works',         label: 'My Works',      icon: BookOpen   },
+  { href: '/pro/creator/dashboard/links',         label: 'My Links',      icon: LinkIcon   },
+  { href: '/pro/creator/dashboard/notifications', label: 'Notifications', icon: Bell       },
+  { href: '/pro/creator/dashboard/settings',      label: 'Settings',      icon: Settings   },
+  { href: '/pro/creator/dashboard/billing',       label: 'Billing',       icon: CreditCard },
 ]
 
 const ADMIN_ITEMS = [
@@ -56,13 +56,13 @@ interface Props {
 }
 
 export function ProSidebar({ role, userType: userTypeProp }: Props) {
-  const pathname                  = usePathname()
-  const isAdmin                   = ['admin', 'moderator'].includes(role)
-  const [userType, setUserType]   = useState<'reader' | 'creator'>(userTypeProp ?? 'reader')
-  const supabase                  = createClient()
+  const pathname                = usePathname()
+  const isAdmin                 = ['admin', 'moderator'].includes(role)
+  const [userType, setUserType] = useState<'reader' | 'creator'>(userTypeProp ?? 'reader')
+  const supabase                = createClient()
 
   useEffect(() => {
-    if (userTypeProp) return // already provided by server
+    if (userTypeProp) return
     const getType = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
@@ -76,8 +76,8 @@ export function ProSidebar({ role, userType: userTypeProp }: Props) {
     getType()
   }, [userTypeProp])
 
-  const isCreator    = userType === 'creator'
-  const mainItems    = isCreator ? PRO_CREATOR_ITEMS    : PRO_READER_ITEMS
+  const isCreator     = userType === 'creator'
+  const mainItems     = isCreator ? PRO_CREATOR_ITEMS    : PRO_READER_ITEMS
   const platformItems = isCreator ? PRO_CREATOR_PLATFORM : PRO_READER_PLATFORM
 
   const activeClass  = isCreator
@@ -125,7 +125,7 @@ export function ProSidebar({ role, userType: userTypeProp }: Props) {
       <nav className="flex flex-col gap-0.5 flex-1 overflow-y-auto">
 
         {/* Main items */}
-        {mainItems.map(({ href, label, icon: Icon, exact }) => {
+        {mainItems.map(({ href, label, icon: Icon, exact }: any) => {
           const isActive = exact ? pathname === href : pathname.startsWith(href)
           return (
             <Link key={href} href={href}
@@ -151,7 +151,7 @@ export function ProSidebar({ role, userType: userTypeProp }: Props) {
         </p>
 
         {/* Platform items */}
-        {platformItems.map(({ href, label, icon: Icon, isSubmit }) => {
+        {platformItems.map(({ href, label, icon: Icon, isSubmit }: any) => {
           const isActive = isSubmit ? pathname === href : pathname === href || pathname.startsWith(href + '/')
           return (
             <Link key={href} href={href}
