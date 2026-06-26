@@ -56,8 +56,6 @@ async function getChapterFromMU(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     
-    // If your ID checker saved an alphanumeric slug (e.g. 'g094ipi') instead of a pure number,
-    // we use their group/series resolution endpoint to translate it dynamically, preventing a 404.
     let numericId = id
     if (isNaN(Number(id))) {
       const resolveRes = await fetchWithTimeout(`https://api.mangaupdates.com/v1/series/by_letter/${id[0] || 'a'}`)
@@ -67,7 +65,7 @@ async function getChapterFromMU(id: string): Promise<number | null> {
         if (matchedItem?.series_id) {
           numericId = String(matchedItem.series_id)
         } else {
-          return null // Safe exit if alphanumeric translation fails
+          return null
         }
       } else {
         return null
@@ -94,14 +92,11 @@ async function getChapterFromMangaDex(id: string): Promise<number | null> {
     const data = await res.json()
     const ch   = data?.data?.attributes?.lastChapter
     
-    // If the top-level attribute exists and is valid, use it immediately
     if (ch && !isNaN(Number(ch))) return Number(ch)
 
-    // FEED FALLBACK: If lastChapter is null or empty, pull the latest chapters via the live update feed
     const feedRes = await fetchWithTimeout(`https://api.mangadex.org/manga/${id}/feed?limit=10&order[chapter]=desc`)
     if (feedRes.ok) {
       const feedData = await feedRes.json()
-      // Look at the first item in the descending feed array
       const highestFeedCh = feedData?.data?.[0]?.attributes?.chapter
       if (highestFeedCh && !isNaN(Number(highestFeedCh))) {
         return Number(highestFeedCh)
@@ -132,7 +127,6 @@ async function getChapterFromJikan(id: string): Promise<number | null> {
 // ── AniList ───────────────────────────────────────────────────────
 async function getChapterFromAniList(id: string): Promise<number | null> {
   try {
-    // Sanitize to clean integers to ensure strict AniList GraphQL parsing
     const cleanId = parseInt(String(id).replace(/\D/g, ''), 10)
     if (isNaN(cleanId)) return null
 
@@ -329,11 +323,9 @@ export async function GET(req: Request) {
           timestamp,
         }
 
-        await supabase.from('recommendations')
-          .update({ last_chapter_check: timestamp })
-          .eq('id', comic.id)
-
+        // ── Conditional Routing Path ─────────────────────────────────
         if (newChapterCount && newChapterCount > (comic.chapter_count ?? 0)) {
+          // 1. SUCCESS: Chapter progression found
           await supabase.from('recommendations')
             .update({ chapter_count: newChapterCount, last_chapter_check: timestamp })
             .eq('id', comic.id)
@@ -367,9 +359,31 @@ export async function GET(req: Request) {
             source,
             notified: trackers?.length ?? 0,
           })
+
+        } else if (newChapterCount !== null && newChapterCount < (comic.chapter_count ?? 0)) {
+          // 2. REGRESSION DETECTED: External APIs returned stale or lower counts
+          logEntry.status = 'failed'
+          logEntry.reason = `Stale API Data: External source returned ${newChapterCount}, but database is already ahead at ${comic.chapter_count}.`
+          
+          // Clear timestamp so it queues right back up for another evaluation on the next tick
+          await supabase.from('recommendations')
+            .update({ last_chapter_check: null })
+            .eq('id', comic.id)
+
         } else if (newChapterCount === null) {
+          // 3. ZERO RESULTS FOUND
+          await supabase.from('recommendations')
+            .update({ last_chapter_check: timestamp })
+            .eq('id', comic.id)
+
           logEntry.status = 'failed'
           logEntry.reason = 'No valid ID or all APIs returned null'
+          
+        } else {
+          // 4. EQUAL COUNTS: Simply complete the tracking check cleanly
+          await supabase.from('recommendations')
+            .update({ last_chapter_check: timestamp })
+            .eq('id', comic.id)
         }
 
         logs.push(logEntry)
