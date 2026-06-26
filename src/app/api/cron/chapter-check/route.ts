@@ -55,7 +55,26 @@ async function logChapterCheck(supabase: any, log: CheckLog) {
 async function getChapterFromMU(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
-    const res = await fetchWithTimeout(`https://api.mangaupdates.com/v1/series/${id}`)
+    
+    // If your ID checker saved an alphanumeric slug (e.g. 'g094ipi') instead of a pure number,
+    // we use their group/series resolution endpoint to translate it dynamically, preventing a 404.
+    let numericId = id
+    if (isNaN(Number(id))) {
+      const resolveRes = await fetchWithTimeout(`https://api.mangaupdates.com/v1/series/by_letter/${id[0] || 'a'}`)
+      if (resolveRes.ok) {
+        const resolveData = await resolveRes.json()
+        const matchedItem = resolveData?.results?.find((item: any) => item.unique_id === id)
+        if (matchedItem?.series_id) {
+          numericId = String(matchedItem.series_id)
+        } else {
+          return null // Safe exit if alphanumeric translation fails
+        }
+      } else {
+        return null
+      }
+    }
+
+    const res = await fetchWithTimeout(`https://api.mangaupdates.com/v1/series/${numericId}`)
     if (!res.ok) return null
     const data = await res.json()
     const ch   = data?.latest_chapter
@@ -74,7 +93,21 @@ async function getChapterFromMangaDex(id: string): Promise<number | null> {
     if (!res.ok) return null
     const data = await res.json()
     const ch   = data?.data?.attributes?.lastChapter
-    return ch && !isNaN(Number(ch)) ? Number(ch) : null
+    
+    // If the top-level attribute exists and is valid, use it immediately
+    if (ch && !isNaN(Number(ch))) return Number(ch)
+
+    // FEED FALLBACK: If lastChapter is null or empty, pull the latest chapters via the live update feed
+    const feedRes = await fetchWithTimeout(`https://api.mangadex.org/manga/${id}/feed?limit=10&order[chapter]=desc`)
+    if (feedRes.ok) {
+      const feedData = await feedRes.json()
+      // Look at the first item in the descending feed array
+      const highestFeedCh = feedData?.data?.[0]?.attributes?.chapter
+      if (highestFeedCh && !isNaN(Number(highestFeedCh))) {
+        return Number(highestFeedCh)
+      }
+    }
+    return null
   } catch (err) {
     console.error(`MD chapter error for ${id}:`, err)
     return null
@@ -99,12 +132,16 @@ async function getChapterFromJikan(id: string): Promise<number | null> {
 // ── AniList ───────────────────────────────────────────────────────
 async function getChapterFromAniList(id: string): Promise<number | null> {
   try {
+    // Sanitize to clean integers to ensure strict AniList GraphQL parsing
+    const cleanId = parseInt(String(id).replace(/\D/g, ''), 10)
+    if (isNaN(cleanId)) return null
+
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     const gql = `query($id:Int){Media(id:$id,type:MANGA){chapters}}`
     const res = await fetchWithTimeout('https://graphql.anilist.co', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ query: gql, variables: { id: parseInt(id) } }),
+      body:    JSON.stringify({ query: gql, variables: { id: cleanId } }),
     })
     if (!res.ok) return null
     const data = await res.json()
@@ -222,7 +259,6 @@ export async function GET(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
-  // FIX: Back off if id_checker is currently populating identifiers
   if (await isIdCheckerActive(supabase)) {
     return NextResponse.json({ message: 'ID Checker lock is active. Yielding chapter validation execution.' })
   }
@@ -241,8 +277,6 @@ export async function GET(req: Request) {
       .eq('is_approved', true)
       .eq('status', 'ongoing')
       .or(`last_chapter_check.is.null,last_chapter_check.lt.${cutoff}`)
-      // FIX: Ensure id_checker has systematically processed the row (even if all IDs turned out null)
-      // before chapter checker evaluates external logs.
       .not('last_id_check', 'is', null)
       .limit(BATCH_SIZE)
 
@@ -262,12 +296,11 @@ export async function GET(req: Request) {
     for (const comic of comics) {
       const timestamp = new Date().toISOString()
 
-      // Skip evaluation safely if the item lacks valid tracker IDs completely
       if (!comic.mangaupdates_id && !comic.mangadex_id && !comic.anilist_id && !comic.mal_id) {
         await supabase.from('recommendations')
           .update({ last_chapter_check: timestamp })
           .eq('id', comic.id)
-          
+
         logs.push({
           comic_id:          comic.id,
           comic_title:       comic.title,

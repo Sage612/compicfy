@@ -172,8 +172,8 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
 
       {/* ── Edit modal ─────────────────────────────────────────────────────── */}
       {showEdit && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+  <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-primary/5">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
@@ -185,7 +185,7 @@ export function CollectionDetailClient({ collection, isSaved: initialSaved, isOw
                 <X size={14} />
               </button>
             </div>
-            <div className="p-5 space-y-4">
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-muted-foreground">Title <span className="text-destructive">*</span></label>
                 <Input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} className="h-9 text-sm" autoFocus />

@@ -9,6 +9,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const page = parseInt(searchParams.get('page') ?? '1')
   const actionFilter = searchParams.get('action') ?? null
+  const search = searchParams.get('search')?.trim() ?? null // 1. Extract search term
   const limit = 50
   const offset = (page - 1) * limit
 
@@ -18,6 +19,16 @@ export async function GET(request: Request) {
 
   if (actionFilter) {
     query = query.ilike('action', `%${actionFilter}%`)
+  }
+
+  // 2. Inject Search filter across columns and nested JSONB paths
+  if (search) {
+    query = query.or(
+      `action.ilike.%${search}%,` +
+      `details->>title.ilike.%${search}%,` +
+      `details->>comic_title.ilike.%${search}%,` +
+      `profiles.username.ilike.%${search}%`
+    )
   }
 
   const { data, error: fetchError, count } = await query
@@ -41,9 +52,7 @@ export async function GET(request: Request) {
       created_at: log.created_at,
       ip_address: log.ip_address,
       user_agent: log.user_agent,
-      // Rich details from JSONB
       details,
-      // Extracted common fields for easier display
       summary: {
         title: details.title ?? details.comic_title ?? 'N/A',
         status: details.status ?? null,
@@ -52,14 +61,12 @@ export async function GET(request: Request) {
         reason: details.reason ?? null,
         error: details.error ?? null,
       },
-      // For approvals
       approval: details.status ? {
         status: details.status,
         passed: details.passed_conditions,
         total: details.total_conditions,
         failed_count: details.failed_conditions?.length ?? 0,
       } : null,
-      // For submissions
       submission: details.status === 'submitted' || details.status === 'skipped' || details.status === 'failed' ? {
         status: details.status,
         type: details.type,
@@ -75,7 +82,6 @@ export async function GET(request: Request) {
           mal: details.external_ids?.mal_id,
         },
       } : null,
-      // For chapter checks
       chapter_check: details.database_success ? {
         database: details.database_success,
         tried: details.database_tried,
@@ -83,7 +89,6 @@ export async function GET(request: Request) {
         new_chapters: details.new_chapter_count,
         platforms: details.platforms_found,
       } : null,
-      // For ID checks
       id_check: details.ids_found ? {
         found: details.ids_found,
         total: details.total_ids_found,
