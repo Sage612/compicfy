@@ -1,4 +1,4 @@
-Import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Badge } from '@/components/ui/badge'
 import { ReviewSection } from '@/components/recommendations/ReviewSection'
