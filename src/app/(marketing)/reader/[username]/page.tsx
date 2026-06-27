@@ -340,8 +340,8 @@ export default async function ReaderProfilePage({ params }: Props) {
               {isOwner && (
                 <Link href={
                   (profileData as any)?.user_type === 'creator'
-                    ? '/creator/dashboard/settings'
-                    : '/reader/dashboard/settings'
+                    ? (isPro ? '/pro/creator/dashboard/settings' : '/creator/dashboard/settings')
+                    : (isPro ? '/pro/reader/dashboard/settings' : '/reader/dashboard/settings')
                 }>
                   <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">Edit Profile</Button>
                 </Link>

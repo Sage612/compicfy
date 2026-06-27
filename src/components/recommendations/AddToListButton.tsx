@@ -16,6 +16,7 @@ interface Props {
 interface ReadingList {
   id: string
   name: string
+  created_at: string
   isLocked: boolean
 }
 
@@ -37,6 +38,7 @@ export function AddToListButton({ recommendationId, userId }: Props) {
   const [addingTo, setAddingTo]               = useState<string | null>(null)
   const [addedTo, setAddedTo]                 = useState<Set<string>>(new Set())
   const [pickingStatusFor, setPickingStatusFor] = useState<string | null>(null)
+  const [listsHref, setListsHref]             = useState('/reader/dashboard/lists')
   const dropdownRef                           = useRef<HTMLDivElement>(null)
   const supabase                              = createClient()
 
@@ -57,17 +59,32 @@ export function AddToListButton({ recommendationId, userId }: Props) {
 
     const fetchLists = async () => {
       try {
-        // Fetch lists + pro status in parallel
+        // Confirm live session first — mirrors ReadingProgressButton's working pattern.
+        // A bare fetch() to /api/lists doesn't reliably carry the session cookie,
+        // which is why lists were coming back empty even when they existed.
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          setLists([])
+          setLoading(false)
+          return
+        }
+
+        // Fetch lists directly via the Supabase client (authenticated session,
+        // same as ReadingProgressButton) + pro/type status in parallel.
         const [listsRes, profileRes] = await Promise.all([
-          fetch('/api/lists').then(r => r.json()),
+          supabase
+            .from('reading_lists')
+            .select('id, name, created_at')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true }),
           (supabase as any)
             .from('profiles')
-            .select('is_pro, pro_expires_at, role')
-            .eq('id', userId)
+            .select('is_pro, pro_expires_at, role, user_type')
+            .eq('id', user.id)
             .single(),
         ])
 
-        const rawLists: { id: string; name: string; created_at: string }[] = listsRes.lists ?? []
+        const rawLists = (listsRes.data ?? []) as { id: string; name: string; created_at: string }[]
         const profile = profileRes.data
 
         // Determine pro status
@@ -78,16 +95,20 @@ export function AddToListButton({ recommendationId, userId }: Props) {
               (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
           : false
 
-        // Sort oldest first — first 3 are free, rest locked
-        const sorted = [...rawLists].sort(
-          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        )
+        // Determine correct dashboard route for this user's type + tier
+        const isCreator = profile?.user_type === 'creator'
+        const base = isCreator
+          ? (isPro ? '/pro/creator/dashboard/lists' : '/creator/dashboard/lists')
+          : (isPro ? '/pro/reader/dashboard/lists' : '/reader/dashboard/lists')
+        setListsHref(base)
 
+        // Already sorted oldest first — first 3 are free, rest locked
         setLists(
-          sorted.map((l, index) => ({
-            id:       l.id,
-            name:     l.name,
-            isLocked: !isPro && index >= FREE_LIST_LIMIT,
+          rawLists.map((l, index) => ({
+            id:         l.id,
+            name:       l.name,
+            created_at: l.created_at,
+            isLocked:   !isPro && index >= FREE_LIST_LIMIT,
           }))
         )
       } catch {
@@ -187,7 +208,7 @@ export function AddToListButton({ recommendationId, userId }: Props) {
           ) : lists.length === 0 ? (
             <div className="p-4 text-center space-y-2">
               <p className="text-xs text-muted-foreground">No lists yet</p>
-              <Link href="/reader/dashboard/lists" className="text-xs text-primary block hover:underline">
+              <Link href={listsHref} className="text-xs text-primary block hover:underline">
                 Create your first list →
               </Link>
             </div>
@@ -270,7 +291,7 @@ export function AddToListButton({ recommendationId, userId }: Props) {
 
               <div className="border-t border-border">
                 <Link
-                  href="/reader/dashboard/lists"
+                  href={listsHref}
                   className="flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Plus size={12} />

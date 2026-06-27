@@ -4,10 +4,12 @@ import Link from 'next/link'
 export const metadata: Metadata = { title: 'About Compicfy' }
 
 const VALUES = [
-  { emoji: '🤝', title: 'Community First',  desc: 'Every feature we build is designed around making the community experience better.' },
-  { emoji: '🚫', title: 'Anti-Piracy',      desc: 'We only link to official platforms. Full stop. Creators deserve to be paid for their work.' },
-  { emoji: '🌍', title: 'Inclusive',         desc: 'Comics from all cultures and genres deserve recognition. Manga, manhwa, manhua, webtoons — all welcome.' },
-  { emoji: '✅', title: 'Moderated',         desc: 'Our team actively moderates content to keep Compicfy safe, accurate, and welcoming for all ages.' },
+  { emoji: '🎯', title: 'Taste Over Algorithms', desc: 'Every recommendation comes from a real reader who loved it enough to share it, not a feed engineered to keep you scrolling.' },
+  { emoji: '🚫', title: 'Anti-Piracy',            desc: 'We only link to official platforms. Full stop. Creators deserve to be paid for their work.' },
+  { emoji: '🌍', title: 'Inclusive',               desc: 'Manga, manhwa, manhua, and webtoons, every style and culture of storytelling gets equal space here.' },
+  { emoji: '✅', title: 'Moderated',               desc: 'Every submission is reviewed before it goes live, keeping the platform accurate, safe, and worth trusting.' },
+  { emoji: '🔒', title: 'You Own Your Recs',       desc: "When you submit a recommendation, it's yours. Only you can edit it. No wiki-style overwrites, no losing credit for your work." },
+  { emoji: '🎨', title: 'Built for Creators Too',  desc: "Compicfy isn't just for readers. Creators get a home to share their work and connect directly with the people who read it." },
 ]
 
 export default function AboutPage() {
@@ -22,7 +24,7 @@ export default function AboutPage() {
         <div className="space-y-3">
           <h1 className="text-4xl font-black tracking-tight">About Compicfy</h1>
           <p className="text-muted-foreground leading-relaxed max-w-xl mx-auto">
-            A community built by readers, for readers. Discover manga, manhwa, manhua, and webtoons recommended by people who actually love them.
+            The community where manga, manhwa, manhua, and webtoon readers discover, recommend, and vote for the best reads — together.
           </p>
         </div>
       </div>
@@ -34,8 +36,15 @@ export default function AboutPage() {
           <div className="h-0.5 flex-1 bg-gradient-to-r from-primary/40 to-transparent" />
         </div>
         <div className="space-y-3 text-muted-foreground leading-relaxed">
-          <p>Compicfy was born from a simple frustration, finding great comics online meant wading through generic algorithm-driven lists that felt disconnected from what real readers actually loved. We wanted a space where genuine fans could surface hidden gems, debate the classics, and help each other find their next obsession.</p>
-          <p>What started as a small project grew into a thriving community of manga, manhwa, manhua, and webtoon enthusiasts from around the world. Every recommendation on Compicfy comes from a real reader who loved it enough to share it.</p>
+          <p>
+            Compicfy started with a simple frustration: finding a great comic online usually meant scrolling through generic, algorithm-driven lists that had nothing to do with what real readers actually loved. Asking for a recommendation online got you fifty replies, half of which you'd already read, with no way to tell if the person recommending shared your taste at all.
+          </p>
+          <p>
+            Compicfy exists to fix that. It's a place where readers submit what they genuinely love, the community votes and reviews honestly, and discovery happens through real people instead of a black-box feed. Every recommendation on the platform is owned by the person who shared it, your taste, credited to you.
+          </p>
+          <p>
+            We're manhwa-first by design, but every format is welcome: manga, manhwa, manhua, and webtoons all share the same space, the same voting system, and the same respect.
+          </p>
         </div>
       </section>
 
@@ -46,7 +55,7 @@ export default function AboutPage() {
           <div className="h-0.5 flex-1 bg-gradient-to-r from-primary/40 to-transparent" />
         </div>
         <p className="text-muted-foreground leading-relaxed">
-          To make comic discovery joyful, community-driven, and anti-piracy. We believe the best way to support the creators who make these incredible stories is to direct readers to official platforms where creators get paid.
+          To make comic discovery feel human again, community-driven, ownership-respecting, and entirely anti-piracy. We believe the best way to support the people who make these stories is to point readers toward official platforms where creators actually get paid, and to give creators themselves a direct line to the readers who care.
         </p>
       </section>
 
@@ -67,21 +76,24 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Built with love */}
+      {/* How it's built */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-black">Built With Love</h2>
+          <h2 className="text-xl font-black">How Compicfy Is Built</h2>
           <div className="h-0.5 flex-1 bg-gradient-to-r from-primary/40 to-transparent" />
         </div>
         <p className="text-muted-foreground leading-relaxed">
-          Compicfy is built and maintained by a small, passionate team of comic fans. We're constantly improving the platform based on community feedback. Have a suggestion? Drop it in our Discord!
+          Compicfy is built independently, shaped almost entirely by what the community asks for. There's no investor roadmap and no growth-at-all-costs agenda just a platform that improves because the people using it tell us what's missing. Every feature on here exists because someone in the community needed it.
+        </p>
+        <p className="text-muted-foreground leading-relaxed">
+          Have a suggestion or found something broken? Drop it in our Discord. We read everything, and a meaningful share of what's live today started as a community suggestion.
         </p>
       </section>
 
       {/* CTA */}
       <div className="relative overflow-hidden text-center p-8 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 space-y-4">
         <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-primary/10 blur-2xl pointer-events-none" />
-        <p className="font-black text-lg">Ready to find your next favourite comic?</p>
+        <p className="font-black text-lg">Ready to find your next Obsession?</p>
         <div className="flex justify-center gap-3">
           <Link href="/browse" className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20">
             Browse Comics

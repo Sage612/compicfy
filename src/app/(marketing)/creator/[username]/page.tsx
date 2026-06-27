@@ -127,7 +127,7 @@ export default async function CreatorProfilePage({ params }: Props) {
                 <FollowButton profileId={profile.id} initialFollowing={isFollowing} isLoggedIn={!!viewer} />
               )}
               {isOwner && (
-                <Link href="/creator/dashboard/settings">
+                <Link href={isPro ? '/pro/creator/dashboard/settings' : '/creator/dashboard/settings'}>
                   <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 border-teal-500/30 hover:border-teal-500/60">
                     Edit Profile
                   </Button>
