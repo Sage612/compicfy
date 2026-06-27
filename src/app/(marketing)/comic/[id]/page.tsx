@@ -24,9 +24,36 @@ import { ReadingProgressButton } from '@/components/recommendations/ReadingProgr
 import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnButton'
 import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { headers } from 'next/headers'
+import { Fraunces, JetBrains_Mono } from 'next/font/google'
+
+// ── Editorial type system ────────────────────────────────────────
+// Fraunces: characterful serif, used sparingly (title + pull-quote only).
+// JetBrains Mono: utility face for stats, timestamps, and small labels —
+// gives the "catalog card" data feeling the redesign is built around.
+const display = Fraunces({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '900'],
+  style: ['normal', 'italic'],
+  variable: '--font-display',
+})
+const mono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-mono',
+})
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
 const GHOST_ID = '00000000-0000-0000-0000-000000000000'
+
+// ── Single source of truth for this page's editorial palette ──────
+// Change a value here and it propagates everywhere via the CSS
+// variables set once on the page wrapper below — no hex literals
+// repeated through the JSX.
+const PALETTE = {
+  ink:   '#0b0b0e', // page background
+  panel: '#15151a', // card/dossier surface
+  paper: '#f3efe7', // primary text + all white/* overlays now derive from this
+} as const
 
 interface Props {
   params: Promise<{ id: string }>
@@ -374,87 +401,178 @@ export default async function ComicDetailPage({ params }: Props) {
     border:   'border-primary/20',
   }
 
+  // Stats ticker data — single source so the strip below stays declarative
+  const stats = [
+    { icon: ThumbsUp,      label: 'Upvotes', value: rec.upvotes      ?? 0 },
+    { icon: Star,          label: 'Reviews', value: rec.review_count ?? 0 },
+    { icon: Bookmark,      label: 'Saves',   value: rec.save_count   ?? 0 },
+    { icon: MessageSquare, label: 'Score',   value: rec.score        ?? 0 },
+  ]
+
   return (
     <>
       <ComicJsonLd rec={rec} id={id} recommenderName={recommenderName} />
 
-      <div className="min-h-screen">
+      <div
+        className={`${display.variable} ${mono.variable} min-h-screen bg-[var(--ink)] text-[var(--paper)]`}
+        style={{
+          '--ink': PALETTE.ink,
+          '--panel': PALETTE.panel,
+          '--paper': PALETTE.paper,
+        } as React.CSSProperties}
+      >
 
-        {/* ── CINEMATIC HERO ── */}
-        <div className="relative h-56 md:h-72 overflow-hidden">
+        {/* ══════════════════════════ CINEMATIC HERO ══════════════════════════ */}
+        <div className="relative h-[52vh] md:h-[72vh] overflow-hidden">
           {rec.cover_url && (
             <img
-                src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
-                alt=""
-                className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-25 dark:opacity-20"
-                aria-hidden
-              />
+              src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
+              alt=""
+              aria-hidden
+              className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-30"
+            />
           )}
-          <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-15 dark:opacity-25`} />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
-          <div className="absolute top-4 left-4 z-10">
+          <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-20 mix-blend-overlay`} />
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--ink)] via-[var(--ink)]/70 to-[var(--ink)]/10" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[var(--ink)]/60 via-transparent to-transparent" />
+
+          <div className="absolute top-5 left-4 md:left-6 z-10">
             <Link
               href="/browse"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-background/80 border border-border text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--ink)]/40 border border-[var(--paper)]/10 text-xs text-[var(--paper)]/70 hover:text-[var(--paper)] hover:border-[var(--paper)]/30 backdrop-blur-md transition-colors"
             >
-              <ArrowLeft size={13} />
+              <ArrowLeft size={12} />
               Browse
             </Link>
           </div>
+
+          {/* Editorial title, anchored to the bottom of the hero */}
+          <div className="absolute bottom-0 inset-x-0 z-10">
+            <div className="max-w-6xl mx-auto px-4 md:px-6 pb-28 md:pb-36">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${typeStyle.badge}`}>
+                  {rec.type}
+                </span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
+                  {rec.status}
+                </span>
+                {rec.is_featured && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 backdrop-blur-sm">
+                    <Star size={8} className="fill-amber-400" />
+                    Featured
+                  </span>
+                )}
+              </div>
+              <h1
+                className="font-[family-name:var(--font-display)] text-4xl md:text-6xl font-black italic leading-[0.95] tracking-tight max-w-3xl text-[var(--paper)] drop-shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+              >
+                {rec.title}
+              </h1>
+            </div>
+          </div>
         </div>
 
-        {/* ── CONTENT ── */}
-        <div className="max-w-5xl mx-auto px-4 -mt-28 md:-mt-40 relative z-10 pb-20">
-          <div className="flex flex-col md:flex-row gap-8">
+        {/* ══════════════════════════ DOSSIER STRIP ══════════════════════════ */}
+        <div className="relative max-w-6xl mx-auto px-4 md:px-6 -mt-20 md:-mt-28 z-20">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-10">
 
-            {/* ── LEFT: Cover + actions ── */}
-            <div className="flex flex-col gap-3 md:w-52 shrink-0">
+            {/* ── Dossier card: cover + rotated spine label — the signature element ── */}
+            <div className="shrink-0 mx-auto md:mx-0">
+              <div className="relative flex">
+                {/* Spine label */}
+                <div
+                  className={`hidden sm:flex items-center justify-center w-7 rounded-l-lg border-y border-l ${typeStyle.border} bg-[var(--ink)]/60 backdrop-blur-md`}
+                >
+                  <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.25em] text-[var(--paper)]/60 -rotate-90 whitespace-nowrap">
+                    {rec.type} · {rec.status}
+                  </span>
+                </div>
 
-              <div className="relative">
-                <div className={`absolute -inset-3 rounded-lg ${typeStyle.glow} blur-2xl opacity-40`} />
-                <div className="relative aspect-[3/4] rounded-lg overflow-hidden bg-muted border border-border shadow-xl">
+                {/* Cover */}
+                <div className="relative w-40 md:w-48 aspect-[3/4] rounded-r-lg sm:rounded-l-none rounded-lg overflow-hidden border-y border-r border-[var(--paper)]/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] bg-[var(--panel)]">
+                  <div className={`absolute -inset-4 rounded-2xl ${typeStyle.glow} blur-2xl opacity-30 -z-10`} />
                   {rec.cover_url ? (
-                    <img src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`} alt={rec.title} className="w-full h-full object-cover" />
+                    <img
+                      src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
+                      alt={rec.title}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen size={40} className="text-muted-foreground opacity-40" />
-                    </div>
-                  )}
-                  <div className="absolute top-2 left-2">
-                    <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${typeStyle.badge}`}>
-                      {rec.type}
-                    </span>
-                  </div>
-                  {rec.is_featured && (
-                    <div className="absolute top-2 right-2">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-500 border border-amber-500/30 backdrop-blur-sm">
-                        <Star size={8} className="fill-amber-500" />
-                        Featured
-                      </span>
+                      <BookOpen size={36} className="text-[var(--paper)]/30" />
                     </div>
                   )}
                 </div>
               </div>
+            </div>
 
-              {/* ── Read On — most important action, comes first ── */}
+            {/* ── Meta + stats ── */}
+            <div className="flex-1 min-w-0 pt-1 md:pt-3 space-y-5">
+
+              <div className="flex flex-wrap gap-x-5 gap-y-1.5 font-[family-name:var(--font-mono)] text-xs text-[var(--paper)]/50">
+                {rec.author && <span className="flex items-center gap-1.5"><User size={12} />{rec.author}</span>}
+                {rec.artist && rec.artist !== rec.author && <span className="flex items-center gap-1.5"><Palette size={12} />{rec.artist}</span>}
+                {rec.year_released && <span className="flex items-center gap-1.5"><Calendar size={12} />{rec.year_released}</span>}
+                {rec.chapter_count && <span className="flex items-center gap-1.5"><Hash size={12} />{rec.chapter_count} ch.</span>}
+                <span className="px-1.5 py-0.5 rounded border border-[var(--paper)]/10 text-[var(--paper)]/40 capitalize">
+                  {rec.content_rating?.replace('_', ' ')}
+                </span>
+              </div>
+
+              {rec.genres && rec.genres.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {rec.genres.map((genre: string) => (
+                    <Link key={genre} href={`/browse?genre=${genre}`}>
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-[var(--paper)]/10 text-[var(--paper)]/60 hover:border-[var(--paper)]/30 hover:text-[var(--paper)] transition-colors">
+                        {genre}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+
+              {/* Stats ticker */}
+              <div className="flex items-stretch rounded-xl border border-[var(--paper)]/10 bg-[var(--paper)]/[0.03] divide-x divide-[var(--paper)]/10 overflow-hidden backdrop-blur-sm">
+                {stats.map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="flex-1 px-3 md:px-5 py-3 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <Icon size={12} className="text-[var(--paper)]/40" />
+                      <p className="font-[family-name:var(--font-mono)] text-lg md:text-xl font-bold tabular-nums leading-none text-[var(--paper)]">
+                        {value}
+                      </p>
+                    </div>
+                    <p className="mt-1 text-[9px] uppercase tracking-widest text-[var(--paper)]/40">{label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Read On — kept here as quiet meta, not a sidebar block */}
               {rec.official_platforms && rec.official_platforms.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">Read On</p>
+                <div className="flex flex-wrap gap-2">
                   {rec.official_platforms.map((platform: string, i: number) => (
-                    <div key={platform} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card text-xs hover:border-primary/40 transition-colors">
-                      <Globe size={11} className="text-muted-foreground shrink-0" />
-                      <span className="truncate flex-1 font-medium">{platform}</span>
+                    <div
+                      key={platform}
+                      className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full border border-[var(--paper)]/10 bg-[var(--paper)]/[0.03] text-[11px] text-[var(--paper)]/60 hover:border-[var(--paper)]/25 transition-colors"
+                    >
+                      <Globe size={10} className="text-[var(--paper)]/40" />
+                      <span className="font-medium">{platform}</span>
                       {rec.official_links?.[i] && (
                         <a href={rec.official_links[i]} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                          <ExternalLink size={11} className="text-muted-foreground hover:text-primary transition-colors" />
+                          <ExternalLink size={10} className="text-[var(--paper)]/40 hover:text-[var(--paper)] transition-colors" />
                         </a>
                       )}
                     </div>
                   ))}
                 </div>
               )}
+            </div>
+          </div>
 
-              {/* ── Core actions ── */}
+          {/* ── Control deck — wraps existing action components, doesn't restyle them ── */}
+          <div className="sticky bottom-3 md:static z-30 mt-6 md:mt-8 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-0">
+            <div
+              className={`flex flex-wrap md:flex-nowrap items-center gap-2 md:gap-3 p-2.5 md:p-3 rounded-2xl border ${typeStyle.border} bg-[var(--ink)]/70 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)]`}
+            >
               <VoteButtons
                 recommendationId={id}
                 initialUpvotes={rec.upvotes}
@@ -463,6 +581,7 @@ export default async function ComicDetailPage({ params }: Props) {
                 isLoggedIn={!!user}
                 comicTitle={rec.title}
               />
+              <div className="hidden md:block w-px h-6 bg-[var(--paper)]/10" />
               <SaveButton
                 recommendationId={id}
                 initialSaved={isSaved}
@@ -474,136 +593,112 @@ export default async function ComicDetailPage({ params }: Props) {
                 chapterCount={rec.chapter_count}
                 isLoggedIn={!!user}
               />
-
-              {/* ── List / Collection ── */}
+              <div className="hidden md:block w-px h-6 bg-[var(--paper)]/10" />
               {user && <AddToListButton recommendationId={id} userId={user.id} />}
               <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
-
-              {/* ── Share ── */}
-              <ShareButton
-                title={rec.title}
-                url={`${SITE_URL}/comic/${id}`}
-              />
-            </div>
-
-            {/* ── RIGHT: Details ── */}
-            <div className="flex-1 min-w-0 space-y-6 pt-2 md:pt-20">
-
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
-                    {rec.status}
-                  </span>
-                  <span className="text-xs text-muted-foreground border border-border rounded px-2 py-0.5 capitalize">
-                    {rec.content_rating?.replace('_', ' ')}
-                  </span>
-                </div>
-
-                <h1 className="text-3xl md:text-4xl font-black leading-tight tracking-tight">{rec.title}</h1>
-
-                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-sm text-muted-foreground">
-                  {rec.author  && <span className="flex items-center gap-1.5"><User    size={13} />{rec.author}</span>}
-                  {rec.artist  && rec.artist !== rec.author && <span className="flex items-center gap-1.5"><Palette  size={13} />{rec.artist}</span>}
-                  {rec.year_released  && <span className="flex items-center gap-1.5"><Calendar size={13} />{rec.year_released}</span>}
-                  {rec.chapter_count  && <span className="flex items-center gap-1.5"><Hash     size={13} />{rec.chapter_count} ch.</span>}
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {rec.genres?.map((genre: string) => (
-                    <Link key={genre} href={`/browse?genre=${genre}`}>
-                      <span className="inline-flex px-2 py-0.5 rounded text-xs font-semibold bg-muted border border-border hover:bg-primary/10 hover:border-primary/30 hover:text-primary transition-colors cursor-pointer">
-                        {genre}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
+              <div className="ml-auto">
+                <ShareButton title={rec.title} url={`${SITE_URL}/comic/${id}`} />
               </div>
-
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { icon: ThumbsUp,      label: 'Upvotes', value: rec.upvotes,      color: 'text-emerald-500', bg: 'bg-emerald-500/8' },
-                  { icon: Star,          label: 'Reviews', value: rec.review_count, color: 'text-amber-500',   bg: 'bg-amber-500/8'  },
-                  { icon: Bookmark,      label: 'Saves',   value: rec.save_count,   color: 'text-blue-500',    bg: 'bg-blue-500/8'   },
-                  { icon: MessageSquare, label: 'Score',   value: rec.score,        color: 'text-violet-500',  bg: 'bg-violet-500/8' },
-                ].map(({ icon: Icon, label, value, color, bg }) => (
-                  <div key={label} className={`flex flex-col items-center gap-1 p-3 rounded-lg ${bg} border border-border`}>
-                    <Icon size={14} className={color} />
-                    <p className="text-lg font-black tabular-nums leading-none">{value ?? 0}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">{label}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-2">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">About</h2>
-                <p className="text-sm leading-relaxed text-foreground/80">{rec.description}</p>
-              </div>
-
-              {rec.why_recommend && (
-                <div className="space-y-2">
-                  <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Why Read This?</h2>
-                  <div className={`relative pl-5 pr-4 py-4 rounded-lg border ${typeStyle.border} bg-card`}>
-                    <div className={`absolute left-0 top-3 bottom-3 w-1 rounded-full bg-gradient-to-b ${typeStyle.gradient}`} />
-                    <p className="text-sm leading-relaxed italic text-muted-foreground">"{rec.why_recommend}"</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Submit Your Own — CTA lives here, not in the sidebar */}
-              <SubmitYourOwnButton
-                isLoggedIn={!!user}
-                submitRoute={submitRoute}
-                comicId={id}
-              />
-
-              {/* ── Recommender attribution ── */}
-              <div className="flex items-center justify-between py-3 border-t border-border text-xs text-muted-foreground">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span>Recommended by</span>
-                  <RecommenderLink
-                      username={profile?.username ?? ''}
-                      displayName={recommenderName}
-                      isLoggedIn={!!user}
-                      isGhost={isGhostRec}
-                      role={profile?.role}
-                      isPro={recommenderIsPro}
-                      isVerified={recommenderIsVerified}
-                      comicTitle={rec.title}
-                      userType={profile?.user_type ?? null}
-                    />
-                </div>
-                <span className="shrink-0">{formatDate(rec.created_at)}</span>
-              </div>
-
-              <div className="space-y-3">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Reviews</h2>
-                <ReviewSection
-                  recommendationId={id}
-                  currentUserId={user?.id ?? null}
-                  isLoggedIn={!!user}
-                />
-              </div>
-
-              <Suspense fallback={<div className="h-40 bg-muted/30 animate-pulse rounded-2xl border border-border mt-6" />}>
-                <ContextualOffers
-                  comicId={id}
-                  comicTitle={rec.title}
-                  genre={rec.genres?.[0] || 'Action'}
-                  maxOffers={3}
-                />
-              </Suspense>
-
-              <div className="space-y-3 pt-2">
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">You Might Also Like</h2>
-                <SimilarComics
-                  comicId={id}
-                  contentRating={rec.content_rating}
-                  showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
-                />
-              </div>
-
             </div>
           </div>
+        </div>
+
+        {/* ══════════════════════════ MAIN CONTENT ══════════════════════════ */}
+        <div className="max-w-6xl mx-auto px-4 md:px-6 mt-12 md:mt-16 pb-24 space-y-14">
+
+          {/* About + Why Read This — asymmetric editorial grid */}
+          <div className="grid grid-cols-1 md:grid-cols-[1.6fr_1fr] gap-5 md:gap-6">
+            <div className="relative rounded-2xl border border-[var(--paper)]/10 bg-[var(--paper)]/[0.025] backdrop-blur-sm p-6 md:p-8 overflow-hidden">
+              <div className={`absolute -top-10 -right-10 w-40 h-40 rounded-full ${typeStyle.glow} blur-3xl opacity-20`} />
+              <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--paper)]/40 mb-3">
+                About
+              </h2>
+              <p className="text-[15px] leading-relaxed text-[var(--paper)]/75">{rec.description}</p>
+            </div>
+
+            {rec.why_recommend ? (
+              <div className={`relative rounded-2xl border ${typeStyle.border} bg-[var(--paper)]/[0.03] p-6 md:p-7 flex flex-col`}>
+                <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--paper)]/40 mb-3">
+                  Why Read This
+                </h2>
+                <p className="font-[family-name:var(--font-display)] italic text-lg leading-snug text-[var(--paper)]/85 flex-1">
+                  &ldquo;{rec.why_recommend}&rdquo;
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-[var(--paper)]/15 p-6 md:p-7 flex items-center justify-center text-center">
+                <p className="text-xs text-[var(--paper)]/30">No recommender note for this one yet.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Submit Your Own — editorial banner, dashed border signals "add an entry" */}
+          <div className="rounded-2xl border border-dashed border-[var(--paper)]/15 bg-[var(--paper)]/[0.02] p-5 md:p-6">
+            <SubmitYourOwnButton
+              isLoggedIn={!!user}
+              submitRoute={submitRoute}
+              comicId={id}
+            />
+          </div>
+
+          {/* Recommender byline */}
+          <div className="flex items-center justify-between py-4 border-t border-[var(--paper)]/10 text-xs text-[var(--paper)]/40">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span>Recommended by</span>
+              <RecommenderLink
+                username={profile?.username ?? ''}
+                displayName={recommenderName}
+                isLoggedIn={!!user}
+                isGhost={isGhostRec}
+                role={profile?.role}
+                isPro={recommenderIsPro}
+                isVerified={recommenderIsVerified}
+                comicTitle={rec.title}
+                userType={profile?.user_type ?? null}
+              />
+            </div>
+            <span className="font-[family-name:var(--font-mono)] shrink-0">{formatDate(rec.created_at)}</span>
+          </div>
+
+          {/* Reviews */}
+          <section className="pt-2 border-t border-[var(--paper)]/10 space-y-4">
+            <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--paper)]/40">
+              Reviews
+            </h2>
+            <ReviewSection
+              recommendationId={id}
+              currentUserId={user?.id ?? null}
+              isLoggedIn={!!user}
+            />
+          </section>
+
+          {/* Sponsored picks */}
+          <section className="pt-2 border-t border-[var(--paper)]/10 space-y-4">
+            <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--paper)]/40">
+              Sponsored Picks
+            </h2>
+            <Suspense fallback={<div className="h-40 bg-[var(--paper)]/[0.03] animate-pulse rounded-2xl border border-[var(--paper)]/10" />}>
+              <ContextualOffers
+                comicId={id}
+                comicTitle={rec.title}
+                genre={rec.genres?.[0] || 'Action'}
+                maxOffers={3}
+              />
+            </Suspense>
+          </section>
+
+          {/* Next reads */}
+          <section className="pt-2 border-t border-[var(--paper)]/10 space-y-4">
+            <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--paper)]/40">
+              Next Reads
+            </h2>
+            <SimilarComics
+              comicId={id}
+              contentRating={rec.content_rating}
+              showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
+            />
+          </section>
+
         </div>
       </div>
     </>
