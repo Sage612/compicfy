@@ -90,17 +90,18 @@ export function SaveButton({
 
   return (
     <>
+     
       <Button
         variant="outline"
         size="sm"
         onClick={handleSave}
         disabled={loading}
         className={cn(
-          'w-full gap-2',
+          'gap-2 shrink-0 whitespace-nowrap w-full sm:w-auto',
           saved && 'bg-primary/10 border-primary/50 text-primary hover:bg-primary/20'
         )}
       >
-        <Bookmark size={14} className={cn(saved && 'fill-current')} />
+        <Bookmark size={14} className={cn('shrink-0', saved && 'fill-current')} />
         {loading ? 'Saving...' : saved ? 'Saved' : 'Save Comic'}
       </Button>
 

@@ -92,21 +92,33 @@ export function VoteButtons({
 
   return (
     <>
-      <div className="flex gap-2">
+      {/*
+        FIX: this component was built for a full-width vertical sidebar,
+        where `flex-1` buttons splitting a 100%-wide parent looked fine.
+        Dropped into the new horizontal control-deck row (flex-wrap with
+        5+ siblings), that same flex-1 had nothing to anchor against and
+        got squeezed down to near-icon-only width.
+
+        w-full sm:w-auto + shrink-0 on the wrapper: takes full width on
+        very small screens (one row of its own), but on anything wider
+        it sizes to its content and refuses to shrink below that, exactly
+        like the other deck buttons (Save, Track Progress, etc).
+      */}
+      <div className="flex gap-2 w-full sm:w-auto shrink-0">
         {/* ── Upvote ── */}
         <button
           onClick={() => handleVote('up')}
           disabled={!!loadingVote}
           className={cn(
-            'flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border text-sm font-semibold transition-all',
+            'flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl border text-sm font-semibold transition-all whitespace-nowrap shrink-0',
             userVote === 'up'
               ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/20'
               : 'border-border text-muted-foreground hover:border-emerald-500/40 hover:text-emerald-600 hover:bg-emerald-500/5'
           )}
         >
           {loadingVote === 'up'
-            ? <Loader2 size={14} className="animate-spin" />
-            : <ThumbsUp size={14} />
+            ? <Loader2 size={14} className="animate-spin shrink-0" />
+            : <ThumbsUp size={14} className="shrink-0" />
           }
           {formatNumber(upvotes)}
         </button>
@@ -116,15 +128,15 @@ export function VoteButtons({
           onClick={() => handleVote('down')}
           disabled={!!loadingVote}
           className={cn(
-            'flex-1 flex items-center justify-center gap-1.5 h-9 rounded-xl border text-sm font-semibold transition-all',
+            'flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl border text-sm font-semibold transition-all whitespace-nowrap shrink-0',
             userVote === 'down'
               ? 'bg-rose-500/10 border-rose-500/50 text-rose-600 hover:bg-rose-500/20'
               : 'border-border text-muted-foreground hover:border-rose-500/40 hover:text-rose-600 hover:bg-rose-500/5'
           )}
         >
           {loadingVote === 'down'
-            ? <Loader2 size={14} className="animate-spin" />
-            : <ThumbsDown size={14} />
+            ? <Loader2 size={14} className="animate-spin shrink-0" />
+            : <ThumbsDown size={14} className="shrink-0" />
           }
           {formatNumber(downvotes)}
         </button>
