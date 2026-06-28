@@ -8,6 +8,7 @@ import {
   checkGlobalDailyCap,
   incrementGlobalCount,
   getUserContributionScore,
+  checkSoftCap,
 } from '@/lib/utils/proEnforce'
 
 type ExistingRec = {
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
       if (!dailyOk) return dailyError!
     }
 
-    const body   = await request.json()
+    const body    = await request.json()
     const asDraft = body.save_as_draft === true
 
     const parsed = recommendationSchema.safeParse(body)
@@ -148,16 +149,14 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── Global daily cap check (non-admin, non-draft path) ────────────────────
+    // ── Global daily cap check (non-admin, non-draft) ─────────────────────────
     if (!isAdminOrMod && !asDraft) {
       const { isPeakHour, capReached } = await checkGlobalDailyCap()
 
       if (isPeakHour) {
-        // Check user contribution score to decide auto-draft vs hold
-        const score        = await getUserContributionScore(user.id)
-        const highTrust    = score >= 50  // trusted contributor threshold
+        const score     = await getUserContributionScore(user.id)
+        const highTrust = score >= 50
 
-        // Save as draft regardless — return peak_hour signal to frontend
         const insertDraft = {
           user_id:            user.id,
           title:              data.title,
@@ -198,11 +197,9 @@ export async function POST(request: Request) {
             peak_hour:  true,
             high_trust: highTrust,
             draft_id:   draft.id,
-            message:    capReached
-              ? 'peak_cap'
-              : 'peak_spike',
+            message:    capReached ? 'peak_cap' : 'peak_spike',
           },
-          { status: 202 }  // 202 Accepted = saved but not yet processed
+          { status: 202 }
         )
       }
     }
@@ -254,6 +251,20 @@ export async function POST(request: Request) {
         incrementDailyCount(user.id),
         incrementGlobalCount(),
       ])
+
+      // ── Soft cap warning for next submission ──────────────────────────────────
+      const softCap = await checkSoftCap(user.id)
+      return NextResponse.json(
+        {
+          recommendation,
+          ...(softCap.isNearLimit ? {
+            soft_cap_warning: true,
+            remaining:        softCap.remaining,
+            message:          `You have ${softCap.remaining} submission${softCap.remaining === 1 ? '' : 's'} left today.`,
+          } : {}),
+        },
+        { status: 201 }
+      )
     }
 
     return NextResponse.json({ recommendation }, { status: 201 })

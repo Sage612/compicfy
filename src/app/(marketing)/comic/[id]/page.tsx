@@ -1,10 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import { Badge } from '@/components/ui/badge'
 import { ReviewSection } from '@/components/recommendations/ReviewSection'
 import { AddToListButton } from '@/components/recommendations/AddToListButton'
 import { AddToCollectionButton } from '@/components/collections/AddToCollectionButton'
 import { SimilarComics } from '@/components/recommendations/SimilarComics'
+import { ReportButton } from '@/components/recommendations/ReportButton'
+import { getDashboardRoutes } from '@/lib/utils/routes'
 import {
   BookOpen, Calendar, Hash, User, Palette,
   Globe, ExternalLink, ArrowLeft, ShieldAlert,
@@ -26,7 +27,6 @@ import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { headers } from 'next/headers'
 import { Fraunces, JetBrains_Mono } from 'next/font/google'
 
-// ── Editorial type system ────────────────────────────────────────
 const display = Fraunces({
   subsets: ['latin'],
   weight: ['400', '500', '600', '900'],
@@ -41,12 +41,6 @@ const mono = JetBrains_Mono({
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
 const GHOST_ID = '00000000-0000-0000-0000-000000000000'
-
-const PALETTE = {
-  ink:   '#0b0b0e',
-  panel: '#15151a',
-  paper: '#f3efe7',
-} as const
 
 interface Props {
   params: Promise<{ id: string }>
@@ -255,6 +249,30 @@ export default async function ComicDetailPage({ params }: Props) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
+  // ── Current user's profile — fetched once, up front, used by both the
+  //    age-gate "Go to Settings" link AND the submit-route logic below.
+  //    Previously this fetch happened *after* the age gate, so the age
+  //    gate's settings link couldn't use it and was hardcoded to
+  //    '/reader/dashboard/settings' regardless of the viewer's actual
+  //    type/tier. Moved up so both consumers share one fetch. ──
+  let currentUserProfile: { role: string; is_pro: boolean; pro_expires_at: string | null; user_type: string | null } | null = null
+  if (user) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('role, is_pro, pro_expires_at, user_type')
+      .eq('id', user.id)
+      .single()
+    currentUserProfile = data as any
+  }
+
+  const currentUserIsPro = !!(
+    currentUserProfile?.is_pro &&
+    (!currentUserProfile?.pro_expires_at || new Date(currentUserProfile.pro_expires_at) > new Date())
+  )
+  const currentUserIsAdminOrMod = ['admin', 'moderator'].includes(currentUserProfile?.role ?? '')
+  const currentUserType: 'reader' | 'creator' = currentUserProfile?.user_type === 'creator' ? 'creator' : 'reader'
+  const currentUserRoutes = getDashboardRoutes(currentUserType, currentUserIsPro || currentUserIsAdminOrMod)
+
   if (rec.content_rating === 'adult' || rec.content_rating === 'mature') {
     if (!user) {
       return (
@@ -291,7 +309,11 @@ export default async function ComicDetailPage({ params }: Props) {
           </p>
           <div className="flex justify-center gap-3">
             <Link href="/browse"><Button variant="outline">Back to Browse</Button></Link>
-            <Link href="/reader/dashboard/settings"><Button>Go to Settings</Button></Link>
+            {/* FIX: was hardcoded to '/reader/dashboard/settings' regardless
+                of the viewer's actual type/tier. Now resolved via the same
+                getDashboardRoutes() used everywhere else, so a pro creator
+                lands on /pro/creator/dashboard/settings, etc. */}
+            <Link href={currentUserRoutes.settings}><Button>Go to Settings</Button></Link>
           </div>
         </div>
       )
@@ -327,26 +349,9 @@ export default async function ComicDetailPage({ params }: Props) {
     ? 'Ghost'
     : (profile?.display_name || profile?.username || 'unknown')
 
-  let submitRoute = '/reader/dashboard/recommendations/new'
-  if (user) {
-    const { data: currentUserProfile } = await supabase
-      .from('profiles')
-      .select('role, is_pro, pro_expires_at, user_type')
-      .eq('id', user.id)
-      .single()
-    const isAdminOrMod = ['admin', 'moderator'].includes((currentUserProfile as any)?.role ?? '')
-    const isPro        = (currentUserProfile as any)?.is_pro &&
-      (!(currentUserProfile as any)?.pro_expires_at ||
-        new Date((currentUserProfile as any).pro_expires_at) > new Date())
-    const isCreator    = (currentUserProfile as any)?.user_type === 'creator'
-    if (isAdminOrMod || isPro) {
-      submitRoute = isCreator
-        ? '/pro/creator/dashboard/works/new'
-        : '/pro/reader/dashboard/recommendations/new'
-    } else if (isCreator) {
-      submitRoute = '/creator/dashboard/works/new'
-    }
-  }
+  // Submit route now reuses the currentUserRoutes computed above instead
+  // of re-deriving the same branching logic a second time.
+  const submitRoute = user ? currentUserRoutes.newRec : '/reader/dashboard/recommendations/new'
 
   let userVote: 'up' | 'down' | null = null
   let isSaved = false
@@ -373,128 +378,195 @@ export default async function ComicDetailPage({ params }: Props) {
     { icon: MessageSquare, label: 'Score',   value: rec.score        ?? 0 },
   ]
 
+  const actionDeck = (
+    <div className="space-y-2">
+      <div className="flex items-stretch gap-2">
+        <VoteButtons
+          recommendationId={id}
+          initialUpvotes={rec.upvotes}
+          initialDownvotes={rec.downvotes}
+          initialVote={userVote}
+          isLoggedIn={!!user}
+          comicTitle={rec.title}
+        />
+        <SaveButton
+          recommendationId={id}
+          initialSaved={isSaved}
+          isLoggedIn={!!user}
+          comicTitle={rec.title}
+        />
+        <div className="ml-auto shrink-0">
+          <ShareButton title={rec.title} url={`${SITE_URL}/comic/${id}`} />
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-stretch gap-2">
+        <div className="flex-1 min-w-[140px]">
+          <ReadingProgressButton
+            comicId={id}
+            chapterCount={rec.chapter_count}
+            isLoggedIn={!!user}
+          />
+        </div>
+        {user && (
+          <div className="flex-1 min-w-[140px]">
+            <AddToListButton recommendationId={id} userId={user.id} />
+          </div>
+        )}
+        <div className="flex-1 min-w-[140px]">
+          <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <>
       <ComicJsonLd rec={rec} id={id} recommenderName={recommenderName} />
 
-      <div
-        className={`${display.variable} ${mono.variable} min-h-screen bg-[var(--ink)] text-[var(--paper)]`}
-        style={{
-          '--ink': PALETTE.ink,
-          '--panel': PALETTE.panel,
-          '--paper': PALETTE.paper,
-        } as React.CSSProperties}
-      >
+      <div className={`${display.variable} ${mono.variable} min-h-screen bg-dossier text-dossier-foreground`}>
 
-        {/* ══════════════════════════ CINEMATIC HERO ══════════════════════════
-            FIX: was h-[52vh] md:h-[72vh] — on most phones that's 400–650px of
-            mostly-blurred-background dead space before any real content shows.
-            Cut to a height that still reads as "cinematic" without pushing the
-            dossier card (and everything after it) a full screen down.
-        */}
-        <div className="relative h-[34vh] md:h-[46vh] min-h-[260px] max-h-[420px] overflow-hidden">
-          {rec.cover_url && (
+        <div className="relative h-[22vh] md:h-[30vh] min-h-[160px] max-h-[280px] overflow-hidden">
+          {rec.cover_url ? (
             <img
               src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
               alt=""
               aria-hidden
-              className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-30"
+              className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40"
             />
+          ) : (
+            <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-10`} />
           )}
-          <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-20 mix-blend-overlay`} />
-          <div className="absolute inset-0 bg-gradient-to-t from-[var(--ink)] via-[var(--ink)]/70 to-[var(--ink)]/10" />
-          <div className="absolute inset-0 bg-gradient-to-b from-[var(--ink)]/60 via-transparent to-transparent" />
+          <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-15 mix-blend-overlay`} />
+          <div className="absolute inset-0 bg-gradient-to-t from-dossier via-dossier/60 to-dossier/10" />
 
           <div className="absolute top-5 left-4 md:left-6 z-10">
             <Link
               href="/browse"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--ink)]/40 border border-[var(--paper)]/10 text-xs text-[var(--paper)]/70 hover:text-[var(--paper)] hover:border-[var(--paper)]/30 backdrop-blur-md transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-dossier-panel/60 border border-dossier-foreground/10 text-xs text-dossier-foreground/70 hover:text-dossier-foreground hover:border-dossier-foreground/30 backdrop-blur-md transition-colors"
             >
               <ArrowLeft size={12} />
               Browse
             </Link>
           </div>
-
-          {/* Editorial title, anchored to the bottom of the hero.
-              FIX: pb-28/md:pb-36 left a large empty band under the title
-              before the dossier strip's negative margin even kicked in.
-              Trimmed so the title sits closer to where the dossier overlaps. */}
-          <div className="absolute bottom-0 inset-x-0 z-10">
-            <div className="max-w-6xl mx-auto px-4 md:px-6 pb-14 md:pb-20">
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${typeStyle.badge}`}>
-                  {rec.type}
-                </span>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
-                  {rec.status}
-                </span>
-                {rec.is_featured && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 backdrop-blur-sm">
-                    <Star size={8} className="fill-amber-400" />
-                    Featured
-                  </span>
-                )}
-              </div>
-              <h1
-                className="font-[family-name:var(--font-display)] text-3xl md:text-5xl font-black italic leading-[0.95] tracking-tight max-w-3xl text-[var(--paper)] drop-shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
-              >
-                {rec.title}
-              </h1>
-            </div>
-          </div>
         </div>
 
-        {/* ══════════════════════════ DOSSIER STRIP ══════════════════════════
-            FIX: -mt-20 md:-mt-28 was tuned for the taller hero. With the hero
-            shortened, this is reduced proportionally so the cover overlaps the
-            hero by the same visual amount without creating a gap or clipping. */}
-        <div className="relative max-w-6xl mx-auto px-4 md:px-6 -mt-12 md:-mt-16 z-20">
+        <div className="relative max-w-6xl mx-auto px-4 md:px-6 -mt-10 md:-mt-14 z-20">
+
           <div className="flex flex-col md:flex-row gap-6 md:gap-10">
 
-            <div className="shrink-0 mx-auto md:mx-0">
-              <div className="relative flex">
-                <div
-                  className={`hidden sm:flex items-center justify-center w-7 rounded-l-lg border-y border-l ${typeStyle.border} bg-[var(--ink)]/60 backdrop-blur-md`}
-                >
-                  <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.25em] text-[var(--paper)]/60 -rotate-90 whitespace-nowrap">
-                    {rec.type} · {rec.status}
-                  </span>
+            <div className="md:w-48 shrink-0 order-1">
+              <div className="mx-auto md:mx-0 w-40 md:w-48 space-y-4">
+
+                <div className="relative flex">
+                  <div
+                    className={`hidden md:flex items-center justify-center w-7 rounded-l-lg border-y border-l ${typeStyle.border} bg-dossier-panel/60 backdrop-blur-md`}
+                  >
+                    <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.25em] text-dossier-foreground/60 -rotate-90 whitespace-nowrap">
+                      {rec.type} · {rec.status}
+                    </span>
+                  </div>
+
+                  <div className="relative w-40 md:w-[164px] aspect-[3/4] rounded-r-lg md:rounded-l-none rounded-lg overflow-hidden border-y border-r border-dossier-foreground/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] bg-dossier-panel">
+                    <div className={`absolute -inset-4 rounded-2xl ${typeStyle.glow} blur-2xl opacity-30 -z-10`} />
+                    {rec.cover_url ? (
+                      <img
+                        src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
+                        alt={rec.title}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={36} className="text-dossier-foreground/30" />
+                      </div>
+                    )}
+
+                    <div className="absolute top-2 left-2 z-10">
+                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border capitalize backdrop-blur-sm ${typeStyle.badge}`}>
+                        {rec.type}
+                      </span>
+                    </div>
+                    {rec.is_featured && (
+                      <div className="absolute top-2 right-2 z-10">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 backdrop-blur-sm">
+                          <Star size={8} className="fill-amber-400" />
+                          Featured
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="relative w-40 md:w-48 aspect-[3/4] rounded-r-lg sm:rounded-l-none rounded-lg overflow-hidden border-y border-r border-[var(--paper)]/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] bg-[var(--panel)]">
-                  <div className={`absolute -inset-4 rounded-2xl ${typeStyle.glow} blur-2xl opacity-30 -z-10`} />
-                  {rec.cover_url ? (
-                    <img
-                      src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
-                      alt={rec.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen size={36} className="text-[var(--paper)]/30" />
-                    </div>
-                  )}
+                <div className="md:hidden space-y-2">
+                  <div className="flex flex-wrap items-center justify-center gap-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
+                      {rec.status}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded border border-dossier-foreground/10 text-dossier-foreground/40 text-[10px] capitalize">
+                      {rec.content_rating?.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <h1 className="font-[family-name:var(--font-display)] text-2xl font-black italic leading-tight text-center text-dossier-foreground">
+                    {rec.title}
+                  </h1>
+                </div>
+
+                <div className="hidden md:block">
+                  {actionDeck}
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 min-w-0 pt-1 md:pt-3 space-y-4">
+            <div className="flex-1 min-w-0 pt-1 md:pt-2 space-y-4 order-2">
 
-              <div className="flex flex-wrap gap-x-5 gap-y-1.5 font-[family-name:var(--font-mono)] text-xs text-[var(--paper)]/50">
+              <div className="hidden md:block space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
+                    {rec.status}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded border border-dossier-foreground/10 text-dossier-foreground/40 text-[10px] capitalize">
+                    {rec.content_rating?.replace('_', ' ')}
+                  </span>
+                </div>
+                <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl font-black italic leading-[0.95] tracking-tight text-dossier-foreground">
+                  {rec.title}
+                </h1>
+              </div>
+
+              {rec.official_platforms && rec.official_platforms.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-dossier-foreground/40 md:hidden">Read On</p>
+                  <div className="flex md:flex-wrap gap-2 overflow-x-auto md:overflow-visible no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+                    {rec.official_platforms.map((platform: string, i: number) => (
+                      <div
+                        key={platform}
+                        className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full border border-dossier-foreground/10 bg-dossier-panel/40 text-[11px] text-dossier-foreground/60 hover:border-dossier-foreground/25 transition-colors shrink-0 whitespace-nowrap"
+                      >
+                        <Globe size={10} className="text-dossier-foreground/40 shrink-0" />
+                        <span className="font-medium">{platform}</span>
+                        {rec.official_links?.[i] && (
+                          <a href={rec.official_links[i]} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                            <ExternalLink size={10} className="text-dossier-foreground/40 hover:text-dossier-foreground transition-colors" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-x-5 gap-y-1.5 font-[family-name:var(--font-mono)] text-xs text-dossier-foreground/50">
                 {rec.author && <span className="flex items-center gap-1.5"><User size={12} />{rec.author}</span>}
                 {rec.artist && rec.artist !== rec.author && <span className="flex items-center gap-1.5"><Palette size={12} />{rec.artist}</span>}
                 {rec.year_released && <span className="flex items-center gap-1.5"><Calendar size={12} />{rec.year_released}</span>}
                 {rec.chapter_count && <span className="flex items-center gap-1.5"><Hash size={12} />{rec.chapter_count} ch.</span>}
-                <span className="px-1.5 py-0.5 rounded border border-[var(--paper)]/10 text-[var(--paper)]/40 capitalize">
-                  {rec.content_rating?.replace('_', ' ')}
-                </span>
               </div>
 
               {rec.genres && rec.genres.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {rec.genres.map((genre: string) => (
                     <Link key={genre} href={`/browse?genre=${genre}`}>
-                      <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-[var(--paper)]/10 text-[var(--paper)]/60 hover:border-[var(--paper)]/30 hover:text-[var(--paper)] transition-colors">
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors">
                         {genre}
                       </span>
                     </Link>
@@ -502,118 +574,51 @@ export default async function ComicDetailPage({ params }: Props) {
                 </div>
               )}
 
-              {/* Stats ticker */}
-              <div className="flex items-stretch rounded-xl border border-[var(--paper)]/10 bg-[var(--paper)]/[0.03] divide-x divide-[var(--paper)]/10 overflow-hidden backdrop-blur-sm">
+              <div className="flex items-stretch rounded-xl border border-dossier-foreground/10 bg-dossier-panel/40 divide-x divide-dossier-foreground/10 overflow-hidden backdrop-blur-sm">
                 {stats.map(({ icon: Icon, label, value }) => (
                   <div key={label} className="flex-1 px-3 md:px-5 py-2.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
-                      <Icon size={12} className="text-[var(--paper)]/40" />
-                      <p className="font-[family-name:var(--font-mono)] text-lg md:text-xl font-bold tabular-nums leading-none text-[var(--paper)]">
+                      <Icon size={12} className="text-dossier-foreground/40" />
+                      <p className="font-[family-name:var(--font-mono)] text-lg md:text-xl font-bold tabular-nums leading-none text-dossier-foreground">
                         {value}
                       </p>
                     </div>
-                    <p className="mt-1 text-[9px] uppercase tracking-widest text-[var(--paper)]/40">{label}</p>
+                    <p className="mt-1 text-[9px] uppercase tracking-widest text-dossier-foreground/40">{label}</p>
                   </div>
                 ))}
               </div>
 
-              {rec.official_platforms && rec.official_platforms.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {rec.official_platforms.map((platform: string, i: number) => (
-                    <div
-                      key={platform}
-                      className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full border border-[var(--paper)]/10 bg-[var(--paper)]/[0.03] text-[11px] text-[var(--paper)]/60 hover:border-[var(--paper)]/25 transition-colors"
-                    >
-                      <Globe size={10} className="text-[var(--paper)]/40" />
-                      <span className="font-medium">{platform}</span>
-                      {rec.official_links?.[i] && (
-                        <a href={rec.official_links[i]} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                          <ExternalLink size={10} className="text-[var(--paper)]/40 hover:text-[var(--paper)] transition-colors" />
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── Control deck ──
-              FIX 1: this was `sticky bottom-3 md:static` — on mobile that made
-              it float mid-viewport, overlapping the bottom nav tabs AND the
-              floating "+" submit FAB from the layout shell, which is exactly
-              the broken collision in the screenshots. It's now always static
-              and simply sits in the page flow right after the dossier, like
-              every other section — no overlap with anything else on screen.
-              FIX 2: flex-wrap items were given no sizing rules, so on narrow
-              viewports they each took an entire row → huge vertical gaps.
-              items-stretch + flex-wrap with each child sized to content
-              (via the shrink-0/whitespace-nowrap fixes in the child components)
-              now lets 2–3 buttons share a row on mobile instead of 1 each. */}
-          <div className="relative z-20 mt-5 md:mt-7">
-            <div
-              className={`flex flex-wrap items-stretch gap-2 p-2.5 md:p-3 rounded-2xl border ${typeStyle.border} bg-[var(--ink)]/70 backdrop-blur-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.6)]`}
-            >
-              <VoteButtons
-                recommendationId={id}
-                initialUpvotes={rec.upvotes}
-                initialDownvotes={rec.downvotes}
-                initialVote={userVote}
-                isLoggedIn={!!user}
-                comicTitle={rec.title}
-              />
-              <SaveButton
-                recommendationId={id}
-                initialSaved={isSaved}
-                isLoggedIn={!!user}
-                comicTitle={rec.title}
-              />
-              <ReadingProgressButton
-                comicId={id}
-                chapterCount={rec.chapter_count}
-                isLoggedIn={!!user}
-              />
-              {user && <AddToListButton recommendationId={id} userId={user.id} />}
-              <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
-              <div className="sm:ml-auto">
-                <ShareButton title={rec.title} url={`${SITE_URL}/comic/${id}`} />
+              <div className="md:hidden">
+                {actionDeck}
               </div>
             </div>
           </div>
         </div>
 
-        {/* ══════════════════════════ MAIN CONTENT ══════════════════════════
-            FIX: mt-12/md:mt-16 + space-y-14 was excessive once the deck above
-            no longer floats — tightened so sections read as connected, not
-            scattered with dead air between every block. */}
         <div className="max-w-6xl mx-auto px-4 md:px-6 mt-8 md:mt-10 pb-24 space-y-10">
 
-          <div className="grid grid-cols-1 md:grid-cols-[1.6fr_1fr] gap-5 md:gap-6">
-            <div className="relative rounded-2xl border border-[var(--paper)]/10 bg-[var(--paper)]/[0.025] backdrop-blur-sm p-6 md:p-8 overflow-hidden">
+          <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-5 md:gap-6`}>
+            <div className="relative rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/30 backdrop-blur-sm p-6 md:p-8 overflow-hidden">
               <div className={`absolute -top-10 -right-10 w-40 h-40 rounded-full ${typeStyle.glow} blur-3xl opacity-20`} />
-              <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--paper)]/40 mb-3">
+              <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
                 About
               </h2>
-              <p className="text-[15px] leading-relaxed text-[var(--paper)]/75">{rec.description}</p>
+              <p className="text-[15px] leading-relaxed text-dossier-foreground/75">{rec.description}</p>
             </div>
 
-            {rec.why_recommend ? (
-              <div className={`relative rounded-2xl border ${typeStyle.border} bg-[var(--paper)]/[0.03] p-6 md:p-7 flex flex-col`}>
-                <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--paper)]/40 mb-3">
+            {rec.why_recommend && (
+              <div className={`relative rounded-2xl border ${typeStyle.border} bg-dossier-panel/40 p-6 md:p-7 flex flex-col`}>
+                <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
                   Why Read This
                 </h2>
-                <p className="font-[family-name:var(--font-display)] italic text-lg leading-snug text-[var(--paper)]/85 flex-1">
+                <p className="font-[family-name:var(--font-display)] italic text-lg leading-snug text-dossier-foreground/85 flex-1">
                   &ldquo;{rec.why_recommend}&rdquo;
                 </p>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-[var(--paper)]/15 p-6 md:p-7 flex items-center justify-center text-center">
-                <p className="text-xs text-[var(--paper)]/30">No recommender note for this one yet.</p>
               </div>
             )}
           </div>
 
-          <div className="rounded-2xl border border-dashed border-[var(--paper)]/15 bg-[var(--paper)]/[0.02] p-5 md:p-6">
+          <div className="rounded-2xl border border-dashed border-dossier-foreground/15 bg-dossier-panel/20 p-5 md:p-6">
             <SubmitYourOwnButton
               isLoggedIn={!!user}
               submitRoute={submitRoute}
@@ -621,7 +626,9 @@ export default async function ComicDetailPage({ params }: Props) {
             />
           </div>
 
-          <div className="flex items-center justify-between py-4 border-t border-[var(--paper)]/10 text-xs text-[var(--paper)]/40">
+          {/* ── Recommender byline — now includes ReportButton on the right,
+              next to the date, matching the spec's row layout. ── */}
+          <div className="flex items-center justify-between py-4 border-t border-dossier-foreground/10 text-xs text-dossier-foreground/40">
             <div className="flex items-center gap-2 flex-wrap">
               <span>Recommended by</span>
               <RecommenderLink
@@ -636,11 +643,19 @@ export default async function ComicDetailPage({ params }: Props) {
                 userType={profile?.user_type ?? null}
               />
             </div>
-            <span className="font-[family-name:var(--font-mono)] shrink-0">{formatDate(rec.created_at)}</span>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="font-[family-name:var(--font-mono)]">{formatDate(rec.created_at)}</span>
+              <ReportButton
+                entityType="recommendation"
+                entityId={id}
+                isLoggedIn={!!user}
+                compact
+              />
+            </div>
           </div>
 
-          <section className="pt-2 border-t border-[var(--paper)]/10 space-y-4">
-            <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--paper)]/40">
+          <section className="pt-2 border-t border-dossier-foreground/10 space-y-4">
+            <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
               Reviews
             </h2>
             <ReviewSection
@@ -650,22 +665,17 @@ export default async function ComicDetailPage({ params }: Props) {
             />
           </section>
 
-          <section className="pt-2 border-t border-[var(--paper)]/10 space-y-4">
-            <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--paper)]/40">
-              Sponsored Picks
-            </h2>
-            <Suspense fallback={<div className="h-40 bg-[var(--paper)]/[0.03] animate-pulse rounded-2xl border border-[var(--paper)]/10" />}>
-              <ContextualOffers
-                comicId={id}
-                comicTitle={rec.title}
-                genre={rec.genres?.[0] || 'Action'}
-                maxOffers={3}
-              />
-            </Suspense>
-          </section>
+          <Suspense fallback={<div className="h-40 bg-dossier-panel/30 animate-pulse rounded-2xl border border-dossier-foreground/10" />}>
+            <ContextualOffers
+              comicId={id}
+              comicTitle={rec.title}
+              genre={rec.genres?.[0] || 'Action'}
+              maxOffers={3}
+            />
+          </Suspense>
 
-          <section className="pt-2 border-t border-[var(--paper)]/10 space-y-4">
-            <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-[var(--paper)]/40">
+          <section className="pt-2 border-t border-dossier-foreground/10 space-y-4">
+            <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
               Next Reads
             </h2>
             <SimilarComics

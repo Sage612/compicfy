@@ -19,10 +19,16 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.08 0 0);
 
+  /* Comic Dossier / Editorial Variables */
+  --dossier: oklch(0.98 0 0);
+  --dossier-foreground: oklch(0.08 0 0);
+  --dossier-panel: oklch(1 0 0);
+  --dossier-panel-foreground: oklch(0.08 0 0);
+
   /*
-    Brand — Compicfy Teal/Cyan (Light Mode Variant)
-    #0891B2 -> oklch(0.55 0.18 196) 
-    Per logo spec: "Teal Deep #0891B2 - Light mode primary"
+     Brand — Compicfy Teal/Cyan (Light Mode Variant)
+     #0891B2 -> oklch(0.55 0.18 196) 
+     Per logo spec: "Teal Deep #0891B2 - Light mode primary"
   */
   --primary: oklch(0.55 0.18 196);
   --primary-foreground: oklch(0.99 0 0);
@@ -81,6 +87,12 @@
   --card-foreground: oklch(0.95 0 0);
   --popover: oklch(0.14 0 0);
   --popover-foreground: oklch(0.95 0 0);
+
+  /* Comic Dossier / Editorial Variables */
+  --dossier: oklch(0.07 0 0);
+  --dossier-foreground: oklch(0.96 0.01 80);
+  --dossier-panel: oklch(0.11 0 0);
+  --dossier-panel-foreground: oklch(0.96 0.01 80);
 
   /*
     Dark mode primary — #0ea5b0
@@ -142,6 +154,13 @@
     --card-foreground: oklch(0.95 0 0);
     --popover: oklch(0.14 0 0);
     --popover-foreground: oklch(0.95 0 0);
+
+    /* Comic Dossier / Editorial Variables */
+    --dossier: oklch(0.07 0 0);
+    --dossier-foreground: oklch(0.96 0.01 80);
+    --dossier-panel: oklch(0.11 0 0);
+    --dossier-panel-foreground: oklch(0.96 0.01 80);
+
     --primary: oklch(0.72 0.19 192);
     --primary-foreground: oklch(0.08 0 0);
     --secondary: oklch(0.2 0 0);
@@ -214,6 +233,12 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Dossier Utilities Mapping */
+  --color-dossier: var(--dossier);
+  --color-dossier-foreground: var(--dossier-foreground);
+  --color-dossier-panel: var(--dossier-panel);
+  --color-dossier-panel-foreground: var(--dossier-panel-foreground);
 
   /* ── RADIUS ── */
   --radius-sm: calc(var(--radius) - 2px);
@@ -300,7 +325,7 @@
 }
 @keyframes pulse-soft {
   0%, 100% { opacity: 1; }
-  50%       { opacity: 0.7; }
+  50%      { opacity: 0.7; }
 }
 @keyframes shimmer {
   0%   { background-position: -200% 0; }

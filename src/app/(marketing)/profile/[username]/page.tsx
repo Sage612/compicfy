@@ -3,10 +3,11 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
   CalendarDays, BookOpen, Star, ThumbsUp,
-  Globe, BookMarked, Users, Pin, ArrowRight, PenLine,
+  Globe, Users, Pin, ArrowRight, PenLine,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
+import { getDashboardRoutes } from '@/lib/utils/routes'
 import type { Metadata } from 'next'
 import { FollowButton } from '@/components/user/FollowButton'
 import { ComicCard } from '@/components/recommendations/ComicCard'
@@ -22,7 +23,6 @@ import { ProfileBadges } from '@/components/profile/ProfileBadges'
 
 const GHOST_ID = '00000000-0000-0000-0000-000000000000'
 
-// Inline image proxy helper to route external covers safely
 const proxyCover = (url: string | null): string => {
   if (!url) return ''
   if (url.startsWith('/') || url.startsWith('blob:')) return url
@@ -69,31 +69,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const GENRE_COLORS: Record<string, string> = {
-  Action:         'bg-red-500/10    text-red-500    border-red-500/20',
-  Adventure:      'bg-orange-500/10 text-orange-500 border-orange-500/20',
-  Comedy:         'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-  Drama:          'bg-orange-600/10 text-orange-600 border-orange-600/20',
-  Fantasy:        'bg-violet-500/10 text-violet-500 border-violet-500/20',
-  Horror:         'bg-zinc-500/10   text-zinc-400   border-zinc-500/20',
-  Mystery:        'bg-slate-500/10  text-slate-400  border-slate-500/20',
-  Romance:        'bg-pink-500/10   text-pink-500   border-pink-500/20',
-  'Sci-Fi':       'bg-cyan-500/10   text-cyan-500   border-cyan-500/20',
-  'Slice of Life':'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-  Sports:         'bg-amber-500/10  text-amber-500  border-amber-500/20',
-  Supernatural:   'bg-purple-500/10 text-purple-500 border-purple-500/20',
-  Thriller:       'bg-red-700/10    text-red-600    border-red-700/20',
-  Isekai:         'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
-  'Martial Arts': 'bg-rose-600/10   text-rose-600   border-rose-600/20',
-  'School Life':  'bg-sky-500/10    text-sky-500    border-sky-500/20',
-  Historical:     'bg-stone-500/10  text-stone-400  border-stone-500/20',
-  Psychological:  'bg-fuchsia-500/10 text-fuchsia-500 border-fuchsia-500/20',
-  Shounen:        'bg-blue-500/10   text-blue-500   border-blue-500/20',
-  Shoujo:         'bg-pink-400/10   text-pink-400   border-pink-400/20',
-  Seinen:         'bg-zinc-600/10   text-zinc-400   border-zinc-600/20',
-  Josei:          'bg-rose-400/10   text-rose-400   border-rose-400/20',
-  Yuri:           'bg-purple-400/10 text-purple-400 border-purple-400/20',
-  Yaoi:           'bg-indigo-400/10 text-indigo-400 border-indigo-400/20',
-  Mecha:          'bg-teal-500/10   text-teal-500   border-teal-500/20',
+  Action:           'bg-red-500/10    text-red-500    border-red-500/20',
+  Adventure:        'bg-orange-500/10 text-orange-500 border-orange-500/20',
+  Comedy:           'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+  Drama:            'bg-orange-600/10 text-orange-600 border-orange-600/20',
+  Fantasy:          'bg-violet-500/10 text-violet-500 border-violet-500/20',
+  Horror:           'bg-zinc-500/10   text-zinc-400   border-zinc-500/20',
+  Mystery:          'bg-slate-500/10  text-slate-400  border-slate-500/20',
+  Romance:          'bg-pink-500/10   text-pink-500   border-pink-500/20',
+  'Sci-Fi':         'bg-cyan-500/10   text-cyan-500   border-cyan-500/20',
+  'Slice of Life':  'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+  Sports:           'bg-amber-500/10  text-amber-500  border-amber-500/20',
+  Supernatural:     'bg-purple-500/10 text-purple-500 border-purple-500/20',
+  Thriller:         'bg-red-700/10    text-red-600    border-red-700/20',
+  Isekai:           'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+  'Martial Arts':   'bg-rose-600/10   text-rose-600   border-rose-600/20',
+  'School Life':    'bg-sky-500/10    text-sky-500    border-sky-500/20',
+  Historical:       'bg-stone-500/10  text-stone-400  border-stone-500/20',
+  Psychological:    'bg-fuchsia-500/10 text-fuchsia-500 border-fuchsia-500/20',
+  Shounen:          'bg-blue-500/10   text-blue-500   border-blue-500/20',
+  Shoujo:           'bg-pink-400/10   text-pink-400   border-pink-400/20',
+  Seinen:           'bg-zinc-600/10   text-zinc-400   border-zinc-600/20',
+  Josei:            'bg-rose-400/10   text-rose-400   border-rose-400/20',
+  Yuri:             'bg-purple-400/10 text-purple-400 border-purple-400/20',
+  Yaoi:             'bg-indigo-400/10 text-indigo-400 border-indigo-400/20',
+  Mecha:            'bg-teal-500/10   text-teal-500   border-teal-500/20',
 }
 
 const DEFAULT_GENRE_COLOR = 'bg-muted text-muted-foreground border-border'
@@ -112,7 +112,6 @@ export default async function ProfilePage({ params }: Props) {
 
   if (!profileData) notFound()
 
-  // Redirect creators to their creator profile
   if ((profileData as any).user_type === 'creator') {
     const { redirect } = await import('next/navigation')
     redirect(`/creator/${username}`)
@@ -128,7 +127,17 @@ export default async function ProfilePage({ params }: Props) {
     favorite_genres:          (profileData as any).favorite_genres ?? [],
   }
 
-  const isGhost = profile.id === GHOST_ID
+  const isGhost  = profile.id === GHOST_ID
+  const isOwner  = viewer?.id === profile.id && !isGhost
+  const isPro    = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin  = profile.role === 'admin'
+  const showGold = isPro && !isAdmin
+
+  // ── Owner dashboard routes — aware of user_type and pro status ──────────────
+  const ownerRoutes = getDashboardRoutes(
+    (profileData as any)?.user_type === 'creator' ? 'creator' : 'reader',
+    isPro
+  )
 
   let viewerGenres: string[] = []
   if (viewer && viewer.id !== profile.id && !isGhost) {
@@ -139,11 +148,6 @@ export default async function ProfilePage({ params }: Props) {
       .single()
     viewerGenres = (viewerProfile as any)?.favorite_genres ?? []
   }
-
-  const isOwner  = viewer?.id === profile.id && !isGhost
-  const isPro    = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  const isAdmin  = profile.role === 'admin'
-  const showGold = isPro && !isAdmin
 
   if (viewer?.id && viewer.id !== profile.id && !isGhost) {
     try {
@@ -229,6 +233,59 @@ export default async function ProfilePage({ params }: Props) {
     }
   }
 
+  // ── Taste compatibility real data ─────────────────────────────────────────
+  let viewerStats:  { reviews: number; votes_given: number; lists: number } | undefined
+  let profileStats: { reviews: number; votes_given: number; lists: number } | undefined
+  let sharedReading  = 0
+  let sharedPlanning = 0
+
+  if (viewer && viewer.id !== profile.id && !isGhost) {
+    const [
+      { count: viewerReviews },
+      { count: viewerVotes },
+      { count: viewerLists },
+      { count: profileReviews },
+      { count: profileVotes },
+      { count: profileLists },
+    ] = await Promise.all([
+      supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', viewer.id),
+      supabase.from('votes').select('*', { count: 'exact', head: true }).eq('user_id', viewer.id),
+      supabase.from('reading_lists').select('*', { count: 'exact', head: true }).eq('user_id', viewer.id),
+      supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
+      supabase.from('votes').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
+      supabase.from('reading_lists').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
+    ])
+
+    viewerStats  = { reviews: viewerReviews ?? 0, votes_given: viewerVotes ?? 0, lists: viewerLists ?? 0 }
+    profileStats = { reviews: profileReviews ?? 0, votes_given: profileVotes ?? 0, lists: profileLists ?? 0 }
+
+    const { data: viewerListIds }  = await supabase.from('reading_lists').select('id').eq('user_id', viewer.id)
+    const { data: profileListIds } = await supabase.from('reading_lists').select('id').eq('user_id', profile.id)
+
+    if (viewerListIds?.length && profileListIds?.length) {
+      const vIds = viewerListIds.map((l: any) => l.id)
+      const pIds = profileListIds.map((l: any) => l.id)
+
+      const [
+        { data: viewerReadingItems },
+        { data: profileReadingItems },
+        { data: viewerPlanItems },
+        { data: profilePlanItems },
+      ] = await Promise.all([
+        supabase.from('reading_list_items').select('recommendation_id').in('list_id', vIds).eq('status', 'reading'),
+        supabase.from('reading_list_items').select('recommendation_id').in('list_id', pIds).eq('status', 'reading'),
+        supabase.from('reading_list_items').select('recommendation_id').in('list_id', vIds).eq('status', 'plan_to_read'),
+        supabase.from('reading_list_items').select('recommendation_id').in('list_id', pIds).eq('status', 'plan_to_read'),
+      ])
+
+      const viewerReadingSet = new Set((viewerReadingItems ?? []).map((i: any) => i.recommendation_id))
+      const viewerPlanSet    = new Set((viewerPlanItems    ?? []).map((i: any) => i.recommendation_id))
+
+      sharedReading  = (profileReadingItems ?? []).filter((i: any) => viewerReadingSet.has(i.recommendation_id)).length
+      sharedPlanning = (profilePlanItems    ?? []).filter((i: any) => viewerPlanSet.has(i.recommendation_id)).length
+    }
+  }
+
   const recommendations = (recData ?? []) as Recommendation[]
   const isFollowing     = !!isFollowingData
   const totalRecs       = totalRecsCount ?? 0
@@ -239,14 +296,9 @@ export default async function ProfilePage({ params }: Props) {
     (listsData ?? []).map(async (list: any) => {
       const [{ count }, { data: coverItems }] = await Promise.all([
         supabase.from('reading_list_items').select('*', { count: 'exact', head: true }).eq('list_id', list.id),
-        supabase.from('reading_list_items')
-          .select('recommendations(cover_url)')
-          .eq('list_id', list.id)
-          .limit(4),
+        supabase.from('reading_list_items').select('recommendations(cover_url)').eq('list_id', list.id).limit(4),
       ])
-      const coverUrls = (coverItems ?? [])
-        .map((i: any) => i.recommendations?.cover_url)
-        .filter(Boolean) as string[]
+      const coverUrls = (coverItems ?? []).map((i: any) => i.recommendations?.cover_url).filter(Boolean) as string[]
       return { ...list, item_count: count ?? 0, _cover_urls: coverUrls }
     })
   )
@@ -273,25 +325,21 @@ export default async function ProfilePage({ params }: Props) {
               ? 'bg-gradient-to-br from-amber-500/30 via-orange-500/15 to-transparent'
               : 'bg-gradient-to-br from-primary/20 via-primary/5 to-transparent'
           }`} />
-
           {isGhost && (
             <>
               <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 15% 60%, #4f46e5 0%, transparent 45%), radial-gradient(circle at 85% 25%, #7c3aed 0%, transparent 40%), radial-gradient(circle at 50% 90%, #2563eb 0%, transparent 35%)' }} />
               <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'linear-gradient(rgba(99,102,241,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.4) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
             </>
           )}
-
           {showGold && !isGhost && (
             <>
               <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, #f59e0b 0%, transparent 50%), radial-gradient(circle at 80% 30%, #ea580c 0%, transparent 40%)' }} />
               <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-400/60 to-transparent" />
             </>
           )}
-
           {!isGhost && !showGold && (
             <div className="absolute inset-0 opacity-15" style={{ backgroundImage: 'radial-gradient(circle at 20% 60%, var(--color-primary) 0%, transparent 50%), radial-gradient(circle at 80% 30%, var(--color-primary) 0%, transparent 40%)' }} />
           )}
-
           <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
         </div>
 
@@ -327,11 +375,7 @@ export default async function ProfilePage({ params }: Props) {
                 <FollowButton profileId={profile.id} initialFollowing={isFollowing} isLoggedIn={!!viewer} />
               )}
               {isOwner && (
-                <Link href={
-                  (profileData as any)?.user_type === 'creator'
-                    ? (isPro ? '/pro/creator/dashboard/settings' : '/creator/dashboard/settings')
-                    : (isPro ? '/pro/reader/dashboard/settings' : '/reader/dashboard/settings')
-                }>
+                <Link href={ownerRoutes.settings}>
                   <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">Edit Profile</Button>
                 </Link>
               )}
@@ -350,12 +394,10 @@ export default async function ProfilePage({ params }: Props) {
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
           </div>
 
-          {/* Bio */}
           {profile.bio && (
             <p className="text-sm leading-relaxed text-muted-foreground mb-3 max-w-lg">{profile.bio}</p>
           )}
 
-          {/* Website */}
           {profile.website && !isGhost && (
             <a href={profile.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline mb-3">
               <Globe size={11} />
@@ -363,7 +405,7 @@ export default async function ProfilePage({ params }: Props) {
             </a>
           )}
 
-          {/* ── Stats — single compact row ── */}
+          {/* Stats */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-4 text-xs text-muted-foreground">
             {!isGhost && (
               <>
@@ -412,10 +454,9 @@ export default async function ProfilePage({ params }: Props) {
             )}
           </div>
 
-          {/* ── Genres + Taste Identity ── */}
+          {/* Genres + Taste */}
           {favoriteGenres.length > 0 && !isGhost && (
             <div className="mb-3 space-y-2">
-              {/* Genres */}
               <div className="flex flex-wrap gap-1.5">
                 {favoriteGenres.map((genre: string) => (
                   <Link key={genre} href={`/browse?genre=${encodeURIComponent(genre)}`}>
@@ -429,13 +470,17 @@ export default async function ProfilePage({ params }: Props) {
             </div>
           )}
 
-          {/* Taste Compatibility */}
+          {/* Taste Compatibility — wired with real data */}
           {!isGhost && !isOwner && viewer && viewerGenres.length > 0 && favoriteGenres.length > 0 && (
             <div className="mb-3">
               <TasteCompatibility
                 viewerGenres={viewerGenres}
                 profileGenres={favoriteGenres}
                 profileName={profile.display_name || profile.username}
+                viewerStats={viewerStats}
+                profileStats={profileStats}
+                sharedReading={sharedReading}
+                sharedPlanning={sharedPlanning}
               />
             </div>
           )}
@@ -454,7 +499,6 @@ export default async function ProfilePage({ params }: Props) {
             </div>
           )}
 
-          {/* Achievement Badges */}
           <ProfileBadges
             approvedRecs={totalRecs}
             totalReviews={profile.total_reviews ?? 0}
@@ -465,7 +509,6 @@ export default async function ProfilePage({ params }: Props) {
             isGhost={isGhost}
           />
 
-          {/* Ghost lore */}
           {isGhost && (
             <p className="text-xs text-indigo-400/70 italic leading-relaxed max-w-md mt-2">
               An archivist of forgotten recommendations. Comics submitted here live on even when their recommenders are gone.
@@ -474,7 +517,7 @@ export default async function ProfilePage({ params }: Props) {
         </div>
       </div>
 
-      {/* ── MANGA SHELF ── */}
+      {/* Manga Shelf */}
       <ProfileShelf
         recommendations={recommendations}
         totalRecs={totalRecs}
@@ -485,7 +528,7 @@ export default async function ProfilePage({ params }: Props) {
         showGold={showGold}
       />
 
-      {/* ── PINNED ── */}
+      {/* Pinned */}
       {pinnedRec && (
         <section className="space-y-3">
           <div className="flex items-center gap-2">
@@ -531,7 +574,7 @@ export default async function ProfilePage({ params }: Props) {
         </section>
       )}
 
-      {/* ── RECOMMENDATIONS ── */}
+      {/* Recommendations */}
       {gridRecs.length > 0 ? (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
@@ -574,14 +617,14 @@ export default async function ProfilePage({ params }: Props) {
             }
           </p>
           {isOwner && !isGhost && (
-            <Link href="/dashboard/recommendations/new" className="mt-5">
+            <Link href={ownerRoutes.newRec} className="mt-5">
               <Button size="sm" className="gap-2"><PenLine size={13} />Submit your first rec</Button>
             </Link>
           )}
         </div>
       )}
 
-      {/* ── PUBLIC READING LISTS ── */}
+      {/* Public Reading Lists */}
       {!isGhost && lists.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center gap-2">
@@ -609,26 +652,21 @@ export default async function ProfilePage({ params }: Props) {
                 2: 'text-rose-400',    3: 'text-amber-400',
                 4: 'text-emerald-400', 5: 'text-indigo-400',
               }
-              const ti        = idx % 6
-              const themeGrad = THEME_GRAD[ti]
-              const covers    = (list as any)._cover_urls ?? []
-              const dominant  = covers[0] ?? null
-              const stack     = covers.slice(1, 3)
+              const ti       = idx % 6
+              const covers   = (list as any)._cover_urls ?? []
+              const dominant = covers[0] ?? null
+              const stack    = covers.slice(1, 3)
 
               return (
                 <Link key={list.id} href={`/lists/${list.id}`}
                   className={`group relative rounded-2xl border overflow-hidden h-36 cursor-pointer ${THEME_BORDER[ti]}`}
                 >
-                  {/* Background */}
                   <div className="absolute inset-0">
-                    {dominant ? (
-                      <img src={`/api/image-proxy?url=${encodeURIComponent(dominant)}`} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
-                    ) : (
-                      <div className={`absolute inset-0 bg-gradient-to-br ${themeGrad}`} />
-                    )}
+                    {dominant
+                      ? <img src={`/api/image-proxy?url=${encodeURIComponent(dominant)}`} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
+                      : <div className={`absolute inset-0 bg-gradient-to-br ${THEME_GRAD[ti]}`} />
+                    }
                   </div>
-
-                  {/* Stacked thumbnails */}
                   {stack.length > 0 && (
                     <div className="absolute bottom-10 right-2 flex items-end z-10">
                       {stack.map((url: string, i: number) => (
@@ -645,18 +683,12 @@ export default async function ProfilePage({ params }: Props) {
                       ))}
                     </div>
                   )}
-
-                  {/* Dark scrim */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-
-                  {/* Top badge */}
                   <div className="absolute top-2 left-2 z-20">
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm">
                       <Globe size={7} /> Public
                     </span>
                   </div>
-
-                  {/* Comic count badge */}
                   {list.item_count > 0 && (
                     <div className="absolute top-2 right-2 z-20">
                       <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10 ${THEME_ACCENT[ti]}`}>
@@ -664,15 +696,9 @@ export default async function ProfilePage({ params }: Props) {
                       </span>
                     </div>
                   )}
-
-                  {/* Bottom info */}
                   <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1">
-                    <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">
-                      {list.name}
-                    </p>
-                    {list.description && (
-                      <p className="text-white/60 text-[9px] line-clamp-1">{list.description}</p>
-                    )}
+                    <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
+                    {list.description && <p className="text-white/60 text-[9px] line-clamp-1">{list.description}</p>}
                   </div>
                 </Link>
               )
