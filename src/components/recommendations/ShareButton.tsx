@@ -9,9 +9,16 @@ interface Props {
   title: string
   url: string
   compact?: boolean
+  /**
+   * NEW: stretches the trigger button to fill its parent's width and
+   * centers its content, matching ReportButton's `asButton` style when
+   * the two sit side-by-side in a flex-1 row (the action deck). Has no
+   * effect on the compact icon-only variant.
+   */
+  fullWidth?: boolean
 }
 
-export function ShareButton({ title, url, compact = false }: Props) {
+export function ShareButton({ title, url, compact = false, fullWidth = false }: Props) {
   const [open, setOpen]     = useState(false)
   const [copied, setCopied] = useState(false)
   const ref                 = useRef<HTMLDivElement>(null)
@@ -88,13 +95,15 @@ export function ShareButton({ title, url, compact = false }: Props) {
   }
 
   return (
-    <div className="relative inline-block text-left" ref={ref}>
+    <div className={cn('relative text-left', fullWidth ? 'block w-full' : 'inline-block')} ref={ref}>
       <button
         onClick={handleToggle}
         className={cn(
           'flex items-center gap-1.5 transition-all active:scale-95',
           compact
             ? 'w-8 h-8 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 justify-center text-white hover:bg-black/90'
+            : fullWidth
+            ? 'w-full justify-center px-3.5 py-2 h-9 rounded-xl border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/30 shadow-sm'
             : 'px-3.5 py-2 rounded-xl border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/30 shadow-sm'
         )}
         aria-label="Share options"
@@ -106,7 +115,7 @@ export function ShareButton({ title, url, compact = false }: Props) {
       {open && (
         <div className={cn(
           'absolute z-[100] w-64 rounded-2xl border border-border bg-popover p-3 shadow-xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-150',
-          compact ? 'top-full mt-2 right-0' : 'right-0 mt-2'
+          compact || fullWidth ? 'top-full mt-2 right-0' : 'right-0 mt-2'
         )}>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 px-0.5">

@@ -22,9 +22,18 @@ interface Props {
   entityId:   string
   isLoggedIn: boolean
   compact?:   boolean
+  /**
+   * NEW: renders as a full bordered button matching ShareButton's
+   * non-compact style (px-3.5 py-2 rounded-xl border bg-card), instead
+   * of the bare text link. Used when Report is paired in a button row
+   * (e.g. next to Share in the action deck) so the two visually match
+   * instead of one being a tiny inline link next to a real button.
+   * Does not affect the existing `compact` byline usage.
+   */
+  asButton?: boolean
 }
 
-export function ReportButton({ entityType, entityId, isLoggedIn, compact = false }: Props) {
+export function ReportButton({ entityType, entityId, isLoggedIn, compact = false, asButton = false }: Props) {
   const [open,         setOpen]         = useState(false)
   const [reason,       setReason]       = useState('')
   const [details,      setDetails]      = useState('')
@@ -71,17 +80,28 @@ export function ReportButton({ entityType, entityId, isLoggedIn, compact = false
 
   return (
     <>
-      <button
-        onClick={handleOpen}
-        className={cn(
-          'inline-flex items-center gap-1.5 text-muted-foreground hover:text-destructive transition-colors',
-          compact ? 'text-[10px]' : 'text-xs'
-        )}
-        title="Report this content"
-      >
-        <Flag size={compact ? 10 : 12} />
-        {!compact && <span>Report</span>}
-      </button>
+      {asButton ? (
+        <button
+          onClick={handleOpen}
+          className="w-full flex items-center justify-center gap-1.5 px-3.5 py-2 h-9 rounded-xl border border-border bg-card text-xs font-semibold text-muted-foreground hover:text-destructive hover:border-destructive/30 shadow-sm transition-all active:scale-95"
+          title="Report this content"
+        >
+          <Flag size={14} />
+          <span>Report</span>
+        </button>
+      ) : (
+        <button
+          onClick={handleOpen}
+          className={cn(
+            'inline-flex items-center gap-1.5 text-muted-foreground hover:text-destructive transition-colors',
+            compact ? 'text-[10px]' : 'text-xs'
+          )}
+          title="Report this content"
+        >
+          <Flag size={compact ? 10 : 12} />
+          {!compact && <span>Report</span>}
+        </button>
+      )}
 
       {/* Modal */}
       {open && (

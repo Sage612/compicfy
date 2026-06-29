@@ -41,12 +41,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Already reported' }, { status: 409 })
   }
 
-  // Insert the report
-  // FIX: `reports` isn't in the generated Supabase types (typed as `never`),
-  // which is why every .insert()/.update() on it failed to type-check.
-  // Cast the client to `any` for this call, same pattern used everywhere
-  // else in the codebase for tables/columns the generated types don't know
-  // about yet (e.g. `(supabase as any).rpc(...)` elsewhere).
   const { error: insertError } = await (supabase as any)
     .from('reports')
     .insert({

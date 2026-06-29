@@ -249,12 +249,6 @@ export default async function ComicDetailPage({ params }: Props) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // ── Current user's profile — fetched once, up front, used by both the
-  //    age-gate "Go to Settings" link AND the submit-route logic below.
-  //    Previously this fetch happened *after* the age gate, so the age
-  //    gate's settings link couldn't use it and was hardcoded to
-  //    '/reader/dashboard/settings' regardless of the viewer's actual
-  //    type/tier. Moved up so both consumers share one fetch. ──
   let currentUserProfile: { role: string; is_pro: boolean; pro_expires_at: string | null; user_type: string | null } | null = null
   if (user) {
     const { data } = await supabase
@@ -309,10 +303,6 @@ export default async function ComicDetailPage({ params }: Props) {
           </p>
           <div className="flex justify-center gap-3">
             <Link href="/browse"><Button variant="outline">Back to Browse</Button></Link>
-            {/* FIX: was hardcoded to '/reader/dashboard/settings' regardless
-                of the viewer's actual type/tier. Now resolved via the same
-                getDashboardRoutes() used everywhere else, so a pro creator
-                lands on /pro/creator/dashboard/settings, etc. */}
             <Link href={currentUserRoutes.settings}><Button>Go to Settings</Button></Link>
           </div>
         </div>
@@ -349,8 +339,6 @@ export default async function ComicDetailPage({ params }: Props) {
     ? 'Ghost'
     : (profile?.display_name || profile?.username || 'unknown')
 
-  // Submit route now reuses the currentUserRoutes computed above instead
-  // of re-deriving the same branching logic a second time.
   const submitRoute = user ? currentUserRoutes.newRec : '/reader/dashboard/recommendations/new'
 
   let userVote: 'up' | 'down' | null = null
@@ -378,43 +366,60 @@ export default async function ComicDetailPage({ params }: Props) {
     { icon: MessageSquare, label: 'Score',   value: rec.score        ?? 0 },
   ]
 
+  // ── Action deck ──
+  // Row 1: Vote + Save, each forced to flex-1 so Save can't overflow past
+  //        the narrow cover column's width (it previously used w-full/
+  //        w-auto and its content was wider than the remaining space).
+  // Rows 2-4: Track Progress / Add to List / Add to Collection — unchanged,
+  //        still full-width single buttons.
+  // Row 5: NEW — Share + Report, same flex-1 split pattern as row 1.
+  //        Report uses `asButton` and Share uses `fullWidth` so both
+  //        render as matching bordered buttons instead of Share being a
+  //        button and Report being a bare text link.
   const actionDeck = (
     <div className="space-y-2">
       <div className="flex items-stretch gap-2">
-        <VoteButtons
-          recommendationId={id}
-          initialUpvotes={rec.upvotes}
-          initialDownvotes={rec.downvotes}
-          initialVote={userVote}
-          isLoggedIn={!!user}
-          comicTitle={rec.title}
-        />
-        <SaveButton
-          recommendationId={id}
-          initialSaved={isSaved}
-          isLoggedIn={!!user}
-          comicTitle={rec.title}
-        />
-        <div className="ml-auto shrink-0">
-          <ShareButton title={rec.title} url={`${SITE_URL}/comic/${id}`} />
+        <div className="flex-1 min-w-0">
+          <VoteButtons
+            recommendationId={id}
+            initialUpvotes={rec.upvotes}
+            initialDownvotes={rec.downvotes}
+            initialVote={userVote}
+            isLoggedIn={!!user}
+            comicTitle={rec.title}
+          />
+        </div>
+        <div className="flex-1 min-w-0">
+          <SaveButton
+            recommendationId={id}
+            initialSaved={isSaved}
+            isLoggedIn={!!user}
+            comicTitle={rec.title}
+          />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-stretch gap-2">
-        <div className="flex-1 min-w-[140px]">
-          <ReadingProgressButton
-            comicId={id}
-            chapterCount={rec.chapter_count}
-            isLoggedIn={!!user}
-          />
+      <ReadingProgressButton
+        comicId={id}
+        chapterCount={rec.chapter_count}
+        isLoggedIn={!!user}
+      />
+
+      {user && <AddToListButton recommendationId={id} userId={user.id} />}
+
+      <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
+
+      <div className="flex items-stretch gap-2">
+        <div className="flex-1 min-w-0">
+          <ShareButton title={rec.title} url={`${SITE_URL}/comic/${id}`} fullWidth />
         </div>
-        {user && (
-          <div className="flex-1 min-w-[140px]">
-            <AddToListButton recommendationId={id} userId={user.id} />
-          </div>
-        )}
-        <div className="flex-1 min-w-[140px]">
-          <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
+        <div className="flex-1 min-w-0">
+          <ReportButton
+            entityType="recommendation"
+            entityId={id}
+            isLoggedIn={!!user}
+            asButton
+          />
         </div>
       </div>
     </div>
@@ -626,8 +631,6 @@ export default async function ComicDetailPage({ params }: Props) {
             />
           </div>
 
-          {/* ── Recommender byline — now includes ReportButton on the right,
-              next to the date, matching the spec's row layout. ── */}
           <div className="flex items-center justify-between py-4 border-t border-dossier-foreground/10 text-xs text-dossier-foreground/40">
             <div className="flex items-center gap-2 flex-wrap">
               <span>Recommended by</span>
