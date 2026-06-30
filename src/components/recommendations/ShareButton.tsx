@@ -9,12 +9,6 @@ interface Props {
   title: string
   url: string
   compact?: boolean
-  /**
-   * NEW: stretches the trigger button to fill its parent's width and
-   * centers its content, matching ReportButton's `asButton` style when
-   * the two sit side-by-side in a flex-1 row (the action deck). Has no
-   * effect on the compact icon-only variant.
-   */
   fullWidth?: boolean
 }
 
@@ -113,9 +107,25 @@ export function ShareButton({ title, url, compact = false, fullWidth = false }: 
       </button>
 
       {open && (
+        /*
+          FIX: this panel was `absolute right-0 w-64` unconditionally.
+          When the trigger sits inside a narrow flex-1 cell near the left
+          edge of a small screen, `right-0` anchors the panel's right edge
+          to that *cell's* right edge, not the viewport's — so a fixed
+          264px-wide panel can extend past the left edge of the screen
+          with no way to scroll back to it, which is the "off screen"
+          bug on mobile.
+
+          Fix: cap the width to whatever actually fits the viewport
+          (`max-w-[calc(100vw-2rem)]`) and switch the anchor to `left-0`
+          on small screens specifically (where overflow is most likely),
+          falling back to the original `right-0` behavior at `sm:` and
+          up where there's enough room either way.
+        */
         <div className={cn(
-          'absolute z-[100] w-64 rounded-2xl border border-border bg-popover p-3 shadow-xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-150',
-          compact || fullWidth ? 'top-full mt-2 right-0' : 'right-0 mt-2'
+          'absolute z-[100] w-64 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-popover p-3 shadow-xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-150',
+          'left-0 sm:left-auto sm:right-0',
+          'top-full mt-2'
         )}>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 px-0.5">
@@ -129,12 +139,12 @@ export function ShareButton({ title, url, compact = false, fullWidth = false }: 
               type="text"
               readOnly
               value={url}
-              className="bg-transparent text-[11px] text-muted-foreground px-2 flex-1 outline-none truncate select-all"
+              className="bg-transparent text-[11px] text-muted-foreground px-2 flex-1 outline-none truncate select-all min-w-0"
             />
             <button
               onClick={handleCopy}
               className={cn(
-                'p-1.5 rounded-lg transition-all active:scale-95',
+                'p-1.5 rounded-lg transition-all active:scale-95 shrink-0',
                 copied 
                   ? 'bg-emerald-500/10 text-emerald-500' 
                   : 'bg-background hover:bg-muted text-muted-foreground border border-border/40'

@@ -27,7 +27,6 @@ export function VoteButtons({
   const [upvotes,     setUpvotes]     = useState(initialUpvotes)
   const [downvotes,   setDownvotes]   = useState(initialDownvotes)
   const [userVote,    setUserVote]    = useState(initialVote)
-  // ── Track WHICH button is spinning, not just a boolean ──
   const [loadingVote, setLoadingVote] = useState<'up' | 'down' | null>(null)
   const [showAuth,    setShowAuth]    = useState(false)
   const [pendingVote, setPendingVote] = useState<'up' | 'down' | null>(null)
@@ -38,12 +37,11 @@ export function VoteButtons({
       setShowAuth(true)
       return
     }
-    if (loadingVote) return   // block if any vote is in flight
-    setLoadingVote(type)      // only spin THIS button
+    if (loadingVote) return
+    setLoadingVote(type)
 
     const prev = { upvotes, downvotes, userVote }
 
-    // Optimistic update
     if (userVote === type) {
       if (type === 'up') setUpvotes(v => v - 1)
       else setDownvotes(v => v - 1)
@@ -93,24 +91,27 @@ export function VoteButtons({
   return (
     <>
       {/*
-        FIX: this component was built for a full-width vertical sidebar,
-        where `flex-1` buttons splitting a 100%-wide parent looked fine.
-        Dropped into the new horizontal control-deck row (flex-wrap with
-        5+ siblings), that same flex-1 had nothing to anchor against and
-        got squeezed down to near-icon-only width.
+        FIX (this pass): removed the `w-full sm:w-auto shrink-0` wrapper
+        and the per-button `flex-1 sm:flex-initial` classes from the
+        previous version. Those were fighting with the page's own
+        `flex-1` wrapper around this component — at desktop width,
+        `sm:w-auto`/`sm:flex-initial` made THIS component collapse to
+        its content width regardless of what the parent grid/flex cell
+        gave it, which is what was pushing Save outside the cover's
+        column width.
 
-        w-full sm:w-auto + shrink-0 on the wrapper: takes full width on
-        very small screens (one row of its own), but on anything wider
-        it sizes to its content and refuses to shrink below that, exactly
-        like the other deck buttons (Save, Track Progress, etc).
+        Now this is a plain `w-full grid grid-cols-2` with no opinion
+        about its own width — it always fills whatever container the
+        page puts it in (a flex-1 cell, a grid cell, 100% width,
+        whatever), and the two buttons split THAT space 50/50 via the
+        grid, not via flex-grow math that can disagree with a sibling.
       */}
-      <div className="flex gap-2 w-full sm:w-auto shrink-0">
-        {/* ── Upvote ── */}
+      <div className="w-full grid grid-cols-2 gap-2">
         <button
           onClick={() => handleVote('up')}
           disabled={!!loadingVote}
           className={cn(
-            'flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl border text-sm font-semibold transition-all whitespace-nowrap shrink-0',
+            'flex items-center justify-center gap-1.5 h-9 px-2 rounded-xl border text-sm font-semibold transition-all whitespace-nowrap',
             userVote === 'up'
               ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/20'
               : 'border-border text-muted-foreground hover:border-emerald-500/40 hover:text-emerald-600 hover:bg-emerald-500/5'
@@ -123,12 +124,11 @@ export function VoteButtons({
           {formatNumber(upvotes)}
         </button>
 
-        {/* ── Downvote ── */}
         <button
           onClick={() => handleVote('down')}
           disabled={!!loadingVote}
           className={cn(
-            'flex-1 sm:flex-initial flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl border text-sm font-semibold transition-all whitespace-nowrap shrink-0',
+            'flex items-center justify-center gap-1.5 h-9 px-2 rounded-xl border text-sm font-semibold transition-all whitespace-nowrap',
             userVote === 'down'
               ? 'bg-rose-500/10 border-rose-500/50 text-rose-600 hover:bg-rose-500/20'
               : 'border-border text-muted-foreground hover:border-rose-500/40 hover:text-rose-600 hover:bg-rose-500/5'

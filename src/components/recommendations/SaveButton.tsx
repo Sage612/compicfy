@@ -90,19 +90,25 @@ export function SaveButton({
 
   return (
     <>
-     
+      {/*
+        FIX (this pass): removed `w-full sm:w-auto` — same conflict as
+        VoteButtons. This now has zero opinion about its own width and
+        simply fills whatever container it's placed in (w-full always),
+        so when the page wraps it in a grid-cols-2 cell next to Vote,
+        it occupies exactly that cell — no more, no less.
+      */}
       <Button
         variant="outline"
         size="sm"
         onClick={handleSave}
         disabled={loading}
         className={cn(
-          'gap-2 shrink-0 whitespace-nowrap w-full sm:w-auto',
+          'w-full gap-1.5 whitespace-nowrap px-2',
           saved && 'bg-primary/10 border-primary/50 text-primary hover:bg-primary/20'
         )}
       >
         <Bookmark size={14} className={cn('shrink-0', saved && 'fill-current')} />
-        {loading ? 'Saving...' : saved ? 'Saved' : 'Save Comic'}
+        <span className="truncate">{loading ? 'Saving...' : saved ? 'Saved' : 'Save Comic'}</span>
       </Button>
 
       <AuthPromptModal

@@ -367,36 +367,33 @@ export default async function ComicDetailPage({ params }: Props) {
   ]
 
   // ── Action deck ──
-  // Row 1: Vote + Save, each forced to flex-1 so Save can't overflow past
-  //        the narrow cover column's width (it previously used w-full/
-  //        w-auto and its content was wider than the remaining space).
-  // Rows 2-4: Track Progress / Add to List / Add to Collection — unchanged,
-  //        still full-width single buttons.
-  // Row 5: NEW — Share + Report, same flex-1 split pattern as row 1.
-  //        Report uses `asButton` and Share uses `fullWidth` so both
-  //        render as matching bordered buttons instead of Share being a
-  //        button and Report being a bare text link.
+  // FIX (this pass): switched both paired rows from flex/flex-1 to
+  // `grid grid-cols-2`. The flex approach kept breaking because Vote/Save
+  // (and Share, via its own internal width logic) each had opinions about
+  // their own width at different breakpoints, which fought with the
+  // parent's flex-1 sizing. A 2-column grid removes that ambiguity
+  // entirely — each child is simply stretched to fill its grid cell,
+  // full stop, regardless of what width classes exist inside it.
+  // Track Progress / Add to List / Add to Collection are untouched from
+  // before — still single full-width rows, no change requested there
+  // beyond what's already live.
   const actionDeck = (
     <div className="space-y-2">
-      <div className="flex items-stretch gap-2">
-        <div className="flex-1 min-w-0">
-          <VoteButtons
-            recommendationId={id}
-            initialUpvotes={rec.upvotes}
-            initialDownvotes={rec.downvotes}
-            initialVote={userVote}
-            isLoggedIn={!!user}
-            comicTitle={rec.title}
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <SaveButton
-            recommendationId={id}
-            initialSaved={isSaved}
-            isLoggedIn={!!user}
-            comicTitle={rec.title}
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-2">
+        <VoteButtons
+          recommendationId={id}
+          initialUpvotes={rec.upvotes}
+          initialDownvotes={rec.downvotes}
+          initialVote={userVote}
+          isLoggedIn={!!user}
+          comicTitle={rec.title}
+        />
+        <SaveButton
+          recommendationId={id}
+          initialSaved={isSaved}
+          isLoggedIn={!!user}
+          comicTitle={rec.title}
+        />
       </div>
 
       <ReadingProgressButton
@@ -409,18 +406,14 @@ export default async function ComicDetailPage({ params }: Props) {
 
       <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
 
-      <div className="flex items-stretch gap-2">
-        <div className="flex-1 min-w-0">
-          <ShareButton title={rec.title} url={`${SITE_URL}/comic/${id}`} fullWidth />
-        </div>
-        <div className="flex-1 min-w-0">
-          <ReportButton
-            entityType="recommendation"
-            entityId={id}
-            isLoggedIn={!!user}
-            asButton
-          />
-        </div>
+      <div className="grid grid-cols-2 gap-2">
+        <ShareButton title={rec.title} url={`${SITE_URL}/comic/${id}`} fullWidth />
+        <ReportButton
+          entityType="recommendation"
+          entityId={id}
+          isLoggedIn={!!user}
+          asButton
+        />
       </div>
     </div>
   )
