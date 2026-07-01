@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const page = parseInt(searchParams.get('page') ?? '1')
   const actionFilter = searchParams.get('action') ?? null
-  const search = searchParams.get('search')?.trim() ?? null // 1. Extract search term
+  const search = searchParams.get('search')?.trim() ?? null
   const limit = 50
   const offset = (page - 1) * limit
 
@@ -21,14 +21,11 @@ export async function GET(request: Request) {
     query = query.ilike('action', `%${actionFilter}%`)
   }
 
-  // 2. Inject Search filter across columns and nested JSONB paths
+  // ✅ FIXED: Search across log fields + username via filter
   if (search) {
-    query = query.or(
-      `action.ilike.%${search}%,` +
-      `details->>title.ilike.%${search}%,` +
-      `details->>comic_title.ilike.%${search}%,` +
-      `profiles.username.ilike.%${search}%`
-    )
+    query = query
+      .or(`action.ilike.%${search}%,details->>title.ilike.%${search}%,details->>comic_title.ilike.%${search}%`)
+      .filter('profiles.username', 'ilike', `%${search}%`)
   }
 
   const { data, error: fetchError, count } = await query
