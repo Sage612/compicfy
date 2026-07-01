@@ -55,7 +55,7 @@ async function logChapterCheck(supabase: any, log: CheckLog) {
 async function getChapterFromMU(id: string): Promise<number | null> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
-    
+
     let numericId = id
     if (isNaN(Number(id))) {
       const resolveRes = await fetchWithTimeout(`https://api.mangaupdates.com/v1/series/by_letter/${id[0] || 'a'}`)
@@ -91,7 +91,7 @@ async function getChapterFromMangaDex(id: string): Promise<number | null> {
     if (!res.ok) return null
     const data = await res.json()
     const ch   = data?.data?.attributes?.lastChapter
-    
+
     if (ch && !isNaN(Number(ch))) return Number(ch)
 
     const feedRes = await fetchWithTimeout(`https://api.mangadex.org/manga/${id}/feed?limit=10&order[chapter]=desc`)
@@ -364,11 +364,26 @@ export async function GET(req: Request) {
           // 2. REGRESSION DETECTED: External APIs returned stale or lower counts
           logEntry.status = 'failed'
           logEntry.reason = `Stale API Data: External source returned ${newChapterCount}, but database is already ahead at ${comic.chapter_count}.`
-          
-          // Clear timestamp so it queues right back up for another evaluation on the next tick
+
+          // ✅ FIXED: Update timestamp normally so it doesn't re-check immediately
           await supabase.from('recommendations')
-            .update({ last_chapter_check: null })
+            .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)
+
+          // Log discrepancy for admin review
+          await supabase.from('activity_logs').insert({
+            user_id: null,
+            action: 'chapter_discrepancy',
+            entity_type: 'recommendations',
+            entity_id: comic.id,
+            details: {
+              comic_title: comic.title,
+              db_chapter_count: comic.chapter_count,
+              api_chapter_count: newChapterCount,
+              source,
+              timestamp,
+            }
+          })
 
         } else if (newChapterCount === null) {
           // 3. ZERO RESULTS FOUND
@@ -378,7 +393,7 @@ export async function GET(req: Request) {
 
           logEntry.status = 'failed'
           logEntry.reason = 'No valid ID or all APIs returned null'
-          
+
         } else {
           // 4. EQUAL COUNTS: Simply complete the tracking check cleanly
           await supabase.from('recommendations')
