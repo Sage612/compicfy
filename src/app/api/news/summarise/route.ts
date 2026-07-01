@@ -120,6 +120,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'GROQ_API_KEY not configured' }, { status: 500 })
     }
 
+    // Swapped target migration model path
+    const targetModel = 'openai/gpt-oss-20b'
+
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -127,19 +130,17 @@ export async function POST(request: Request) {
         'Authorization': `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: targetModel,
         max_tokens: 1024,
+        response_format: { type: "json_object" }, // Forces structured output compatibility
         messages: [
           {
-            role: 'system',
-            content: 'You are a news editor for Compicfy, a manga/manhwa/webtoon community platform. You only respond with raw JSON, no markdown, no backticks, no extra text.',
-          },
-          {
             role: 'user',
-            content: `Summarise the following article into a news post for the Compicfy community.
+            content: `You are a news editor for Compicfy, a manga/manhwa/webtoon community platform. 
 
-Return ONLY this raw JSON structure with no extra text:
+Summarise the following article into a news post for the Compicfy community. You must respond with raw JSON only. Do not wrap the JSON output in markdown backticks or extra text.
 
+Return ONLY this raw JSON structure:
 {
   "title": "engaging headline under 100 chars",
   "excerpt": "2-3 sentence summary under 300 chars",
@@ -148,7 +149,7 @@ Return ONLY this raw JSON structure with no extra text:
   "tags": ["tag1", "tag2", "tag3"]
 }
 
-Article:
+Article to process:
 ${article_text.slice(0, 4000)}
 
 Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`,
@@ -173,6 +174,7 @@ Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`,
       return NextResponse.json({ error: 'Empty AI response' }, { status: 500 })
     }
 
+    // Clean any residual wrappers if necessary
     const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
 
     let summary
@@ -195,7 +197,7 @@ Source: ${source_name ?? 'Unknown'} (${source_url ?? ''})`,
       summary,
       image_url,      // og:image extracted from the article page
       is_ai_generated: true,
-      model_used: 'llama-3.1-8b-instant',
+      model_used: targetModel,
     })
   } catch (error) {
     console.error('Summarise error:', error)

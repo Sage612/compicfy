@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GoogleButton } from '@/components/auth/GoogleButton'
 import { toast } from 'sonner'
-import { Eye, EyeOff, Loader2, BookOpen, Palette, ArrowRight, Check } from 'lucide-react'
+import { Eye, EyeOff, Loader2, BookOpen, Palette, ArrowRight, Check, MailCheck, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserType } from '@/lib/utils/routes'
 
@@ -37,36 +37,36 @@ const signupSchema = z.object({
 type SignupForm = z.infer<typeof signupSchema>
 
 const USER_TYPES: {
-  value:    UserType
-  label:    string
-  sublabel: string
-  icon:     React.ElementType
-  perks:    string[]
-  accent:   string
-  iconBg:   string
-  border:   string
+  value:      UserType
+  label:      string
+  sublabel:   string
+  icon:       React.ElementType
+  perks:      string[]
+  accent:     string
+  iconBg:     string
+  border:     string
   selectedBg: string
 }[] = [
   {
-    value:    'reader',
-    label:    'Reader / Curator',
-    sublabel: 'I discover and recommend comics',
-    icon:     BookOpen,
-    perks:    ['Browse & save comics', 'Vote and review', 'Build reading lists', 'Follow other readers'],
-    accent:   'text-primary',
-    iconBg:   'bg-primary',
-    border:   'border-primary/50',
+    value:      'reader',
+    label:      'Reader / Curator',
+    sublabel:   'I discover and recommend comics',
+    icon:       BookOpen,
+    perks:      ['Browse & save comics', 'Vote and review', 'Build reading lists', 'Follow other readers'],
+    accent:     'text-primary',
+    iconBg:     'bg-primary',
+    border:     'border-primary/50',
     selectedBg: 'bg-primary/8',
   },
   {
-    value:    'creator',
-    label:    'Artist / Creator',
-    sublabel: 'I make comics or webtoons',
-    icon:     Palette,
-    perks:    ['Showcase your works', 'Link your Patreon & Kickstarter', 'Build your audience', 'Track engagement'],
-    accent:   'text-teal-500',
-    iconBg:   'bg-teal-500',
-    border:   'border-teal-500/50',
+    value:      'creator',
+    label:      'Artist / Creator',
+    sublabel:   'I make comics or webtoons',
+    icon:       Palette,
+    perks:      ['Showcase your works', 'Link your Patreon & Kickstarter', 'Build your audience', 'Track engagement'],
+    accent:     'text-teal-500',
+    iconBg:     'bg-teal-500',
+    border:     'border-teal-500/50',
     selectedBg: 'bg-teal-500/8',
   },
 ]
@@ -82,7 +82,8 @@ function SignupFormInner() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm,  setShowConfirm]  = useState(false)
   const [loading,      setLoading]      = useState(false)
-  const [step,         setStep]         = useState<'type' | 'form'>('type')
+  const [step,         setStep]         = useState<'type' | 'form' | 'verify'>('type')
+  const [submittedEmail, setSubmittedEmail] = useState('')
 
   const { register, handleSubmit, formState: { errors } } = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
@@ -91,6 +92,7 @@ function SignupFormInner() {
   const onSubmit = async (data: SignupForm) => {
     setLoading(true)
 
+    // Check username availability
     const { data: existingUser } = await supabase
       .from('profiles')
       .select('username')
@@ -122,23 +124,78 @@ function SignupFormInner() {
       return
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email:    data.email,
-      password: data.password,
-    })
+    // Don't auto sign-in — Supabase requires email confirmation first.
+    // Show the verify screen instead.
+    setSubmittedEmail(data.email)
+    setStep('verify')
+    setLoading(false)
+  }
 
-    if (signInError) {
-      toast.success('Account created! Please sign in.')
-      router.push('/login')
-      return
-    }
+  // ── Step: verify email ────────────────────────────────────────────
+  if (step === 'verify') {
+    return (
+      <div className="w-full max-w-md space-y-6 text-center">
+        <div className="inline-flex w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 items-center justify-center shadow-xl shadow-emerald-500/10">
+          <MailCheck size={28} className="text-emerald-500" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-black tracking-tight">Check your inbox</h1>
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            We sent a confirmation link to{' '}
+            <span className="font-semibold text-foreground">{submittedEmail}</span>.<br />
+            Click it to activate your account.
+          </p>
+        </div>
 
-    toast.success('Welcome to Compicfy! 🎉')
-    const onboardingDest = next !== '/onboarding'
-      ? `/onboarding?next=${encodeURIComponent(next)}`
-      : '/onboarding'
-    router.push(onboardingDest)
-    router.refresh()
+        <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm p-6 space-y-4 text-left">
+          <div className="space-y-2">
+            {[
+              'Check your spam folder if you don\'t see it',
+              'The link expires after 24 hours',
+              'You must confirm before you can sign in',
+            ].map((tip) => (
+              <div key={tip} className="flex items-start gap-2.5">
+                <Check size={13} className="text-emerald-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-muted-foreground">{tip}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-1 space-y-2">
+            <Button
+              variant="outline"
+              className="w-full h-10 gap-2 font-semibold text-sm"
+              onClick={async () => {
+                const { error } = await supabase.auth.resend({
+                  type:  'signup',
+                  email: submittedEmail,
+                  options: { emailRedirectTo: `${window.location.origin}/api/auth/callback` },
+                })
+                if (error) toast.error(error.message)
+                else toast.success('Confirmation email resent!')
+              }}
+            >
+              Resend confirmation email
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full h-10 gap-2 text-muted-foreground hover:text-foreground font-medium text-sm"
+              onClick={() => setStep('form')}
+            >
+              <ArrowLeft size={14} />
+              Back to sign up
+            </Button>
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Already confirmed?{' '}
+          <Link href="/login" className="text-primary hover:underline font-semibold">
+            Sign in
+          </Link>
+        </p>
+      </div>
+    )
   }
 
   return (
