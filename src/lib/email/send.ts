@@ -53,7 +53,7 @@ export const sendWelcomeEmail = async (to: string, username: string, userId?: st
 
 export const sendApprovedEmail = async (to: string, username: string, title: string, recId: string, userId?: string) => {
   const dashboardPath = userId ? await getDashboardPath(userId) : '/reader/dashboard'
-  return sendMail(to, `✅ Your recommendation "${title}" was approved!`, templates.recommendationApproved(username, title, recId, dashboardPath))
+  return sendMail(to, `Your recommendation "${title}" was approved!`, templates.recommendationApproved(username, title, recId, dashboardPath))
 }
 
 export const sendRejectedEmail = async (to: string, username: string, title: string, reason: string, recId: string, userId?: string) => {
@@ -68,7 +68,7 @@ export const sendBannedEmail = async (to: string, username: string, reason: stri
 
 export const sendUnbannedEmail = async (to: string, username: string, userId?: string) => {
   const dashboardPath = userId ? await getDashboardPath(userId) : '/reader/dashboard'
-  return sendMail(to, `Your ${SITE_NAME} account has been reinstated ✅`, templates.accountUnbanned(username, dashboardPath))
+  return sendMail(to, `Your ${SITE_NAME} account has been reinstated`, templates.accountUnbanned(username, dashboardPath))
 }
 
 export const sendAppealResolvedEmail = async (to: string, username: string, type: string, outcome: string, title?: string, userId?: string) => {

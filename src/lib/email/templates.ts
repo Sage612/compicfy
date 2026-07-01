@@ -187,7 +187,7 @@ export const templates = {
   welcome: (username: string, dashboardPath = '/reader/dashboard') => shell(`
     ${eyebrow('Welcome')}
     ${h1(`Hey ${username}, welcome aboard`)}
-    ${p(`You've joined the community where real readers discover manga, manhwa, manhua, and webtoons — no algorithms, just genuine picks from people who actually read.`)}
+    ${p(`You've joined the community where real readers discover manga, manhwa, manhua, and webtoons no algorithms, just genuine picks from people who actually read.`)}
     ${infoBox(`
       ${label('Get started')}
       <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;">
@@ -215,7 +215,7 @@ export const templates = {
       </table>
     `)}
     ${cta('Start exploring', `${SITE_URL}/browse`)}
-    ${p(`Questions? Just reply to this email — we read every one.`)}
+    ${p(`Questions? Just reply to this email, we read every one.`)}
   `, dashboardPath),
 
   recommendationApproved: (username: string, title: string, recId: string, dashboardPath = '/reader/dashboard') => shell(`
@@ -224,7 +224,7 @@ export const templates = {
     ${p(`${strong(`"${title}"`)} has been approved and is now discoverable by the entire ${SITE_NAME} community. Readers can vote, review, and save it.`)}
     ${infoBox(`${label('Your recommendation')}${val(title)}`)}
     ${cta('View your recommendation', `${SITE_URL}/comic/${recId}`, C.emerald)}
-    ${p(`Keep submitting — the more recs you share, the more the community discovers you.`)}
+    ${p(`Keep submitting, the more recs you share, the more the community discovers you.`)}
   `, dashboardPath),
 
   recommendationRejected: (username: string, title: string, reason: string, recId: string, dashboardPath = '/reader/dashboard') => shell(`
@@ -270,7 +270,7 @@ export const templates = {
     ${eyebrow('Access restored', C.emerald)}
     ${h1(`Good news, ${username}`)}
     ${p(`Your suspension has been lifted. You have full access to ${SITE_NAME} again.`)}
-    ${p(`Thank you for your patience — we're glad to have you back.`)}
+    ${p(`Thank you for your patience, we're glad to have you back.`)}
     ${divider()}
     ${cta('Go to dashboard', `${SITE_URL}${dashboardPath}`, C.emerald)}
   `, dashboardPath),
