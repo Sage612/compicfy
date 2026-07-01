@@ -1,9 +1,9 @@
 import { SITE_NAME, SITE_URL } from './mailer'
 
-// ── Brand tokens (Light, professional template 1 schemas) ───────────────────
+// ── Brand tokens ──────────────────────────────────────────────────────────────
 const C = {
-  bg:          '#f6f7f8',   // outer page background
-  card:        '#ffffff',   // card background
+  bg:          '#f6f7f8',
+  card:        '#ffffff',
   border:      '#e7e9ec',
   border2:     '#eceef0',
   text:        '#1a1a1a',
@@ -22,7 +22,7 @@ const C = {
 
 const font = `font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;`
 
-// ── Logo (Template 1 clean typography as-is) ─────────────────────────────────
+// ── Logo — hosted PNG (SVGs are stripped by email clients) ────────────────────
 const makeLogo = () => {
   const prefix = SITE_NAME.slice(0, -2)
   const suffix = SITE_NAME.slice(-2)
@@ -32,14 +32,7 @@ const makeLogo = () => {
 <table cellpadding="0" cellspacing="0" border="0" role="presentation">
   <tr>
     <td style="vertical-align:middle;padding-right:8px;">
-      <svg width="32" height="32" viewBox="0 0 44 44" fill="none"
-           xmlns="http://www.w3.org/2000/svg" style="display:block;">
-        <rect x="2" y="2" width="36" height="30" rx="8" fill="${C.teal}"/>
-        <path d="M9 32 L5 43 L20 33.5" fill="${C.teal}"/>
-        <path d="M28 11.5 C25 9 19.5 9 16.5 12 C13.5 15 13.5 20.5 16.5 23.5 C19.5 26.5 25 26.5 28 24"
-              stroke="${C.text}" stroke-width="3.5" stroke-linecap="round" fill="none"/>
-        <circle cx="30" cy="24.5" r="2.2" fill="${C.text}"/>
-      </svg>
+      <img src="${SITE_URL}/logo.png" width="32" height="32" alt="${SITE_NAME}" style="display:block;border:0;" />
     </td>
     <td style="vertical-align:middle;white-space:nowrap;">
       <span style="${nameStyle}color:${C.text};">${prefix}</span><span style="${nameStyle}color:${C.teal};">${suffix}</span>
@@ -179,7 +172,7 @@ const checklist = (items: string[]) =>
   </tr></table>
 </div>`).join('')
 
-// ── Templates (Audited, Compiled, & Formatted) ───────────────────────────────
+// ── App email templates ───────────────────────────────────────────────────────
 export const templates = {
 
   confirmEmail: (username: string, confirmUrl: string, dashboardPath = '/reader/dashboard') => shell(`
@@ -194,8 +187,7 @@ export const templates = {
   welcome: (username: string, dashboardPath = '/reader/dashboard') => shell(`
     ${eyebrow('Welcome')}
     ${h1(`Hey ${username}, welcome aboard`)}
-    ${p(`You've joined the community where real readers discover manga, manhwa, manhua, and webtoons  no algorithms, just genuine picks from people who actually read.`)}
-
+    ${p(`You've joined the community where real readers discover manga, manhwa, manhua, and webtoons — no algorithms, just genuine picks from people who actually read.`)}
     ${infoBox(`
       ${label('Get started')}
       <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px;">
@@ -222,7 +214,6 @@ export const templates = {
         </tr>
       </table>
     `)}
-
     ${cta('Start exploring', `${SITE_URL}/browse`)}
     ${p(`Questions? Just reply to this email — we read every one.`)}
   `, dashboardPath),
