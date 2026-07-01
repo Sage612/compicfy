@@ -103,7 +103,7 @@ export const AFFILIATE_MAPPINGS: AffiliateProductMapping[] = [
 ]
 
 export function generateAffiliateUrl(platform: string, searchQuery: string): string {
-  const amazonTag = process.env.NEXT_PUBLIC_AMAZON_AFFILIATE_TAG ?? 'compicfy-20'
+  const amazonTag = process.env.NEXT_PUBLIC_AMAZON_AFFILIATE_TAG ?? 'ComPicfy-20'
 
   // Blippo — searchQuery is already the full category URL
   if (platform === 'Blippo') return searchQuery

@@ -11,7 +11,7 @@ interface DraftRec {
   title: string
 }
 
-const SESSION_KEY = 'compicfy_nudge_dismissed'
+const SESSION_KEY = 'ComPicfy_nudge_dismissed'
 
 export function IncompleteRecNudge() {
   const [drafts,  setDrafts]  = useState<DraftRec[]>([])

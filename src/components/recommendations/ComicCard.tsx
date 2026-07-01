@@ -123,7 +123,7 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
         {isSystemSubmitted && (
           <div className="absolute bottom-7 left-3.5 z-10">
             <span
-              title="Submitted by Compicfy system"
+              title="Submitted by ComPicfy system"
               className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-black bg-black/50 backdrop-blur-sm text-white/60 border border-white/10"
             >
               <Bot size={6} />

@@ -1,4 +1,4 @@
-const CACHE_KEY = 'compicfy_profile_cache'
+const CACHE_KEY = 'ComPicfy_profile_cache'
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
 export interface CachedProfile {

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Auth-Compicfy',
+  title: 'Auth-ComPicfy',
 }
 
 function LogoMark({ className }: { className?: string }) {

@@ -75,7 +75,7 @@ function LoginForm() {
           <BookOpen size={24} className="text-primary" />
         </div>
         <h1 className="text-3xl font-black tracking-tight">Welcome back</h1>
-        <p className="text-muted-foreground text-sm">Sign in to your Compicfy account</p>
+        <p className="text-muted-foreground text-sm">Sign in to your ComPicfy account</p>
       </div>
 
       <div className="rounded-3xl border border-border bg-card/80 backdrop-blur-sm shadow-xl shadow-black/5 p-6 space-y-5">

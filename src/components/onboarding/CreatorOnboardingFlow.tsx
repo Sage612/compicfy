@@ -35,7 +35,7 @@ const CREATOR_TOUR = [
     color:    'bg-teal-500/10',
     iconColor:'text-teal-500',
     title:    'Submit Your Works',
-    desc:     'Add your comics to Compicfy. The community discovers them, votes, and reviews. Go to Creator Dashboard → My Works.',
+    desc:     'Add your comics to ComPicfy. The community discovers them, votes, and reviews. Go to Creator Dashboard → My Works.',
   },
   {
     icon:     Users,

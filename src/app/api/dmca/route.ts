@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     // ── 3. Confirmation to claimant ──────────────────────────────
     await sendMail(
       claimant_email,
-      'DMCA Notice Received — Compicfy',
+      'DMCA Notice Received — ComPicfy',
       `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>DMCA Notice Received</h2>
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
           <p>Our team will review your claim and respond to this email within <strong>72 hours</strong>.</p>
           <p>To follow up, email <a href="mailto:support@compicfy.com">support@compicfy.com</a>${submissionId ? ` with reference ID: ${submissionId}` : ''}.</p>
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
-          <p style="font-size: 12px; color: #9ca3af;">Compicfy · Submitted: ${submittedAt} UTC</p>
+          <p style="font-size: 12px; color: #9ca3af;">ComPicfy · Submitted: ${submittedAt} UTC</p>
         </div>
       `
     )

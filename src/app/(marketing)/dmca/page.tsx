@@ -100,7 +100,7 @@ export default function DMCAPage() {
           <h1 className="text-3xl font-black tracking-tight">DMCA Takedown Notice</h1>
         </div>
         <p className="text-muted-foreground leading-relaxed max-w-xl">
-          Compicfy respects intellectual property rights. If you believe content on our platform infringes your copyright, you may submit a formal DMCA takedown notice below.
+          ComPicfy respects intellectual property rights. If you believe content on our platform infringes your copyright, you may submit a formal DMCA takedown notice below.
         </p>
       </div>
 
@@ -108,7 +108,7 @@ export default function DMCAPage() {
       <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/20 space-y-1.5">
         <p className="text-sm font-bold text-amber-600">Before you submit</p>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Compicfy does <strong className="text-foreground">not host comic chapters or scans</strong>. We are a recommendation platform that links to official platforms. If you've found a link to pirated content, please use the Report button on that recommendation instead. This DMCA form is for cover images, descriptions, news articles, or other content hosted directly on Compicfy.
+          ComPicfy does <strong className="text-foreground">not host comic chapters or scans</strong>. We are a recommendation platform that links to official platforms. If you've found a link to pirated content, please use the Report button on that recommendation instead. This DMCA form is for cover images, descriptions, news articles, or other content hosted directly on ComPicfy.
         </p>
       </div>
 
@@ -150,7 +150,7 @@ export default function DMCAPage() {
               {[
                 'Your full name and contact information (email required)',
                 'Identification of the copyrighted work you claim has been infringed',
-                'The specific URL(s) of the allegedly infringing content on Compicfy',
+                'The specific URL(s) of the allegedly infringing content on ComPicfy',
                 'A statement that you have a good faith belief the use is not authorised',
                 'A statement that the information in the notice is accurate',
                 'A statement that you are the rights holder or authorised to act on their behalf',
@@ -231,7 +231,7 @@ export default function DMCAPage() {
                 <Input value={form.copyrighted_work} onChange={e => set('copyrighted_work', e.target.value)} placeholder='e.g. "Cover art for [Title] Vol. 1 by [Artist]"' className="h-9 text-sm" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">URL of Infringing Content on Compicfy <span className="text-red-500">*</span></label>
+                <label className="text-xs font-semibold text-muted-foreground">URL of Infringing Content on ComPicfy <span className="text-red-500">*</span></label>
                 <Input value={form.infringing_url} onChange={e => set('infringing_url', e.target.value)} placeholder="https://compicfy.com/..." className="h-9 text-sm font-mono" />
               </div>
               <div className="space-y-1.5">

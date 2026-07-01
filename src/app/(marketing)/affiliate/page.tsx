@@ -15,13 +15,13 @@ const platforms = [
   bg: 'bg-amber-500/10',
   border: 'border-amber-500/20',
   text: 'text-amber-600 dark:text-amber-400',
-  url: `https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=manga&tag=compicfy-20`,
+  url: `https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=manga&tag=ComPicfy-20`,
   categories: [
-    { label: 'Manga Volumes', url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=manga%20volumes&tag=compicfy-20' },
-    { label: 'Art Books',     url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=manga%20art%20book&tag=compicfy-20' },
-    { label: 'Posters',       url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=anime%20poster&tag=compicfy-20' },
-    { label: 'Figures',       url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=anime%20figure&tag=compicfy-20' },
-    { label: 'Plush Toys',    url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=anime%20plush&tag=compicfy-20' },
+    { label: 'Manga Volumes', url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=manga%20volumes&tag=ComPicfy-20' },
+    { label: 'Art Books',     url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=manga%20art%20book&tag=ComPicfy-20' },
+    { label: 'Posters',       url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=anime%20poster&tag=ComPicfy-20' },
+    { label: 'Figures',       url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=anime%20figure&tag=ComPicfy-20' },
+    { label: 'Plush Toys',    url: 'https://www.amazon.com/s/?url=search-alias%3Daps&field-keywords=anime%20plush&tag=ComPicfy-20' },
   ],
 },
   {
@@ -101,7 +101,7 @@ export default function AffiliatePage() {
         <div className="flex items-start gap-3 p-4 rounded-2xl bg-muted/50 border border-border text-xs text-muted-foreground leading-relaxed">
           <Info size={14} className="shrink-0 mt-0.5 text-primary" />
           <p>
-            <strong className="text-foreground">Affiliate Disclosure:</strong> Compicfy earns a small commission when you purchase through links on this page, at no extra cost to you.
+            <strong className="text-foreground">Affiliate Disclosure:</strong> ComPicfy earns a small commission when you purchase through links on this page, at no extra cost to you.
             We only partner with stores that sell legitimate, officially licensed merchandise.
           </p>
         </div>

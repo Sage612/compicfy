@@ -26,7 +26,7 @@ const cookies = [
   },
   {
     category: 'Analytics',
-    purpose:  'Anonymous usage data to understand how people use Compicfy. No personal data collected.',
+    purpose:  'Anonymous usage data to understand how people use ComPicfy. No personal data collected.',
     required: false,
   },
 ]
@@ -36,11 +36,11 @@ function ResetCookieButton() {
 
   const handleReset = () => {
     try {
-      localStorage.removeItem('compicfy_cookie_consent')
-      localStorage.removeItem('compicfy_age_verified')
-      localStorage.removeItem('compicfy_age_verified_date')
+      localStorage.removeItem('ComPicfy_cookie_consent')
+      localStorage.removeItem('ComPicfy_age_verified')
+      localStorage.removeItem('ComPicfy_age_verified_date')
       // Clear cookie too
-      document.cookie = 'compicfy_age=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      document.cookie = 'ComPicfy_age=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
       setDone(true)
       toast.success('Cookie preferences reset. Refresh the page to re-verify.')
     } catch {
@@ -92,7 +92,7 @@ export default function CookiePolicyPage() {
         <section className="space-y-3">
           <h2 className="text-base font-black flex items-center gap-2">
             <span className="w-6 h-6 rounded-lg bg-amber-500/10 text-amber-600 text-xs font-black flex items-center justify-center shrink-0">2</span>
-            What cookies does Compicfy use?
+            What cookies does ComPicfy use?
           </h2>
 
           {/* Desktop table */}

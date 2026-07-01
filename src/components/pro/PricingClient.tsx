@@ -156,7 +156,7 @@ export function PricingClient({ user, profile }: Props) {
           accentBg
         )}>
           {isCreator ? <Palette size={14} /> : <Crown size={14} className="fill-amber-500" />}
-          Compicfy Pro
+          ComPicfy Pro
         </div>
         <h1 className="text-4xl md:text-5xl font-black tracking-tight">{heroTitle}</h1>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">{heroSub}</p>

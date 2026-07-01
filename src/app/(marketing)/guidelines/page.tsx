@@ -75,7 +75,7 @@ export default function GuidelinesPage() {
         </div>
         <h1 className="text-4xl font-black tracking-tight">Community Guidelines</h1>
         <p className="text-muted-foreground max-w-xl mx-auto leading-relaxed">
-          Compicfy is built on trust, respect, and a shared love of great comics. These guidelines keep our community safe and enjoyable for everyone.
+          ComPicfy is built on trust, respect, and a shared love of great comics. These guidelines keep our community safe and enjoyable for everyone.
         </p>
       </div>
 

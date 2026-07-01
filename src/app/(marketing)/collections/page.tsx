@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Collections',
-  description: 'Browse curated comic collections from the Compicfy community.',
+  description: 'Browse curated comic collections from the ComPicfy community.',
 }
 
 export default async function CollectionsPage() {

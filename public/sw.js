@@ -1,5 +1,5 @@
 // public/sw.js
-// Service worker for Compicfy push notifications
+// Service worker for ComPicfy push notifications
 // Handles incoming push events and notification clicks
 
 self.addEventListener('push', (event) => {
@@ -9,7 +9,7 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data.json()
   } catch {
-    payload = { title: 'Compicfy', body: event.data.text() }
+    payload = { title: 'ComPicfy', body: event.data.text() }
   }
 
   const options = {
@@ -18,14 +18,14 @@ self.addEventListener('push', (event) => {
     badge:   payload.badge  ?? '/icons/badge-72.png',
     image:   payload.image  ?? undefined,
     data:    payload.data   ?? {},
-    tag:     payload.tag    ?? 'compicfy-notification',
+    tag:     payload.tag    ?? 'ComPicfy-notification',
     renotify: true,
     actions: payload.actions ?? [],
     vibrate: [100, 50, 100],
   }
 
   event.waitUntil(
-    self.registration.showNotification(payload.title ?? 'Compicfy', options)
+    self.registration.showNotification(payload.title ?? 'ComPicfy', options)
   )
 })
 

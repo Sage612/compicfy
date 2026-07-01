@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
                   {displayName}
                 </div>
                 <div style={{ fontSize: '16px', color: 'rgba(255,255,255,0.40)', display: 'flex' }}>
-                  @{username} on Compicfy
+                  @{username} on ComPicfy
                 </div>
               </div>
             </div>
@@ -251,7 +251,7 @@ export async function GET(request: NextRequest) {
               letterSpacing: '0.5px',
               display:       'flex',
             }}>
-              What's your manga DNA? Find out on Compicfy →
+              What's your manga DNA? Find out on ComPicfy →
             </div>
           </div>
         </div>

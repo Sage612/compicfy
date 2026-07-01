@@ -28,7 +28,7 @@ export function ShareButton({ title, url, compact = false, fullWidth = false }: 
   }, [])
 
   const encodedUrl   = encodeURIComponent(url)
-  const encodedTitle = encodeURIComponent(`Check out "${title}" on Compicfy!`)
+  const encodedTitle = encodeURIComponent(`Check out "${title}" on ComPicfy!`)
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault()

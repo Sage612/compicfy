@@ -36,7 +36,7 @@ export const useAffiliateStore = create<AffiliateState>()(
       },
     }),
     {
-      name: 'compicfy-affiliate-storage', // The key it will use in localStorage
+      name: 'ComPicfy-affiliate-storage', // The key it will use in localStorage
     }
   )
 );

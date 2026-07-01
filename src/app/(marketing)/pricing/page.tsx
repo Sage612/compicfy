@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Pricing',
-  description: 'Upgrade to Compicfy Pro for unlimited recommendations, analytics and more.',
+  description: 'Upgrade to ComPicfy Pro for unlimited recommendations, analytics and more.',
 }
 
 export default async function PricingPage() {

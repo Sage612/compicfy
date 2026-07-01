@@ -16,8 +16,8 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { username } = await params
   return {
-    title:       `@${username}'s Recommendations · Compicfy`,
-    description: `All comic recommendations shared by @${username} on Compicfy`,
+    title:       `@${username}'s Recommendations · ComPicfy`,
+    description: `All comic recommendations shared by @${username} on ComPicfy`,
   }
 }
 

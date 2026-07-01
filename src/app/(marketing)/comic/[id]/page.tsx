@@ -129,7 +129,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       type:        'article',
       url:         pageUrl,
-      siteName:    'Compicfy',
+      siteName:    'ComPicfy',
       images: [{ url: ogImageUrl, width: 1200, height: 630, alt: `${rec.title} cover` }],
     },
     twitter: {
@@ -194,10 +194,10 @@ function ComicJsonLd({
       '@type':     'WebPage',
       '@id':       `${SITE_URL}/comic/${id}`,
       name:        `${rec.title} — ${typeLabel} Recommendation`,
-      description: `Community recommendation for ${rec.title}. Recommended by ${recommenderName} on Compicfy.`,
+      description: `Community recommendation for ${rec.title}. Recommended by ${recommenderName} on ComPicfy.`,
       publisher: {
         '@type': 'Organization',
-        name:    'Compicfy',
+        name:    'ComPicfy',
         url:      SITE_URL,
         logo:    `${SITE_URL}/icons/icon-192.png`,
       },

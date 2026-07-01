@@ -8,11 +8,11 @@ const LAST_UPDATED = 'June 26, 2026'
 const PRIVACY_SECTIONS = [
   {
     n: '1', title: 'Information We Collect',
-    body: 'We collect information you provide directly when you create an account, submit recommendations, write reviews, join the Pro waitlist, or contact us. This includes your email address, username, display name, profile bio, and avatar. We also automatically collect certain information when you use Compicfy, including your IP address, browser type, device information, pages visited, reading progress on tracked comics, and interactions with content (including clicks on affiliate and merchandise links).',
+    body: 'We collect information you provide directly when you create an account, submit recommendations, write reviews, join the Pro waitlist, or contact us. This includes your email address, username, display name, profile bio, and avatar. We also automatically collect certain information when you use ComPicfy, including your IP address, browser type, device information, pages visited, reading progress on tracked comics, and interactions with content (including clicks on affiliate and merchandise links).',
   },
   {
     n: '2', title: 'How We Use Your Information',
-    body: 'We use the information we collect to operate and improve Compicfy, personalise your experience (including content recommendations based on your genre preferences), send notifications about your account activity, send transactional and account-related emails directly from our own mail servers, enforce our community guidelines and terms of service, and communicate with you about platform updates.',
+    body: 'We use the information we collect to operate and improve ComPicfy, personalise your experience (including content recommendations based on your genre preferences), send notifications about your account activity, send transactional and account-related emails directly from our own mail servers, enforce our community guidelines and terms of service, and communicate with you about platform updates.',
   },
   {
     n: '3', title: 'Age Verification & Adult Content',
@@ -24,7 +24,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     n: '5', title: 'Public Content',
-    body: 'Your username, profile information, recommendations, reviews, and reading lists marked as public are visible to all users of Compicfy. Do not include sensitive personal information in public-facing content.',
+    body: 'Your username, profile information, recommendations, reviews, and reading lists marked as public are visible to all users of ComPicfy. Do not include sensitive personal information in public-facing content.',
   },
   {
     n: '6', title: 'Cookies & Local Storage',
@@ -40,7 +40,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     n: '9', title: 'Pro Waitlist',
-    body: 'If you submit your email to join the Compicfy Pro waitlist, we store that email solely to notify you when Pro becomes available. Waitlist emails are not shared with third parties, used for unrelated marketing, or added to any mailing list beyond the single launch notification. You may request removal from the waitlist at any time.',
+    body: 'If you submit your email to join the ComPicfy Pro waitlist, we store that email solely to notify you when Pro becomes available. Waitlist emails are not shared with third parties, used for unrelated marketing, or added to any mailing list beyond the single launch notification. You may request removal from the waitlist at any time.',
   },
   {
     n: '10', title: 'Data Retention',
@@ -58,7 +58,7 @@ const PRIVACY_SECTIONS = [
   },
   {
     n: '13', title: "Children's Privacy",
-    body: 'Compicfy is not directed to children under 13. We do not knowingly collect personal information from children under 13. If we become aware that a child under 13 has provided us with personal information, we will take steps to delete such information promptly.',
+    body: 'ComPicfy is not directed to children under 13. We do not knowingly collect personal information from children under 13. If we become aware that a child under 13 has provided us with personal information, we will take steps to delete such information promptly.',
   },
   {
     n: '14', title: 'Your Rights (GDPR / CCPA)',
@@ -66,11 +66,11 @@ const PRIVACY_SECTIONS = [
   },
   {
     n: '15', title: 'International Data Transfers',
-    body: 'Compicfy is operated using infrastructure providers that may process data in the United States or European Union. By using Compicfy, you consent to the transfer of your information to these countries, which may have different data protection laws than your jurisdiction.',
+    body: 'ComPicfy is operated using infrastructure providers that may process data in the United States or European Union. By using ComPicfy, you consent to the transfer of your information to these countries, which may have different data protection laws than your jurisdiction.',
   },
   {
     n: '16', title: 'Affiliate Disclosure',
-    body: 'Compicfy participates in various affiliate marketing programs, which means we may earn commissions on products purchased through our links to retailer sites. This comes at no additional cost to you and helps support the platform.',
+    body: 'ComPicfy participates in various affiliate marketing programs, which means we may earn commissions on products purchased through our links to retailer sites. This comes at no additional cost to you and helps support the platform.',
   },
   {
     n: '17', title: 'Contact Us',

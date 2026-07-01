@@ -3,8 +3,8 @@
 import { useState, useEffect, createContext, useContext } from 'react'
 import { AgeGate } from './AgeGate'
 
-const STORAGE_KEY = 'compicfy_age_verified'
-const STORAGE_DATE_KEY = 'compicfy_age_verified_date'
+const STORAGE_KEY = 'ComPicfy_age_verified'
+const STORAGE_DATE_KEY = 'ComPicfy_age_verified_date'
 const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000
 const ONE_YEAR = 365 * 24 * 60 * 60 * 1000
 

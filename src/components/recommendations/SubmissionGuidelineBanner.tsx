@@ -5,7 +5,7 @@ import { X, BookOpen, CheckCircle2, Target  } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // Show every new session, dismiss survives within-session navigation
-const STORAGE_KEY = 'compicfy_guidelines_dismissed'
+const STORAGE_KEY = 'ComPicfy_guidelines_dismissed'
 
 const RULES = [
   { ok: true,  text: 'Real titles only, no made up or placeholder names'                },

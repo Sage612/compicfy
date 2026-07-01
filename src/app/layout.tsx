@@ -11,25 +11,25 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default:  'Compicfy — Find your next obsession',
-    template: '%s | Compicfy',
+    default:  'ComPicfy — Find your next obsession',
+    template: '%s | ComPicfy',
   },
   description: 'Community-driven recommendations for manga, manhwa, manhua, and webtoons. Discover, vote, review, and share your favorite comics.',
   keywords: ['manga', 'manhwa', 'manhua', 'webtoon', 'comics', 'recommendations', 'community'],
-  authors:  [{ name: 'Compicfy' }],
-  creator:  'Compicfy',
+  authors:  [{ name: 'ComPicfy' }],
+  creator:  'ComPicfy',
   openGraph: {
     type:        'website',
     locale:      'en_US',
     url:         SITE_URL,
-    siteName:    'Compicfy',
-    title:       'Compicfy — Find your next obsession',
+    siteName:    'ComPicfy',
+    title:       'ComPicfy — Find your next obsession',
     description: 'Community-driven recommendations for manga, manhwa, manhua, and webtoons.',
-    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'Compicfy' }],
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: 'ComPicfy' }],
   },
   twitter: {
     card:        'summary_large_image',
-    title:       'Compicfy — Find your next obsession',
+    title:       'ComPicfy — Find your next obsession',
     description: 'Community-driven recommendations for manga, manhwa, manhua, and webtoons.',
     images:      ['/og-image.png'],
   },
@@ -43,12 +43,12 @@ export const metadata: Metadata = {
 const websiteJsonLd = {
   '@context': 'https://schema.org',
   '@type':    'WebSite',
-  name:       'Compicfy',
+  name:       'ComPicfy',
   url:         SITE_URL,
   description: 'Community-driven manga, manhwa, manhua, and webtoon recommendations.',
   publisher: {
     '@type': 'Organization',
-    name:    'Compicfy',
+    name:    'ComPicfy',
     url:      SITE_URL,
     logo: {
       '@type':  'ImageObject',

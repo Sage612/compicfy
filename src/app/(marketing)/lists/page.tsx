@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Reading Lists',
-  description: 'Browse curated reading lists from the Compicfy community.',
+  description: 'Browse curated reading lists from the ComPicfy community.',
 }
 
 export default async function PublicListsPage() {

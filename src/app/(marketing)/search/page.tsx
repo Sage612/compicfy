@@ -3,8 +3,8 @@ import { SearchPageClient } from '@/components/layout/SearchPageClient'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Search · Compicfy',
-  description: 'Search manga, manhwa, manhua and webtoons across Compicfy and external databases.',
+  title: 'Search · ComPicfy',
+  description: 'Search manga, manhwa, manhua and webtoons across ComPicfy and external databases.',
 }
 
 interface Props {

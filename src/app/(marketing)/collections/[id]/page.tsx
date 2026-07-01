@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .single()
   return {
     title:       data?.title ?? 'Collection',
-    description: data?.description ?? 'A curated comic collection on Compicfy.',
+    description: data?.description ?? 'A curated comic collection on ComPicfy.',
   }
 }
 

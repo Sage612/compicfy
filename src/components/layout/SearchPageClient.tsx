@@ -23,7 +23,7 @@ function proxyCover(url: string | null | undefined): string {
 // ── Types ─────────────────────────────────────────────────────────
 
 interface DBResult {
-  source:    'compicfy'
+  source:    'ComPicfy'
   id:        string
   title:     string
   type:      string
@@ -235,8 +235,8 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
   const [suggestions,     setSuggestions]     = useState<DBResult[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
 
-  // Source tab: all / compicfy / web
-  const [activeTab,  setActiveTab]  = useState<'all' | 'comPicfy' | 'web'>('all')
+  // Source tab: all / ComPicfy / web
+  const [activeTab,  setActiveTab]  = useState<'all' | 'ComPicfy' | 'web'>('all')
   // Type filter: all / manhwa / manga / manhua / webtoon / comic
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all')
 
@@ -365,7 +365,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
 
   const sourceTabs = [
     { key: 'all',      label: 'All',      count: totalResults            },
-    ...(dbResults.length > 0        ? [{ key: 'compicfy', label: 'Compicfy', count: dbResults.length        }] : []),
+    ...(dbResults.length > 0        ? [{ key: 'ComPicfy', label: 'ComPicfy', count: dbResults.length        }] : []),
     ...(filteredExternal.length > 0 ? [{ key: 'web',      label: 'External', count: filteredExternal.length }] : []),
   ]
 
@@ -398,7 +398,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
                 <span className="text-primary">obsession</span>
               </h1>
               <p className="text-muted-foreground">
-                Search Compicfy and external databases instantly
+                Search ComPicfy and external databases instantly
               </p>
             </div>
           )}
@@ -572,7 +572,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
           )}
 
           {/* DB results */}
-          {!isLoading && (activeTab === 'all' || activeTab === 'comPicfy') && visibleDB.length > 0 && (
+          {!isLoading && (activeTab === 'all' || activeTab === 'ComPicfy') && visibleDB.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
@@ -611,7 +611,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
           )}
 
           {/* ComPicfy tab empty */}
-          {!isLoading && activeTab === 'comPicfy' && visibleDB.length === 0 && (
+          {!isLoading && activeTab === 'ComPicfy' && visibleDB.length === 0 && (
             <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
               <Database size={24} className="text-muted-foreground/30 mx-auto" />
               <p className="text-sm font-semibold">Not in ComPicfy yet</p>
@@ -679,7 +679,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
         open={showAuthModal}
         onClose={() => setShowAuthModal(false)}
         config={{
-          action:     `recommend "${authComicTitle}" to Compicfy`,
+          action:     `recommend "${authComicTitle}" to ComPicfy`,
           comicTitle: authComicTitle,
           icon:       <Plus size={24} className="text-primary" />,
           nextPath:   authPrefillUrl,

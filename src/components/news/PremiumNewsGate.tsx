@@ -30,7 +30,7 @@ export function PremiumNewsGate({ previewLines = 3, children }: Props) {
         <div className="space-y-1">
           <p className="font-black text-base">Premium Article</p>
           <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-            This article is exclusive to Compicfy Pro subscribers.
+            This article is exclusive to ComPicfy Pro subscribers.
           </p>
         </div>
         <Link href="/pricing">

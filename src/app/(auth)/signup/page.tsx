@@ -203,7 +203,7 @@ function SignupFormInner() {
 
       {/* Header */}
       <div className="text-center space-y-2">
-        <h1 className="text-3xl font-black tracking-tight">Join Compicfy</h1>
+        <h1 className="text-3xl font-black tracking-tight">Join ComPicfy</h1>
         <p className="text-muted-foreground text-sm">Find your next obsession</p>
       </div>
 

@@ -3,7 +3,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-com
 
 firebase.initializeApp({
   apiKey:            "AIzaSyDui8tqFWIYbugch4kgoUrHgCTBpF1g-Rk",
-  projectId:         "compicfy-ce716",
+  projectId:         "ComPicfy-ce716",
   messagingSenderId: "57411783505",
   appId:             "1:57411783505:web:6a7a2343c23950de1f2170",
 })
@@ -15,12 +15,12 @@ const messaging = firebase.messaging()
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload)
 
-  const title = payload.notification?.title || 'Compicfy'
+  const title = payload.notification?.title || 'ComPicfy'
   const options = {
     body: payload.notification?.body || '',
     icon: payload.notification?.image || '/icons/icon-192.png',
     badge: '/icons/badge-72.png',
-    tag: 'compicfy-notification',
+    tag: 'ComPicfy-notification',
     data: {
       // Pass the URL so clicking the notification opens the right page
       url: payload?.data?.url || payload?.fcmOptions?.link || '/',

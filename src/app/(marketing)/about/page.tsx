@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 
-export const metadata: Metadata = { title: 'About Compicfy' }
+export const metadata: Metadata = { title: 'About ComPicfy' }
 
 const VALUES = [
   { emoji: '🎯', title: 'Taste Over Algorithms', desc: 'Every recommendation comes from a real reader who loved it enough to share it, not a feed engineered to keep you scrolling.' },
@@ -9,7 +9,7 @@ const VALUES = [
   { emoji: '🌍', title: 'Inclusive',               desc: 'Manga, manhwa, manhua, and webtoons, every style and culture of storytelling gets equal space here.' },
   { emoji: '✅', title: 'Moderated',               desc: 'Every submission is reviewed before it goes live, keeping the platform accurate, safe, and worth trusting.' },
   { emoji: '🔒', title: 'You Own Your Recs',       desc: "When you submit a recommendation, it's yours. Only you can edit it. No wiki-style overwrites, no losing credit for your work." },
-  { emoji: '🎨', title: 'Built for Creators Too',  desc: "Compicfy isn't just for readers. Creators get a home to share their work and connect directly with the people who read it." },
+  { emoji: '🎨', title: 'Built for Creators Too',  desc: "ComPicfy isn't just for readers. Creators get a home to share their work and connect directly with the people who read it." },
 ]
 
 export default function AboutPage() {
@@ -22,7 +22,7 @@ export default function AboutPage() {
           <span className="text-3xl">📚</span>
         </div>
         <div className="space-y-3">
-          <h1 className="text-4xl font-black tracking-tight">About Compicfy</h1>
+          <h1 className="text-4xl font-black tracking-tight">About ComPicfy</h1>
           <p className="text-muted-foreground leading-relaxed max-w-xl mx-auto">
             The community where manga, manhwa, manhua, and webtoon readers discover, recommend, and vote for the best reads — together.
           </p>
@@ -37,10 +37,10 @@ export default function AboutPage() {
         </div>
         <div className="space-y-3 text-muted-foreground leading-relaxed">
           <p>
-            Compicfy started with a simple frustration: finding a great comic online usually meant scrolling through generic, algorithm-driven lists that had nothing to do with what real readers actually loved. Asking for a recommendation online got you fifty replies, half of which you'd already read, with no way to tell if the person recommending shared your taste at all.
+            ComPicfy started with a simple frustration: finding a great comic online usually meant scrolling through generic, algorithm-driven lists that had nothing to do with what real readers actually loved. Asking for a recommendation online got you fifty replies, half of which you'd already read, with no way to tell if the person recommending shared your taste at all.
           </p>
           <p>
-            Compicfy exists to fix that. It's a place where readers submit what they genuinely love, the community votes and reviews honestly, and discovery happens through real people instead of a black-box feed. Every recommendation on the platform is owned by the person who shared it, your taste, credited to you.
+            ComPicfy exists to fix that. It's a place where readers submit what they genuinely love, the community votes and reviews honestly, and discovery happens through real people instead of a black-box feed. Every recommendation on the platform is owned by the person who shared it, your taste, credited to you.
           </p>
           <p>
             We're manhwa-first by design, but every format is welcome: manga, manhwa, manhua, and webtoons all share the same space, the same voting system, and the same respect.
@@ -79,11 +79,11 @@ export default function AboutPage() {
       {/* How it's built */}
       <section className="space-y-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-xl font-black">How Compicfy Is Built</h2>
+          <h2 className="text-xl font-black">How ComPicfy Is Built</h2>
           <div className="h-0.5 flex-1 bg-gradient-to-r from-primary/40 to-transparent" />
         </div>
         <p className="text-muted-foreground leading-relaxed">
-          Compicfy is built independently, shaped almost entirely by what the community asks for. There's no investor roadmap and no growth-at-all-costs agenda just a platform that improves because the people using it tell us what's missing. Every feature on here exists because someone in the community needed it.
+          ComPicfy is built independently, shaped almost entirely by what the community asks for. There's no investor roadmap and no growth-at-all-costs agenda just a platform that improves because the people using it tell us what's missing. Every feature on here exists because someone in the community needed it.
         </p>
         <p className="text-muted-foreground leading-relaxed">
           Have a suggestion or found something broken? Drop it in our Discord. We read everything, and a meaningful share of what's live today started as a community suggestion.

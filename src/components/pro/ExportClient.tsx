@@ -39,7 +39,7 @@ export function ExportClient({ lists }: Props) {
 
       const blob = await res.blob()
       const list = lists.find(l => l.id === listId)
-      const filename = `${list?.name ?? 'reading-list'}-compicfy.${format}`
+      const filename = `${list?.name ?? 'reading-list'}-ComPicfy.${format}`
 
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')

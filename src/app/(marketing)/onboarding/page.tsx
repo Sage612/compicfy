@@ -4,7 +4,7 @@ import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow'
 import { CreatorOnboardingFlow } from '@/components/onboarding/CreatorOnboardingFlow'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Welcome to Compicfy' }
+export const metadata: Metadata = { title: 'Welcome to ComPicfy' }
 
 interface Props {
   searchParams: Promise<{ next?: string }>

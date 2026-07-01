@@ -19,16 +19,16 @@ import type { Metadata } from 'next'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
 
 export const metadata: Metadata = {
-  title: 'Compicfy - Find your next obsession.',
+  title: 'ComPicfy - Find your next obsession.',
   description: 'A warm community for manga, manhwa, manhua, and webtoon fans. Discover, recommend, and vote for the best comics.',
   openGraph: {
-    title:       'Compicfy - Find your next obsession.',
+    title:       'ComPicfy - Find your next obsession.',
     description: 'Community-powered comic discovery. Browse, recommend, and vote.',
-    images: [{ url: `${SITE_URL}/api/og`, width: 1200, height: 630, alt: 'Compicfy' }],
+    images: [{ url: `${SITE_URL}/api/og`, width: 1200, height: 630, alt: 'ComPicfy' }],
   },
   twitter: {
     card:        'summary_large_image',
-    title:       'Compicfy - Find your next obsession.',
+    title:       'ComPicfy - Find your next obsession.',
     description: 'Community-powered comic discovery. Browse, recommend, and vote.',
     images:      [`${SITE_URL}/api/og`],
   },
@@ -624,7 +624,7 @@ export default async function HomePage() {
               <Link href={user ? submitRoute : '/signup'}>
                 <Button size="lg" className="gap-2 h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-bold border-0">
                   <BookOpen size={15} />
-                  {user ? 'Submit a Recommendation' : "Join Compicfy, it's free"}
+                  {user ? 'Submit a Recommendation' : "Join ComPicfy, it's free"}
                 </Button>
               </Link>
               <Link href="/browse">

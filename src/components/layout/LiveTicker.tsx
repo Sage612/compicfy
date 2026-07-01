@@ -15,14 +15,14 @@ interface Props {
 
 // Shown when no real activity exists yet — makes the platform feel alive
 const FALLBACK_ITEMS: TickerItem[] = [
-  { title: 'Solo Leveling',         type: 'manhwa',  username: 'compicfy' },
-  { title: 'Tower of God',          type: 'manhwa',  username: 'compicfy' },
-  { title: 'Berserk',               type: 'manga',   username: 'compicfy' },
-  { title: 'Omniscient Reader',     type: 'manhwa',  username: 'compicfy' },
-  { title: 'One Punch Man',         type: 'manga',   username: 'compicfy' },
-  { title: 'Lore Olympus',          type: 'webtoon', username: 'compicfy' },
-  { title: 'The Beginning After the End', type: 'webtoon', username: 'compicfy' },
-  { title: 'Vinland Saga',          type: 'manga',   username: 'compicfy' },
+  { title: 'Solo Leveling',         type: 'manhwa',  username: 'ComPicfy' },
+  { title: 'Tower of God',          type: 'manhwa',  username: 'ComPicfy' },
+  { title: 'Berserk',               type: 'manga',   username: 'ComPicfy' },
+  { title: 'Omniscient Reader',     type: 'manhwa',  username: 'ComPicfy' },
+  { title: 'One Punch Man',         type: 'manga',   username: 'ComPicfy' },
+  { title: 'Lore Olympus',          type: 'webtoon', username: 'ComPicfy' },
+  { title: 'The Beginning After the End', type: 'webtoon', username: 'ComPicfy' },
+  { title: 'Vinland Saga',          type: 'manga',   username: 'ComPicfy' },
 ]
 
 export function LiveTicker({ items }: Props) {

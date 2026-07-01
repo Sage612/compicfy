@@ -26,7 +26,7 @@
   --dossier-panel-foreground: oklch(0.08 0 0);
 
   /*
-     Brand — Compicfy Teal/Cyan (Light Mode Variant)
+     Brand — ComPicfy Teal/Cyan (Light Mode Variant)
      #0891B2 -> oklch(0.55 0.18 196) 
      Per logo spec: "Teal Deep #0891B2 - Light mode primary"
   */
@@ -249,7 +249,7 @@
   --radius-3xl: calc(var(--radius) + 14px);
   --radius-4xl: calc(var(--radius) + 18px);
 
-  /* ── COMPICFY BRAND ── */
+  /* ── ComPicfy BRAND ── */
   --color-brand: oklch(0.72 0.19 192);
   --color-brand-muted: oklch(0.72 0.19 192 / 15%);
 

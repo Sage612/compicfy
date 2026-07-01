@@ -78,7 +78,7 @@ export function MangaDNACard({ username, displayName, avatarUrl, genres, isPro, 
       if (navigator.share) {
         await navigator.share({
           title: `${displayName}'s Manhwa DNA`,
-          text:  `Check out my Manhwa DNA on Compicfy! I'm ${distribution[0]?.pct}% ${distribution[0]?.name}.`,
+          text:  `Check out my Manhwa DNA on ComPicfy! I'm ${distribution[0]?.pct}% ${distribution[0]?.name}.`,
           url:   shareUrl,
         })
       } else {

@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         const fetchRes = await fetch(source_url, {
           headers: {
             // Pretend to be a browser so sites don't block us
-            'User-Agent': 'Mozilla/5.0 (compatible; Compicfy/1.0; +https://compicfy.com)',
+            'User-Agent': 'Mozilla/5.0 (compatible; ComPicfy/1.0; +https://compicfy.com)',
             'Accept': 'text/html,application/xhtml+xml',
           },
           signal: AbortSignal.timeout(10000), // 10s timeout
@@ -136,9 +136,9 @@ export async function POST(request: Request) {
         messages: [
           {
             role: 'user',
-            content: `You are a news editor for Compicfy, a manga/manhwa/webtoon community platform. 
+            content: `You are a news editor for ComPicfy, a manga/manhwa/webtoon community platform. 
 
-Summarise the following article into a news post for the Compicfy community. You must respond with raw JSON only. Do not wrap the JSON output in markdown backticks or extra text.
+Summarise the following article into a news post for the ComPicfy community. You must respond with raw JSON only. Do not wrap the JSON output in markdown backticks or extra text.
 
 Return ONLY this raw JSON structure:
 {

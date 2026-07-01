@@ -69,7 +69,7 @@ export function PeakHourModal({ isOpen, onClose, onSaveDraft, messageType }: Pro
               </p>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 {messageType === 'peak_cap'
-                  ? "Compicfy is experiencing a surge in submissions. Your recommendation is ready save it as a draft and submit when things quiet down."
+                  ? "ComPicfy is experiencing a surge in submissions. Your recommendation is ready save it as a draft and submit when things quiet down."
                   : "We're seeing a spike in submissions right now. To keep quality high, you can save your recommendation as a draft and try submitting later."
                 }
               </p>

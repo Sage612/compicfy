@@ -9,7 +9,7 @@ export function CookieBanner() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    const consent = localStorage.getItem('compicfy_cookie_consent')
+    const consent = localStorage.getItem('ComPicfy_cookie_consent')
     if (!consent) {
       const timer = setTimeout(() => setVisible(true), 800)
       return () => clearTimeout(timer)
@@ -18,8 +18,8 @@ export function CookieBanner() {
 
   function handleConsent(value: ConsentValue) {
     if (!value) return
-    localStorage.setItem('compicfy_cookie_consent', value)
-    localStorage.setItem('compicfy_cookie_consent_date', new Date().toISOString())
+    localStorage.setItem('ComPicfy_cookie_consent', value)
+    localStorage.setItem('ComPicfy_cookie_consent_date', new Date().toISOString())
     setVisible(false)
   }
 

@@ -117,7 +117,7 @@ export function Footer() {
         {/* Affiliate disclosure */}
         <div className="mb-8 p-3 rounded-xl bg-muted/40 border border-border">
           <p className="text-[10px] text-muted-foreground leading-relaxed text-center sm:text-left">
-            Some links on Compicfy are affiliate links. We may earn a small commission if you purchase
+            Some links on ComPicfy are affiliate links. We may earn a small commission if you purchase
             through them, at no extra cost to you. We only link to official retailers and licensed platforms.
           </p>
         </div>
@@ -127,7 +127,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="flex flex-col gap-1 text-[11px] text-muted-foreground sm:flex-row sm:justify-between sm:items-center">
           <p className="text-center sm:text-left leading-relaxed">
-            &copy; {new Date().getFullYear()} Compicfy. All rights reserved.
+            &copy; {new Date().getFullYear()} ComPicfy. All rights reserved.
             <span className="block sm:inline sm:ml-1">We do not host or link to pirated content.</span>
           </p>
           <p className="text-center sm:text-right text-muted-foreground/50 text-[10px]">

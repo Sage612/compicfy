@@ -15,7 +15,7 @@ export function BanWatchdog({ userId }: Props) {
   const doRedirect = () => {
     if (redirected.current) return
     redirected.current = true
-    toast.success('Your appeal was approved! Welcome back to Compicfy.')
+    toast.success('Your appeal was approved! Welcome back to ComPicfy.')
     
     // Force a hard navigation to clear all middleware caches
     window.location.href = '/browse'

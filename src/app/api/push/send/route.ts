@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
                     body:    body  ?? '',
                     icon:    icon  ?? '/icons/icon-192.png',
                     badge:         '/icons/badge-72.png',
-                    tag:           'compicfy-notification',
+                    tag:           'ComPicfy-notification',
                     renotify: true,
                     vibrate: [100, 50, 100],
                   },

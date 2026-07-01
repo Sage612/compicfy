@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     if (profile.role === 'admin') return NextResponse.json({ error: 'Admins have free Pro access' }, { status: 400 })
 
     const selectedPlan = PLANS[plan as keyof typeof PLANS]
-    const txRef        = `compicfy-${user.id}-${Date.now()}`
+    const txRef        = `ComPicfy-${user.id}-${Date.now()}`
 
     const payload = {
       tx_ref:       txRef,
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         username: profile.username,
       },
       customizations: {
-        title:       'Compicfy Pro',
+        title:       'ComPicfy Pro',
         description: selectedPlan.label,
         logo:        `${APP_URL}/images/logo.svg`,
       },

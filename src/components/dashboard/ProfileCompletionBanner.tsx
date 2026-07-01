@@ -11,7 +11,7 @@ interface Props {
   hasWebsite: boolean
 }
 
-const PROFILE_SESSION_KEY = 'compicfy_profile_banner_dismissed'
+const PROFILE_SESSION_KEY = 'ComPicfy_profile_banner_dismissed'
 
 export function ProfileCompletionBanner({ hasAvatar, hasBio, hasWebsite }: Props) {
   const [dismissed, setDismissed] = useState(() => {

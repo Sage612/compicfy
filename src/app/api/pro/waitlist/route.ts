@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     // Send confirmation email
     await sendMail(
       email,
-      "You're on the Compicfy Pro waitlist 🎉",
+      "You're on the ComPicfy Pro waitlist 🎉",
       templates.proWaitlist(email)
     )
 

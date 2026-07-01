@@ -71,10 +71,10 @@ export async function GET(req: NextRequest) {
           body: JSON.stringify({
             embeds: [{
               title:       '👑 New Pro Subscriber! (Flutterwave)',
-              description: `**${profile?.display_name || profile?.username || 'A user'}** just upgraded to Compicfy Pro (${plan} plan)! 🎉`,
+              description: `**${profile?.display_name || profile?.username || 'A user'}** just upgraded to ComPicfy Pro (${plan} plan)! 🎉`,
               color:       0xF59E0B,
               timestamp:   new Date().toISOString(),
-              footer:      { text: 'Compicfy Pro · Flutterwave' },
+              footer:      { text: 'ComPicfy Pro · Flutterwave' },
             }],
           }),
         })

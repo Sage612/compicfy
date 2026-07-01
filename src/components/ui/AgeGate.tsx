@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Shield, AlertTriangle, BookOpen } from 'lucide-react'
 
-const STORAGE_KEY = 'compicfy_age_verified'
-const STORAGE_DATE_KEY = 'compicfy_age_verified_date'
+const STORAGE_KEY = 'ComPicfy_age_verified'
+const STORAGE_DATE_KEY = 'ComPicfy_age_verified_date'
 const ONE_YEAR = 365 * 24 * 60 * 60 * 1000
 
 interface AgeGateProps {
@@ -23,7 +23,7 @@ export function AgeGate({ onVerified }: AgeGateProps) {
     localStorage.setItem(STORAGE_KEY, 'under18')
     localStorage.setItem(STORAGE_DATE_KEY, Date.now().toString())
     const expires = new Date(Date.now() + ONE_YEAR).toUTCString()
-    document.cookie = `compicfy_age=under18; expires=${expires}; path=/; SameSite=Lax`
+    document.cookie = `ComPicfy_age=under18; expires=${expires}; path=/; SameSite=Lax`
     onVerified()
   }
 
@@ -43,7 +43,7 @@ export function AgeGate({ onVerified }: AgeGateProps) {
     }
 
     if (age < 13) {
-      setError('You must be at least 13 to use Compicfy.')
+      setError('You must be at least 13 to use ComPicfy.')
       return
     }
 
@@ -55,7 +55,7 @@ export function AgeGate({ onVerified }: AgeGateProps) {
 
     const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString()
     const ageValue = canSeeAdult ? 'adult' : canSeeMature ? 'mature' : 'teen'
-    document.cookie = `compicfy_age=${ageValue}; expires=${expires}; path=/; SameSite=Lax`
+    document.cookie = `ComPicfy_age=${ageValue}; expires=${expires}; path=/; SameSite=Lax`
 
     onVerified()
   }
@@ -69,7 +69,7 @@ export function AgeGate({ onVerified }: AgeGateProps) {
           <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
             <BookOpen size={28} className="text-primary" />
           </div>
-          <h1 className="text-xl font-bold">Compicfy</h1>
+          <h1 className="text-xl font-bold">ComPicfy</h1>
         </div>
 
         {step === 'gate' ? (
@@ -80,7 +80,7 @@ export function AgeGate({ onVerified }: AgeGateProps) {
                 <span className="text-sm font-semibold">Age Verification</span>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Compicfy contains content rated for different age groups including mature (17+) and adult (18+) recommendations. Please confirm your age to continue.
+                ComPicfy contains content rated for different age groups including mature (17+) and adult (18+) recommendations. Please confirm your age to continue.
               </p>
             </div>
 
