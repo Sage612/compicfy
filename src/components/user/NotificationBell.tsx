@@ -37,7 +37,7 @@ export function NotificationBell({ userId }: { userId: string }) {
     }
     fetchProfile()
     return () => { isMounted = false }
-  }, [])
+  }, [supabase])
 
   // ── Fetch unread count + realtime subscription ──────────────────
   const fetchUnread = useCallback(async () => {
@@ -50,15 +50,26 @@ export function NotificationBell({ userId }: { userId: string }) {
   useEffect(() => {
     let isMounted = true
     fetchUnread()
-    const channel = supabase
-      .channel(`notifications:bell:${userId}:${Date.now()}`)
+
+    // Fixed channel name format to remain completely static across re-renders
+    const channel = supabase.channel(`notifications_bell_${userId}`)
+
+    channel
       .on('postgres_changes', {
-        event: 'INSERT', schema: 'public', table: 'notifications',
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'notifications',
         filter: `user_id=eq.${userId}`,
-      }, () => { if (isMounted) setUnreadCount(prev => prev + 1) })
+      }, () => { 
+        if (isMounted) setUnreadCount(prev => prev + 1) 
+      })
       .subscribe()
-    return () => { isMounted = false; supabase.removeChannel(channel) }
-  }, [userId, fetchUnread])
+
+    return () => { 
+      isMounted = false 
+      supabase.removeChannel(channel) 
+    }
+  }, [userId, fetchUnread, supabase])
 
   return (
     <button
