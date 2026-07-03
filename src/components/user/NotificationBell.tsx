@@ -42,7 +42,7 @@ export function NotificationBell({ userId }: { userId: string }) {
     return () => { isMounted = false }
   }, [supabase])
 
-  // Fetch unread count + realtime subscription
+  // Fetch unread count
   const fetchUnread = useCallback(async () => {
     const res  = await fetch('/api/notifications')
     const data = await res.json()
@@ -50,9 +50,15 @@ export function NotificationBell({ userId }: { userId: string }) {
     setUnreadCount(notifs.filter((n: Notification) => !n.is_read).length)
   }, [])
 
+  // Handle initial data fetch separately
   useEffect(() => {
-    let isMounted = true
     fetchUnread()
+  }, [fetchUnread])
+
+  // Isolate realtime subscription from fetchUnread dependency to prevent lifecycle races
+  useEffect(() => {
+    if (!userId) return
+    let isMounted = true
 
     // Fixed channel name format to remain completely static across re-renders
     const channel = supabase.channel(`notifications_bell_${userId}`)
@@ -72,7 +78,7 @@ export function NotificationBell({ userId }: { userId: string }) {
       isMounted = false
       supabase.removeChannel(channel)
     }
-  }, [userId, fetchUnread, supabase])
+  }, [userId, supabase])
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined
