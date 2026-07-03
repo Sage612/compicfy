@@ -8,6 +8,7 @@ import {
   Palette, Sparkles,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
+import { isAdmin as isAdminCheck, isProUser } from '@/lib/access'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Billing' }
@@ -31,9 +32,8 @@ export default async function CreatorBillingPage() {
     .limit(1)
     .single() as { data: any }
 
-  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
-  const isPro   = isAdmin || (profile?.is_pro &&
-    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin = isAdminCheck(profile ?? { role: '' })
+  const isPro   = isProUser(profile ?? { role: '', is_pro: false, pro_expires_at: null })
 
   const PRO_FEATURES = [
     'Deep analytics',

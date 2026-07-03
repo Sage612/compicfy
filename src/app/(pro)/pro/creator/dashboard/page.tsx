@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { formatDate, formatNumber, timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
+import { isAdmin as isAdminCheck, isProUser, canAccessProDashboard } from '@/lib/access'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Pro Creator Studio' }
@@ -28,9 +29,9 @@ export default async function ProCreatorDashboardPage() {
   if (!profileData) redirect('/login')
   const profile = profileData as any
 
-  const isAdmin = profile.role === 'admin' || profile.role === 'moderator'
-  const isPro   = isAdmin || (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  if (!isPro) redirect('/pricing?reason=pro_required')
+  const isAdmin = isAdminCheck(profile)
+  const isPro   = isProUser(profile)
+  if (!canAccessProDashboard(profile)) redirect('/pricing?reason=pro_required')
 
   const workIds = await supabase
     .from('recommendations').select('id').eq('user_id', user.id)

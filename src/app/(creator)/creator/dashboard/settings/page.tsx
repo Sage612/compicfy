@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { SettingsForm } from '@/components/user/SettingsForm'
+import { isAdmin as isAdminCheck, isProUser } from '@/lib/access'
 import type { Profile } from '@/types/database.types'
 import type { Metadata } from 'next'
 
@@ -15,9 +16,8 @@ export default async function CreatorSettingsPage() {
     .from('profiles').select('*').eq('id', user.id).single()
   if (!profile) redirect('/login')
 
-  const isAdmin = ['admin', 'moderator'].includes((profile as any).role ?? '')
-  const isPro   = isAdmin || ((profile as any).is_pro &&
-    (!(profile as any).pro_expires_at || new Date((profile as any).pro_expires_at) > new Date()))
+  const isAdmin = isAdminCheck(profile as { role: string })
+  const isPro   = isProUser(profile as { role: string; is_pro: boolean | null; pro_expires_at: string | null })
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">

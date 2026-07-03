@@ -1,16 +1,29 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import {
+  hasUnlimitedPerks,
+  isAdmin as isAdminCheck,
+  isModerator as isModeratorCheck,
+  isProUser,
+  type RoleProfile,
+} from '@/lib/access'
 
 interface ProStatus {
   isPro: boolean
   isAdmin: boolean
   isMod: boolean
-  hasProAccess: boolean // true for admin, mod, or paid pro
+  hasProAccess: boolean // unlimited perks (admin, mod, or paid pro), not Pro dashboard access
   role: string
   proExpiresAt: string | null
   loading: boolean
+}
+
+interface ProfileRow {
+  role: string | null
+  is_pro: boolean | null
+  pro_expires_at: string | null
 }
 
 export function usePro(): ProStatus {
@@ -24,46 +37,69 @@ export function usePro(): ProStatus {
     loading: true,
   })
 
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
+    let isMounted = true
+
     const getProStatus = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-      if (!user) {
-        setStatus(s => ({ ...s, loading: false }))
-        return
+        if (userError || !user) {
+          if (isMounted) {
+            setStatus(prev => ({ ...prev, loading: false }))
+          }
+          return
+        }
+
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('is_pro, pro_expires_at, role')
+          .eq('id', user.id)
+          .single<ProfileRow>()
+
+        if (profileError || !profileData) {
+          if (isMounted) {
+            setStatus(prev => ({ ...prev, loading: false }))
+          }
+          return
+        }
+
+        const profile: RoleProfile = {
+          role: profileData.role ?? 'user',
+          is_pro: profileData.is_pro ?? false,
+          pro_expires_at: profileData.pro_expires_at ?? null,
+        }
+
+        const isAdmin = isAdminCheck(profile)
+        const isMod = isModeratorCheck(profile)
+        const isPro = isProUser(profile)
+        const hasProAccess = hasUnlimitedPerks(profile)
+
+        if (isMounted) {
+          setStatus({
+            isPro,
+            isAdmin,
+            isMod,
+            hasProAccess,
+            role: profile.role,
+            proExpiresAt: profile.pro_expires_at,
+            loading: false,
+          })
+        }
+      } catch {
+        if (isMounted) {
+          setStatus(prev => ({ ...prev, loading: false }))
+        }
       }
-
-      const { data: profile } = await (supabase as any)
-        .from('profiles')
-        .select('is_pro, pro_expires_at, role')
-        .eq('id', user.id)
-        .single()
-
-      if (!profile) {
-        setStatus(s => ({ ...s, loading: false }))
-        return
-      }
-
-      const isAdmin = profile.role === 'admin'
-      const isMod = profile.role === 'moderator'
-      const isPro = profile.is_pro &&
-        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
-      const hasProAccess = isAdmin || isMod || isPro
-
-      setStatus({
-        isPro,
-        isAdmin,
-        isMod,
-        hasProAccess,
-        role: profile.role,
-        proExpiresAt: profile.pro_expires_at,
-        loading: false,
-      })
     }
 
-    getProStatus()
+    void getProStatus()
+
+    return () => {
+      isMounted = false
+    }
   }, [supabase])
 
   return status

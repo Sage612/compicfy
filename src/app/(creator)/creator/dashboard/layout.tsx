@@ -5,6 +5,7 @@ import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
 import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 import { DashboardNav } from '@/components/layout/DashboardNav'
 import { DashboardMobileNav } from '@/components/layout/DashboardMobileNav'
+import { isAdmin as isAdminCheck, isProUser } from '@/lib/access'
 
 export default async function CreatorDashboardLayout({
   children,
@@ -23,16 +24,14 @@ export default async function CreatorDashboardLayout({
 
   if (!profile) redirect('/login')
 
-  // ── Check admin FIRST — admin bypasses everything ──
-  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
+  const isAdmin = isAdminCheck(profile ?? { role: '' })
 
   if (!isAdmin) {
     // Non-admin: enforce user_type
     if (profile.user_type !== 'creator') redirect('/reader/dashboard')
 
     // Non-admin creator: if pro, send to pro creator
-    const isPro = profile?.is_pro &&
-      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+    const isPro = isProUser(profile ?? { role: '', is_pro: false, pro_expires_at: null })
     if (isPro) redirect('/pro/creator/dashboard')
   }
 

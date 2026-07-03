@@ -19,6 +19,7 @@ import { getDashboardRoutes, getProfileRoute, type UserType } from '@/lib/utils/
 import {
   getCachedProfile, setCachedProfile, clearCachedProfile, deriveIsPro,
 } from '@/lib/utils/profile-cache'
+import { shouldHideProUpsell } from '@/lib/access'
 
 export function MobileNav() {
   const pathname                            = usePathname()
@@ -37,7 +38,7 @@ export function MobileNav() {
   const lastScrollY                         = useRef(0)
   const supabase                            = createClient()
 
-  // ── Helper: apply a profile object to all state setters ──────────
+  // ── Helper: apply a profile object to all state setters ──────────────
   const applyProfile = (profile: {
     avatar_url: string | null
     display_name: string | null
@@ -53,7 +54,10 @@ export function MobileNav() {
     setUsername(profile.username)
     setUserType((profile.user_type as UserType) ?? 'reader')
     setIsPro(proActive)
-    setShowPro(proActive || profile.role === 'admin' || profile.role === 'moderator' ? false : true)
+    // Hide the "Upgrade to Pro" CTA only for genuinely Pro users (or admin).
+    // Moderators are NOT Pro — they still see the upsell, they just also
+    // get separate unlimited perks (recs/lists/saves) elsewhere.
+    setShowPro(shouldHideProUpsell(profile) ? false : true)
   }
 
   useEffect(() => {
@@ -62,14 +66,14 @@ export function MobileNav() {
       setUser(currentUser)
 
       if (currentUser) {
-        // ── 1. Paint instantly from cache if available ────────────
+        // ── 1. Paint instantly from cache if available ──────────────
         const cached = getCachedProfile()
         if (cached) {
           applyProfile(cached)
           setAuthReady(true)   // nav interactive immediately with correct routes
         }
 
-        // ── 2. Always fetch fresh in background ───────────────────
+        // ── 2. Always fetch fresh in background ──────────────────────
         const { data: profile } = await (supabase as any)
           .from('profiles')
           .select('is_pro, pro_expires_at, role, avatar_url, display_name, username, user_type')

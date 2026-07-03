@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CreatorLinksClient } from '@/components/creator/CreatorLinksClient'
 import { Link as LinkIcon } from 'lucide-react'
+import { isAdmin as isAdminCheck, isProUser, canAccessProDashboard } from '@/lib/access'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Creator Links · Pro' }
@@ -19,11 +20,10 @@ export default async function ProCreatorLinksPage() {
 
   if (!profile) redirect('/login')
 
-  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
-  const isPro   = isAdmin || (profile?.is_pro &&
-    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin = isAdminCheck(profile)
+  const isPro   = isProUser(profile)
 
-  if (!isPro) redirect('/pricing?reason=pro_required')
+  if (!canAccessProDashboard(profile)) redirect('/pricing?reason=pro_required')
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">

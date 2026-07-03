@@ -8,6 +8,7 @@ import { getDashboardRoutes } from '@/lib/utils/routes'
 import type { UserType } from '@/lib/utils/routes'
 import { getFirebaseMessaging } from '@/lib/firebase/client'
 import { onMessage } from 'firebase/messaging'
+import { isProUser } from '@/lib/access'
 
 interface Notification {
   id:      string
@@ -31,8 +32,8 @@ export function NotificationBell({ userId }: { userId: string }) {
         .eq('id', currentUser.id)
         .single()
       if (!profile || !isMounted) return
-      const isPro = profile.role === 'admin' || profile.role === 'moderator' ||
-        (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+      // Real Pro status only — moderator does NOT count as Pro here.
+      const isPro = isProUser(profile)
       const userType = (profile.user_type ?? 'reader') as UserType
       const routes   = getDashboardRoutes(userType, isPro)
       if (isMounted) setNotifHref(routes.notifications)
@@ -41,7 +42,7 @@ export function NotificationBell({ userId }: { userId: string }) {
     return () => { isMounted = false }
   }, [supabase])
 
-  // ── Fetch unread count + realtime subscription ──────────────────
+  // Fetch unread count + realtime subscription
   const fetchUnread = useCallback(async () => {
     const res  = await fetch('/api/notifications')
     const data = await res.json()
@@ -58,25 +59,21 @@ export function NotificationBell({ userId }: { userId: string }) {
 
     channel
       .on('postgres_changes', {
-        event: 'INSERT', 
-        schema: 'public', 
+        event: 'INSERT',
+        schema: 'public',
         table: 'notifications',
         filter: `user_id=eq.${userId}`,
-      }, () => { 
-        if (isMounted) setUnreadCount(prev => prev + 1) 
+      }, () => {
+        if (isMounted) setUnreadCount(prev => prev + 1)
       })
       .subscribe()
 
-    return () => { 
-      isMounted = false 
-      supabase.removeChannel(channel) 
+    return () => {
+      isMounted = false
+      supabase.removeChannel(channel)
     }
   }, [userId, fetchUnread, supabase])
 
-  // ── Foreground FCM messages ──────────────────────────────────────
-  // When the tab is open and focused, FCM does NOT go through the
-  // service worker's onBackgroundMessage — it fires here instead.
-  // Without this, push notifications silently no-op while the tab is active.
   useEffect(() => {
     let unsubscribe: (() => void) | undefined
 
@@ -85,11 +82,8 @@ export function NotificationBell({ userId }: { userId: string }) {
       if (!messaging) return // unsupported browser, e.g. some iOS Safari contexts
 
       unsubscribe = onMessage(messaging, (payload) => {
-        // Bump the bell count immediately for responsiveness
         setUnreadCount(prev => prev + 1)
 
-        // Optionally surface a native-style notification even in foreground,
-        // since some browsers suppress visual toasts for focused tabs.
         if (Notification.permission === 'granted' && payload.notification) {
           new Notification(payload.notification.title ?? 'ComPicfy', {
             body: payload.notification.body,

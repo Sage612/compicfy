@@ -16,6 +16,7 @@ import {
 import { formatDate, formatNumber, timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 import type { Metadata } from 'next'
+import { isAdmin as isAdminCheck, canAccessProDashboard, isProUser } from '@/lib/access'
 
 export const metadata: Metadata = { title: 'Pro Reader Dashboard' }
 
@@ -38,11 +39,11 @@ export default async function ProReaderDashboardPage() {
   if (!profileData) redirect('/login')
   const profile = profileData as any
 
-  const isAdmin = profile.role === 'admin'
-  const isPro   = isAdmin ||
-    (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin = isAdminCheck(profile)
+  // Real Pro status only — moderator does NOT get a pass here.
+  const isPro   = isProUser(profile)
 
-  if (!isPro) redirect('/pricing?reason=pro_required')
+  if (!canAccessProDashboard(profile)) redirect('/pricing?reason=pro_required')
 
   const { data: followData } = await supabase
     .from('follows').select('following_id').eq('follower_id', user.id)
@@ -321,4 +322,3 @@ export default async function ProReaderDashboardPage() {
     </div>
   )
 }
-

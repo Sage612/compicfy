@@ -1,3 +1,5 @@
+import { isProUser } from '@/lib/access'
+
 const CACHE_KEY = 'ComPicfy_profile_cache'
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
@@ -38,11 +40,7 @@ export function clearCachedProfile(): void {
   } catch {}
 }
 
-// Derives isPro from a profile object (cached or fresh)
+
 export function deriveIsPro(profile: Pick<CachedProfile, 'role' | 'is_pro' | 'pro_expires_at'>): boolean {
-  return (
-    profile.role === 'admin' ||
-    profile.role === 'moderator' ||
-    !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  )
+  return isProUser(profile)
 }

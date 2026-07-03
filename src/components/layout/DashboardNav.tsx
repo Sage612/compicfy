@@ -10,6 +10,7 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
+import { isAdmin as isAdminCheck, isProUser } from '@/lib/access'
 
 const READER_NAV = [
   { href: '/reader/dashboard',                          label: 'Overview',        icon: LayoutDashboard, exact: true,  isSubmit: false },
@@ -55,11 +56,10 @@ export function DashboardNav() {
         .single()
 
       if (profile) {
-        setIsAdmin(['admin', 'moderator'].includes(profile.role))
-        setIsPro(
-          ['admin', 'moderator'].includes(profile.role) ||
-          (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-        )
+        const admin = isAdminCheck(profile)
+        const proAccess = isProUser(profile)
+        setIsAdmin(admin)
+        setIsPro(proAccess)
         setUserType((profile.user_type as 'reader' | 'creator') ?? 'reader')
       }
       setLoaded(true)

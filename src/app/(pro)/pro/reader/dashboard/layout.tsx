@@ -6,6 +6,7 @@ import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
 import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 import { ProReaderSidebar } from '@/components/pro/ProReaderSidebar'
 import type { ReactNode } from 'react'
+import { isAdmin as isAdminCheck, canAccessAdminDashboard, canAccessProDashboard } from '@/lib/access'
 
 export default async function ProReaderDashboardLayout({
   children,
@@ -15,26 +16,21 @@ export default async function ProReaderDashboardLayout({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
-
   const { data: profile } = await supabase
     .from('profiles')
     .select('role, is_pro, pro_expires_at, user_type')
     .eq('id', user.id)
     .single() as { data: any }
-
   if (!profile) redirect('/login')
 
-  // ── Check admin FIRST — admin bypasses everything ──
-  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
+  const isAdmin = isAdminCheck(profile)
+  const canSeeAdminUI = canAccessAdminDashboard(profile) // admin or moderator, for the floating admin button only
 
   if (!isAdmin) {
     // Non-admin: enforce user_type
     if (profile.user_type === 'creator') redirect('/pro/creator/dashboard')
-
-    // Non-admin: must be pro
-    const isPro = profile?.is_pro &&
-      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
-    if (!isPro) redirect('/pricing?reason=pro_required')
+    // Non-admin: must be real Pro (moderator does NOT get a pass here)
+    if (!canAccessProDashboard(profile)) redirect('/pricing?reason=pro_required')
   }
 
   return (
@@ -53,7 +49,7 @@ export default async function ProReaderDashboardLayout({
         </main>
       </div>
       <ProMobileNav userType="reader" />
-      {isAdmin && <AdminFloatingButton />}
+      {canSeeAdminUI && <AdminFloatingButton />}
     </div>
   )
 }

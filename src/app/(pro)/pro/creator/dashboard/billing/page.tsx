@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { BillingClient } from '@/components/pro/BillingClient'
 import { Palette, CheckCircle2, Sparkles, CreditCard } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
+import { isAdmin as isAdminCheck, isProUser, canAccessProDashboard } from '@/lib/access'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Billing · Pro Creator' }
@@ -26,11 +27,12 @@ export default async function ProCreatorBillingPage() {
     .limit(1)
     .single() as { data: any }
 
-  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
-  const isPro   = isAdmin || (profile?.is_pro &&
-    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin = isAdminCheck(profile ?? { role: '' })
+  const isPro   = isProUser(profile ?? { role: '', is_pro: false, pro_expires_at: null })
 
-  if (!isPro) redirect('/pricing?reason=pro_required')
+  if (!canAccessProDashboard(profile ?? { role: '', is_pro: false, pro_expires_at: null })) {
+    redirect('/pricing?reason=pro_required')
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">

@@ -1,6 +1,7 @@
 import { sendMail, SITE_NAME } from './mailer'
 import { templates } from './templates'
 import { createClient } from '@supabase/supabase-js'
+import { isAdmin as isAdminCheck, isProUser } from '@/lib/access'
 
 function getAdminClient() {
   return createClient(
@@ -32,9 +33,8 @@ async function getDashboardPath(userId: string, isPro?: boolean): Promise<string
 
     if (!profile) return '/reader/dashboard'
 
-    const isAdmin   = ['admin', 'moderator'].includes(profile.role ?? '')
-    const proActive = isAdmin || (profile.is_pro &&
-      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+    const isAdmin   = isAdminCheck(profile)
+    const proActive = isProUser(profile)
     const isCreator = profile.user_type === 'creator'
 
     if (isCreator) return proActive ? '/pro/creator/dashboard' : '/creator/dashboard'

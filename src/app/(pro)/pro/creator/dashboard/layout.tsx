@@ -5,6 +5,7 @@ import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
 import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 import { ProCreatorSidebar } from '@/components/pro/ProCreatorSidebar'
 import { ProMobileNav } from '@/components/pro/ProMobileNav'
+import { isAdmin as isAdminCheck, canAccessAdminDashboard, canAccessProDashboard } from '@/lib/access'
 
 export default async function ProCreatorDashboardLayout({
   children,
@@ -23,17 +24,17 @@ export default async function ProCreatorDashboardLayout({
 
   if (!profile) redirect('/login')
 
-  // ── Check admin FIRST — admin bypasses everything ──
-  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
+  // Admin has lifetime Pro and bypasses everything below.
+  // Moderator is NOT Pro — moderator must NOT bypass this gate.
+  const isAdmin = isAdminCheck(profile)
+  const canSeeAdminUI = canAccessAdminDashboard(profile) // admin or moderator, for the floating admin button only
 
   if (!isAdmin) {
     // Non-admin: enforce user_type
     if (profile.user_type !== 'creator') redirect('/pro/reader/dashboard')
 
-    // Non-admin: must be pro
-    const isPro = profile?.is_pro &&
-      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
-    if (!isPro) redirect('/pricing?reason=pro_required')
+    // Non-admin: must be real Pro (moderator does NOT get a pass here)
+    if (!canAccessProDashboard(profile)) redirect('/pricing?reason=pro_required')
   }
 
   return (
@@ -49,7 +50,7 @@ export default async function ProCreatorDashboardLayout({
         </main>
       </div>
       <ProMobileNav userType="creator" />
-      {isAdmin && <AdminFloatingButton />}
+      {canSeeAdminUI && <AdminFloatingButton />}
     </div>
   )
 }

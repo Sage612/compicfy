@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { BillingClient } from '@/components/pro/BillingClient'
 import { Crown, Sparkles, CheckCircle2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
+import { isAdmin as isAdminCheck, isProUser, canAccessProDashboard } from '@/lib/access'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Billing | Pro' }
@@ -18,10 +19,12 @@ export default async function ProReaderBillingPage() {
     .eq('id', user.id)
     .single() as { data: any }
 
-  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
-  const isPro   = isAdmin || (profile?.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin = isAdminCheck(profile ?? { role: '' })
+  const isPro   = isProUser(profile ?? { role: '', is_pro: false, pro_expires_at: null })
 
-  if (!isPro) redirect('/pricing')
+  if (!canAccessProDashboard(profile ?? { role: '', is_pro: false, pro_expires_at: null })) {
+    redirect('/pricing?reason=pro_required')
+  }
 
   // maybeSingle — no subscription row is valid (admin / grandfathered access)
   const { data: subscription } = await (supabase as any)

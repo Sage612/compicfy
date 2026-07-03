@@ -1,5 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import {
+  hasUnlimitedPerks,
+  isAdmin as isAdminCheck,
+  isModerator as isModeratorCheck,
+  type RoleProfile,
+} from '@/lib/access'
 import { DAILY_LIMITS, FREE_LIMITS, GLOBAL_DAILY_CAP } from './constants'
 import type {
   DailySubmissionCount,
@@ -19,15 +25,21 @@ interface ProfileStats {
   total_reviews:         number | null
 }
 
-function isEffectivelyPro(profile: ProfileRecord): boolean {
-  if (['admin', 'moderator'].includes(profile.role)) return true
-  if (!profile.is_pro) return false
-  if (!profile.pro_expires_at) return true
-  return new Date(profile.pro_expires_at) > new Date()
+function toRoleProfile(profile: ProfileRecord): RoleProfile {
+  return {
+    role: profile.role,
+    is_pro: profile.is_pro,
+    pro_expires_at: profile.pro_expires_at,
+  }
 }
 
-function isAdmin(profile: ProfileRecord): boolean {
-  return ['admin', 'moderator'].includes(profile.role)
+function isEffectivelyPro(profile: ProfileRecord): boolean {
+  return hasUnlimitedPerks(toRoleProfile(profile))
+}
+
+function isPrivileged(profile: ProfileRecord): boolean {
+  const roleProfile = toRoleProfile(profile)
+  return isAdminCheck(roleProfile) || isModeratorCheck(roleProfile)
 }
 
 export async function enforceProFeature(
@@ -102,7 +114,7 @@ export async function enforceDailyRecLimit(
     role:           profile.role,
   }
 
-  if (isAdmin(typedProfile)) return { allowed: true, remaining: Infinity }
+  if (isPrivileged(typedProfile)) return { allowed: true, remaining: Infinity }
 
   const dailyLimit = isEffectivelyPro(typedProfile) ? DAILY_LIMITS.pro : DAILY_LIMITS.free
   const today      = new Date().toISOString().split('T')[0]
@@ -294,7 +306,7 @@ export async function checkSoftCap(userId: string): Promise<{
     .single()
 
   const profile = profileRaw as ProfileRecord | null
-  if (!profile || isAdmin(profile)) {
+  if (!profile || isPrivileged(profile)) {
     return { isNearLimit: false, isAtLimit: false, used: 0, limit: Infinity, remaining: Infinity }
   }
 

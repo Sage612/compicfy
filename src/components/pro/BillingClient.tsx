@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
+import { isAdmin as isAdminCheck, isModerator as isModeratorCheck, isProUser } from '@/lib/access'
 
 interface Props {
   profile: {
@@ -32,12 +33,12 @@ export function BillingClient({ profile, subscription, email }: Props) {
   const [cancelling, setCancelling] = useState(false)
   const [cancelled,  setCancelled]  = useState(false)
 
-  const isAdmin = profile?.role === 'admin'
-  const isMod   = profile?.role === 'moderator'
+  const isAdmin = profile ? isAdminCheck(profile) : false
+  const isMod   = profile ? isModeratorCheck(profile) : false
 
-  const isPro = isAdmin ||
-    (profile?.is_pro &&
-      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  // Real Pro status only — moderator is NOT Pro (see "Mod note" section below
+  // for the perks message shown to moderators instead).
+  const isPro = profile ? isProUser(profile) : false
 
   const isCancelled = subscription?.status === 'cancelled' || cancelled
 
@@ -198,7 +199,7 @@ export function BillingClient({ profile, subscription, email }: Props) {
         </div>
       )}
 
-      {/* Mod note */}
+      {/* Mod note — moderators are NOT Pro, but get specific unlimited perks */}
       {isMod && !isPro && (
         <div className="p-4 rounded-2xl border border-blue-500/20 bg-blue-500/5 space-y-1.5">
           <div className="flex items-center gap-2">
@@ -206,8 +207,8 @@ export function BillingClient({ profile, subscription, email }: Props) {
             <p className="font-black text-sm text-blue-600">Moderator Perks</p>
           </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            You already have most Pro features for free as a moderator.
-            Upgrading unlocks recommendation analytics, and profile view tracking.
+            As a moderator you get unlimited recommendations, lists, and saves for free.
+            Upgrading to Pro additionally unlocks analytics, export, and profile view tracking.
           </p>
         </div>
       )}
