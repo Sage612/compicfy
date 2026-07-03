@@ -23,6 +23,7 @@ import { cn } from '@/lib/utils'
 import { GlobalSearch } from '@/components/layout/GlobalSearch'
 import { NotificationBell } from '@/components/user/NotificationBell'
 import { MobileTabBar } from '@/components/layout/MobileTabBar'
+import { NotificationSoftPrompt } from '@/components/user/NotificationSoftPrompt'
 import { getDashboardRoutes, getProfileRoute, type UserType } from '@/lib/utils/routes'
 import { NavRail } from '@/components/layout/NavRail'
 import {
@@ -492,6 +493,8 @@ export function Header() {
 
       {/* Pass isLoggedIn so MobileTabBar can conditionally show/hide News tab */}
       <MobileTabBar isPro={isPro} isLoggedIn={!!user} />
+
+       {authReady && user && <NotificationSoftPrompt />}
     </>
   )
 }

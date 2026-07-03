@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getDashboardRoutes } from '@/lib/utils/routes'
 import type { UserType } from '@/lib/utils/routes'
+import { getFirebaseMessaging } from '@/lib/firebase/client'
+import { onMessage } from 'firebase/messaging'
 
 interface Notification {
   id:      string
@@ -70,6 +72,36 @@ export function NotificationBell({ userId }: { userId: string }) {
       supabase.removeChannel(channel) 
     }
   }, [userId, fetchUnread, supabase])
+
+  // ── Foreground FCM messages ──────────────────────────────────────
+  // When the tab is open and focused, FCM does NOT go through the
+  // service worker's onBackgroundMessage — it fires here instead.
+  // Without this, push notifications silently no-op while the tab is active.
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined
+
+    const setupForegroundListener = async () => {
+      const messaging = await getFirebaseMessaging()
+      if (!messaging) return // unsupported browser, e.g. some iOS Safari contexts
+
+      unsubscribe = onMessage(messaging, (payload) => {
+        // Bump the bell count immediately for responsiveness
+        setUnreadCount(prev => prev + 1)
+
+        // Optionally surface a native-style notification even in foreground,
+        // since some browsers suppress visual toasts for focused tabs.
+        if (Notification.permission === 'granted' && payload.notification) {
+          new Notification(payload.notification.title ?? 'ComPicfy', {
+            body: payload.notification.body,
+            icon: payload.notification.image ?? '/icons/icon-192.png',
+          })
+        }
+      })
+    }
+
+    setupForegroundListener()
+    return () => { unsubscribe?.() }
+  }, [])
 
   return (
     <button
