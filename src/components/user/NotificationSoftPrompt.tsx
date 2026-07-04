@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Bell, X } from 'lucide-react'
-import { useNotificationPermission } from '@/hooks/useNotificationPermission'
+import { useNotificationPermission } from '@/lib/hooks/useNotificationPermission'
 
 const DISMISS_KEY = 'compicfy_push_prompt_dismissed'
 
