@@ -42,7 +42,7 @@ export function NotificationBell({ userId }: { userId: string }) {
     return () => { isMounted = false }
   }, [supabase])
 
-  // Fetch unread count
+  // Fetch unread count + realtime subscription
   const fetchUnread = useCallback(async () => {
     const res  = await fetch('/api/notifications')
     const data = await res.json()
@@ -50,18 +50,16 @@ export function NotificationBell({ userId }: { userId: string }) {
     setUnreadCount(notifs.filter((n: Notification) => !n.is_read).length)
   }, [])
 
-  // Handle initial data fetch separately
   useEffect(() => {
-    fetchUnread()
-  }, [fetchUnread])
-
-  // Isolate realtime subscription from fetchUnread dependency to prevent lifecycle races
-  useEffect(() => {
-    if (!userId) return
     let isMounted = true
+    fetchUnread()
 
-    // Fixed channel name format to remain completely static across re-renders
-    const channel = supabase.channel(`notifications_bell_${userId}`)
+    // Channel name must be unique per mount. A static name can collide with
+    // a channel Supabase's client still has cached as "already subscribed"
+    // (e.g. React StrictMode double-invoke, or fast remounts before the
+    // previous cleanup's removeChannel() finishes), which throws:
+    // "cannot add 'postgres_changes' callbacks ... after 'subscribe'".
+    const channel = supabase.channel(`notifications_bell_${userId}_${Date.now()}`)
 
     channel
       .on('postgres_changes', {
@@ -78,8 +76,10 @@ export function NotificationBell({ userId }: { userId: string }) {
       isMounted = false
       supabase.removeChannel(channel)
     }
-  }, [userId, supabase])
+  }, [userId, fetchUnread, supabase])
 
+  // Foreground FCM messages — when the tab is open and focused, FCM does NOT
+  // go through the service worker's onBackgroundMessage, it fires here instead.
   useEffect(() => {
     let unsubscribe: (() => void) | undefined
 
