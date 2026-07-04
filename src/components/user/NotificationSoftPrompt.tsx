@@ -4,30 +4,33 @@ import { useEffect, useState } from 'react'
 import { Bell, X } from 'lucide-react'
 import { useNotificationPermission } from '@/lib/hooks/useNotificationPermission'
 
-const DISMISS_KEY = 'compicfy_push_prompt_dismissed'
+// sessionStorage, not localStorage — this makes the prompt reappear on each
+// new browser session until the user actually enables notifications, rather
+// than being dismissed forever after a single "Not now" click.
+const SESSION_DISMISS_KEY = 'compicfy_push_prompt_dismissed_session'
 
 export function NotificationSoftPrompt() {
   const [visible, setVisible] = useState(false)
   const { permission, subscribing, error, subscribe } = useNotificationPermission()
 
   useEffect(() => {
-    if (permission !== 'default') return // already granted, denied, or unsupported
-    const dismissed = localStorage.getItem(DISMISS_KEY)
-    if (dismissed) return
+    if (permission === 'denied') return // browser-level block — requestPermission() can't re-ask, no point showing
+    if (permission !== 'default') return // already granted or unsupported
+    const dismissedThisSession = sessionStorage.getItem(SESSION_DISMISS_KEY)
+    if (dismissedThisSession) return
 
     const timer = setTimeout(() => setVisible(true), 4000) // small delay after page load
     return () => clearTimeout(timer)
   }, [permission])
 
   const dismiss = () => {
-    localStorage.setItem(DISMISS_KEY, '1')
+    sessionStorage.setItem(SESSION_DISMISS_KEY, '1')
     setVisible(false)
   }
 
   const handleEnable = async () => {
     const ok = await subscribe()
     if (ok) setVisible(false)
-    else if (permission === 'denied') dismiss() // don't nag if they blocked it
   }
 
   if (!visible) return null
