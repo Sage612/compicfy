@@ -543,7 +543,12 @@ export default async function ComicDetailPage({ params }: Props) {
                         <Globe size={10} className="text-dossier-foreground/40 shrink-0" />
                         <span className="font-medium">{platform}</span>
                         {rec.official_links?.[i] && (
-                          <a href={rec.official_links[i]} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                          <a
+                            href={rec.official_links[i]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Open ${platform} link`}
+                          >
                             <ExternalLink size={10} className="text-dossier-foreground/40 hover:text-dossier-foreground transition-colors" />
                           </a>
                         )}
