@@ -648,7 +648,12 @@ export function AdminRecommendations() {
                       </div>
                       <div className="space-y-1.5">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">Platforms</p>
-                        <PlatformSelector value={editData.official_platforms ?? []} onChange={(platforms) => setEditData(d => ({ ...d, official_platforms: platforms }))} />
+                        <PlatformSelector
+                          value={editData.official_platforms ?? []}
+                          onChange={(platforms) => setEditData(d => ({ ...d, official_platforms: platforms }))}
+                          links={editData.official_links ?? []}
+                          onLinksChange={(links) => setEditData(d => ({ ...d, official_links: links }))}
+                        />
                       </div>
                       <div className="flex gap-2 justify-end pt-1">
                         <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>

@@ -23,6 +23,7 @@ const formSchema = z.object({
   status:             z.enum(['ongoing', 'completed', 'hiatus', 'cancelled']),
   genres:             z.array(z.string()).min(1, 'Select at least one genre').max(5),
   official_platforms: z.array(z.string()).min(1, 'Select at least one platform'),
+  official_links:     z.array(z.string()).default([]),
   cover_url:          z.string().default(''),
   content_rating:     z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
   why_recommend:      z.string().max(1000).default(''),
@@ -102,6 +103,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       status:             rec.status             ?? 'ongoing',
       genres:             rec.genres             ?? [],
       official_platforms: rec.official_platforms ?? [],
+      official_links:     rec.official_links     ?? [],
       cover_url:          rec.cover_url          ?? '',
       content_rating:     (rec.content_rating === 'all' ? 'all_ages' : rec.content_rating) ?? 'all_ages',
       why_recommend:      rec.why_recommend      ?? '',
@@ -311,8 +313,20 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
         <Controller
           name="official_platforms"
           control={control}
-          render={({ field }) => (
-            <PlatformSelector value={field.value} onChange={field.onChange} error={errors.official_platforms?.message} />
+          render={({ field: platformField }) => (
+            <Controller
+              name="official_links"
+              control={control}
+              render={({ field: linksField }) => (
+                <PlatformSelector
+                  value={platformField.value}
+                  onChange={platformField.onChange}
+                  links={linksField.value}
+                  onLinksChange={linksField.onChange}
+                  error={errors.official_platforms?.message}
+                />
+              )}
+            />
           )}
         />
       </FormSection>
