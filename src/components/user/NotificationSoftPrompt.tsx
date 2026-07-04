@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Bell, X } from 'lucide-react'
-import { useNotificationPermission } from '@/lib/hooks/useNotificationPermission'
+import { useNotificationPermission } from '@/hooks/useNotificationPermission'
 
 const DISMISS_KEY = 'compicfy_push_prompt_dismissed'
 
@@ -33,14 +33,14 @@ export function NotificationSoftPrompt() {
   if (!visible) return null
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-sm rounded-xl border border-border bg-card shadow-lg p-4 flex gap-3 animate-in slide-in-from-bottom-4">
+    <div className="fixed left-4 right-4 bottom-24 z-[70] sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-sm rounded-xl border border-border bg-card shadow-lg p-4 flex gap-3 animate-in slide-in-from-bottom-4">
       <div className="shrink-0 w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
         <Bell size={16} className="text-primary" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-foreground">Stay in the loop</p>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Get notified when someone reviews, follows you, or your recs get approved.
+          Get notified when someone comments, follows you, or your recs get approved.
         </p>
         {error && <p className="text-xs text-destructive mt-1">{error}</p>}
         <div className="flex gap-2 mt-3">
