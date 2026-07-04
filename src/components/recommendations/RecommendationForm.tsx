@@ -23,6 +23,7 @@ import { FREE_LIMITS } from '@/lib/utils/constants'
 import { cn } from '@/lib/utils'
 import { MangaSearch } from './MangaSearch'
 import { createClient } from '@/lib/supabase/client'
+import { validatePlatformLink } from '@/lib/utils/platformLinks'
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Max 200 characters'),
@@ -31,6 +32,11 @@ const formSchema = z.object({
   status: z.enum(['ongoing', 'completed', 'hiatus', 'cancelled']),
   genres: z.array(z.string()).min(1, 'Select at least one genre').max(5),
   official_platforms: z.array(z.string()).min(1, 'Select at least one platform'),
+  // Paired by index with official_platforms. Optional per-entry — client-side
+  // domain validation happens live in PlatformSelector; this schema-level check
+  // is the final gate before submit (server re-validates regardless, see
+  // lib/utils/validators.ts — that's the actual source of truth).
+  official_links: z.array(z.string()).default([]),
   cover_url: z.string().default(''),
   content_rating: z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
   adult_content_confirmed: z.boolean().optional(),
@@ -46,6 +52,19 @@ const formSchema = z.object({
     z.number().min(1).optional()
   ),
 })
+  .superRefine((data, ctx) => {
+    data.official_links.forEach((link, i) => {
+      if (!link || !link.trim()) return
+      const result = validatePlatformLink(link)
+      if (!result.valid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: result.reason ?? 'Invalid platform link',
+          path: ['official_links', i],
+        })
+      }
+    })
+  })
 
 type FormValues = z.infer<typeof formSchema>
 
@@ -180,6 +199,7 @@ export function RecommendationForm({ userId }: Props) {
       cover_url:          prefillCover,
       genres:             prefillGenres,
       official_platforms: [],
+      official_links:     [],
       content_rating:     'all_ages',
       why_recommend:      '',
       ...(prefillYear     ? { year_released: Number(prefillYear)     } : {}),
@@ -590,8 +610,20 @@ export function RecommendationForm({ userId }: Props) {
         <Controller
           name="official_platforms"
           control={control}
-          render={({ field }) => (
-            <PlatformSelector value={field.value} onChange={field.onChange} error={errors.official_platforms?.message} />
+          render={({ field: platformField }) => (
+            <Controller
+              name="official_links"
+              control={control}
+              render={({ field: linksField }) => (
+                <PlatformSelector
+                  value={platformField.value}
+                  onChange={platformField.onChange}
+                  links={linksField.value}
+                  onLinksChange={linksField.onChange}
+                  error={errors.official_platforms?.message}
+                />
+              )}
+            />
           )}
         />
       </FormSection>

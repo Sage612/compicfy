@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { validatePlatformLink } from '@/lib/utils/platformLinks'
 
 export const recommendationSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
@@ -7,6 +8,7 @@ export const recommendationSchema = z.object({
   status: z.enum(['ongoing', 'completed', 'hiatus', 'cancelled']),
   genres: z.array(z.string()).min(1, 'Select at least one genre').max(5),
   official_platforms: z.array(z.string()).min(1, 'Select at least one platform'),
+  official_links: z.array(z.string()).default([]),
   cover_url: z.string().default(''),
   content_rating: z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
   why_recommend: z.string().max(1000).default(''),
@@ -21,6 +23,29 @@ export const recommendationSchema = z.object({
     z.number().min(1).optional()
   ),
 })
+  .superRefine((data, ctx) => {
+    data.official_links.forEach((link, i) => {
+      if (!link || !link.trim()) return // empty is allowed, link is optional
+      const result = validatePlatformLink(link)
+      if (!result.valid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: result.reason ?? 'Invalid platform link',
+          path: ['official_links', i],
+        })
+      }
+    })
+
+    // official_links, if provided, shouldn't be longer than official_platforms —
+    // there's no platform for a link past that index to be paired with.
+    if (data.official_links.length > data.official_platforms.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'official_links cannot have more entries than official_platforms',
+        path: ['official_links'],
+      })
+    }
+  })
 
 export const reviewSchema = z.object({
   content: z.string().min(3, 'Review must be at least 3 characters').max(1000),

@@ -8,6 +8,7 @@ const REQUEST_TIMEOUT_MS = 8000
 const LOCK_NAME          = 'id_checker'
 const LOCK_DURATION_MS   = 55_000
 const YEAR_TOLERANCE     = 1
+const TIME_BUDGET_MS = 22_000
 
 // ── Fetch with timeout ────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
@@ -32,12 +33,54 @@ function normalize(str: string): string {
     .trim()
 }
 
+// ── Format normalization ───────────────────────────────────────────
+// Every source reports "type"/"format" differently. We collapse them all
+// into a single normalized enum so smartMatch can filter on one thing.
+type NormalizedFormat = 'manga' | 'novel' | 'other'
+
+function normalizeFormat(raw: string | null | undefined): NormalizedFormat {
+  if (!raw) return 'other'
+  const r = raw.toLowerCase().trim()
+
+  // Explicitly exclude prose/novel formats — this is the core fix.
+  // Light novels, novels, and web novels must never satisfy a manga match.
+  if (
+    r === 'novel' ||
+    r === 'light novel' ||
+    r === 'light_novel' ||
+    r === 'web novel' ||
+    r === 'web_novel' ||
+    r.includes('novel')
+  ) {
+    return 'novel'
+  }
+
+  if (
+    r === 'manga' ||
+    r === 'manhwa' ||
+    r === 'manhua' ||
+    r === 'webtoon' ||
+    r === 'comic' ||
+    r === 'comics' ||
+    r === 'one-shot' ||
+    r === 'one_shot' ||
+    r === 'oneshot' ||
+    r === 'doujinshi' ||
+    r === 'oel'
+  ) {
+    return 'manga'
+  }
+
+  return 'other'
+}
+
 interface Candidate {
   id:      string
   title:   string
   author?: string
   artist?: string
   year?:   number | null
+  format:  NormalizedFormat
 }
 
 function smartMatch(
@@ -47,10 +90,22 @@ function smartMatch(
   artistHint?:    string | null,
   yearHint?:      number | null,
   yearConfidence: 'unverified' | 'confirmed' = 'unverified',
+  expectedFormat: NormalizedFormat = 'manga',
 ): string | null {
   const nq = normalize(query)
   const na = authorHint ? normalize(authorHint) : null
   const nr = artistHint ? normalize(artistHint) : null
+
+  // ── HARD FILTER: drop any candidate that isn't the expected format ──
+  // This must happen before any title/author/year logic runs. Previously,
+  // a light novel with a matching title/author/year would satisfy every
+  // downstream check because nothing ever looked at format at all.
+  const formatFiltered = candidates.filter(c => c.format === expectedFormat)
+
+  // If filtering wipes out every candidate, it means this source only had
+  // e.g. a light novel entry and no manga entry — correctly return null
+  // rather than falling back to the wrong-format candidates.
+  const pool = formatFiltered
 
   const authorArtistConfirmed = (c: Candidate): boolean => {
     if (!na && !nr) return false
@@ -66,7 +121,7 @@ function smartMatch(
     return Math.abs(c.year - yearHint) <= YEAR_TOLERANCE
   }
 
-  const exactTitleMatches = candidates.filter(c => normalize(c.title) === nq)
+  const exactTitleMatches = pool.filter(c => normalize(c.title) === nq)
 
   if (yearHint && yearConfidence === 'confirmed') {
     const yearMatch = exactTitleMatches.find(yearConfirmed)
@@ -93,7 +148,7 @@ function smartMatch(
   if (exactTitleMatches.length > 0) return exactTitleMatches[0].id
 
   if (na || nr) {
-    for (const c of candidates) {
+    for (const c of pool) {
       const ct = normalize(c.title)
       const isContained = ct.includes(nq) || nq.includes(ct)
       if (isContained && ct !== nq && authorArtistConfirmed(c)) return c.id
@@ -101,7 +156,7 @@ function smartMatch(
   }
 
   if (yearHint && yearConfidence === 'confirmed') {
-    for (const c of candidates) {
+    for (const c of pool) {
       const ct = normalize(c.title)
       const isContained = ct.includes(nq) || nq.includes(ct)
       if (isContained && ct !== nq && yearConfirmed(c)) return c.id
@@ -141,8 +196,10 @@ async function findMangaUpdatesID(
         author: r.record?.author ?? '',
         artist: r.record?.artist ?? '',
         year:   r.record?.year ? Number(r.record.year) : null,
+        // MangaUpdates 'type' field: Manga, Manhwa, Manhua, Novel, Doujinshi, OEL, Artbook, etc.
+        format: normalizeFormat(r.record?.type ?? null),
       }))
-      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence)
+      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence, 'manga')
       if (matchId) {
         const matched = candidates.find(c => c.id === matchId)
         return { id: matchId, year: matched?.year ?? null }
@@ -178,9 +235,13 @@ async function findMangaDexID(
           author: authorName,
           artist: artistName,
           year:   attr.year ? Number(attr.year) : null,
+          // MangaDex's catalog is comics-only (no light novel entries), so
+          // everything returned here is safely treated as 'manga'. This is
+          // a structural guarantee from the source, not a guess.
+          format: 'manga' as NormalizedFormat,
         }
       })
-      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence)
+      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence, 'manga')
       if (matchId) {
         const matched = candidates.find(c => c.id === matchId)
         return { id: matchId, year: matched?.year ?? null }
@@ -199,7 +260,8 @@ async function findAniListID(
   for (const title of titles) {
     try {
       await new Promise(r => setTimeout(r, API_DELAY_MS))
-      const gql = `query($search:String){Page(perPage:15){media(search:$search,type:MANGA,sort:SEARCH_MATCH){id title{english romaji native}startDate{year}staff(perPage:10){edges{role node{name{full}}}}}}}`
+      // NOTE: 'format' added to the query so we can filter out NOVEL entries.
+      const gql = `query($search:String){Page(perPage:15){media(search:$search,type:MANGA,sort:SEARCH_MATCH){id title{english romaji native}format startDate{year}staff(perPage:10){edges{role node{name{full}}}}}}}`
       const res = await fetchWithTimeout('https://graphql.anilist.co', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -217,9 +279,13 @@ async function findAniListID(
           author: authorName,
           artist: artistName,
           year:   r.startDate?.year ? Number(r.startDate.year) : null,
+          // AniList format enum: MANGA, NOVEL, ONE_SHOT, etc.
+          // type:MANGA in the query already excludes anime, but NOVEL
+          // (light novels) still comes back under type:MANGA in their schema.
+          format: normalizeFormat(r.format ?? null),
         }
       })
-      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence)
+      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence, 'manga')
       if (matchId) {
         const matched = candidates.find(c => c.id === matchId)
         return { id: matchId, year: matched?.year ?? null }
@@ -254,9 +320,12 @@ async function findJikanID(
           author: authorName,
           artist: artistName,
           year:   publishedYear,
+          // Jikan/MAL 'type' field: Manga, Novel, Light Novel, Manhwa,
+          // Manhua, One-shot, Doujinshi, OEL.
+          format: normalizeFormat(r.type ?? null),
         }
       })
-      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence)
+      const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence, 'manga')
       if (matchId) {
         const matched = candidates.find(c => c.id === matchId)
         return { id: matchId, year: matched?.year ?? null }
@@ -283,17 +352,23 @@ async function findExternalIds(
   const years: Record<string, number | null>       = {}
   const titles = buildQueryTitles(title, alternativeTitles)
 
-  const mu = await findMangaUpdatesID(titles, author, artist, year, yearConfidence)
-  if (mu.id) { ids.mangaupdates_id = mu.id; years.mangaupdates_id = mu.year }
+  // Run all 4 sources concurrently instead of sequentially. These are
+  // fully independent lookups (different APIs, different candidate pools),
+  // so there's no reason to wait for MU before starting MD/AL/Jikan.
+  // Previously this was 4 sequential awaits, meaning total time was the
+  // SUM of all 4 sources' durations. Now it's the MAX of the 4 — the
+  // single biggest lever for staying under cron-job.org's 30s limit.
+  const [mu, md, al, mal] = await Promise.all([
+    findMangaUpdatesID(titles, author, artist, year, yearConfidence),
+    findMangaDexID(titles, author, artist, year, yearConfidence),
+    findAniListID(titles, author, artist, year, yearConfidence),
+    findJikanID(titles, author, artist, year, yearConfidence),
+  ])
 
-  const md = await findMangaDexID(titles, author, artist, year, yearConfidence)
-  if (md.id) { ids.mangadex_id = md.id; years.mangadex_id = md.year }
-
-  const al = await findAniListID(titles, author, artist, year, yearConfidence)
-  if (al.id) { ids.anilist_id = al.id; years.anilist_id = al.year }
-
-  const mal = await findJikanID(titles, author, artist, year, yearConfidence)
-  if (mal.id) { ids.mal_id = mal.id; years.mal_id = mal.year }
+  if (mu.id)  { ids.mangaupdates_id = mu.id;  years.mangaupdates_id = mu.year }
+  if (md.id)  { ids.mangadex_id     = md.id;  years.mangadex_id     = md.year }
+  if (al.id)  { ids.anilist_id      = al.id;  years.anilist_id      = al.year }
+  if (mal.id) { ids.mal_id          = mal.id; years.mal_id          = mal.year }
 
   return { ids, years }
 }
@@ -421,9 +496,22 @@ export async function GET(req: Request) {
     }
 
     let foundAll = 0, foundSome = 0, foundNone = 0, skippedComplete = 0, yearsCorrected = 0
+    let timedOutEarly = false
+    const runStart = Date.now()
     const logs: IDCheckLog[] = []
 
     for (const comic of comics) {
+      // Checked only BETWEEN comics — never inside a comic's own processing.
+      // Any comic that begins this loop body always runs to completion
+      // (all 4 sources awaited + consensus + DB write) before we ever look
+      // at the clock again. Comics we don't get to simply stay untouched
+      // and get picked up on the next cron tick via the existing cooldown
+      // filter — nothing is ever partially checked or written.
+      if (Date.now() - runStart > TIME_BUDGET_MS) {
+        timedOutEarly = true
+        break
+      }
+
       const timestamp = new Date().toISOString()
 
       try {
@@ -526,13 +614,15 @@ export async function GET(req: Request) {
     for (const log of logs) await logIDCheck(supabase, log)
 
     return NextResponse.json({
-      processed:        comics.length,
-      found_all:        foundAll,
-      found_some:       foundSome,
-      found_none:       foundNone,
-      skipped_complete: skippedComplete,
-      years_corrected:  yearsCorrected,
-      logs_count:       logs.length,
+      processed:          logs.length,
+      fetched_this_batch: comics.length,
+      found_all:          foundAll,
+      found_some:         foundSome,
+      found_none:         foundNone,
+      skipped_complete:   skippedComplete,
+      years_corrected:    yearsCorrected,
+      logs_count:         logs.length,
+      timed_out_early:    timedOutEarly,
     })
   } finally {
     await releaseLock(supabase)
