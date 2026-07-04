@@ -4,20 +4,20 @@ export const PLATFORM_DOMAINS: Record<string, string[]> = {
   'Tappytoon':          ['tappytoon.com'],
   'Viz Media':          ['viz.com'],
   'Crunchyroll Manga':  ['crunchyroll.com'],
-  'Manta':              ['mantacomics.com'], // VERIFY: domain may differ, please confirm
-  'Webcomics':          ['webcomicsapp.com'], // VERIFY: please confirm current domain
+  'Manta':              ['manta.net'],
+  'Webcomics':          ['webcomicsapp.com'],
   'Lezhin':             ['lezhinus.com', 'lezhin.com'],
   'Mangatoon':          ['mangatoon.mobi'],
   'Pocket Comics':      ['pocketcomics.com'],
   'Toomics':            ['toomics.com'],
-  'Toptoon':            ['toptoons.com'], // VERIFY: please confirm current domain
-  'DAYcomics':          ['daycomics.co'], // VERIFY: please confirm current domain
+  // Confirmed via web search (official site): global.toptoon.com,
+  // NOT toptoons.com as originally guessed.
+  'Toptoon':            ['global.toptoon.com'],
+  'DAYcomics':          ['daycomics.com', 'app.daycomics.com'],
   'Mangaplus':          ['mangaplus.shueisha.co.jp'],
   'INKR':               ['inkr.com'],
 }
 
-// Flat set of every allowed domain, independent of which platform label
-// it's associated with — this is what link validation actually checks against.
 export const ALLOWED_LINK_DOMAINS: Set<string> = new Set(
   Object.values(PLATFORM_DOMAINS).flat()
 )
@@ -25,7 +25,6 @@ export const ALLOWED_LINK_DOMAINS: Set<string> = new Set(
 export interface LinkValidationResult {
   valid: boolean
   reason?: string
-  /** Cleaned URL (protocol enforced, no fragment/tracking cruft) if valid */
   cleanUrl?: string
 }
 
@@ -38,10 +37,6 @@ function extractHostname(url: string): string | null {
   }
 }
 
-/**
- * Validates a single official link URL against the domain whitelist.
- * Used identically on the client (instant feedback) and server (source of truth).
- */
 export function validatePlatformLink(rawUrl: string): LinkValidationResult {
   const trimmed = rawUrl.trim()
 
@@ -85,14 +80,6 @@ export function validatePlatformLink(rawUrl: string): LinkValidationResult {
   return { valid: true, cleanUrl }
 }
 
-/**
- * Validates the full official_links array against official_platforms.
- * Both arrays are expected to be paired by index (link[i] belongs to platform[i]),
- * matching how the comic detail page already renders them.
- *
- * Returns cleaned links array (empty string for any index with no link provided —
- * a link is optional per-platform) or throws-equivalent via `errors`.
- */
 export function validateOfficialLinks(
   platforms: string[],
   links: (string | undefined | null)[]

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { validatePlatformLink } from '@/lib/utils/platformLinks'
 
-export const recommendationSchema = z.object({
+export const recommendationBaseSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   description: z.string().min(10, 'At least 10 characters').max(2000),
   type: z.enum(['manga', 'manhwa', 'manhua', 'webtoon', 'comic', 'other']),
@@ -23,29 +23,43 @@ export const recommendationSchema = z.object({
     z.number().min(1).optional()
   ),
 })
-  .superRefine((data, ctx) => {
-    data.official_links.forEach((link, i) => {
-      if (!link || !link.trim()) return // empty is allowed, link is optional
-      const result = validatePlatformLink(link)
-      if (!result.valid) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: result.reason ?? 'Invalid platform link',
-          path: ['official_links', i],
-        })
-      }
-    })
 
-    // official_links, if provided, shouldn't be longer than official_platforms —
-    // there's no platform for a link past that index to be paired with.
-    if (data.official_links.length > data.official_platforms.length) {
+function refineOfficialLinks(
+  data: { official_links?: string[]; official_platforms?: string[] },
+  ctx: z.RefinementCtx,
+) {
+  const links     = data.official_links     ?? []
+  const platforms = data.official_platforms ?? []
+
+  links.forEach((link, i) => {
+    if (!link || !link.trim()) return // empty is allowed, link is optional
+    const result = validatePlatformLink(link)
+    if (!result.valid) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: result.reason ?? 'Invalid platform link',
+        path: ['official_links', i],
+      })
+    }
+  })
+
+  if (data.official_links !== undefined && data.official_platforms !== undefined) {
+    if (links.length > platforms.length) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'official_links cannot have more entries than official_platforms',
         path: ['official_links'],
       })
     }
-  })
+  }
+}
+
+export const recommendationSchema = recommendationBaseSchema
+  .superRefine(refineOfficialLinks)
+
+export const recommendationPatchSchema = recommendationBaseSchema
+  .partial()
+  .superRefine(refineOfficialLinks)
 
 export const reviewSchema = z.object({
   content: z.string().min(3, 'Review must be at least 3 characters').max(1000),

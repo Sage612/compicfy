@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { recommendationSchema } from '@/lib/utils/validators'
+import { recommendationPatchSchema } from '@/lib/utils/validators'
 
 export async function GET(
   request: Request,
@@ -54,8 +54,15 @@ export async function PATCH(
 
     const body = await request.json()
 
-    // Partial parse — only validate fields that are sent
-    const parsed = recommendationSchema.partial().safeParse(body)
+    // Partial parse — only validate fields that are sent.
+    // FIX: previously this called `recommendationSchema.partial()`, but
+    // recommendationSchema is wrapped in `.superRefine()` (ZodEffects),
+    // which has no `.partial()` method — that call threw on every single
+    // PATCH request, landing in the catch block below as a bare 500.
+    // recommendationPatchSchema is built correctly: `.partial()` applied to
+    // the base object BEFORE refinement, then re-refined so official_links
+    // (if sent) still gets validated against the domain whitelist.
+    const parsed = recommendationPatchSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json(
         { error: 'Validation failed', details: parsed.error.issues },
