@@ -7,7 +7,7 @@ const API_DELAY_MS       = 600
 const REQUEST_TIMEOUT_MS = 8000
 const LOCK_NAME          = 'id_checker'
 const LOCK_DURATION_MS   = 55_000
-const YEAR_TOLERANCE     = 1
+const YEAR_TOLERANCE = 1
 const TIME_BUDGET_MS = 22_000
 
 // ── Fetch with timeout ────────────────────────────────────────────
@@ -33,9 +33,6 @@ function normalize(str: string): string {
     .trim()
 }
 
-// ── Format normalization ───────────────────────────────────────────
-// Every source reports "type"/"format" differently. We collapse them all
-// into a single normalized enum so smartMatch can filter on one thing.
 type NormalizedFormat = 'manga' | 'novel' | 'other'
 
 function normalizeFormat(raw: string | null | undefined): NormalizedFormat {
@@ -59,7 +56,6 @@ function normalizeFormat(raw: string | null | undefined): NormalizedFormat {
     r === 'manga' ||
     r === 'manhwa' ||
     r === 'manhua' ||
-    r === 'webtoon' ||
     r === 'comic' ||
     r === 'comics' ||
     r === 'one-shot' ||
@@ -176,6 +172,34 @@ function buildQueryTitles(title: string, alternativeTitles?: string[] | null): s
   return out
 }
 
+// MangaUpdates' /v1/series/search endpoint does NOT include a `type` field
+// in its response — confirmed by direct inspection of production API output.
+// The `type` field (Manga/Manhwa/Manhua/Novel/etc.) only exists on the
+// /v1/series/{id} DETAIL endpoint. This is the actual root cause of novel
+// IDs slipping through: every search-result candidate was silently
+// normalizing to format 'other' (since r.record.type was always undefined),
+// which should have made every MU candidate fail the 'manga' filter — but
+// some searches (e.g. by a Korean alternate title) returned only ONE
+// candidate that happened to BE the novel, and with no format signal at
+// all from the search response, smartMatch had nothing wrong-looking to
+// reject it on title/author/year grounds alone.
+//
+// Fix: after getting search candidates, fetch the detail endpoint for the
+// top few candidates to get their real `type`, and use THAT for format
+// filtering instead of the (nonexistent) type field on the search response.
+async function fetchMUDetailType(seriesId: string): Promise<NormalizedFormat> {
+  try {
+    await new Promise(r => setTimeout(r, API_DELAY_MS))
+    const res = await fetchWithTimeout(`https://api.mangaupdates.com/v1/series/${seriesId}`)
+    if (!res.ok) return 'other'
+    const data = await res.json()
+    return normalizeFormat(data?.type ?? null)
+  } catch (err) {
+    console.error(`MU detail fetch error for series ${seriesId}:`, err)
+    return 'other'
+  }
+}
+
 async function findMangaUpdatesID(
   titles: string[], author?: string | null, artist?: string | null,
   year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
@@ -189,16 +213,33 @@ async function findMangaUpdatesID(
         body:    JSON.stringify({ search: title, perpage: 15 }),
       })
       if (!res.ok) continue
-      const data       = await res.json()
-      const candidates: Candidate[] = (data.results ?? []).map((r: any) => ({
+      const data = await res.json()
+      const rawResults = (data.results ?? []) as any[]
+
+      // Build candidates WITHOUT format first — the search endpoint can't
+      // tell us that. Cap detail lookups to the top 3 raw results — this
+      // covers realistic cases (a manga + its novel counterpart both
+      // appearing near the top) without hammering MU's API per title.
+      const candidatesNoFormat = rawResults.slice(0, 3).map((r: any) => ({
         id:     String(r.record?.series_id ?? ''),
         title:  r.record?.title ?? '',
         author: r.record?.author ?? '',
         artist: r.record?.artist ?? '',
         year:   r.record?.year ? Number(r.record.year) : null,
-        // MangaUpdates 'type' field: Manga, Manhwa, Manhua, Novel, Doujinshi, OEL, Artbook, etc.
-        format: normalizeFormat(r.record?.type ?? null),
       }))
+
+      // Fetch real format from the detail endpoint for each candidate,
+      // IN PARALLEL — otherwise 3 sequential detail calls (each preceded
+      // by API_DELAY_MS) would stack into 1.8+ seconds just for MU alone,
+      // eating into the per-comic TIME_BUDGET_MS. Parallelizing bounds
+      // this to roughly the slowest single detail call instead.
+      const candidates: Candidate[] = await Promise.all(
+        candidatesNoFormat.map(async (c) => ({
+          ...c,
+          format: c.id ? await fetchMUDetailType(c.id) : 'other' as NormalizedFormat,
+        }))
+      )
+
       const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence, 'manga')
       if (matchId) {
         const matched = candidates.find(c => c.id === matchId)
@@ -352,12 +393,6 @@ async function findExternalIds(
   const years: Record<string, number | null>       = {}
   const titles = buildQueryTitles(title, alternativeTitles)
 
-  // Run all 4 sources concurrently instead of sequentially. These are
-  // fully independent lookups (different APIs, different candidate pools),
-  // so there's no reason to wait for MU before starting MD/AL/Jikan.
-  // Previously this was 4 sequential awaits, meaning total time was the
-  // SUM of all 4 sources' durations. Now it's the MAX of the 4 — the
-  // single biggest lever for staying under cron-job.org's 30s limit.
   const [mu, md, al, mal] = await Promise.all([
     findMangaUpdatesID(titles, author, artist, year, yearConfidence),
     findMangaDexID(titles, author, artist, year, yearConfidence),
@@ -501,12 +536,6 @@ export async function GET(req: Request) {
     const logs: IDCheckLog[] = []
 
     for (const comic of comics) {
-      // Checked only BETWEEN comics — never inside a comic's own processing.
-      // Any comic that begins this loop body always runs to completion
-      // (all 4 sources awaited + consensus + DB write) before we ever look
-      // at the clock again. Comics we don't get to simply stay untouched
-      // and get picked up on the next cron tick via the existing cooldown
-      // filter — nothing is ever partially checked or written.
       if (Date.now() - runStart > TIME_BUDGET_MS) {
         timedOutEarly = true
         break

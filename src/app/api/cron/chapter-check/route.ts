@@ -23,6 +23,42 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQU
   }
 }
 
+type NormalizedFormat = 'manga' | 'novel' | 'other'
+
+function normalizeFormat(raw: string | null | undefined): NormalizedFormat {
+  if (!raw) return 'other'
+  const r = raw.toLowerCase().trim()
+
+  if (
+    r === 'novel' ||
+    r === 'light novel' ||
+    r === 'light_novel' ||
+    r === 'web novel' ||
+    r === 'web_novel' ||
+    r.includes('novel')
+  ) {
+    return 'novel'
+  }
+
+  if (
+    r === 'manga' ||
+    r === 'manhwa' ||
+    r === 'manhua' ||
+    r === 'webtoon' ||
+    r === 'comic' ||
+    r === 'comics' ||
+    r === 'one-shot' ||
+    r === 'one_shot' ||
+    r === 'oneshot' ||
+    r === 'doujinshi' ||
+    r === 'oel'
+  ) {
+    return 'manga'
+  }
+
+  return 'other'
+}
+
 // ── Logging ───────────────────────────────────────────────────────
 interface CheckLog {
   comic_id:          string
@@ -34,6 +70,7 @@ interface CheckLog {
   status:            'success' | 'no_update' | 'failed' | 'skipped_no_ids' | 'skipped_id_checker_active' | 'completed_corrected'
   reason?:           string
   error?:            string
+  format_rejections?: string[]
   timestamp:         string
 }
 
@@ -54,9 +91,14 @@ async function logChapterCheck(supabase: any, log: CheckLog) {
 interface SourceResult {
   chapter: number | null
   isCompleted: boolean
+  // true if this source's ID resolved to a non-manga format (novel, etc.)
+  // and was therefore rejected regardless of what chapter count it reported.
+  formatRejected: boolean
 }
 
-// ── MangaUpdates ──────────────────────────────────────────────────
+const REJECTED: SourceResult = { chapter: null, isCompleted: false, formatRejected: true }
+const EMPTY:    SourceResult = { chapter: null, isCompleted: false, formatRejected: false }
+
 async function getChapterFromMU(id: string): Promise<SourceResult> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -70,47 +112,51 @@ async function getChapterFromMU(id: string): Promise<SourceResult> {
         if (matchedItem?.series_id) {
           numericId = String(matchedItem.series_id)
         } else {
-          return { chapter: null, isCompleted: false }
+          return EMPTY
         }
       } else {
-        return { chapter: null, isCompleted: false }
+        return EMPTY
       }
     }
 
     const res = await fetchWithTimeout(`https://api.mangaupdates.com/v1/series/${numericId}`)
-    if (!res.ok) return { chapter: null, isCompleted: false }
+    if (!res.ok) return EMPTY
     const data = await res.json()
-    const ch   = data?.latest_chapter
-    
-    // Check MU status indicators
+
+    // Format check FIRST, before anything else — a novel's chapter count
+    // must never be used, no matter how "confirmed" it later looks against
+    // other sources.
+    const format = normalizeFormat(data?.type ?? null)
+    if (format !== 'manga') return REJECTED
+
+    const ch = data?.latest_chapter
     const muStatus = String(data?.status || '').toLowerCase()
     const isCompleted = muStatus.includes('complete')
 
-    return { 
-      chapter: ch && !isNaN(Number(ch)) ? Number(ch) : null, 
-      isCompleted 
+    return {
+      chapter: ch && !isNaN(Number(ch)) ? Number(ch) : null,
+      isCompleted,
+      formatRejected: false,
     }
   } catch (err) {
     console.error(`MU chapter error for ${id}:`, err)
-    return { chapter: null, isCompleted: false }
+    return EMPTY
   }
 }
 
-// ── MangaDex ──────────────────────────────────────────────────────
 async function getChapterFromMangaDex(id: string): Promise<SourceResult> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     const res = await fetchWithTimeout(`https://api.mangadex.org/manga/${id}`)
-    if (!res.ok) return { chapter: null, isCompleted: false }
+    if (!res.ok) return EMPTY
     const data = await res.json()
     const ch   = data?.data?.attributes?.lastChapter
-    
-    // MangaDex status enum: "ongoing", "completed", "hiatus", "cancelled"
+
     const mdStatus = data?.data?.attributes?.status
     const isCompleted = mdStatus === 'completed'
 
     if (ch && !isNaN(Number(ch))) {
-      return { chapter: Number(ch), isCompleted }
+      return { chapter: Number(ch), isCompleted, formatRejected: false }
     }
 
     const feedRes = await fetchWithTimeout(`https://api.mangadex.org/manga/${id}/feed?limit=10&order[chapter]=desc`)
@@ -118,142 +164,168 @@ async function getChapterFromMangaDex(id: string): Promise<SourceResult> {
       const feedData = await feedRes.json()
       const highestFeedCh = feedData?.data?.[0]?.attributes?.chapter
       if (highestFeedCh && !isNaN(Number(highestFeedCh))) {
-        return { chapter: Number(highestFeedCh), isCompleted }
+        return { chapter: Number(highestFeedCh), isCompleted, formatRejected: false }
       }
     }
-    return { chapter: null, isCompleted }
+    return { chapter: null, isCompleted, formatRejected: false }
   } catch (err) {
     console.error(`MD chapter error for ${id}:`, err)
-    return { chapter: null, isCompleted: false }
+    return EMPTY
   }
 }
 
-// ── Jikan (MAL) ───────────────────────────────────────────────────
 async function getChapterFromJikan(id: string): Promise<SourceResult> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
     const res = await fetchWithTimeout(`https://api.jikan.moe/v4/manga/${id}`)
-    if (!res.ok) return { chapter: null, isCompleted: false }
+    if (!res.ok) return EMPTY
     const data = await res.json()
-    const ch   = data?.data?.chapters
-    
-    // MAL Status values: "Publishing", "Completed"
+
+    const format = normalizeFormat(data?.data?.type ?? null)
+    if (format !== 'manga') return REJECTED
+
+    const ch = data?.data?.chapters
     const malStatus = String(data?.data?.status || '').toLowerCase()
     const isCompleted = malStatus === 'completed' || malStatus === 'finished'
 
-    return { 
-      chapter: ch && !isNaN(Number(ch)) ? Number(ch) : null, 
-      isCompleted 
+    return {
+      chapter: ch && !isNaN(Number(ch)) ? Number(ch) : null,
+      isCompleted,
+      formatRejected: false,
     }
   } catch (err) {
     console.error(`Jikan chapter error for ${id}:`, err)
-    return { chapter: null, isCompleted: false }
+    return EMPTY
   }
 }
 
-// ── AniList ───────────────────────────────────────────────────────
 async function getChapterFromAniList(id: string): Promise<SourceResult> {
   try {
     const cleanId = parseInt(String(id).replace(/\D/g, ''), 10)
-    if (isNaN(cleanId)) return { chapter: null, isCompleted: false }
+    if (isNaN(cleanId)) return EMPTY
 
     await new Promise(r => setTimeout(r, API_DELAY_MS))
-    const gql = `query($id:Int){Media(id:$id,type:MANGA){chapters,status}}`
+    const gql = `query($id:Int){Media(id:$id,type:MANGA){chapters,status,format}}`
     const res = await fetchWithTimeout('https://graphql.anilist.co', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ query: gql, variables: { id: cleanId } }),
     })
-    if (!res.ok) return { chapter: null, isCompleted: false }
+    if (!res.ok) return EMPTY
     const data = await res.json()
-    const ch   = data?.data?.Media?.chapters
-    
-    // AniList status enum: FINISHED, RELEASING, NOT_YET_RELEASED, CANCELLED, HIATUS
+
+    const format = normalizeFormat(data?.data?.Media?.format ?? null)
+    if (format !== 'manga') return REJECTED
+
+    const ch = data?.data?.Media?.chapters
     const alStatus = data?.data?.Media?.status
     const isCompleted = alStatus === 'FINISHED'
 
-    return { 
-      chapter: ch && !isNaN(Number(ch)) ? Number(ch) : null, 
-      isCompleted 
+    return {
+      chapter: ch && !isNaN(Number(ch)) ? Number(ch) : null,
+      isCompleted,
+      formatRejected: false,
     }
   } catch (err) {
     console.error(`AL chapter error for ${id}:`, err)
-    return { chapter: null, isCompleted: false }
+    return EMPTY
   }
 }
 
 // ── Resolve chapter count & status across sources ──
-async function resolveChapterCount(comic: any): Promise<{ chapter: number | null; source: string | null; tried: string[]; isCompleted: boolean }> {
+async function resolveChapterCount(comic: any): Promise<{
+  chapter: number | null
+  source: string | null
+  tried: string[]
+  isCompleted: boolean
+  formatRejections: string[]
+}> {
   const tried: string[] = []
+  const formatRejections: string[] = []
   let structuralCompletionFlags: boolean[] = []
 
   let muChapter: number | null = null
   if (comic.mangaupdates_id) {
     tried.push('MangaUpdates')
     const muRes = await getChapterFromMU(comic.mangaupdates_id)
-    muChapter = muRes.chapter
-    if (muRes.isCompleted) structuralCompletionFlags.push(true)
+    if (muRes.formatRejected) {
+      formatRejections.push('MangaUpdates')
+    } else {
+      muChapter = muRes.chapter
+      if (muRes.isCompleted) structuralCompletionFlags.push(true)
+    }
   }
 
   let mdChapter: number | null = null
   if (comic.mangadex_id) {
     tried.push('MangaDex')
     const mdRes = await getChapterFromMangaDex(comic.mangadex_id)
-    mdChapter = mdRes.chapter
-    if (mdRes.isCompleted) structuralCompletionFlags.push(true)
+    if (mdRes.formatRejected) {
+      formatRejections.push('MangaDex')
+    } else {
+      mdChapter = mdRes.chapter
+      if (mdRes.isCompleted) structuralCompletionFlags.push(true)
+    }
   }
 
-  // Evaluate structural consensus on completion early
   const isCompleted = structuralCompletionFlags.length > 0
 
   if (muChapter !== null && mdChapter !== null && Math.abs(muChapter - mdChapter) <= 1) {
-    return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried, isCompleted }
+    return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried, isCompleted, formatRejections }
   }
 
   let malChapter: number | null = null
   if (comic.mal_id) {
     tried.push('MAL')
     const malRes = await getChapterFromJikan(comic.mal_id)
-    malChapter = malRes.chapter
-    if (malRes.isCompleted) return { chapter: malChapter, source: 'MAL confirmed closure', tried, isCompleted: true }
+    if (malRes.formatRejected) {
+      formatRejections.push('MAL')
+    } else {
+      malChapter = malRes.chapter
+      if (malRes.isCompleted) return { chapter: malChapter, source: 'MAL confirmed closure', tried, isCompleted: true, formatRejections }
+    }
   }
 
   if (malChapter !== null) {
     if (muChapter !== null && Math.abs(malChapter - muChapter) <= 1) {
-      return { chapter: Math.max(malChapter, muChapter), source: 'MU+MAL confirmed', tried, isCompleted: true }
+      return { chapter: Math.max(malChapter, muChapter), source: 'MU+MAL confirmed', tried, isCompleted: true, formatRejections }
     }
     if (mdChapter !== null && Math.abs(malChapter - mdChapter) <= 1) {
-      return { chapter: Math.max(malChapter, mdChapter), source: 'MD+MAL confirmed', tried, isCompleted: true }
+      return { chapter: Math.max(malChapter, mdChapter), source: 'MD+MAL confirmed', tried, isCompleted: true, formatRejections }
     }
   }
 
   if (comic.anilist_id) {
     tried.push('AniList')
     const alRes = await getChapterFromAniList(comic.anilist_id)
-    const alChapter = alRes.chapter
-    if (alRes.isCompleted) return { chapter: alChapter, source: 'AniList confirmed closure', tried, isCompleted: true }
-    
-    if (alChapter !== null) {
-      if (muChapter !== null && Math.abs(alChapter - muChapter) <= 1) {
-        return { chapter: Math.max(alChapter, muChapter), source: 'MU+AniList confirmed', tried, isCompleted }
-      }
-      if (mdChapter !== null && Math.abs(alChapter - mdChapter) <= 1) {
-        return { chapter: Math.max(alChapter, mdChapter), source: 'MD+AniList confirmed', tried, isCompleted }
-      }
-      if (malChapter !== null && Math.abs(alChapter - malChapter) <= 1) {
-        return { chapter: Math.max(alChapter, malChapter), source: 'MAL+AniList confirmed', tried, isCompleted: true }
-      }
-      if (muChapter === null && mdChapter === null && malChapter === null) {
-        return { chapter: alChapter, source: 'AniList', tried, isCompleted }
+    if (alRes.formatRejected) {
+      formatRejections.push('AniList')
+    } else {
+      const alChapter = alRes.chapter
+      if (alRes.isCompleted) return { chapter: alChapter, source: 'AniList confirmed closure', tried, isCompleted: true, formatRejections }
+
+      if (alChapter !== null) {
+        if (muChapter !== null && Math.abs(alChapter - muChapter) <= 1) {
+          return { chapter: Math.max(alChapter, muChapter), source: 'MU+AniList confirmed', tried, isCompleted, formatRejections }
+        }
+        if (mdChapter !== null && Math.abs(alChapter - mdChapter) <= 1) {
+          return { chapter: Math.max(alChapter, mdChapter), source: 'MD+AniList confirmed', tried, isCompleted, formatRejections }
+        }
+        if (malChapter !== null && Math.abs(alChapter - malChapter) <= 1) {
+          return { chapter: Math.max(alChapter, malChapter), source: 'MAL+AniList confirmed', tried, isCompleted: true, formatRejections }
+        }
+        if (muChapter === null && mdChapter === null && malChapter === null) {
+          return { chapter: alChapter, source: 'AniList', tried, isCompleted, formatRejections }
+        }
       }
     }
   }
 
-  if (muChapter !== null)  return { chapter: muChapter,  source: 'MangaUpdates (unconfirmed)', tried, isCompleted }
-  if (mdChapter !== null)  return { chapter: mdChapter,  source: 'MangaDex (unconfirmed)',      tried, isCompleted }
-  if (malChapter !== null) return { chapter: malChapter, source: 'MAL (unconfirmed)',           tried, isCompleted: true }
+  if (muChapter !== null)  return { chapter: muChapter,  source: 'MangaUpdates (unconfirmed)', tried, isCompleted, formatRejections }
+  if (mdChapter !== null)  return { chapter: mdChapter,  source: 'MangaDex (unconfirmed)',      tried, isCompleted, formatRejections }
+  if (malChapter !== null) return { chapter: malChapter, source: 'MAL (unconfirmed)',           tried, isCompleted: true, formatRejections }
 
-  return { chapter: null, source: null, tried, isCompleted }
+  return { chapter: null, source: null, tried, isCompleted, formatRejections }
 }
 
 // ── Lock helpers ──────────────────────────────────────────────────
@@ -358,7 +430,19 @@ export async function GET(req: Request) {
       }
 
       try {
-        const { chapter: newChapterCount, source, tried, isCompleted } = await resolveChapterCount(comic)
+        const { chapter: newChapterCount, source, tried, isCompleted, formatRejections } = await resolveChapterCount(comic)
+
+        if (formatRejections.length > 0) {
+          const clearPayload: Record<string, any> = {}
+          if (formatRejections.includes('MangaUpdates')) clearPayload.mangaupdates_id = null
+          if (formatRejections.includes('MangaDex'))     clearPayload.mangadex_id     = null
+          if (formatRejections.includes('MAL'))          clearPayload.mal_id          = null
+          if (formatRejections.includes('AniList'))      clearPayload.anilist_id      = null
+          if (Object.keys(clearPayload).length > 0) {
+            clearPayload.last_id_check = null // force ID checker to re-verify on its next pass
+            await supabase.from('recommendations').update(clearPayload).eq('id', comic.id)
+          }
+        }
 
         const logEntry: CheckLog = {
           comic_id:          comic.id,
@@ -368,6 +452,7 @@ export async function GET(req: Request) {
           old_chapter_count: comic.chapter_count,
           new_chapter_count: newChapterCount,
           status:            'no_update',
+          format_rejections: formatRejections.length > 0 ? formatRejections : undefined,
           timestamp,
         }
 
@@ -435,7 +520,6 @@ export async function GET(req: Request) {
             .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)
 
-          // Log discrepancy for admin review
           await supabase.from('activity_logs').insert({
             user_id: null,
             action: 'chapter_discrepancy',
@@ -451,13 +535,16 @@ export async function GET(req: Request) {
           })
 
         } else if (newChapterCount === null) {
-          // 3. ZERO RESULTS FOUND
+          // 3. ZERO RESULTS FOUND (this now also covers "all sources were
+          // format-rejected" — the bad IDs were already cleared above)
           await supabase.from('recommendations')
             .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)
 
           logEntry.status = 'failed'
-          logEntry.reason = 'No valid ID or all APIs returned null'
+          logEntry.reason = formatRejections.length > 0
+            ? `Stored ID(s) pointed to non-manga formats (${formatRejections.join(', ')}) cleared for ID Checker re-verification.`
+            : 'No valid ID or all APIs returned null'
 
         } else {
           // 4. EQUAL COUNTS: Simply complete the tracking check cleanly

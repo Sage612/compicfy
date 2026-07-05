@@ -7,6 +7,7 @@ import {
   BarChart3, BookMarked, Crown, Pencil, Zap,
 } from 'lucide-react'
 import type { Metadata } from 'next'
+import { MaintenanceToggle } from '@/components/admin/MaintenanceToggle'
 
 export const metadata: Metadata = { title: 'Admin Dashboard' }
 
@@ -177,6 +178,17 @@ export default async function AdminPage() {
                 />
               </Link>
             ))}
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-2">
+                Site Controls
+              </p>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+            <MaintenanceToggle />
           </div>
         </div>
       )}

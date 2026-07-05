@@ -27,6 +27,40 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
 
+  const isMaintenanceExempt =
+    pathname.startsWith('/maintenance') ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/favicon') ||
+    pathname.startsWith('/icons') ||
+    pathname === '/firebase-messaging-sw.js' ||
+    pathname === '/sw.js'
+
+  if (!isMaintenanceExempt) {
+    const { data: settings } = await (supabase as any)
+      .from('site_settings')
+      .select('maintenance_mode')
+      .eq('id', 1)
+      .single()
+
+    if (settings?.maintenance_mode) {
+      let isStaffBypass = false
+
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        isStaffBypass = !!profile && ['admin', 'moderator'].includes(profile.role)
+      }
+
+      if (!isStaffBypass) {
+        return NextResponse.redirect(new URL('/maintenance', request.url))
+      }
+    }
+  }
+
   if (ROUTE_REDIRECTS[pathname]) {
     const url = request.nextUrl.clone()
     url.pathname = ROUTE_REDIRECTS[pathname]
@@ -108,16 +142,10 @@ export async function updateSession(request: NextRequest) {
         }
       }
 
-      // Creator trying to access reader DASHBOARD routes → redirect to creator dashboard
-      // Note: /reader/[username] public profiles are NOT dashboard routes, so we scope
-      // this guard to /reader/dashboard only to allow public reader profiles through.
       if (pathname.startsWith('/reader/dashboard') && profile.user_type === 'creator') {
         return NextResponse.redirect(new URL('/creator/dashboard', request.url))
       }
 
-      // Reader trying to access creator DASHBOARD routes → redirect to reader dashboard
-      // Note: /creator/[username] public profiles must remain accessible to all users,
-      // including readers. We scope this guard to /creator/dashboard only.
       if (pathname.startsWith('/creator/dashboard') && profile.user_type === 'reader') {
         return NextResponse.redirect(new URL('/reader/dashboard', request.url))
       }
@@ -134,9 +162,6 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // ── 3. Protected route auth check ─────────────────────────────────────────
-  // Only protect DASHBOARD routes, not public-facing profile pages.
-  // /creator/[username] and /reader/[username] are public profiles — no auth required.
   const protectedPaths = [
     '/reader/dashboard',
     '/creator/dashboard',
