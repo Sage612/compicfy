@@ -8,7 +8,7 @@ export const GENRES = [
 
 export const PLATFORMS = [
   'Webtoon', 'Tapas', 'Tappytoon', 'Viz Media', 'Crunchyroll Manga',
-  'Manta', 'Webcomics', 'Lezhin', 'Mangatoon', 'Pocket Comics',
+  'Manta', 'Webcomics', 'Lezhin', 'Mangatoon', 'WebNovel', 'Pocket Comics',
   'Toomics', 'Toptoon', 'DAYcomics', 'Mangaplus', 'INKR',
 ] as const
 

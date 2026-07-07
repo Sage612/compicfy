@@ -8,10 +8,9 @@ export const PLATFORM_DOMAINS: Record<string, string[]> = {
   'Webcomics':          ['webcomicsapp.com'],
   'Lezhin':             ['lezhinus.com', 'lezhin.com'],
   'Mangatoon':          ['mangatoon.mobi'],
+  'WebNovel':           ['webnovel.com'],
   'Pocket Comics':      ['pocketcomics.com'],
   'Toomics':            ['toomics.com'],
-  // Confirmed via web search (official site): global.toptoon.com,
-  // NOT toptoons.com as originally guessed.
   'Toptoon':            ['global.toptoon.com'],
   'DAYcomics':          ['daycomics.com', 'app.daycomics.com'],
   'Mangaplus':          ['mangaplus.shueisha.co.jp'],
@@ -44,8 +43,6 @@ export function validatePlatformLink(rawUrl: string): LinkValidationResult {
     return { valid: false, reason: 'Link cannot be empty' }
   }
 
-  // Reject anything that isn't a well-formed http(s) URL up front —
-  // blocks javascript:, data:, mailto:, etc. before we even check domain.
   let parsed: URL
   try {
     parsed = new URL(trimmed)
@@ -73,8 +70,6 @@ export function validatePlatformLink(rawUrl: string): LinkValidationResult {
     }
   }
 
-  // Sanitize: force https, strip query string and hash (tracking params,
-  // referral codes, etc.) — keep only origin + pathname.
   const cleanUrl = `https://${parsed.hostname}${parsed.pathname}`.replace(/\/+$/, '')
 
   return { valid: true, cleanUrl }
