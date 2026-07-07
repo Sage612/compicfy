@@ -1,10 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-/**
- * Returns the current user + profile, or a 401/403 response.
- * Pass `adminOnly: true` to restrict to admins only (not mods).
- */
 export async function requireRole(adminOnly = false) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
