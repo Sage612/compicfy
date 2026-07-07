@@ -13,6 +13,7 @@ import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
 import { createClient } from '@/lib/supabase/client'
+import { hasUnlimitedPerks } from '@/lib/access'
 
 interface ReadingList {
   id:          string
@@ -128,10 +129,7 @@ export function ReadingListsClient({
       const { data: p } = await (supabase as any)
         .from('profiles').select('is_pro, pro_expires_at, role').eq('id', user.id).single()
       if (!p) { setIsProUser(false); return }
-      setIsProUser(
-        ['admin', 'moderator'].includes(p.role) ||
-        (p.is_pro && (!p.pro_expires_at || new Date(p.pro_expires_at) > new Date()))
-      )
+      setIsProUser(hasUnlimitedPerks(p))
     }
     load()
   }, [supabase])

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Crown, Zap, CheckCircle2, ArrowRight, Sparkles } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import type { Metadata } from 'next'
+import { isAdmin as isAdminCheck, isProUser } from '@/lib/access'
 
 export const metadata: Metadata = { title: 'Billing' }
 
@@ -28,9 +29,8 @@ export default async function ReaderBillingPage() {
     .limit(1)
     .single() as { data: any }
 
-  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
-  const isPro   = isAdmin || (profile?.is_pro &&
-    (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isAdmin = profile ? isAdminCheck(profile) : false
+  const isPro   = profile ? isProUser(profile) : false
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">

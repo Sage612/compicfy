@@ -7,8 +7,9 @@ const API_DELAY_MS       = 600
 const REQUEST_TIMEOUT_MS = 8000
 const LOCK_NAME          = 'id_checker'
 const LOCK_DURATION_MS   = 55_000
-const YEAR_TOLERANCE = 1
+const YEAR_TOLERANCE     = 1
 const TIME_BUDGET_MS = 22_000
+const FULL_REVERIFY_DAYS = 21
 
 // ── Fetch with timeout ────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
@@ -91,16 +92,7 @@ function smartMatch(
   const nq = normalize(query)
   const na = authorHint ? normalize(authorHint) : null
   const nr = artistHint ? normalize(artistHint) : null
-
-  // ── HARD FILTER: drop any candidate that isn't the expected format ──
-  // This must happen before any title/author/year logic runs. Previously,
-  // a light novel with a matching title/author/year would satisfy every
-  // downstream check because nothing ever looked at format at all.
   const formatFiltered = candidates.filter(c => c.format === expectedFormat)
-
-  // If filtering wipes out every candidate, it means this source only had
-  // e.g. a light novel entry and no manga entry — correctly return null
-  // rather than falling back to the wrong-format candidates.
   const pool = formatFiltered
 
   const authorArtistConfirmed = (c: Candidate): boolean => {
@@ -172,21 +164,6 @@ function buildQueryTitles(title: string, alternativeTitles?: string[] | null): s
   return out
 }
 
-// MangaUpdates' /v1/series/search endpoint does NOT include a `type` field
-// in its response — confirmed by direct inspection of production API output.
-// The `type` field (Manga/Manhwa/Manhua/Novel/etc.) only exists on the
-// /v1/series/{id} DETAIL endpoint. This is the actual root cause of novel
-// IDs slipping through: every search-result candidate was silently
-// normalizing to format 'other' (since r.record.type was always undefined),
-// which should have made every MU candidate fail the 'manga' filter — but
-// some searches (e.g. by a Korean alternate title) returned only ONE
-// candidate that happened to BE the novel, and with no format signal at
-// all from the search response, smartMatch had nothing wrong-looking to
-// reject it on title/author/year grounds alone.
-//
-// Fix: after getting search candidates, fetch the detail endpoint for the
-// top few candidates to get their real `type`, and use THAT for format
-// filtering instead of the (nonexistent) type field on the search response.
 async function fetchMUDetailType(seriesId: string): Promise<NormalizedFormat> {
   try {
     await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -215,11 +192,6 @@ async function findMangaUpdatesID(
       if (!res.ok) continue
       const data = await res.json()
       const rawResults = (data.results ?? []) as any[]
-
-      // Build candidates WITHOUT format first — the search endpoint can't
-      // tell us that. Cap detail lookups to the top 3 raw results — this
-      // covers realistic cases (a manga + its novel counterpart both
-      // appearing near the top) without hammering MU's API per title.
       const candidatesNoFormat = rawResults.slice(0, 3).map((r: any) => ({
         id:     String(r.record?.series_id ?? ''),
         title:  r.record?.title ?? '',
@@ -228,11 +200,6 @@ async function findMangaUpdatesID(
         year:   r.record?.year ? Number(r.record.year) : null,
       }))
 
-      // Fetch real format from the detail endpoint for each candidate,
-      // IN PARALLEL — otherwise 3 sequential detail calls (each preceded
-      // by API_DELAY_MS) would stack into 1.8+ seconds just for MU alone,
-      // eating into the per-comic TIME_BUDGET_MS. Parallelizing bounds
-      // this to roughly the slowest single detail call instead.
       const candidates: Candidate[] = await Promise.all(
         candidatesNoFormat.map(async (c) => ({
           ...c,
@@ -276,9 +243,6 @@ async function findMangaDexID(
           author: authorName,
           artist: artistName,
           year:   attr.year ? Number(attr.year) : null,
-          // MangaDex's catalog is comics-only (no light novel entries), so
-          // everything returned here is safely treated as 'manga'. This is
-          // a structural guarantee from the source, not a guess.
           format: 'manga' as NormalizedFormat,
         }
       })
@@ -301,7 +265,6 @@ async function findAniListID(
   for (const title of titles) {
     try {
       await new Promise(r => setTimeout(r, API_DELAY_MS))
-      // NOTE: 'format' added to the query so we can filter out NOVEL entries.
       const gql = `query($search:String){Page(perPage:15){media(search:$search,type:MANGA,sort:SEARCH_MATCH){id title{english romaji native}format startDate{year}staff(perPage:10){edges{role node{name{full}}}}}}}`
       const res = await fetchWithTimeout('https://graphql.anilist.co', {
         method:  'POST',
@@ -320,9 +283,6 @@ async function findAniListID(
           author: authorName,
           artist: artistName,
           year:   r.startDate?.year ? Number(r.startDate.year) : null,
-          // AniList format enum: MANGA, NOVEL, ONE_SHOT, etc.
-          // type:MANGA in the query already excludes anime, but NOVEL
-          // (light novels) still comes back under type:MANGA in their schema.
           format: normalizeFormat(r.format ?? null),
         }
       })
@@ -361,8 +321,6 @@ async function findJikanID(
           author: authorName,
           artist: artistName,
           year:   publishedYear,
-          // Jikan/MAL 'type' field: Manga, Novel, Light Novel, Manhwa,
-          // Manhua, One-shot, Doujinshi, OEL.
           format: normalizeFormat(r.type ?? null),
         }
       })
@@ -392,7 +350,6 @@ async function findExternalIds(
   const ids:   Record<string, string | undefined> = {}
   const years: Record<string, number | null>       = {}
   const titles = buildQueryTitles(title, alternativeTitles)
-
   const [mu, md, al, mal] = await Promise.all([
     findMangaUpdatesID(titles, author, artist, year, yearConfidence),
     findMangaDexID(titles, author, artist, year, yearConfidence),
@@ -449,6 +406,7 @@ interface IDCheckLog {
   status:            'found_all' | 'found_some' | 'found_none' | 'skipped_complete'
   total_ids_found:   number
   reason?:           string
+ full_reverify?:    boolean
   timestamp:         string
 }
 
@@ -512,13 +470,14 @@ export async function GET(req: Request) {
   }
 
   try {
-    const cooloffCutoff = new Date(Date.now() - COOLDOWN_HOURS * 60 * 60 * 1000).toISOString()
+    const cooloffCutoff  = new Date(Date.now() - COOLDOWN_HOURS * 60 * 60 * 1000).toISOString()
+    const reverifyCutoff = new Date(Date.now() - FULL_REVERIFY_DAYS * 24 * 60 * 60 * 1000).toISOString()
 
     const { data: comics, error } = await supabase
       .from('recommendations')
-      .select('id, title, alternative_titles, author, artist, year_released, year_confidence, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check')
+      .select('id, title, alternative_titles, author, artist, year_released, year_confidence, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check, last_full_reverify')
       .eq('is_approved', true)
-      .or(`last_id_check.is.null,last_id_check.lt.${cooloffCutoff}`)
+      .or(`last_id_check.is.null,last_id_check.lt.${cooloffCutoff},last_full_reverify.is.null,last_full_reverify.lt.${reverifyCutoff}`)
       .limit(BATCH_SIZE)
 
     if (error) {
@@ -547,7 +506,11 @@ export async function GET(req: Request) {
         const currentIdCount  = countExternalIds(comic)
         const yearConfidence: 'unverified' | 'confirmed' = comic.year_confidence ?? 'unverified'
 
-        if (currentIdCount === TOTAL_ID_SOURCES && yearConfidence === 'confirmed') {
+        const dueForFullReverify =
+          !comic.last_full_reverify ||
+          new Date(comic.last_full_reverify) < new Date(reverifyCutoff)
+
+        if (currentIdCount === TOTAL_ID_SOURCES && yearConfidence === 'confirmed' && !dueForFullReverify) {
           skippedComplete++
           await supabase.from('recommendations').update({ last_id_check: timestamp }).eq('id', comic.id)
           logs.push({
@@ -567,16 +530,26 @@ export async function GET(req: Request) {
         )
         const totalFound = Object.values(ids).filter(Boolean).length
 
-        const mergedIds = {
-          mangaupdates_id: comic.mangaupdates_id || ids.mangaupdates_id,
-          mangadex_id:     comic.mangadex_id     || ids.mangadex_id,
-          anilist_id:      comic.anilist_id      || ids.anilist_id,
-          mal_id:          comic.mal_id          || ids.mal_id,
-        }
+        const mergedIds = dueForFullReverify
+          ? {
+              mangaupdates_id: ids.mangaupdates_id ?? comic.mangaupdates_id,
+              mangadex_id:     ids.mangadex_id     ?? comic.mangadex_id,
+              anilist_id:      ids.anilist_id      ?? comic.anilist_id,
+              mal_id:          ids.mal_id          ?? comic.mal_id,
+            }
+          : {
+              mangaupdates_id: comic.mangaupdates_id || ids.mangaupdates_id,
+              mangadex_id:     comic.mangadex_id     || ids.mangadex_id,
+              anilist_id:      comic.anilist_id      || ids.anilist_id,
+              mal_id:          comic.mal_id          || ids.mal_id,
+            }
 
         const { consensusYear, outlierSources } = deriveYearConsensus(years)
 
         const updatePayload: Record<string, any> = { ...mergedIds, last_id_check: timestamp }
+        if (dueForFullReverify) {
+          updatePayload.last_full_reverify = timestamp
+        }
         let yearCorrected = false
 
         if (consensusYear !== null) {
@@ -620,6 +593,7 @@ export async function GET(req: Request) {
           outlier_sources:    outlierSources,
           status,
           total_ids_found:    newIdCount,
+          full_reverify:      dueForFullReverify,
           timestamp,
         })
 

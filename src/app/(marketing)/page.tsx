@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { isProUser } from '@/lib/access'
 import { Button } from '@/components/ui/button'
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { NewsCard } from '@/components/news/NewsCard'
@@ -128,11 +129,12 @@ export default async function HomePage() {
       .select('role, is_pro, pro_expires_at')
       .eq('id', user.id)
       .single()
-    const isAdminOrMod = ['admin', 'moderator'].includes((currentProfile as any)?.role ?? '')
-    const isPro = (currentProfile as any)?.is_pro &&
-      (!(currentProfile as any)?.pro_expires_at ||
-        new Date((currentProfile as any).pro_expires_at) > new Date())
-    if (isAdminOrMod || isPro) submitRoute = '/pro/recommendations/new'
+    const isPro = isProUser({
+      role: (currentProfile as any)?.role ?? '',
+      is_pro: (currentProfile as any)?.is_pro ?? false,
+      pro_expires_at: (currentProfile as any)?.pro_expires_at ?? null,
+    })
+    if (isPro) submitRoute = '/pro/recommendations/new'
   }
 
   const topComics    = (trending        as Recommendation[]) ?? []

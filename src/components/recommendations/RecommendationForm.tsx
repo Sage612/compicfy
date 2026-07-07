@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils'
 import { MangaSearch } from './MangaSearch'
 import { createClient } from '@/lib/supabase/client'
 import { validatePlatformLink } from '@/lib/utils/platformLinks'
+import { isProUser, hasUnlimitedPerks } from '@/lib/access'
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200, 'Max 200 characters'),
@@ -32,10 +33,6 @@ const formSchema = z.object({
   status: z.enum(['ongoing', 'completed', 'hiatus', 'cancelled']),
   genres: z.array(z.string()).min(1, 'Select at least one genre').max(5),
   official_platforms: z.array(z.string()).min(1, 'Select at least one platform'),
-  // Paired by index with official_platforms. Optional per-entry — client-side
-  // domain validation happens live in PlatformSelector; this schema-level check
-  // is the final gate before submit (server re-validates regardless, see
-  // lib/utils/validators.ts — that's the actual source of truth).
   official_links: z.array(z.string()).default([]),
   cover_url: z.string().default(''),
   content_rating: z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
@@ -139,8 +136,9 @@ export function RecommendationForm({ userId }: Props) {
     mangadex_id?:     string
   }>({})
 
-  const [monthlyCount, setMonthlyCount] = useState<number | null>(null)
-  const [isPro,        setIsPro]        = useState<boolean | null>(null)
+  const [monthlyCount,        setMonthlyCount]        = useState<number | null>(null)
+  const [isPro,               setIsPro]               = useState<boolean | null>(null)
+  const [unlimitedPerks,      setUnlimitedPerks]      = useState<boolean | null>(null)
   const [peakHourModal, setPeakHourModal] = useState<{
   open:        boolean
   messageType: 'peak_spike' | 'peak_cap'
@@ -160,15 +158,12 @@ export function RecommendationForm({ userId }: Props) {
         .single()
 
       if (!profile) return
+      const realPro = isProUser(profile)
+      setIsPro(realPro)
+      const unlimited = hasUnlimitedPerks(profile)
+      setUnlimitedPerks(unlimited)
 
-      const proStatus =
-        profile.role === 'admin' ||
-        ['admin', 'moderator'].includes(profile.role) ||
-        (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-
-      setIsPro(proStatus)
-
-      if (!proStatus) {
+      if (!unlimited) {
         const startOfMonth = new Date()
         startOfMonth.setDate(1)
         startOfMonth.setHours(0, 0, 0, 0)
@@ -183,8 +178,8 @@ export function RecommendationForm({ userId }: Props) {
     fetchUsage()
   }, [supabase])
 
-  const atRecLimit   = isPro === false && monthlyCount !== null && monthlyCount >= FREE_LIMITS.recommendations_per_month
-  const nearRecLimit = isPro === false && monthlyCount !== null && monthlyCount >= FREE_LIMITS.recommendations_per_month - 5
+  const atRecLimit   = unlimitedPerks === false && monthlyCount !== null && monthlyCount >= FREE_LIMITS.recommendations_per_month
+  const nearRecLimit = unlimitedPerks === false && monthlyCount !== null && monthlyCount >= FREE_LIMITS.recommendations_per_month - 5
   const usagePct     = monthlyCount !== null ? Math.min(100, Math.round((monthlyCount / FREE_LIMITS.recommendations_per_month) * 100)) : 0
 
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = useForm<FormValues>({
@@ -326,7 +321,7 @@ export function RecommendationForm({ userId }: Props) {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
       {/* Monthly usage bar */}
-      {isPro === false && monthlyCount !== null && (
+      {unlimitedPerks === false && monthlyCount !== null && (
         <div className={cn(
           'rounded-2xl border p-4 space-y-3',
           atRecLimit  ? 'border-red-500/30 bg-red-500/5' :

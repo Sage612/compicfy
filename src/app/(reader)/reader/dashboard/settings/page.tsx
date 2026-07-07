@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { SettingsForm } from '@/components/user/SettingsForm'
 import type { Profile } from '@/types/database.types'
 import type { Metadata } from 'next'
+import { hasUnlimitedPerks } from '@/lib/access'
 
 export const metadata: Metadata = { title: 'Settings' }
 
@@ -15,9 +16,7 @@ export default async function ReaderSettingsPage() {
     .from('profiles').select('*').eq('id', user.id).single()
   if (!profile) redirect('/login')
 
-  const isAdmin = ['admin', 'moderator'].includes((profile as any).role ?? '')
-  const isPro   = isAdmin || ((profile as any).is_pro &&
-    (!(profile as any).pro_expires_at || new Date((profile as any).pro_expires_at) > new Date()))
+  const isPro = hasUnlimitedPerks(profile as any)
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">

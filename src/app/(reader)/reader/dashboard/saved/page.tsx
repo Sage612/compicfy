@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
 import type { Recommendation } from '@/types/database.types'
 import type { Metadata } from 'next'
+import { hasUnlimitedPerks } from '@/lib/access'
 
 export const metadata: Metadata = { title: 'Saved Comics' }
 
@@ -24,11 +25,7 @@ export default async function ReaderSavedPage() {
     .eq('id', user.id)
     .single() as { data: any }
 
-  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
-  const isPro   = isAdmin || (
-    profile?.is_pro &&
-    (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
-  )
+  const isPro = profile ? hasUnlimitedPerks(profile) : false
 
   const { data: saves } = await supabase
     .from('saves')

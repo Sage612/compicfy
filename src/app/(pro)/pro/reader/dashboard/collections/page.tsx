@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CollectionsClient } from '@/components/collections/CollectionsClient'
 import type { Metadata } from 'next'
+import { hasUnlimitedPerks } from '@/lib/access'
 
 export const metadata: Metadata = { title: 'My Collections' }
 
@@ -16,11 +17,7 @@ export default async function ProReaderCollectionsPage() {
     .eq('id', user.id)
     .single() as { data: any }
 
-  const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
-  const isPro   = isAdmin || (
-    profile?.is_pro &&
-    (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
-  )
+  const isPro = profile ? hasUnlimitedPerks(profile) : false
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">

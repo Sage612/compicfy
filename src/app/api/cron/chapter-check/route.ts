@@ -91,8 +91,6 @@ async function logChapterCheck(supabase: any, log: CheckLog) {
 interface SourceResult {
   chapter: number | null
   isCompleted: boolean
-  // true if this source's ID resolved to a non-manga format (novel, etc.)
-  // and was therefore rejected regardless of what chapter count it reported.
   formatRejected: boolean
 }
 
@@ -122,10 +120,6 @@ async function getChapterFromMU(id: string): Promise<SourceResult> {
     const res = await fetchWithTimeout(`https://api.mangaupdates.com/v1/series/${numericId}`)
     if (!res.ok) return EMPTY
     const data = await res.json()
-
-    // Format check FIRST, before anything else — a novel's chapter count
-    // must never be used, no matter how "confirmed" it later looks against
-    // other sources.
     const format = normalizeFormat(data?.type ?? null)
     if (format !== 'manga') return REJECTED
 
@@ -431,7 +425,6 @@ export async function GET(req: Request) {
 
       try {
         const { chapter: newChapterCount, source, tried, isCompleted, formatRejections } = await resolveChapterCount(comic)
-
         if (formatRejections.length > 0) {
           const clearPayload: Record<string, any> = {}
           if (formatRejections.includes('MangaUpdates')) clearPayload.mangaupdates_id = null
@@ -456,7 +449,6 @@ export async function GET(req: Request) {
           timestamp,
         }
 
-        // ── AUTO-CORRECT ROUTE: Series finalized external serialization ──
         if (isCompleted) {
           const finalChapter = newChapterCount ?? comic.chapter_count ?? 0
           await supabase.from('recommendations')
@@ -476,7 +468,6 @@ export async function GET(req: Request) {
 
         // ── Conditional Routing Path ─────────────────────────────────
         if (newChapterCount && newChapterCount > (comic.chapter_count ?? 0)) {
-          // 1. SUCCESS: Chapter progression found
           await supabase.from('recommendations')
             .update({ chapter_count: newChapterCount, last_chapter_check: timestamp })
             .eq('id', comic.id)
@@ -512,7 +503,6 @@ export async function GET(req: Request) {
           })
 
         } else if (newChapterCount !== null && newChapterCount < (comic.chapter_count ?? 0)) {
-          // 2. REGRESSION DETECTED: External APIs returned stale or lower counts
           logEntry.status = 'failed'
           logEntry.reason = `Stale API Data: External source returned ${newChapterCount}, but database is already ahead at ${comic.chapter_count}.`
 
@@ -535,8 +525,6 @@ export async function GET(req: Request) {
           })
 
         } else if (newChapterCount === null) {
-          // 3. ZERO RESULTS FOUND (this now also covers "all sources were
-          // format-rejected" — the bad IDs were already cleared above)
           await supabase.from('recommendations')
             .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)
@@ -547,7 +535,6 @@ export async function GET(req: Request) {
             : 'No valid ID or all APIs returned null'
 
         } else {
-          // 4. EQUAL COUNTS: Simply complete the tracking check cleanly
           await supabase.from('recommendations')
             .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)

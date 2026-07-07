@@ -7,6 +7,7 @@ import { BookMarked, Plus, Check, Loader2, ChevronRight, Crown, Lock } from 'luc
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { isProUser, hasUnlimitedPerks } from '@/lib/access'
 
 interface Props {
   recommendationId: string
@@ -87,28 +88,21 @@ export function AddToListButton({ recommendationId, userId }: Props) {
         const rawLists = (listsRes.data ?? []) as { id: string; name: string; created_at: string }[]
         const profile = profileRes.data
 
-        // Determine pro status
-        const isPro = profile
-          ? profile.role === 'admin' ||
-            ['admin', 'moderator'].includes(profile.role) ||
-            (profile.is_pro &&
-              (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-          : false
+        const isPro = profile ? isProUser(profile) : false
+        const unlimited = profile ? hasUnlimitedPerks(profile) : false
 
-        // Determine correct dashboard route for this user's type + tier
         const isCreator = profile?.user_type === 'creator'
         const base = isCreator
           ? (isPro ? '/pro/creator/dashboard/lists' : '/creator/dashboard/lists')
           : (isPro ? '/pro/reader/dashboard/lists' : '/reader/dashboard/lists')
         setListsHref(base)
 
-        // Already sorted oldest first — first 3 are free, rest locked
         setLists(
           rawLists.map((l, index) => ({
             id:         l.id,
             name:       l.name,
             created_at: l.created_at,
-            isLocked:   !isPro && index >= FREE_LIST_LIMIT,
+            isLocked:   !unlimited && index >= FREE_LIST_LIMIT,
           }))
         )
       } catch {
