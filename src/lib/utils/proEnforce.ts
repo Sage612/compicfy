@@ -138,7 +138,7 @@ export async function enforceDailyRecLimit(
           error:       'Daily limit reached',
           message:     isEffectivelyPro(typedProfile)
             ? `You've reached your ${dailyLimit} submissions for today. Resets at midnight.`
-            : `You've reached your ${dailyLimit} submissions for today, Resets at midnight. Upgrade to Pro for up to ${DAILY_LIMITS.pro}/day.`,
+            : `You've reached today's submission limit. Resets at midnight. Upgrade to Pro to unlock up to ${DAILY_LIMITS.pro} submissions per day.`,
           upgrade_url: '/pricing',
           daily_limit: dailyLimit,
           used:        currentCount,
