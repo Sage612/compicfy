@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Plus } from 'lucide-react'
+import { X, Plus, ChevronUp, ChevronDown, Star } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -35,6 +35,20 @@ export function GenreSelector({ value, onChange, max = 5, error }: GenreSelector
 
   const remove = (genre: string) => {
     onChange(value.filter((g) => g !== genre))
+  }
+
+  const moveUp = (index: number) => {
+    if (index === 0) return
+    const next = [...value]
+    ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+    onChange(next)
+  }
+
+  const moveDown = (index: number) => {
+    if (index === value.length - 1) return
+    const next = [...value]
+    ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
+    onChange(next)
   }
 
   return (
@@ -115,6 +129,63 @@ export function GenreSelector({ value, onChange, max = 5, error }: GenreSelector
                 </button>
               </span>
             ))}
+        </div>
+      )}
+
+      {/* Selected genres — reorderable. First one is the primary genre,
+          used to decide which single "Browse by Genre" section this
+          comic shows up in on the browse page. */}
+      {value.length > 0 && (
+        <div className="space-y-1.5 rounded-xl border border-border bg-muted/30 p-3">
+          <p className="text-xs font-semibold text-muted-foreground">
+            Order matters the first genre is this comic's <span className="text-foreground">primary genre</span>.
+          </p>
+          <div className="space-y-1.5">
+            {value.map((genre, index) => (
+              <div
+                key={genre}
+                className={cn(
+                  'flex items-center gap-2 px-2.5 py-1.5 rounded-lg border bg-card',
+                  index === 0 ? 'border-primary/40' : 'border-border'
+                )}
+              >
+                {index === 0 ? (
+                  <Star size={12} className="text-primary shrink-0" fill="currentColor" />
+                ) : (
+                  <span className="w-3 shrink-0" />
+                )}
+
+                <span className="flex-1 text-sm font-medium truncate">{genre}</span>
+
+                {index === 0 && (
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-primary shrink-0">
+                    Primary
+                  </span>
+                )}
+
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => moveUp(index)}
+                    disabled={index === 0}
+                    aria-label={`Move ${genre} up`}
+                    className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronUp size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveDown(index)}
+                    disabled={index === value.length - 1}
+                    aria-label={`Move ${genre} down`}
+                    className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronDown size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
