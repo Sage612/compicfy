@@ -193,15 +193,30 @@ async function getTopGenresWithCounts(s: SupabaseClient): Promise<string[]> {
     .map(([genre]) => genre)
 }
 
-// Rotating pick within a genre — cycles through 4 pages of results so the
+// Rotating pick within a genre — cycles through pages of results so the
 // same 9 comics aren't shown every day. Offset by a hash of the genre
-// name so genres don't all rotate in lockstep with each other.
+// name so genres don't all rotate in lockstep with each other. Clamps
+// the cycle length to the genre's actual comic count so small genres
+// (right at the GENRE_MIN_ITEMS threshold) never request a page past
+// the end of their available comics.
 async function getGenreItems(s: SupabaseClient, genre: string): Promise<Recommendation[]> {
+  const { count } = await s
+    .from('recommendations')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_approved', true)
+    .not('content_rating', 'in', SAFE_RATINGS)
+    .contains('genres', [genre])
+
+  const total = count ?? 0
+  if (total === 0) return []
+
+  const maxCycle = Math.max(1, Math.floor(total / GENRE_PAGE_SIZE) || 1)
+
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
   )
   const seed   = genre.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
-  const cycle  = 4
+  const cycle  = Math.min(4, maxCycle)
   const offset = ((dayOfYear + seed) % cycle) * GENRE_PAGE_SIZE
 
   const { data } = await s
@@ -289,7 +304,9 @@ export default async function BrowsePage({ searchParams }: Props) {
   if (!isFiltering) {
     const topGenres  = await getTopGenresWithCounts(supabase)
     const genreItems = await Promise.all(topGenres.map(g => getGenreItems(supabase, g)))
-    genreSections    = topGenres.map((genre, i) => ({ genre, items: genreItems[i] }))
+    genreSections    = topGenres
+      .map((genre, i) => ({ genre, items: genreItems[i] }))
+      .filter(section => section.items.length > 0) // safety net: never render an empty section
   }
 
   const featured         = featuredResult.items
