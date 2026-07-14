@@ -12,6 +12,35 @@ import { GENRES } from '@/lib/utils/constants'
 import type { Recommendation } from '@/types/database.types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+// Emoji per genre — same visual language as the horizontal sections above.
+const GENRE_EMOJIS: Record<string, string> = {
+  'Action':         '⚔️',
+  'Adventure':      '🗺️',
+  'Comedy':         '😂',
+  'Drama':          '🎭',
+  'Fantasy':        '🐉',
+  'Horror':         '👻',
+  'Mystery':        '🔍',
+  'Romance':        '💕',
+  'Sci-Fi':         '🚀',
+  'Slice of Life':  '🍃',
+  'Sports':         '🏆',
+  'Supernatural':   '🌙',
+  'Thriller':       '😱',
+  'Isekai':         '🌀',
+  'Martial Arts':   '🥋',
+  'School Life':    '🎒',
+  'Historical':     '🏛️',
+  'Psychological':  '🧠',
+  'Shounen':        '🔥',
+  'Shoujo':         '🌸',
+  'Seinen':         '🗡️',
+  'Josei':          '💐',
+  'Yuri':           '💗',
+  'Yaoi':           '💜',
+  'Mecha':          '🤖',
+}
+
 interface SearchParams {
   q?:      string
   type?:   string
@@ -29,7 +58,7 @@ const SAFE_RATINGS = '("adult","mature")'
 
 // ── Genre section config ──────────────────────────────────────────
 const GENRE_PAGE_SIZE     = 9   // 3 cards per row x 3 rows
-const GENRE_MIN_ITEMS     = 6   // don't show a genre section unless it has at least this many
+const GENRE_MIN_ITEMS     = 6   // don't render a genre section unless it has at least 6 comics
 const GENRE_SECTION_COUNT = 12  // show top N genres by comic count
 
 async function getFeatured(s: SupabaseClient): Promise<{ items: Recommendation[]; adminIds: Set<string> }> {
@@ -335,13 +364,23 @@ export default async function BrowsePage({ searchParams }: Props) {
 
           {genreSections.map(({ genre, items: genreItems }) => (
             <div key={genre} className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-black leading-tight tracking-tight">{genre}</h3>
-                <Link
-                  href={`/browse?genre=${encodeURIComponent(genre)}`}
-                  className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
-                >
-                  All →
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-2xl leading-none shrink-0">{GENRE_EMOJIS[genre] ?? '📚'}</span>
+                  <div>
+                    <h3 className="text-lg font-black leading-tight tracking-tight">{genre}</h3>
+                    <div className="h-0.5 w-8 rounded-full bg-primary mt-1 opacity-60" />
+                  </div>
+                </div>
+                <Link href={`/browse?genre=${encodeURIComponent(genre)}`} className="shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 text-xs text-muted-foreground hover:text-foreground h-8 px-3"
+                  >
+                    View All
+                    <span aria-hidden>→</span>
+                  </Button>
                 </Link>
               </div>
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
