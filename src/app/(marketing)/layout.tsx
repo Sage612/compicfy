@@ -5,6 +5,7 @@ import { MobileNav } from '@/components/layout/MobileNav'
 import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
 import { SpeedDialFAB } from '@/components/layout/SpeedDialFAB'
 import { createClient } from '@/lib/supabase/server'
+import { isProUser as checkIsProUser, hasUnlimitedPerks } from '@/lib/access'
 
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -25,17 +26,15 @@ export default async function MarketingLayout({ children }: { children: React.Re
 
     const profile = profileResult.data as any
     if (profile) {
-      isAdmin   = ['admin', 'moderator'].includes(profile.role)
-      isProUser = isAdmin || (
-        profile.is_pro &&
-        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
-      )
+      isAdmin = ['admin', 'moderator'].includes(profile.role)
+      isProUser = hasUnlimitedPerks(profile)
 
+      const realPro = checkIsProUser(profile)
       const isCreator = profile.user_type === 'creator'
       if (isCreator) {
-        myListsHref = isProUser ? '/pro/creator/dashboard/works' : '/creator/dashboard/works'
+        myListsHref = realPro ? '/pro/creator/dashboard/works' : '/creator/dashboard/works'
       } else {
-        myListsHref = isProUser ? '/pro/reader/dashboard/lists' : '/reader/dashboard/lists'
+        myListsHref = realPro ? '/pro/reader/dashboard/lists' : '/reader/dashboard/lists'
       }
     }
 

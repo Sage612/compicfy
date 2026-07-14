@@ -78,6 +78,7 @@ export async function POST(req: Request) {
 
     switch (notif.type) {
       case 'vote':
+      case 'vote_milestone':
       case 'review':
         url = data.recommendation_id
           ? `/comic/${data.recommendation_id}`

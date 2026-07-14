@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendVoteNotificationEmail } from '@/lib/email/send'
+import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 export async function POST(
   request: Request,
@@ -9,15 +10,12 @@ export async function POST(
   try {
     const { id } = await params
     const supabase = await createClient()
-
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     const { vote_type } = await request.json()
     if (!['up', 'down'].includes(vote_type)) {
       return NextResponse.json({ error: 'Invalid vote type' }, { status: 400 })
     }
-
     // Check existing vote
     const { data: existing } = await (supabase as any)  
       .from('votes')
@@ -25,7 +23,6 @@ export async function POST(
       .eq('user_id', user.id)
       .eq('recommendation_id', id)
       .maybeSingle()
-
     if (existing) {
       if (existing.vote_type === vote_type) {
         // Remove vote
@@ -37,33 +34,40 @@ export async function POST(
         return NextResponse.json({ action: 'updated', vote_type })
       }
     }
-
     // Insert new vote
     await (supabase as any).from('votes').insert({
       user_id: user.id,
       recommendation_id: id,
       vote_type,
     })
-
     // Get recommendation owner and voter info for notification
     const [{ data: rec }, { data: voter }] = await Promise.all([
       (supabase as any).from('recommendations').select('user_id, title').eq('id', id).single(),
       (supabase as any).from('profiles').select('username, display_name').eq('id', user.id).single(),
     ])
-
     // Don't notify yourself
     if (rec && rec.user_id !== user.id) {
       const voterName = (voter as any)?.username ?? 'someone'
+      const notifTitle = `@${voterName} ${vote_type === 'up' ? 'upvoted' : 'downvoted'} your recommendation "${(rec as any).title}"`
 
       // In-app notification
       await (supabase as any).from('notifications').insert({
         user_id: rec.user_id,
         type: 'vote',
-        title: `@${voterName} ${vote_type === 'up' ? 'upvoted' : 'downvoted'} your recommendation "${(rec as any).title}"`,
+        title: notifTitle,
         data: { recommendation_id: id, voter_id: user.id, vote_type },
       })
 
-      // Email notification — fire and forget
+      if (vote_type === 'up') {
+        sendPushForUser(
+          rec.user_id,
+          notifTitle,
+          'Tap to view your recommendation.',
+          `/comic/${id}`
+        ).catch(console.error)
+      }
+
+      // Email notification fire and forget
       sendVoteNotificationEmail(
         rec.user_id,
         voterName,
@@ -72,7 +76,6 @@ export async function POST(
         vote_type
       ).catch(console.error)
     }
-
     return NextResponse.json({ action: 'created', vote_type })
   } catch {
     return NextResponse.json({ error: 'Failed to vote' }, { status: 500 })

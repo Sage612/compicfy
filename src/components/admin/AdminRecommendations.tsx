@@ -154,7 +154,7 @@ function FeaturePicker({ onConfirm, onCancel, loading }: {
   )
 }
 
-export function AdminRecommendations() {
+export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) {
   const [recs, setRecs]                   = useState<any[]>([])
   const [filter, setFilter]               = useState('pending')
   const [search, setSearch]               = useState('')
@@ -384,7 +384,7 @@ export function AdminRecommendations() {
     setBulkLoading(false)
   }
 
-  const BulkToolbar = () => {
+  const BulkToolbar = ({ role }: { role: 'admin' | 'moderator' }) => {
     const [bulkRejectReason, setBulkRejectReason] = useState('')
     const [showRejectInput, setShowRejectInput]   = useState(false)
     if (!bulkMode) return null
@@ -414,10 +414,12 @@ export function AdminRecommendations() {
             <Button size="sm" variant="outline" className="gap-2 text-red-500 border-red-500/30 hover:bg-red-500/10" onClick={() => setShowRejectInput(v => !v)} disabled={bulkLoading}>
               <XCircle size={13} /> Reject selected
             </Button>
-            <Button size="sm" variant="outline" className="gap-2 text-red-600 border-red-600/30 hover:bg-red-600/10" onClick={handleBulkDelete} disabled={bulkLoading}>
-              {bulkLoading ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-              Delete selected
-            </Button>
+            {role === 'admin' && (
+              <Button size="sm" variant="outline" className="gap-2 text-red-600 border-red-600/30 hover:bg-red-600/10" onClick={handleBulkDelete} disabled={bulkLoading}>
+                {bulkLoading ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                Delete selected
+              </Button>
+            )}
           </div>
         )}
         {someSelected && showRejectInput && (
@@ -476,7 +478,7 @@ export function AdminRecommendations() {
         </div>
       )}
 
-      <BulkToolbar />
+      <BulkToolbar role={role} />
 
       {loading ? (
         <div className="flex justify-center py-16">
@@ -572,22 +574,24 @@ export function AdminRecommendations() {
                             <span className="sm:hidden">Approve</span>
                           </Button>
                         )}
-                        {rec.is_featured ? (
+                        {rec.is_featured && role === 'admin' ? (
                           <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs px-2.5 text-amber-500 border-amber-500/30 hover:bg-amber-500/10 sm:h-8 sm:w-8 sm:p-0"
                             onClick={() => handleAction(rec.id, 'unfeature')}>
                             <StarOff size={12} /><span className="sm:hidden">Unfeature</span>
                           </Button>
-                        ) : rec.is_approved && (
+                        ) : rec.is_approved && role === 'admin' && (
                           <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs px-2.5 text-amber-500 border-amber-500/30 hover:bg-amber-500/10 sm:h-8 sm:w-8 sm:p-0"
                             onClick={() => setFeaturingId(isFeaturing ? null : rec.id)}>
                             <Star size={12} /><span className="sm:hidden">Feature</span>
                           </Button>
                         )}
-                        <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs px-2.5 text-red-500 border-red-500/30 hover:bg-red-500/10 sm:h-8 sm:w-8 sm:p-0"
-                          disabled={!!actionLoading} onClick={() => { if (window.confirm(`Permanently delete "${rec.title}"?`)) handleDelete(rec.id) }}>
-                          {actionLoading === `${rec.id}-delete` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-                          <span className="sm:hidden">Delete</span>
-                        </Button>
+                        {role === 'admin' && (
+                          <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs px-2.5 text-red-500 border-red-500/30 hover:bg-red-500/10 sm:h-8 sm:w-8 sm:p-0"
+                            disabled={!!actionLoading} onClick={() => { if (window.confirm(`Permanently delete "${rec.title}"?`)) handleDelete(rec.id) }}>
+                            {actionLoading === `${rec.id}-delete` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                            <span className="sm:hidden">Delete</span>
+                          </Button>
+                        )}
                         <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0" onClick={() => setExpandedId(isExpanded ? null : rec.id)}>
                           {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                           <span className="sm:hidden">{isExpanded ? 'Less' : 'More'}</span>

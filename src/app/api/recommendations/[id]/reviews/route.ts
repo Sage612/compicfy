@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { reviewSchema } from '@/lib/utils/validators'
 import { sendReviewNotificationEmail } from '@/lib/email/send'
+import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 export async function GET(
   request: Request,
@@ -88,7 +89,7 @@ export async function POST(
 
     if (error) throw error
 
-    // Notify comic owner — don't notify yourself
+    // Notify comic owner â€” don't notify yourself
     try {
       const [{ data: rec }, { data: reviewer }] = await Promise.all([
         (supabase as any).from('recommendations').select('user_id, title').eq('id', id).single(),
@@ -98,16 +99,25 @@ export async function POST(
       if (rec && rec.user_id !== user.id) {
         const reviewerUsername = reviewer?.username ?? 'someone'
         const reviewerName     = reviewer?.display_name || reviewerUsername
+        const notifTitle       = `${reviewerName} reviewed your recommendation "${rec.title}"`
 
         // In-app notification
         await (supabase as any).from('notifications').insert({
           user_id: rec.user_id,
           type:    'review',
-          title:   `${reviewerName} reviewed your recommendation "${rec.title}"`,
+          title:   notifTitle,
           data:    { recommendation_id: id, reviewer_id: user.id },
         })
 
-        // Email notification — fire and forget
+        // Push notification â€” fire and forget
+        sendPushForUser(
+          rec.user_id,
+          notifTitle,
+          parsed.data.content.slice(0, 100),
+          `/comic/${id}`
+        ).catch(console.error)
+
+        // Email notification â€” fire and forget
         sendReviewNotificationEmail(
           rec.user_id,
           reviewerUsername,

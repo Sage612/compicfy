@@ -128,7 +128,7 @@ export function PricingClient({ user, profile }: Props) {
 
   const heroSub = isCreator
     ? 'Pro gives creators deep analytics, audience insights, and the tools to grow their readership.'
-    : "Pro isn't just about removing limits — it's the recognition, visibility, and tools that serious collectors deserve."
+    : "Pro isn't just about removing limits, it's the recognition, visibility, and tools that serious collectors deserve."
 
   const dashboardHref = isAdmin
     ? '/admin'
@@ -182,11 +182,9 @@ export function PricingClient({ user, profile }: Props) {
             }
           </div>
           <p className="font-black text-lg">
-            {/* FIX: Formatted string correctly with template backticks */}
             {isAdmin ? 'Admin Access Active' : `You're already on Pro! ${isCreator ? '🎨' : '👑'}`}
           </p>
           <p className="text-sm text-muted-foreground">
-            {/* FIX: Formatted string correctly with template backticks */}
             {isAdmin
               ? 'You have full access to all features.'
               : profile?.pro_expires_at
@@ -200,7 +198,6 @@ export function PricingClient({ user, profile }: Props) {
         </div>
       )}
 
-      {/* Coming Soon */}
       {!isAdmin && !isPro && (
         <div className="space-y-10">
 
@@ -281,8 +278,6 @@ export function PricingClient({ user, profile }: Props) {
               </Link>
             </div>
 
-            {/* Pro preview card */}
-            {/* FIX: Corrected syntax template literal evaluation configuration inside cn block */}
             <div className={cn(
               'relative p-6 rounded-2xl border-2 space-y-6 flex flex-col',
               accentBorder,

@@ -9,6 +9,7 @@ import Link from 'next/link'
 import { formatDate, formatNumber } from '@/lib/utils/format'
 import type { News } from '@/types/database.types'
 import type { Metadata } from 'next'
+import { hasUnlimitedPerks } from '@/lib/access'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -64,10 +65,7 @@ export default async function NewsDetailPage({ params }: Props) {
       .single() as { data: { is_pro: boolean; pro_expires_at: string | null; role: string } | null }
 
     if (profile) {
-      const isPrivileged = ['admin', 'moderator'].includes(profile.role)
-      const isPro = profile.is_pro &&
-        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
-      userHasAccess = isPrivileged || isPro
+      userHasAccess = hasUnlimitedPerks(profile)
     }
   }
 

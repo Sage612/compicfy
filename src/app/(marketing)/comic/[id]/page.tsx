@@ -6,6 +6,7 @@ import { AddToCollectionButton } from '@/components/collections/AddToCollectionB
 import { SimilarComics } from '@/components/recommendations/SimilarComics'
 import { ReportButton } from '@/components/recommendations/ReportButton'
 import { getDashboardRoutes } from '@/lib/utils/routes'
+import { isProUser } from '@/lib/access'
 import {
   BookOpen, Calendar, Hash, User, Palette,
   Globe, ExternalLink, ArrowLeft, ShieldAlert,
@@ -259,13 +260,9 @@ export default async function ComicDetailPage({ params }: Props) {
     currentUserProfile = data as any
   }
 
-  const currentUserIsPro = !!(
-    currentUserProfile?.is_pro &&
-    (!currentUserProfile?.pro_expires_at || new Date(currentUserProfile.pro_expires_at) > new Date())
-  )
-  const currentUserIsAdminOrMod = ['admin', 'moderator'].includes(currentUserProfile?.role ?? '')
+  const currentUserIsPro = currentUserProfile ? isProUser(currentUserProfile as any) : false
   const currentUserType: 'reader' | 'creator' = currentUserProfile?.user_type === 'creator' ? 'creator' : 'reader'
-  const currentUserRoutes = getDashboardRoutes(currentUserType, currentUserIsPro || currentUserIsAdminOrMod)
+  const currentUserRoutes = getDashboardRoutes(currentUserType, currentUserIsPro)
 
   if (rec.content_rating === 'adult' || rec.content_rating === 'mature') {
     if (!user) {

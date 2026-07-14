@@ -248,12 +248,12 @@ export function RecommendationForm({ userId }: Props) {
     }
 
     if (response.status === 409 && result.error === 'duplicate') {
-      toast.error(result.message, {
+      toast(result.is_approved ? 'Already on Compicfy!' : 'Pending review already', {
         description: result.is_approved
-          ? 'View the existing recommendation instead.'
-          : 'This comic is already pending review.',
+          ? 'Upvote it, review it, or save it instead — the community builds it up together.'
+          : 'This comic is already submitted and pending review.',
         action: result.is_approved
-          ? { label: 'View Comic', onClick: () => router.push(`/comic/${result.existing_id}`) }
+          ? { label: 'View & Upvote', onClick: () => router.push(`/comic/${result.existing_id}`) }
           : undefined,
         duration: 6000,
       })
@@ -408,17 +408,34 @@ export function RecommendationForm({ userId }: Props) {
                 </p>
               )}
               {duplicateWarning && (
-                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-destructive/5 border border-destructive/20">
-                  <AlertTriangle size={14} className="text-destructive shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-xs font-bold text-destructive">Already recommended!</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      "{duplicateWarning.title}" exists.{' '}
-                      {duplicateWarning.is_approved
-                        ? <Link href={`/comic/${duplicateWarning.id}`} className="text-primary hover:underline font-semibold">View it →</Link>
-                        : 'Currently pending review.'}
-                    </p>
+                <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <Sparkles size={14} className="text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-foreground">
+                        "{duplicateWarning.title}" is already on ComPicfy!
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                        {duplicateWarning.is_approved
+                          ? "Instead of a duplicate entry, join in on this one, upvote it, leave your own review, or save it. That's how the community builds it up together."
+                          : "It's currently pending review, once it's live you'll be able to upvote it, review it, or save it."}
+                      </p>
+                    </div>
                   </div>
+                  {duplicateWarning.is_approved && (
+                    <div className="flex flex-wrap gap-2 pl-[26px]">
+                      <Link href={`/comic/${duplicateWarning.id}`}>
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                          View & Upvote
+                        </Button>
+                      </Link>
+                      <Link href={`/comic/${duplicateWarning.id}#reviews`}>
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                          Write a Review
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
                 </div>
               )}
               {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}

@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 // POST — save a collection
 // DELETE — unsave a collection
@@ -34,6 +35,58 @@ export async function POST(
       .from('collections')
       .update({ save_count: count ?? 0 })
       .eq('id', id)
+
+    // ── Notify collection owner — don't notify yourself ──────────────────
+    try {
+      const [{ data: collection }, { data: saver }] = await Promise.all([
+        (supabase as any).from('collections').select('user_id, title').eq('id', id).single(),
+        (supabase as any).from('profiles').select('username, display_name').eq('id', user.id).single(),
+      ])
+
+      if (collection && collection.user_id !== user.id) {
+        const { data: ownerProfile } = await (supabase as any)
+          .from('profiles')
+          .select('notification_prefs')
+          .eq('id', collection.user_id)
+          .single()
+
+        const prefs = ownerProfile?.notification_prefs?.collection_saved ?? {
+          in_app: true, push: true, email: true,
+        }
+
+        const saverUsername = saver?.username ?? 'someone'
+        const saverName     = saver?.display_name || saverUsername
+        const notifTitle    = `${saverName} saved your collection "${collection.title}"`
+
+        if (prefs.in_app !== false) {
+          await (supabase as any).from('notifications').insert({
+            user_id: collection.user_id,
+            type:    'collection_saved',
+            title:   notifTitle,
+            data:    { collection_id: id, saver_id: user.id, saver_username: saverUsername },
+          })
+        }
+
+        if (prefs.push !== false) {
+          sendPushForUser(
+            collection.user_id,
+            notifTitle,
+            `@${saverUsername} just saved your collection.`,
+            `/collections/${id}`
+          ).catch(console.error)
+        }
+
+        if (prefs.email !== false) {
+          await (supabase as any).from('notification_digest_queue').insert({
+            user_id:    collection.user_id,
+            event_type: 'collection_saved',
+            payload:    { collection_id: id, collection_title: collection.title, saver_username: saverUsername },
+          })
+        }
+      }
+    } catch (notifErr) {
+      console.error('[collection save] notification error (non-fatal):', notifErr)
+    }
 
     return NextResponse.json({ saved: true, save_count: count ?? 0 }, { status: 201 })
   } catch (err) {

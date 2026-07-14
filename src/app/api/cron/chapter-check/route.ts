@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 const BATCH_SIZE         = 10
 const API_DELAY_MS       = 600
@@ -120,6 +121,7 @@ async function getChapterFromMU(id: string): Promise<SourceResult> {
     const res = await fetchWithTimeout(`https://api.mangaupdates.com/v1/series/${numericId}`)
     if (!res.ok) return EMPTY
     const data = await res.json()
+
     const format = normalizeFormat(data?.type ?? null)
     if (format !== 'manga') return REJECTED
 
@@ -425,6 +427,7 @@ export async function GET(req: Request) {
 
       try {
         const { chapter: newChapterCount, source, tried, isCompleted, formatRejections } = await resolveChapterCount(comic)
+ 
         if (formatRejections.length > 0) {
           const clearPayload: Record<string, any> = {}
           if (formatRejections.includes('MangaUpdates')) clearPayload.mangaupdates_id = null
@@ -449,6 +452,7 @@ export async function GET(req: Request) {
           timestamp,
         }
 
+        // ── AUTO-CORRECT ROUTE: Series finalized external serialization ──
         if (isCompleted) {
           const finalChapter = newChapterCount ?? comic.chapter_count ?? 0
           await supabase.from('recommendations')
@@ -468,6 +472,7 @@ export async function GET(req: Request) {
 
         // ── Conditional Routing Path ─────────────────────────────────
         if (newChapterCount && newChapterCount > (comic.chapter_count ?? 0)) {
+          // 1. SUCCESS: Chapter progression found
           await supabase.from('recommendations')
             .update({ chapter_count: newChapterCount, last_chapter_check: timestamp })
             .eq('id', comic.id)
@@ -480,15 +485,23 @@ export async function GET(req: Request) {
 
           if (trackers && trackers.length > 0) {
             const userIds       = [...new Set(trackers.map((t: any) => t.reading_lists?.user_id).filter(Boolean))]
+            const pushTitle     = `📖 ${comic.title} updated`
+            const pushBody      = `New chapters available, now at chapter ${newChapterCount}`
             const notifications = userIds.map((userId: string) => ({
               user_id: userId,
               type:    'system',
-              title:   `📖 ${comic.title} updated`,
-              content: `New chapters available, now at chapter ${newChapterCount}`,
+              title:   pushTitle,
+              content: pushBody,
               data:    { recommendation_id: comic.id, new_chapter_count: newChapterCount, old_chapter_count: comic.chapter_count },
             }))
 
             await supabase.from('notifications').insert(notifications)
+
+            Promise.allSettled(
+              userIds.map((userId: string) =>
+                sendPushForUser(userId, pushTitle, pushBody, `/comic/${comic.id}`)
+              )
+            ).catch(() => {})
           }
 
           updated++
@@ -503,6 +516,7 @@ export async function GET(req: Request) {
           })
 
         } else if (newChapterCount !== null && newChapterCount < (comic.chapter_count ?? 0)) {
+          // 2. REGRESSION DETECTED: External APIs returned stale or lower counts
           logEntry.status = 'failed'
           logEntry.reason = `Stale API Data: External source returned ${newChapterCount}, but database is already ahead at ${comic.chapter_count}.`
 
@@ -525,6 +539,8 @@ export async function GET(req: Request) {
           })
 
         } else if (newChapterCount === null) {
+          // 3. ZERO RESULTS FOUND (this now also covers "all sources were
+          // format-rejected" — the bad IDs were already cleared above)
           await supabase.from('recommendations')
             .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)
@@ -535,6 +551,7 @@ export async function GET(req: Request) {
             : 'No valid ID or all APIs returned null'
 
         } else {
+          // 4. EQUAL COUNTS: Simply complete the tracking check cleanly
           await supabase.from('recommendations')
             .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)

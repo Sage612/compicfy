@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -30,6 +31,58 @@ export async function POST(_req: Request, { params }: RouteContext) {
       .from('reading_lists')
       .update({ star_count: count ?? 0 })
       .eq('id', id)
+
+    // ── Notify list owner — don't notify yourself ────────────────────────
+    try {
+      const [{ data: list }, { data: starrer }] = await Promise.all([
+        (supabase as any).from('reading_lists').select('user_id, name').eq('id', id).single(),
+        (supabase as any).from('profiles').select('username, display_name').eq('id', user.id).single(),
+      ])
+
+      if (list && list.user_id !== user.id) {
+        const { data: ownerProfile } = await (supabase as any)
+          .from('profiles')
+          .select('notification_prefs')
+          .eq('id', list.user_id)
+          .single()
+
+        const prefs = ownerProfile?.notification_prefs?.list_starred ?? {
+          in_app: true, push: true, email: true,
+        }
+
+        const starrerUsername = starrer?.username ?? 'someone'
+        const starrerName     = starrer?.display_name || starrerUsername
+        const notifTitle      = `${starrerName} starred your list "${list.name}"`
+
+        if (prefs.in_app !== false) {
+          await (supabase as any).from('notifications').insert({
+            user_id: list.user_id,
+            type:    'list_starred',
+            title:   notifTitle,
+            data:    { list_id: id, starrer_id: user.id, starrer_username: starrerUsername },
+          })
+        }
+
+        if (prefs.push !== false) {
+          sendPushForUser(
+            list.user_id,
+            notifTitle,
+            `@${starrerUsername} just starred your list.`,
+            `/lists/${id}`
+          ).catch(console.error)
+        }
+
+        if (prefs.email !== false) {
+          await (supabase as any).from('notification_digest_queue').insert({
+            user_id:    list.user_id,
+            event_type: 'list_starred',
+            payload:    { list_id: id, list_name: list.name, starrer_username: starrerUsername },
+          })
+        }
+      }
+    } catch (notifErr) {
+      console.error('[list star] notification error (non-fatal):', notifErr)
+    }
 
     return NextResponse.json({ starred: true, star_count: count ?? 0 }, { status: 201 })
   } catch (err) {

@@ -22,7 +22,7 @@ async function getUserEmail(userId: string): Promise<string | null> {
 }
 
 /** Resolve the correct dashboard base path for a user */
-async function getDashboardPath(userId: string, isPro?: boolean): Promise<string> {
+async function getDashboardPath(userId: string): Promise<string> {
   try {
     const admin = getAdminClient()
     const { data: profile } = await admin
@@ -42,6 +42,33 @@ async function getDashboardPath(userId: string, isPro?: boolean): Promise<string
   } catch {
     return '/reader/dashboard'
   }
+}
+
+async function getNotifiableEmailContext(
+  userId:  string,
+  prefKey?: string,
+): Promise<{ email: string; username: string; dashboardPath: string } | null> {
+  const admin = getAdminClient()
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('username, email_notifications, notification_prefs')
+    .eq('id', userId)
+    .single() as { data: any }
+
+  if (!profile?.email_notifications || !profile?.username) return null
+
+  if (prefKey) {
+    const granular = profile.notification_prefs?.[prefKey]?.email
+    if (granular === false) return null
+  }
+
+  const [email, dashboardPath] = await Promise.all([
+    getUserEmail(userId),
+    getDashboardPath(userId),
+  ])
+  if (!email) return null
+
+  return { email, username: profile.username, dashboardPath }
 }
 
 // ── Transactional emails ──────────────────────────────────────────────────────
@@ -86,32 +113,18 @@ export const sendUnsuspendedEmail = async (to: string, username: string, userId?
   return sendMail(to, `Your ${SITE_NAME} account access has been restored`, templates.accountUnsuspended(username, dashboardPath))
 }
 
-// ── Notification emails ───────────────────────────────────────────────────────
-
 export async function sendFollowNotificationEmail(
   followedUserId:      string,
   followerUsername:    string,
   followerDisplayName: string
 ) {
-  const admin = getAdminClient()
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('username, email_notifications')
-    .eq('id', followedUserId)
-    .single()
-
-  if (!profile?.email_notifications || !profile?.username) return
-
-  const [email, dashboardPath] = await Promise.all([
-    getUserEmail(followedUserId),
-    getDashboardPath(followedUserId),
-  ])
-  if (!email) return
+  const ctx = await getNotifiableEmailContext(followedUserId, 'followed_user_posted')
+  if (!ctx) return
 
   await sendMail(
-    email,
+    ctx.email,
     `@${followerUsername} is now following you on ${SITE_NAME}!`,
-    templates.newFollower(profile.username, followerUsername, followerDisplayName, dashboardPath)
+    templates.newFollower(ctx.username, followerUsername, followerDisplayName, ctx.dashboardPath)
   )
 }
 
@@ -124,25 +137,13 @@ export async function sendVoteNotificationEmail(
 ) {
   if (voteType === 'down') return
 
-  const admin = getAdminClient()
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('username, email_notifications')
-    .eq('id', recOwnerId)
-    .single()
-
-  if (!profile?.email_notifications || !profile?.username) return
-
-  const [email, dashboardPath] = await Promise.all([
-    getUserEmail(recOwnerId),
-    getDashboardPath(recOwnerId),
-  ])
-  if (!email) return
+  const ctx = await getNotifiableEmailContext(recOwnerId)
+  if (!ctx) return
 
   await sendMail(
-    email,
+    ctx.email,
     `Your recommendation "${recTitle}" got an upvote! 👍`,
-    templates.newVote(profile.username, voterUsername, recTitle, recId, voteType, dashboardPath)
+    templates.newVote(ctx.username, voterUsername, recTitle, recId, voteType, ctx.dashboardPath)
   )
 }
 
@@ -153,24 +154,30 @@ export async function sendReviewNotificationEmail(
   recId:            string,
   reviewContent:    string
 ) {
-  const admin = getAdminClient()
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('username, email_notifications')
-    .eq('id', recOwnerId)
-    .single()
-
-  if (!profile?.email_notifications || !profile?.username) return
-
-  const [email, dashboardPath] = await Promise.all([
-    getUserEmail(recOwnerId),
-    getDashboardPath(recOwnerId),
-  ])
-  if (!email) return
+  const ctx = await getNotifiableEmailContext(recOwnerId)
+  if (!ctx) return
 
   await sendMail(
-    email,
+    ctx.email,
     `@${reviewerUsername} reviewed your recommendation "${recTitle}"`,
-    templates.newReview(profile.username, reviewerUsername, recTitle, recId, reviewContent.slice(0, 120), dashboardPath)
+    templates.newReview(ctx.username, reviewerUsername, recTitle, recId, reviewContent.slice(0, 120), ctx.dashboardPath)
+  )
+}
+
+export interface DigestItem {
+  event_type: 'collection_saved' | 'list_starred' | 'followed_user_posted' | 'chapter_update'
+  payload:    Record<string, any>
+}
+
+export async function sendDigestEmail(userId: string, items: DigestItem[]) {
+  if (items.length === 0) return
+
+  const ctx = await getNotifiableEmailContext(userId)
+  if (!ctx) return
+
+  await sendMail(
+    ctx.email,
+    `Your ${SITE_NAME} digest: ${items.length} update${items.length === 1 ? '' : 's'}`,
+    templates.digestSummary(ctx.username, items, ctx.dashboardPath)
   )
 }

@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { recommendationSchema } from '@/lib/utils/validators'
+import { sendPushForUser } from '@/lib/utils/pushHelper'
+import { notifyFollowersOfNewPost } from '@/lib/utils/followerNotify'
 import {
   enforceRecLimit,
   enforceDailyRecLimit,
@@ -15,6 +17,64 @@ type ExistingRec = {
   id:          string
   title:       string
   is_approved: boolean
+}
+
+// Notifies all admins/moderators that a new recommendation needs review.
+// Only called for real, non-auto-approved, non-draft submissions — an
+// admin/mod's own submission auto-approves (isAutoApproved), so there's
+// nothing to review and no notification fires; same for drafts, which
+// aren't real submissions yet.
+async function notifyAdminsOfNewSubmission(
+  supabase: any,
+  recId:    string,
+  recTitle: string,
+  submitterUsername: string,
+) {
+  try {
+    const { data: admins } = await supabase
+      .from('profiles')
+      .select('id, notification_prefs')
+      .in('role', ['admin', 'moderator'])
+
+    if (!admins || admins.length === 0) return
+
+    const notifTitle = `New submission: "${recTitle}"`
+    const notifBody  = `@${submitterUsername} submitted a recommendation awaiting review.`
+
+    await Promise.allSettled(
+      admins.map(async (admin: any) => {
+        const prefs = admin.notification_prefs?.admin_new_submission ?? {
+          in_app: true, push: true, email: true,
+        }
+
+        if (prefs.in_app !== false) {
+          await supabase.from('notifications').insert({
+            user_id: admin.id,
+            type:    'admin_new_submission',
+            title:   notifTitle,
+            data:    { recommendation_id: recId, submitter_username: submitterUsername },
+          })
+        }
+
+        if (prefs.push !== false) {
+          await sendPushForUser(admin.id, notifTitle, notifBody, `/admin/recommendations/${recId}`)
+        }
+
+        // Admin new-submission emails are NOT queued for digest — unlike
+        // saves/stars/chapter updates, this is a time-sensitive action item
+        // (something needs review), so it stays immediate rather than
+        // batching, matching the urgency of the approve/reject flow itself.
+        if (prefs.email !== false) {
+          // Intentionally left as a hook — wire to a dedicated
+          // sendAdminNewSubmissionEmail() in lib/email/send.ts once that
+          // template exists. Not blocking Pass 2's other notification
+          // types on a new email template being written.
+        }
+      })
+    )
+  } catch (err) {
+    console.error('[notifyAdminsOfNewSubmission] error (non-fatal):', err)
+  }
 }
 
 export async function GET(request: Request) {
@@ -245,6 +305,36 @@ export async function POST(request: Request) {
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    // ── New-submission notifications ────────────────────────────────────────
+    // Only for real, non-draft submissions.
+    if (!asDraft) {
+      const { data: submitterProfile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single()
+
+      const submitterUsername = (submitterProfile as any)?.username ?? 'someone'
+      const recId    = (recommendation as any).id
+      const recTitle = (recommendation as any).title
+
+      if (!isAutoApproved) {
+        // Needs review — admins get notified now (there's an actual task
+        // for them). Followers do NOT get notified here — the comic detail
+        // page requires is_approved=true, so notifying followers at this
+        // point would send them a dead link to a page that 404s until an
+        // admin approves it. Follower notification for this path instead
+        // fires from the admin PATCH route's 'approve' action, once the
+        // rec is actually live. See notifyFollowersOfNewPost call there.
+        notifyAdminsOfNewSubmission(supabase, recId, recTitle, submitterUsername).catch(console.error)
+      } else {
+        // Auto-approved (admin/mod submitting their own rec) — it's live
+        // immediately, so followers can safely be notified right now; the
+        // link they get will resolve correctly.
+        notifyFollowersOfNewPost(supabase, recId, recTitle, user.id, submitterUsername).catch(console.error)
+      }
     }
 
     // ── Increment counters only for real submissions ───────────────────────────

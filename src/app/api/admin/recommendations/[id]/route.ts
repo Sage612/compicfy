@@ -4,30 +4,14 @@ import { logAction } from '@/lib/utils/admin'
 import { createClient } from '@/lib/supabase/server'
 import { sendApprovedEmail, sendRejectedEmail, sendAppealResolvedEmail } from '@/lib/email/send'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { sendPushForUser } from '@/lib/utils/pushHelper'
+import { notifyFollowersOfNewPost } from '@/lib/utils/followerNotify'
 
 function getServiceClient() {
   return createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
-}
-
-async function sendPushForUser(userId: string, title: string, body: string, url: string) {
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://compicfy.com'
-    await fetch(`${baseUrl}/api/push/send`, {
-      method:  'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        ...(process.env.INTERNAL_API_SECRET
-          ? { authorization: `Bearer ${process.env.INTERNAL_API_SECRET}` }
-          : {}),
-      },
-      body: JSON.stringify({ user_id: userId, title, body, url }),
-    })
-  } catch (err) {
-    console.error('sendPushForUser error (non-fatal):', err)
-  }
 }
 
 export async function GET(
@@ -53,9 +37,14 @@ export async function PATCH(
   const auth = await requireRole(false)
   if (auth.error) return auth.error
 
-  const { user, supabase } = auth
+  const { user, role, supabase } = auth
   const body = await request.json()
   const { action } = body
+
+  // Feature/unfeature is admin-only
+  if ((action === 'feature' || action === 'unfeature') && role !== 'admin') {
+    return NextResponse.json({ error: 'Admin access required to feature recommendations' }, { status: 403 })
+  }
 
   // ── Plain field edit (no action key) ─────────────────────────────────────
   if (!action) {
@@ -107,9 +96,7 @@ export async function PATCH(
       break
 
     case 'feature':
-      // carousel_until — if provided, comic only appears in the carousel until that timestamp.
-      // After expiry it stays is_featured=true everywhere else (admin picks section, badges, etc)
-      // but getFeatured() filters it out of the carousel.
+     
       updates = {
         is_featured:    true,
         featured_at:    new Date().toISOString(),
@@ -175,6 +162,26 @@ export async function PATCH(
       if (notifError) console.error('Notification insert error:', notifError)
 
       await sendPushForUser(recUserId, notifTitle[action], pushBody[action], `/comic/${id}`)
+
+      const recJustBecameVisible =
+        action === 'approve' ||
+        (action === 'resolve_appeal' && body.appeal_status === 'approved')
+
+      if (recJustBecameVisible) {
+        const { data: submitterProfile } = await supabase!
+          .from('profiles')
+          .select('username')
+          .eq('id', recUserId)
+          .single()
+
+        notifyFollowersOfNewPost(
+          supabase,
+          id,
+          recTitle,
+          recUserId,
+          (submitterProfile as any)?.username ?? 'someone'
+        ).catch(console.error)
+      }
 
       const service = getServiceClient()
       const { data: authUser } = await service.auth.admin.getUserById(recUserId)

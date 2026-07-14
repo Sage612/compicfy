@@ -20,6 +20,8 @@ const C = {
   redTint:     '#fdf1f0',
 }
 
+const DEFAULT_DASHBOARD_PATH = '/reader/dashboard'
+
 const font = `font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;`
 
 // ── Logo — hosted PNG (SVGs are stripped by email clients) ────────────────────
@@ -41,8 +43,10 @@ const makeLogo = () => {
 </table>`
 }
 
+const displayUrl = (url: string) => url.replace(/https?:\/\//, '')
+
 // ── Shell ─────────────────────────────────────────────────────────────────────
-const shell = (content: string, dashboardPath = '/reader/dashboard') => `
+const shell = (content: string, dashboardPath = DEFAULT_DASHBOARD_PATH) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -84,7 +88,7 @@ const shell = (content: string, dashboardPath = '/reader/dashboard') => `
             </a>
             <span style="color:${C.border};margin:0 8px;">·</span>
             <a href="${SITE_URL}" style="color:${C.muted2};font-size:12px;text-decoration:none;">
-              ${SITE_URL.replace(/https?:\/\//, '')}
+              ${displayUrl(SITE_URL)}
             </a>
           </p>
         </td>
@@ -172,10 +176,29 @@ const checklist = (items: string[]) =>
   </tr></table>
 </div>`).join('')
 
+const digestRow = (icon: string, title: string, subtitle: string, href: string) => `
+<tr>
+  <td style="padding:12px 0;border-bottom:1px solid ${C.border2};">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+      <tr>
+        <td width="28" style="vertical-align:top;padding-right:10px;">
+          <span style="font-size:16px;">${icon}</span>
+        </td>
+        <td style="vertical-align:top;">
+          <a href="${href}" style="text-decoration:none;">
+            <p style="color:${C.text};font-size:13px;font-weight:600;margin:0 0 2px;${font}">${title}</p>
+          </a>
+          <p style="color:${C.muted2};font-size:12px;margin:0;${font}">${subtitle}</p>
+        </td>
+      </tr>
+    </table>
+  </td>
+</tr>`
+
 // ── App email templates ───────────────────────────────────────────────────────
 export const templates = {
 
-  confirmEmail: (username: string, confirmUrl: string, dashboardPath = '/reader/dashboard') => shell(`
+  confirmEmail: (username: string, confirmUrl: string, dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${h1(`Confirm your email`)}
     ${p(`Hi ${username}, thanks for signing up for ${SITE_NAME}. Click below to confirm your email address and activate your account.`)}
     ${cta('Confirm email address', confirmUrl)}
@@ -184,7 +207,7 @@ export const templates = {
     ${p(`If you didn't create an account, you can safely ignore this email.`)}
   `, dashboardPath),
 
-  welcome: (username: string, dashboardPath = '/reader/dashboard') => shell(`
+  welcome: (username: string, dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${eyebrow('Welcome')}
     ${h1(`Hey ${username}, welcome aboard`)}
     ${p(`You've joined the community where real readers discover manga, manhwa, manhua, and webtoons no algorithms, just genuine picks from people who actually read.`)}
@@ -218,7 +241,7 @@ export const templates = {
     ${p(`Questions? Just reply to this email, we read every one.`)}
   `, dashboardPath),
 
-  recommendationApproved: (username: string, title: string, recId: string, dashboardPath = '/reader/dashboard') => shell(`
+  recommendationApproved: (username: string, title: string, recId: string, dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${eyebrow('Recommendation approved', C.emerald)}
     ${h1(`Your rec is live, ${username}`)}
     ${p(`${strong(`"${title}"`)} has been approved and is now discoverable by the entire ${SITE_NAME} community. Readers can vote, review, and save it.`)}
@@ -227,7 +250,7 @@ export const templates = {
     ${p(`Keep submitting, the more recs you share, the more the community discovers you.`)}
   `, dashboardPath),
 
-  recommendationRejected: (username: string, title: string, reason: string, recId: string, dashboardPath = '/reader/dashboard') => shell(`
+  recommendationRejected: (username: string, title: string, reason: string, recId: string, dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${eyebrow('Recommendation not approved', C.red)}
     ${h1(`Hi ${username},`)}
     ${p(`Your recommendation for ${strong(`"${title}"`)} was reviewed but couldn't be approved this time.`)}
@@ -237,7 +260,7 @@ export const templates = {
     ${cta('Edit & resubmit', `${SITE_URL}${dashboardPath}/recommendations`, C.red)}
   `, dashboardPath),
 
-  accountBanned: (username: string, reason: string, dashboardPath = '/reader/dashboard') => shell(`
+  accountBanned: (username: string, reason: string, dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${eyebrow('Account suspended', C.red)}
     ${h1(`Hi ${username},`)}
     ${p(`Your ${SITE_NAME} account has been permanently suspended following a review.`)}
@@ -247,7 +270,7 @@ export const templates = {
     ${cta('Submit a ban appeal', `${SITE_URL}${dashboardPath}`, C.red)}
   `, dashboardPath),
 
-  accountUnbanned: (username: string, dashboardPath = '/reader/dashboard') => shell(`
+  accountUnbanned: (username: string, dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${eyebrow('Account reinstated', C.emerald)}
     ${h1(`Welcome back, ${username}`)}
     ${p(`Your ${SITE_NAME} account restriction has been lifted. You have full access again.`)}
@@ -256,7 +279,7 @@ export const templates = {
     ${cta('Go to dashboard', `${SITE_URL}${dashboardPath}`, C.emerald)}
   `, dashboardPath),
 
-  accountSuspended: (username: string, reason: string, duration_hours: number, dashboardPath = '/reader/dashboard') => shell(`
+  accountSuspended: (username: string, reason: string, duration_hours: number, dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${eyebrow('Temporary suspension', C.amber)}
     ${h1(`Hi ${username},`)}
     ${p(`Your account has been temporarily suspended for ${strong(`${duration_hours} hours`)}.`)}
@@ -266,7 +289,7 @@ export const templates = {
     ${cta('View guidelines', `${SITE_URL}/guidelines`, C.amber)}
   `, dashboardPath),
 
-  accountUnsuspended: (username: string, dashboardPath = '/reader/dashboard') => shell(`
+  accountUnsuspended: (username: string, dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${eyebrow('Access restored', C.emerald)}
     ${h1(`Good news, ${username}`)}
     ${p(`Your suspension has been lifted. You have full access to ${SITE_NAME} again.`)}
@@ -275,7 +298,7 @@ export const templates = {
     ${cta('Go to dashboard', `${SITE_URL}${dashboardPath}`, C.emerald)}
   `, dashboardPath),
 
-  appealResolved: (username: string, type: string, outcome: string, title?: string, dashboardPath = '/reader/dashboard') => shell(`
+  appealResolved: (username: string, type: string, outcome: string, title?: string, dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${eyebrow(outcome === 'approved' ? 'Appeal approved' : 'Appeal rejected', outcome === 'approved' ? C.emerald : C.red)}
     ${h1(`Hi ${username},`)}
     ${p(`Your ${type} appeal${title ? ` for ${strong(`"${title}"`)}` : ''} has been reviewed.`)}
@@ -291,7 +314,7 @@ export const templates = {
     ${cta('Go to dashboard', `${SITE_URL}${dashboardPath}`, outcome === 'approved' ? C.emerald : C.teal)}
   `, dashboardPath),
 
-  newFollower: (username: string, followerUsername: string, followerDisplayName: string, dashboardPath = '/reader/dashboard') => shell(`
+  newFollower: (username: string, followerUsername: string, followerDisplayName: string, dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${eyebrow('New follower')}
     ${h1(`You have a new follower`)}
     ${p(`${strong(followerDisplayName)} (${strong(`@${followerUsername}`)}) just followed you on ${SITE_NAME}. Your recommendations will now show up in their feed.`)}
@@ -319,7 +342,7 @@ export const templates = {
     ${cta('View their profile', `${SITE_URL}/profile/${followerUsername}`)}
   `, dashboardPath),
 
-  newVote: (username: string, voterUsername: string, title: string, recId: string, voteType: 'up' | 'down', dashboardPath = '/reader/dashboard') => shell(`
+  newVote: (username: string, voterUsername: string, title: string, recId: string, voteType: 'up' | 'down', dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${eyebrow(voteType === 'up' ? 'New upvote' : 'New downvote', voteType === 'up' ? C.emerald : C.red)}
     ${h1(voteType === 'up' ? 'Someone liked your rec' : 'New vote on your recommendation')}
     ${p(`${strong(`@${voterUsername}`)} ${voteType === 'up' ? 'upvoted' : 'downvoted'} your recommendation for ${strong(`"${title}"`)}.`)}
@@ -327,7 +350,7 @@ export const templates = {
     ${cta('View recommendation', `${SITE_URL}/comic/${recId}`, voteType === 'up' ? C.emerald : C.teal)}
   `, dashboardPath),
 
-  newReview: (username: string, reviewerUsername: string, title: string, recId: string, reviewSnippet: string, dashboardPath = '/reader/dashboard') => shell(`
+  newReview: (username: string, reviewerUsername: string, title: string, recId: string, reviewSnippet: string, dashboardPath = DEFAULT_DASHBOARD_PATH) => shell(`
     ${eyebrow('New review', C.amber)}
     ${h1(`@${reviewerUsername} reviewed your rec`)}
     ${p(`Someone left a review on your recommendation for ${strong(`"${title}"`)}.`)}
@@ -355,6 +378,64 @@ export const templates = {
     `)}
     ${p(`While you wait, browse the community, submit recommendations, and build your reading lists. The platform is live and free right now.`)}
     ${cta('Start exploring', `${SITE_URL}/browse`)}
-  `, '/reader/dashboard'),
+  `, DEFAULT_DASHBOARD_PATH),
+
+  digestSummary: (
+    username: string,
+    items: { event_type: string; payload: Record<string, any> }[],
+    dashboardPath = DEFAULT_DASHBOARD_PATH,
+  ) => {
+    const ICONS: Record<string, string> = {
+      collection_saved:     '📁',
+      list_starred:         '⭐',
+      followed_user_posted: '📚',
+      chapter_update:       '📖',
+    }
+
+    const rowFor = (item: { event_type: string; payload: Record<string, any> }) => {
+      switch (item.event_type) {
+        case 'collection_saved':
+          return digestRow(
+            ICONS.collection_saved,
+            `@${item.payload.saver_username} saved your collection`,
+            `"${item.payload.collection_title}"`,
+            `${SITE_URL}/collections/${item.payload.collection_id}`,
+          )
+        case 'list_starred':
+          return digestRow(
+            ICONS.list_starred,
+            `@${item.payload.starrer_username} starred your list`,
+            `"${item.payload.list_name}"`,
+            `${SITE_URL}/lists/${item.payload.list_id}`,
+          )
+        case 'followed_user_posted':
+          return digestRow(
+            ICONS.followed_user_posted,
+            `@${item.payload.submitter_username} posted a new recommendation`,
+            `"${item.payload.recommendation_title}"`,
+            `${SITE_URL}/comic/${item.payload.recommendation_id}`,
+          )
+        case 'chapter_update':
+          return digestRow(
+            ICONS.chapter_update,
+            `${item.payload.comic_title} updated`,
+            `Now at chapter ${item.payload.new_chapter_count}`,
+            `${SITE_URL}/comic/${item.payload.recommendation_id}`,
+          )
+        default:
+          return ''
+      }
+    }
+
+    return shell(`
+      ${eyebrow('Your digest')}
+      ${h1(`Hi ${username}, here's what happened`)}
+      ${p(`${items.length} update${items.length === 1 ? '' : 's'} since your last digest.`)}
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px;">
+        ${items.map(rowFor).join('')}
+      </table>
+      ${cta('View all activity', `${SITE_URL}${dashboardPath}/notifications`)}
+    `, dashboardPath)
+  },
 
 }

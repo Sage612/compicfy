@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { ListsClient } from '@/components/lists/ListsClient'
 import type { Metadata } from 'next'
+import { isProUser as checkIsProUser, hasUnlimitedPerks } from '@/lib/access'
 
 export const metadata: Metadata = {
   title: 'Reading Lists',
@@ -28,16 +29,13 @@ export default async function PublicListsPage() {
 
     const profile = profileResult.data as any
     if (profile) {
-      const isAdmin   = ['admin', 'moderator'].includes(profile.role)
-      isProUser = isAdmin || (
-        profile.is_pro &&
-        (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
-      )
+      const realPro = checkIsProUser(profile)
+      isProUser = hasUnlimitedPerks(profile)
       const isCreator = profile.user_type === 'creator'
       if (isCreator) {
-        myListsHref = isProUser ? '/pro/creator/dashboard/works' : '/creator/dashboard/works'
+        myListsHref = realPro ? '/pro/creator/dashboard/works' : '/creator/dashboard/works'
       } else {
-        myListsHref = isProUser ? '/pro/reader/dashboard/lists' : '/reader/dashboard/lists'
+        myListsHref = realPro ? '/pro/reader/dashboard/lists' : '/reader/dashboard/lists'
       }
     }
   }

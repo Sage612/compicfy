@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import {
   BellOff, Trash2, ThumbsUp, BookOpen,
   MessageSquare, UserPlus, AlertCircle,
-  Star, Zap, CheckCircle2, Check,
+  Star, Zap, CheckCircle2, Check, Trophy,
 } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -15,7 +15,7 @@ import { createClient } from '@/lib/supabase/client'
 interface Notification {
   id:         string
   user_id:    string
-  type:       'vote' | 'review' | 'reply' | 'feature' | 'achievement' | 'system' | 'follow' | 'chapter_update'
+  type:       'vote' | 'vote_milestone' | 'review' | 'reply' | 'feature' | 'achievement' | 'system' | 'follow' | 'chapter_update'
   title:      string
   content:    string | null
   data:       any
@@ -26,6 +26,7 @@ interface Notification {
 
 const TYPE_META: Record<string, { icon: React.ReactNode; colorClass: string; label: string }> = {
   vote:           { icon: <ThumbsUp      size={13} className="text-emerald-500"      />, colorClass: 'bg-emerald-500/10 border-emerald-500/20', label: 'Vote'        },
+  vote_milestone: { icon: <Trophy        size={13} className="text-yellow-500"       />, colorClass: 'bg-yellow-500/10 border-yellow-500/20',   label: 'Milestone'   },
   review:         { icon: <Star          size={13} className="text-amber-500"        />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Review'      },
   reply:          { icon: <MessageSquare size={13} className="text-blue-500"         />, colorClass: 'bg-blue-500/10 border-blue-500/20',       label: 'Reply'       },
   follow:         { icon: <UserPlus      size={13} className="text-violet-500"       />, colorClass: 'bg-violet-500/10 border-violet-500/20',   label: 'Follow'      },
@@ -38,6 +39,7 @@ const TYPE_META: Record<string, { icon: React.ReactNode; colorClass: string; lab
 const FILTERS = [
   { key: 'all',            label: 'All'          },
   { key: 'vote',           label: 'Votes'        },
+  { key: 'vote_milestone', label: 'Milestones'   },
   { key: 'follow',         label: 'Follows'      },
   { key: 'review',         label: 'Reviews'      },
   { key: 'feature',        label: 'Featured'     },
@@ -103,6 +105,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
 
     switch (notif.type) {
       case 'vote':
+      case 'vote_milestone':
       case 'review':
       case 'reply':
       case 'feature':

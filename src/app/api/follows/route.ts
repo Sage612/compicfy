@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendFollowNotificationEmail } from '@/lib/email/send'
+import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 const FREE_FOLLOW_LIMIT = 50
 
@@ -16,7 +17,6 @@ export async function POST(request: Request) {
     if (!following_id) return NextResponse.json({ error: 'following_id required' }, { status: 400 })
     if (following_id === user.id) return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 })
 
-    // ── Follow limit for free users ───────────────────────────────
     const { data: profile } = await supabase
       .from('profiles')
       .select('is_pro, pro_expires_at, role')
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── Insert follow ─────────────────────────────────────────────
+    // â”€â”€ Insert follow 
     const { error: followError } = await (supabase as any)
       .from('follows')
       .insert({ follower_id: user.id, following_id })
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: followError.message }, { status: 500 })
     }
 
-    // ── Follower profile ──────────────────────────────────────────
+
     const { data: followerProfile } = await supabase
       .from('profiles')
       .select('username, display_name, user_type')
@@ -68,23 +68,33 @@ export async function POST(request: Request) {
     const followerUserType    = (followerProfile as any)?.user_type   ?? 'reader'
     const name = followerDisplayName || followerUsername
 
+    const notifTitle = `${name} started following you`
+
     try {
       await (supabase as any)
         .from('notifications')
         .insert({
           user_id: following_id,
           type:    'follow',
-          title:   `${name} started following you`,
+          title:   notifTitle,
           content: `@${followerUsername} is now following you.`,
           data: {
             follower_id:       user.id,
-            follower_username: followerUsername,   // ← used by NotificationsClient for routing
-            follower_type:     followerUserType,   // ← so we build /reader/ vs /creator/ correctly
+            follower_username: followerUsername,   // â† used by NotificationsClient for routing
+            follower_type:     followerUserType,   // â† so we build /reader/ vs /creator/ correctly
           },
         })
     } catch (notifErr) {
       console.error('[follows/POST] notification error (non-fatal):', notifErr)
     }
+
+    // Push notification â€” fire and forget
+    sendPushForUser(
+      following_id,
+      notifTitle,
+      `@${followerUsername} is now following you.`,
+      `/${followerUserType === 'creator' ? 'creator' : 'reader'}/${followerUsername}`
+    ).catch((e) => console.error('[follows/POST] push error:', e))
 
     sendFollowNotificationEmail(
       following_id,

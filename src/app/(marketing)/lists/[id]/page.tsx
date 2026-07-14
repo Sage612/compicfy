@@ -8,6 +8,7 @@ import {
 import { formatDate } from '@/lib/utils/format'
 import type { Metadata } from 'next'
 import { PublicListDetailClient } from '@/components/lists/PublicListDetailClient'
+import { isProUser } from '@/lib/access'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -70,11 +71,7 @@ export default async function PublicListPage({ params }: Props) {
       .single()
 
     if (profile) {
-      const isAdmin   = ['admin', 'moderator'].includes((profile as any).role)
-      const isPro     = isAdmin || (
-        (profile as any).is_pro &&
-        (!(profile as any).pro_expires_at || new Date((profile as any).pro_expires_at) > new Date())
-      )
+      const isPro = isProUser(profile as any)
       const isCreator = (profile as any).user_type === 'creator'
 
       if (isCreator) {
