@@ -16,7 +16,7 @@ import { PlatformSelector } from './PlatformSelector'
 import { SubmissionGuidelineBanner } from '@/components/recommendations/SubmissionGuidelineBanner'
 import { toast } from 'sonner'
 import {Loader2, BookOpen, Info, AlertTriangle, Sparkles,
-  Tag, FileText, Globe, Crown,
+  Tag, FileText, Globe, Crown, Link2,
 } from 'lucide-react'
 import { PeakHourModal } from '@/components/recommendations/PeakHourModal'
 import { FREE_LIMITS } from '@/lib/utils/constants'
@@ -47,6 +47,10 @@ const formSchema = z.object({
   chapter_count: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
     z.number().min(1).optional()
+  ),
+  more_info_link: z.string().max(500).default('').refine(
+    (val) => !val || /^https?:\/\/.+/.test(val),
+    { message: 'Must be a valid URL starting with http:// or https://' }
   ),
 })
   .superRefine((data, ctx) => {
@@ -197,6 +201,7 @@ export function RecommendationForm({ userId }: Props) {
       official_links:     [],
       content_rating:     'all_ages',
       why_recommend:      '',
+      more_info_link:     '',
       ...(prefillYear     ? { year_released: Number(prefillYear)     } : {}),
       ...(prefillChapters ? { chapter_count: Number(prefillChapters) } : {}),
     },
@@ -638,6 +643,24 @@ export function RecommendationForm({ userId }: Props) {
             />
           )}
         />
+      </FormSection>
+
+      <FormSection icon={Link2} title="More Info Link" accent="bg-sky-500">
+        <div className="space-y-1.5">
+          <Label htmlFor="more_info_link" className="text-sm font-semibold">
+            External reference <span className="text-muted-foreground font-normal">(optional)</span>
+          </Label>
+          <Input
+            id="more_info_link"
+            {...register('more_info_link')}
+            placeholder="e.g. https://www.mangaupdates.com/series/..."
+            className="h-10"
+          />
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            Link to a MangaUpdates entry or similar database page. Leave blank and we'll try to find one automatically.
+          </p>
+          {errors.more_info_link && <p className="text-xs text-destructive">{errors.more_info_link.message}</p>}
+        </div>
       </FormSection>
 
       {/* Info notice */}

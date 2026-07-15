@@ -17,12 +17,13 @@ import { PlatformSelector } from '@/components/recommendations/PlatformSelector'
 import { GenreSelector } from '@/components/recommendations/GenreSelector'
 
 const FILTERS = [
-  { value: 'all',      label: 'All',         color: 'text-foreground'  },
-  { value: 'pending',  label: 'Pending',     color: 'text-amber-500'   },
-  { value: 'approved', label: 'Approved',    color: 'text-emerald-500' },
-  { value: 'rejected', label: 'Rejected',    color: 'text-red-500'     },
-  { value: 'featured', label: 'Featured ⭐', color: 'text-primary'     },
-  { value: 'appeals',  label: 'Appeals 🚩',  color: 'text-orange-500'  },
+  { value: 'all',        label: 'All',            color: 'text-foreground'  },
+  { value: 'pending',    label: 'Pending',        color: 'text-amber-500'   },
+  { value: 'approved',   label: 'Approved',       color: 'text-emerald-500' },
+  { value: 'rejected',   label: 'Rejected',       color: 'text-red-500'     },
+  { value: 'featured',   label: 'Featured ⭐',    color: 'text-primary'     },
+  { value: 'appeals',    label: 'Appeals 🚩',     color: 'text-orange-500'  },
+  { value: 'more_info',  label: 'More Info 🔗',   color: 'text-sky-500'     },
 ]
 
 const TYPE_COLORS: Record<string, string> = {
@@ -79,6 +80,12 @@ function sortRecs(recs: any[], currentFilter: string): any[] {
     if (!a.is_pro_submission && b.is_pro_submission) return 1
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   })
+}
+
+// Returns true if a rec has a More Info link that hasn't been
+// admin-approved yet (i.e. it's user_submitted or auto_fetched).
+function hasUnverifiedMoreInfoLink(rec: any): boolean {
+  return !!rec.more_info_link && rec.more_info_link_source !== 'admin_approved'
 }
 
 // ── Carousel expiry display ───────────────────────────────────────────────
@@ -240,6 +247,24 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
         setFeaturingId(null)
       } else if (action === 'unfeature') {
         setRecs(prev => prev.map(r => r.id === id ? { ...r, is_featured: false, carousel_until: null } : r))
+      } else if (action === 'verify_more_info') {
+        setRecs(prev => prev.map(r => r.id === id
+          ? { ...r, more_info_link_source: 'admin_approved', more_info_link_verified_at: new Date().toISOString() }
+          : r
+        ))
+        // If we're on the more_info filter, this rec no longer qualifies —
+        // drop it from the visible list rather than waiting for a refetch.
+        if (filter === 'more_info') {
+          setRecs(prev => prev.filter(r => r.id !== id))
+        }
+      } else if (action === 'reject_more_info') {
+        setRecs(prev => prev.map(r => r.id === id
+          ? { ...r, more_info_link: null, more_info_link_source: null, more_info_link_verified_at: null }
+          : r
+        ))
+        if (filter === 'more_info') {
+          setRecs(prev => prev.filter(r => r.id !== id))
+        }
       } else {
         setRecs(prev => prev.filter(r => r.id !== id))
         setExpandedId(null)
@@ -449,27 +474,36 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
         )}
       </div>
 
-      {/* Filter tabs + bulk toggle */}
-      <div className="flex gap-1.5 flex-wrap items-center">
-        {FILTERS.map(({ value, label, color }) => (
-          <button key={value} onClick={() => handleFilterChange(value)}
-            className={cn('px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
-              filter === value ? 'bg-primary text-primary-foreground border-primary shadow-sm' : `border-border ${color} hover:border-primary`)}>
-            {label}
-          </button>
-        ))}
+      {/* Filter tabs — horizontally scrollable, Bulk toggle pinned outside
+          the scroll area so it's always visible */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 min-w-0 overflow-hidden">
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-4 z-10 bg-gradient-to-r from-background to-transparent" />
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-4 z-10 bg-gradient-to-l from-background to-transparent" />
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar px-1 -mx-1">
+            {FILTERS.map(({ value, label, color }) => (
+              <button key={value} onClick={() => handleFilterChange(value)}
+                className={cn('px-3 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap shrink-0',
+                  filter === value ? 'bg-primary text-primary-foreground border-primary shadow-sm' : `border-border ${color} hover:border-primary`)}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <button onClick={() => { setBulkMode(v => !v); setSelected(new Set()) }}
-          className={cn('ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+          className={cn('shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
             bulkMode ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border text-muted-foreground hover:border-primary')}>
           <ListChecks size={12} /> Bulk
         </button>
-        {!loading && (
-          <span className="text-xs text-muted-foreground">
-            {recs.length} / {total} result{total !== 1 ? 's' : ''}
-            {search && <span className="text-primary ml-1">for "{search}"</span>}
-          </span>
-        )}
       </div>
+
+      {!loading && (
+        <p className="text-xs text-muted-foreground px-1">
+          {recs.length} / {total} result{total !== 1 ? 's' : ''}
+          {search && <span className="text-primary ml-1">for "{search}"</span>}
+        </p>
+      )}
 
       {!loading && (filter === 'pending' || filter === 'all') && recs.some(r => r.is_pro_submission && !r.is_approved && !r.rejection_reason) && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs text-amber-600">
@@ -551,6 +585,7 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
                         {rec.appeal_status === 'pending' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-orange-500/10 text-orange-600 border-orange-500/20">🚩 Appeal</span>}
                         {isProSub && <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-amber-500/10 text-amber-600 border-amber-500/20"><Crown size={9} className="fill-amber-500" />Pro</span>}
                         {rec.is_ai_generated && rec.ai_model === 'auto-submitter' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-primary/10 text-primary border-primary/20">🤖 System</span>}
+                        {hasUnverifiedMoreInfoLink(rec) && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border bg-sky-500/10 text-sky-600 border-sky-500/20">🔗 Link unverified</span>}
                       </div>
 
                       <p className="text-xs text-muted-foreground">by @{profile?.display_name || profile?.username} · {formatDate(rec.created_at)}</p>
@@ -669,7 +704,7 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
                     </div>
                   )}
 
-                  {/* Expanded: reject / appeal */}
+                  {/* Expanded: reject / appeal / more info */}
                   {isExpanded && (
                     <div className="px-4 pb-4 space-y-3 border-t border-border pt-4 bg-muted/10">
                       <p className="text-xs text-muted-foreground line-clamp-3">{rec.description}</p>
@@ -693,6 +728,46 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
                             </Button>
                             <Button size="sm" variant="destructive" onClick={() => handleAction(rec.id, 'resolve_appeal', { appeal_status: 'rejected' })} disabled={!!actionLoading}>
                               <XCircle size={13} /> Reject Appeal
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {hasUnverifiedMoreInfoLink(rec) && (
+                        <div className="space-y-2 p-3 rounded-xl bg-sky-500/5 border border-sky-500/20">
+                          <p className="text-xs font-bold text-sky-600 flex items-center gap-1.5">
+                            More Info Link — {rec.more_info_link_source === 'auto_fetched' ? 'Auto-matched' : 'Community submitted'}
+                          </p>
+                          <a
+                            href={rec.more_info_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline break-all"
+                          >
+                            {rec.more_info_link}
+                          </a>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <Button
+                              size="sm"
+                              className="gap-1.5 bg-emerald-500 hover:bg-emerald-600"
+                              onClick={() => handleAction(rec.id, 'verify_more_info')}
+                              disabled={!!actionLoading}
+                            >
+                              {actionLoading === `${rec.id}-verify_more_info`
+                                ? <Loader2 size={13} className="animate-spin" />
+                                : <CheckCircle size={13} />}
+                              Verify Link
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleAction(rec.id, 'reject_more_info')}
+                              disabled={!!actionLoading}
+                            >
+                              {actionLoading === `${rec.id}-reject_more_info`
+                                ? <Loader2 size={13} className="animate-spin" />
+                                : <XCircle size={13} />}
+                              Reject Link
                             </Button>
                           </div>
                         </div>

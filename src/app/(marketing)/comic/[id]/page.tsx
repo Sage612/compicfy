@@ -25,6 +25,7 @@ import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
 import { ReadingProgressButton } from '@/components/recommendations/ReadingProgressButton'
 import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnButton'
 import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
+import { MoreInfoSection } from '@/components/comic-detail/MoreInfoSection'
 import { headers } from 'next/headers'
 import { Fraunces, JetBrains_Mono } from 'next/font/google'
 
@@ -363,17 +364,6 @@ export default async function ComicDetailPage({ params }: Props) {
     { icon: MessageSquare, label: 'Score',   value: rec.score        ?? 0 },
   ]
 
-  // ── Action deck ──
-  // FIX (this pass): switched both paired rows from flex/flex-1 to
-  // `grid grid-cols-2`. The flex approach kept breaking because Vote/Save
-  // (and Share, via its own internal width logic) each had opinions about
-  // their own width at different breakpoints, which fought with the
-  // parent's flex-1 sizing. A 2-column grid removes that ambiguity
-  // entirely — each child is simply stretched to fill its grid cell,
-  // full stop, regardless of what width classes exist inside it.
-  // Track Progress / Add to List / Add to Collection are untouched from
-  // before — still single full-width rows, no change requested there
-  // beyond what's already live.
   const actionDeck = (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-2">
@@ -553,6 +543,14 @@ export default async function ComicDetailPage({ params }: Props) {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {rec.more_info_link && (
+                <MoreInfoSection
+                  link={rec.more_info_link}
+                  source={rec.more_info_link_source}
+                  verifiedAt={rec.more_info_link_verified_at}
+                />
               )}
 
               <div className="flex flex-wrap gap-x-5 gap-y-1.5 font-[family-name:var(--font-mono)] text-xs text-dossier-foreground/50">

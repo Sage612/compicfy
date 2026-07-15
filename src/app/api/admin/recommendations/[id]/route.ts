@@ -122,6 +122,23 @@ export async function PATCH(
       logMsg = `${body.appeal_status} recommendation appeal`
       break
 
+    case 'verify_more_info':
+      updates = {
+        more_info_link_source:      'admin_approved',
+        more_info_link_verified_at: new Date().toISOString(),
+      }
+      logMsg = 'verified more info link'
+      break
+
+    case 'reject_more_info':
+      updates = {
+        more_info_link:             null,
+        more_info_link_source:      null,
+        more_info_link_verified_at: null,
+      }
+      logMsg = 'rejected more info link'
+      break
+
     default:
       return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   }
@@ -136,7 +153,6 @@ export async function PATCH(
   // Return carousel_until so the client can update the badge immediately
   const responseData = { recommendation: data, carousel_until: (data as any).carousel_until ?? null }
 
-  // ── Notification + email + push ───────────────────────────────────────────
   if (['approve', 'reject', 'resolve_appeal'].includes(action)) {
     try {
       const recTitle  = (data as any).title as string

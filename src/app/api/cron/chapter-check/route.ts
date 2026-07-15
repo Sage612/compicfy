@@ -60,6 +60,51 @@ function normalizeFormat(raw: string | null | undefined): NormalizedFormat {
   return 'other'
 }
 
+type ResolvedStatus = 'completed' | 'hiatus' | 'cancelled' | 'ongoing' | null
+
+function normalizeMUStatus(raw: string | null | undefined): ResolvedStatus {
+  if (!raw) return null
+  const match = raw.match(/\(([^)]+)\)\s*$/) // grab text inside the LAST parentheses
+  const s = (match?.[1] ?? raw).toLowerCase()
+  if (s.includes('complete')) return 'completed'
+  if (s.includes('cancelled') || s.includes('canceled') || s.includes('dropped')) return 'cancelled'
+  if (s.includes('hiatus')) return 'hiatus'
+  if (s.includes('ongoing')) return 'ongoing'
+  return null
+}
+
+function normalizeMDStatus(raw: string | null | undefined): ResolvedStatus {
+  if (!raw) return null
+  const s = raw.toLowerCase()
+  if (s === 'completed') return 'completed'
+  if (s === 'cancelled') return 'cancelled'
+  if (s === 'hiatus') return 'hiatus'
+  if (s === 'ongoing') return 'ongoing'
+  return null
+}
+
+function normalizeMALStatus(raw: string | null | undefined, publishing?: boolean | null): ResolvedStatus {
+
+  if (publishing === true) return 'ongoing'
+
+  if (!raw) return null
+  const s = raw.toLowerCase()
+  if (s === 'completed' || s === 'finished' || s.includes('finished')) return 'completed'
+  if (s.includes('discontinued') || s.includes('cancelled') || s.includes('canceled')) return 'cancelled'
+  if (s.includes('hiatus') || s.includes('on hold')) return 'hiatus'
+  return null
+}
+
+function normalizeALStatus(raw: string | null | undefined): ResolvedStatus {
+  if (!raw) return null
+  const s = raw.toUpperCase()
+  if (s === 'FINISHED') return 'completed'
+  if (s === 'CANCELLED') return 'cancelled'
+  if (s === 'HIATUS') return 'hiatus'
+  if (s === 'RELEASING') return 'ongoing'
+  return null
+}
+
 // ── Logging ───────────────────────────────────────────────────────
 interface CheckLog {
   comic_id:          string
@@ -68,7 +113,9 @@ interface CheckLog {
   database_success:  string | null
   old_chapter_count: number | null
   new_chapter_count: number | null
-  status:            'success' | 'no_update' | 'failed' | 'skipped_no_ids' | 'skipped_id_checker_active' | 'completed_corrected'
+  old_status?:        string
+  new_status?:         string
+  status:            'success' | 'no_update' | 'failed' | 'skipped_no_ids' | 'skipped_id_checker_active' | 'completed_corrected' | 'status_corrected'
   reason?:           string
   error?:            string
   format_rejections?: string[]
@@ -90,13 +137,13 @@ async function logChapterCheck(supabase: any, log: CheckLog) {
 }
 
 interface SourceResult {
-  chapter: number | null
-  isCompleted: boolean
+  chapter:        number | null
+  status:         ResolvedStatus
   formatRejected: boolean
 }
 
-const REJECTED: SourceResult = { chapter: null, isCompleted: false, formatRejected: true }
-const EMPTY:    SourceResult = { chapter: null, isCompleted: false, formatRejected: false }
+const REJECTED: SourceResult = { chapter: null, status: null, formatRejected: true }
+const EMPTY:    SourceResult = { chapter: null, status: null, formatRejected: false }
 
 async function getChapterFromMU(id: string): Promise<SourceResult> {
   try {
@@ -126,12 +173,11 @@ async function getChapterFromMU(id: string): Promise<SourceResult> {
     if (format !== 'manga') return REJECTED
 
     const ch = data?.latest_chapter
-    const muStatus = String(data?.status || '').toLowerCase()
-    const isCompleted = muStatus.includes('complete')
+    const status = normalizeMUStatus(data?.status ?? null)
 
     return {
       chapter: ch && !isNaN(Number(ch)) ? Number(ch) : null,
-      isCompleted,
+      status,
       formatRejected: false,
     }
   } catch (err) {
@@ -148,11 +194,10 @@ async function getChapterFromMangaDex(id: string): Promise<SourceResult> {
     const data = await res.json()
     const ch   = data?.data?.attributes?.lastChapter
 
-    const mdStatus = data?.data?.attributes?.status
-    const isCompleted = mdStatus === 'completed'
+    const status = normalizeMDStatus(data?.data?.attributes?.status ?? null)
 
     if (ch && !isNaN(Number(ch))) {
-      return { chapter: Number(ch), isCompleted, formatRejected: false }
+      return { chapter: Number(ch), status, formatRejected: false }
     }
 
     const feedRes = await fetchWithTimeout(`https://api.mangadex.org/manga/${id}/feed?limit=10&order[chapter]=desc`)
@@ -160,10 +205,10 @@ async function getChapterFromMangaDex(id: string): Promise<SourceResult> {
       const feedData = await feedRes.json()
       const highestFeedCh = feedData?.data?.[0]?.attributes?.chapter
       if (highestFeedCh && !isNaN(Number(highestFeedCh))) {
-        return { chapter: Number(highestFeedCh), isCompleted, formatRejected: false }
+        return { chapter: Number(highestFeedCh), status, formatRejected: false }
       }
     }
-    return { chapter: null, isCompleted, formatRejected: false }
+    return { chapter: null, status, formatRejected: false }
   } catch (err) {
     console.error(`MD chapter error for ${id}:`, err)
     return EMPTY
@@ -181,12 +226,11 @@ async function getChapterFromJikan(id: string): Promise<SourceResult> {
     if (format !== 'manga') return REJECTED
 
     const ch = data?.data?.chapters
-    const malStatus = String(data?.data?.status || '').toLowerCase()
-    const isCompleted = malStatus === 'completed' || malStatus === 'finished'
+    const status = normalizeMALStatus(data?.data?.status ?? null, data?.data?.publishing ?? null)
 
     return {
       chapter: ch && !isNaN(Number(ch)) ? Number(ch) : null,
-      isCompleted,
+      status,
       formatRejected: false,
     }
   } catch (err) {
@@ -214,12 +258,11 @@ async function getChapterFromAniList(id: string): Promise<SourceResult> {
     if (format !== 'manga') return REJECTED
 
     const ch = data?.data?.Media?.chapters
-    const alStatus = data?.data?.Media?.status
-    const isCompleted = alStatus === 'FINISHED'
+    const status = normalizeALStatus(data?.data?.Media?.status ?? null)
 
     return {
       chapter: ch && !isNaN(Number(ch)) ? Number(ch) : null,
-      isCompleted,
+      status,
       formatRejected: false,
     }
   } catch (err) {
@@ -228,17 +271,17 @@ async function getChapterFromAniList(id: string): Promise<SourceResult> {
   }
 }
 
-// ── Resolve chapter count & status across sources ──
 async function resolveChapterCount(comic: any): Promise<{
-  chapter: number | null
-  source: string | null
-  tried: string[]
-  isCompleted: boolean
+  chapter:          number | null
+  source:           string | null
+  tried:            string[]
+  resolvedStatus:   ResolvedStatus
+  statusSources:    string[]
   formatRejections: string[]
 }> {
   const tried: string[] = []
   const formatRejections: string[] = []
-  let structuralCompletionFlags: boolean[] = []
+  const statusVotes: { source: string; status: ResolvedStatus }[] = []
 
   let muChapter: number | null = null
   if (comic.mangaupdates_id) {
@@ -248,7 +291,7 @@ async function resolveChapterCount(comic: any): Promise<{
       formatRejections.push('MangaUpdates')
     } else {
       muChapter = muRes.chapter
-      if (muRes.isCompleted) structuralCompletionFlags.push(true)
+      if (muRes.status) statusVotes.push({ source: 'MangaUpdates', status: muRes.status })
     }
   }
 
@@ -260,14 +303,8 @@ async function resolveChapterCount(comic: any): Promise<{
       formatRejections.push('MangaDex')
     } else {
       mdChapter = mdRes.chapter
-      if (mdRes.isCompleted) structuralCompletionFlags.push(true)
+      if (mdRes.status) statusVotes.push({ source: 'MangaDex', status: mdRes.status })
     }
-  }
-
-  const isCompleted = structuralCompletionFlags.length > 0
-
-  if (muChapter !== null && mdChapter !== null && Math.abs(muChapter - mdChapter) <= 1) {
-    return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried, isCompleted, formatRejections }
   }
 
   let malChapter: number | null = null
@@ -278,50 +315,75 @@ async function resolveChapterCount(comic: any): Promise<{
       formatRejections.push('MAL')
     } else {
       malChapter = malRes.chapter
-      if (malRes.isCompleted) return { chapter: malChapter, source: 'MAL confirmed closure', tried, isCompleted: true, formatRejections }
+      if (malRes.status) statusVotes.push({ source: 'MAL', status: malRes.status })
     }
   }
 
-  if (malChapter !== null) {
-    if (muChapter !== null && Math.abs(malChapter - muChapter) <= 1) {
-      return { chapter: Math.max(malChapter, muChapter), source: 'MU+MAL confirmed', tried, isCompleted: true, formatRejections }
-    }
-    if (mdChapter !== null && Math.abs(malChapter - mdChapter) <= 1) {
-      return { chapter: Math.max(malChapter, mdChapter), source: 'MD+MAL confirmed', tried, isCompleted: true, formatRejections }
-    }
-  }
-
+  let alChapter: number | null = null
   if (comic.anilist_id) {
     tried.push('AniList')
     const alRes = await getChapterFromAniList(comic.anilist_id)
     if (alRes.formatRejected) {
       formatRejections.push('AniList')
     } else {
-      const alChapter = alRes.chapter
-      if (alRes.isCompleted) return { chapter: alChapter, source: 'AniList confirmed closure', tried, isCompleted: true, formatRejections }
-
-      if (alChapter !== null) {
-        if (muChapter !== null && Math.abs(alChapter - muChapter) <= 1) {
-          return { chapter: Math.max(alChapter, muChapter), source: 'MU+AniList confirmed', tried, isCompleted, formatRejections }
-        }
-        if (mdChapter !== null && Math.abs(alChapter - mdChapter) <= 1) {
-          return { chapter: Math.max(alChapter, mdChapter), source: 'MD+AniList confirmed', tried, isCompleted, formatRejections }
-        }
-        if (malChapter !== null && Math.abs(alChapter - malChapter) <= 1) {
-          return { chapter: Math.max(alChapter, malChapter), source: 'MAL+AniList confirmed', tried, isCompleted: true, formatRejections }
-        }
-        if (muChapter === null && mdChapter === null && malChapter === null) {
-          return { chapter: alChapter, source: 'AniList', tried, isCompleted, formatRejections }
-        }
-      }
+      alChapter = alRes.chapter
+      if (alRes.status) statusVotes.push({ source: 'AniList', status: alRes.status })
     }
   }
 
-  if (muChapter !== null)  return { chapter: muChapter,  source: 'MangaUpdates (unconfirmed)', tried, isCompleted, formatRejections }
-  if (mdChapter !== null)  return { chapter: mdChapter,  source: 'MangaDex (unconfirmed)',      tried, isCompleted, formatRejections }
-  if (malChapter !== null) return { chapter: malChapter, source: 'MAL (unconfirmed)',           tried, isCompleted: true, formatRejections }
+  let resolvedStatus: ResolvedStatus = null
+  let statusSources: string[] = []
 
-  return { chapter: null, source: null, tried, isCompleted, formatRejections }
+  const statusGroups = new Map<string, string[]>()
+  for (const vote of statusVotes) {
+    if (!vote.status) continue
+    const list = statusGroups.get(vote.status) ?? []
+    list.push(vote.source)
+    statusGroups.set(vote.status, list)
+  }
+
+  for (const [status, sources] of statusGroups.entries()) {
+    if (sources.length >= 2) {
+      resolvedStatus = status as ResolvedStatus
+      statusSources  = sources
+      break
+    }
+  }
+
+  // ── Chapter count resolution — unchanged logic from before ──
+  if (muChapter !== null && mdChapter !== null && Math.abs(muChapter - mdChapter) <= 1) {
+    return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried, resolvedStatus, statusSources, formatRejections }
+  }
+
+  if (malChapter !== null) {
+    if (muChapter !== null && Math.abs(malChapter - muChapter) <= 1) {
+      return { chapter: Math.max(malChapter, muChapter), source: 'MU+MAL confirmed', tried, resolvedStatus, statusSources, formatRejections }
+    }
+    if (mdChapter !== null && Math.abs(malChapter - mdChapter) <= 1) {
+      return { chapter: Math.max(malChapter, mdChapter), source: 'MD+MAL confirmed', tried, resolvedStatus, statusSources, formatRejections }
+    }
+  }
+
+  if (alChapter !== null) {
+    if (muChapter !== null && Math.abs(alChapter - muChapter) <= 1) {
+      return { chapter: Math.max(alChapter, muChapter), source: 'MU+AniList confirmed', tried, resolvedStatus, statusSources, formatRejections }
+    }
+    if (mdChapter !== null && Math.abs(alChapter - mdChapter) <= 1) {
+      return { chapter: Math.max(alChapter, mdChapter), source: 'MD+AniList confirmed', tried, resolvedStatus, statusSources, formatRejections }
+    }
+    if (malChapter !== null && Math.abs(alChapter - malChapter) <= 1) {
+      return { chapter: Math.max(alChapter, malChapter), source: 'MAL+AniList confirmed', tried, resolvedStatus, statusSources, formatRejections }
+    }
+    if (muChapter === null && mdChapter === null && malChapter === null) {
+      return { chapter: alChapter, source: 'AniList', tried, resolvedStatus, statusSources, formatRejections }
+    }
+  }
+
+  if (muChapter !== null)  return { chapter: muChapter,  source: 'MangaUpdates (unconfirmed)', tried, resolvedStatus, statusSources, formatRejections }
+  if (mdChapter !== null)  return { chapter: mdChapter,  source: 'MangaDex (unconfirmed)',      tried, resolvedStatus, statusSources, formatRejections }
+  if (malChapter !== null) return { chapter: malChapter, source: 'MAL (unconfirmed)',           tried, resolvedStatus, statusSources, formatRejections }
+
+  return { chapter: null, source: null, tried, resolvedStatus, statusSources, formatRejections }
 }
 
 // ── Lock helpers ──────────────────────────────────────────────────
@@ -379,21 +441,34 @@ export async function GET(req: Request) {
   }
 
   try {
-    const cutoff = new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString()
+    const fastCutoff = new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString()
+    const slowCutoff = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000).toISOString()
 
-    const { data: comics, error } = await supabase
-      .from('recommendations')
-      .select('id, title, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check')
-      .eq('is_approved', true)
-      .eq('status', 'ongoing')
-      .or(`last_chapter_check.is.null,last_chapter_check.lt.${cutoff}`)
-      .not('last_id_check', 'is', null)
-      .limit(BATCH_SIZE)
+    const [{ data: fastPool, error: fastError }, { data: slowPool, error: slowError }] = await Promise.all([
+      supabase
+        .from('recommendations')
+        .select('id, title, status, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check')
+        .eq('is_approved', true)
+        .in('status', ['ongoing', 'hiatus'])
+        .or(`last_chapter_check.is.null,last_chapter_check.lt.${fastCutoff}`)
+        .not('last_id_check', 'is', null)
+        .limit(BATCH_SIZE),
+      supabase
+        .from('recommendations')
+        .select('id, title, status, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check')
+        .eq('is_approved', true)
+        .in('status', ['completed', 'cancelled'])
+        .or(`last_chapter_check.is.null,last_chapter_check.lt.${slowCutoff}`)
+        .not('last_id_check', 'is', null)
+        .limit(BATCH_SIZE),
+    ])
 
-    if (error) {
-      console.error('DB error:', error)
+    if (fastError || slowError) {
+      console.error('DB error:', fastError ?? slowError)
       return NextResponse.json({ error: 'DB fetch failed' }, { status: 500 })
     }
+
+    const comics = [...(fastPool ?? []), ...(slowPool ?? [])].slice(0, BATCH_SIZE)
 
     if (!comics || comics.length === 0) {
       return NextResponse.json({ checked: 0, updated: 0, logs: [] })
@@ -426,8 +501,8 @@ export async function GET(req: Request) {
       }
 
       try {
-        const { chapter: newChapterCount, source, tried, isCompleted, formatRejections } = await resolveChapterCount(comic)
- 
+        const { chapter: newChapterCount, source, tried, resolvedStatus, statusSources, formatRejections } = await resolveChapterCount(comic)
+
         if (formatRejections.length > 0) {
           const clearPayload: Record<string, any> = {}
           if (formatRejections.includes('MangaUpdates')) clearPayload.mangaupdates_id = null
@@ -447,25 +522,26 @@ export async function GET(req: Request) {
           database_success:  source,
           old_chapter_count: comic.chapter_count,
           new_chapter_count: newChapterCount,
+          old_status:        comic.status,
           status:            'no_update',
           format_rejections: formatRejections.length > 0 ? formatRejections : undefined,
           timestamp,
         }
 
-        // ── AUTO-CORRECT ROUTE: Series finalized external serialization ──
-        if (isCompleted) {
+        if (resolvedStatus && resolvedStatus !== comic.status) {
           const finalChapter = newChapterCount ?? comic.chapter_count ?? 0
-          await supabase.from('recommendations')
-            .update({ 
-              status: 'completed', 
-              chapter_count: finalChapter,
-              last_chapter_check: timestamp 
-            })
-            .eq('id', comic.id)
+          const updatePayload: Record<string, any> = {
+            status:              resolvedStatus,
+            chapter_count:       finalChapter,
+            last_chapter_check:  timestamp,
+          }
 
-          logEntry.status = 'completed_corrected'
-          logEntry.reason = `Automation system intercepted ongoing tracking loop: External resource mapping flags production status as finalized. Set system state to complete.`
+          await supabase.from('recommendations').update(updatePayload).eq('id', comic.id)
+
+          logEntry.status           = resolvedStatus === 'completed' ? 'completed_corrected' : 'status_corrected'
+          logEntry.new_status       = resolvedStatus
           logEntry.new_chapter_count = finalChapter
+          logEntry.reason           = `${statusSources.length} sources (${statusSources.join(', ')}) agree status is now "${resolvedStatus}".`
           logs.push(logEntry)
           continue
         }

@@ -5,6 +5,7 @@ import {
   BellOff, Trash2, ThumbsUp, BookOpen,
   MessageSquare, UserPlus, AlertCircle,
   Star, Zap, CheckCircle2, Check, Trophy,
+  FolderHeart, ShieldAlert,
 } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -16,6 +17,7 @@ interface Notification {
   id:         string
   user_id:    string
   type:       'vote' | 'vote_milestone' | 'review' | 'reply' | 'feature' | 'achievement' | 'system' | 'follow' | 'chapter_update'
+            | 'collection_saved' | 'list_starred' | 'followed_user_posted' | 'admin_new_submission'
   title:      string
   content:    string | null
   data:       any
@@ -25,27 +27,35 @@ interface Notification {
 }
 
 const TYPE_META: Record<string, { icon: React.ReactNode; colorClass: string; label: string }> = {
-  vote:           { icon: <ThumbsUp      size={13} className="text-emerald-500"      />, colorClass: 'bg-emerald-500/10 border-emerald-500/20', label: 'Vote'        },
-  vote_milestone: { icon: <Trophy        size={13} className="text-yellow-500"       />, colorClass: 'bg-yellow-500/10 border-yellow-500/20',   label: 'Milestone'   },
-  review:         { icon: <Star          size={13} className="text-amber-500"        />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Review'      },
-  reply:          { icon: <MessageSquare size={13} className="text-blue-500"         />, colorClass: 'bg-blue-500/10 border-blue-500/20',       label: 'Reply'       },
-  follow:         { icon: <UserPlus      size={13} className="text-violet-500"       />, colorClass: 'bg-violet-500/10 border-violet-500/20',   label: 'Follow'      },
-  feature:        { icon: <Zap           size={13} className="text-amber-500"        />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Featured'    },
-  achievement:    { icon: <CheckCircle2  size={13} className="text-teal-500"         />, colorClass: 'bg-teal-500/10 border-teal-500/20',       label: 'Achievement' },
-  chapter_update: { icon: <BookOpen      size={13} className="text-primary"          />, colorClass: 'bg-primary/10 border-primary/20',         label: 'New Chapter' },
-  system:         { icon: <AlertCircle   size={13} className="text-muted-foreground" />, colorClass: 'bg-muted border-border/60',               label: 'System'      },
+  vote:                 { icon: <ThumbsUp      size={13} className="text-emerald-500"      />, colorClass: 'bg-emerald-500/10 border-emerald-500/20', label: 'Vote'          },
+  vote_milestone:       { icon: <Trophy        size={13} className="text-yellow-500"       />, colorClass: 'bg-yellow-500/10 border-yellow-500/20',   label: 'Milestone'     },
+  review:               { icon: <Star          size={13} className="text-amber-500"        />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Review'        },
+  reply:                { icon: <MessageSquare size={13} className="text-blue-500"         />, colorClass: 'bg-blue-500/10 border-blue-500/20',       label: 'Reply'         },
+  follow:               { icon: <UserPlus      size={13} className="text-violet-500"       />, colorClass: 'bg-violet-500/10 border-violet-500/20',   label: 'Follow'        },
+  feature:              { icon: <Zap           size={13} className="text-amber-500"        />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Featured'      },
+  achievement:          { icon: <CheckCircle2  size={13} className="text-teal-500"         />, colorClass: 'bg-teal-500/10 border-teal-500/20',       label: 'Achievement'   },
+  chapter_update:       { icon: <BookOpen      size={13} className="text-primary"          />, colorClass: 'bg-primary/10 border-primary/20',         label: 'New Chapter'   },
+  collection_saved:     { icon: <FolderHeart   size={13} className="text-rose-500"         />, colorClass: 'bg-rose-500/10 border-rose-500/20',       label: 'Collection Saved' },
+  list_starred:         { icon: <Star          size={13} className="text-amber-500"        />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'List Starred'  },
+  followed_user_posted: { icon: <BookOpen      size={13} className="text-violet-500"       />, colorClass: 'bg-violet-500/10 border-violet-500/20',   label: 'New Post'      },
+  admin_new_submission: { icon: <ShieldAlert   size={13} className="text-red-500"          />, colorClass: 'bg-red-500/10 border-red-500/20',         label: 'Needs Review'  },
+  system:               { icon: <AlertCircle   size={13} className="text-muted-foreground" />, colorClass: 'bg-muted border-border/60',               label: 'System'        },
 }
 
 const FILTERS = [
-  { key: 'all',            label: 'All'          },
-  { key: 'vote',           label: 'Votes'        },
-  { key: 'vote_milestone', label: 'Milestones'   },
-  { key: 'follow',         label: 'Follows'      },
-  { key: 'review',         label: 'Reviews'      },
-  { key: 'feature',        label: 'Featured'     },
-  { key: 'chapter_update', label: 'Chapters'     },
-  { key: 'achievement',    label: 'Achievements' },
-  { key: 'system',         label: 'System'       },
+  { key: 'all',                   label: 'All'          },
+  { key: 'vote',                  label: 'Votes'        },
+  { key: 'vote_milestone',        label: 'Milestones'   },
+  { key: 'follow',                label: 'Follows'      },
+  { key: 'review',                label: 'Reviews'      },
+  { key: 'feature',                label: 'Featured'     },
+  { key: 'chapter_update',        label: 'Chapters'     },
+  { key: 'collection_saved',      label: 'Collections'  },
+  { key: 'list_starred',          label: 'Lists'        },
+  { key: 'followed_user_posted',  label: 'Following'    },
+  { key: 'admin_new_submission',  label: 'Review Queue' },
+  { key: 'achievement',           label: 'Achievements' },
+  { key: 'system',                label: 'System'       },
 ] as const
 
 type FilterKey = typeof FILTERS[number]['key']
@@ -130,6 +140,19 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
         }
         return null // still loading from cache
       }
+
+      // ── Pass 2 notification types ──────────────────────────────────────
+      case 'collection_saved':
+        return data.collection_id ? `/collections/${data.collection_id}` : null
+
+      case 'list_starred':
+        return data.list_id ? `/lists/${data.list_id}` : null
+
+      case 'followed_user_posted':
+        return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
+
+      case 'admin_new_submission':
+        return '/admin/recommendations'
 
       case 'achievement':
       case 'system':

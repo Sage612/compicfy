@@ -31,14 +31,11 @@ export type Database = {
           is_banned: boolean
           ban_reason: string | null
           banned_at: string | null
-          // Suspension fields
           is_suspended: boolean
           suspended_until: string | null
           suspension_reason: string | null
-          // Appeal fields
           appeal_status: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text: string | null
-          // Verified recommender badge
           verified_recommender: boolean
           user_type: 'reader' | 'creator'
           created_at: string
@@ -118,7 +115,6 @@ export type Database = {
           genres: string[]
           themes: string[]
           content_warnings: string[]
-          // Fixed: DB constraint uses 'all_ages' not 'all'
           content_rating: 'all_ages' | 'teen' | 'mature' | 'adult'
           official_platforms: string[]
           official_links: string[]
@@ -153,22 +149,22 @@ export type Database = {
           ai_model: string | null
           reviewed_by: string | null
           reviewed_at: string | null
-          // External database IDs
           mangaupdates_id: string | null
           anilist_id: string | null
           mal_id: string | null
           mangadex_id: string | null
           mangabaka_id: string | null
           kuroiru_id: string | null
-          // Rejection & appeal fields
           rejection_reason: string | null
           appeal_status: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text: string | null
           appeal_submitted_at: string | null
           is_pro_submission: boolean
-          // Draft fields
           is_draft:        boolean
           draft_saved_at:  string | null
+          more_info_link:             string | null
+          more_info_link_source:      'user_submitted' | 'auto_fetched' | 'admin_approved' | null
+          more_info_link_verified_at: string | null
           created_at: string
           updated_at: string
         }
@@ -221,6 +217,9 @@ export type Database = {
           is_pro_submission?: boolean
           is_draft:        boolean
           draft_saved_at:  string | null
+          more_info_link?:             string | null
+          more_info_link_source?:      'user_submitted' | 'auto_fetched' | 'admin_approved' | null
+          more_info_link_verified_at?: string | null
         }
         Update: {
           title?: string
@@ -269,6 +268,9 @@ export type Database = {
           is_pro_submission?: boolean
           is_draft:        boolean
           draft_saved_at:  string | null
+          more_info_link?:             string | null
+          more_info_link_source?:      'user_submitted' | 'auto_fetched' | 'admin_approved' | null
+          more_info_link_verified_at?: string | null
           updated_at?: string
         }
       }
@@ -829,6 +831,7 @@ export type ProfileUpdate = Database['public']['Tables']['profiles']['Update']
 export type Recommendation       = Database['public']['Tables']['recommendations']['Row']
 export type RecommendationInsert = Database['public']['Tables']['recommendations']['Insert']
 export type RecommendationUpdate = Database['public']['Tables']['recommendations']['Update']
+export type MoreInfoLinkSource   = 'user_submitted' | 'auto_fetched' | 'admin_approved'
 
 export type Vote       = Database['public']['Tables']['votes']['Row']
 export type VoteInsert = Database['public']['Tables']['votes']['Insert']

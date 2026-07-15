@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { recommendationSchema } from '@/lib/utils/validators'
 import { sendPushForUser } from '@/lib/utils/pushHelper'
+import { resolveMoreInfoLink } from '@/lib/utils/moreInfoLink'
 import { notifyFollowersOfNewPost } from '@/lib/utils/followerNotify'
 import {
   enforceRecLimit,
@@ -19,11 +20,6 @@ type ExistingRec = {
   is_approved: boolean
 }
 
-// Notifies all admins/moderators that a new recommendation needs review.
-// Only called for real, non-auto-approved, non-draft submissions — an
-// admin/mod's own submission auto-approves (isAutoApproved), so there's
-// nothing to review and no notification fires; same for drafts, which
-// aren't real submissions yet.
 async function notifyAdminsOfNewSubmission(
   supabase: any,
   recId:    string,
@@ -57,18 +53,10 @@ async function notifyAdminsOfNewSubmission(
         }
 
         if (prefs.push !== false) {
-          await sendPushForUser(admin.id, notifTitle, notifBody, `/admin/recommendations/${recId}`)
+          await sendPushForUser(admin.id, notifTitle, notifBody, `/admin/recommendations`)
         }
 
-        // Admin new-submission emails are NOT queued for digest — unlike
-        // saves/stars/chapter updates, this is a time-sensitive action item
-        // (something needs review), so it stays immediate rather than
-        // batching, matching the urgency of the approve/reject flow itself.
         if (prefs.email !== false) {
-          // Intentionally left as a hook — wire to a dedicated
-          // sendAdminNewSubmissionEmail() in lib/email/send.ts once that
-          // template exists. Not blocking Pass 2's other notification
-          // types on a new email template being written.
         }
       })
     )
@@ -164,11 +152,9 @@ export async function POST(request: Request) {
 
     const isAdminOrMod = ['admin', 'moderator'].includes(profile?.role ?? '')
 
-    // ── Monthly limit (free users only) ───────────────────────────────────────
     const { allowed: monthlyOk, error: monthlyError } = await enforceRecLimit(user.id)
     if (!monthlyOk) return monthlyError!
 
-    // ── Daily limit (all non-admin users) ─────────────────────────────────────
     if (!isAdminOrMod) {
       const { allowed: dailyOk, error: dailyError } = await enforceDailyRecLimit(user.id)
       if (!dailyOk) return dailyError!
@@ -187,7 +173,6 @@ export async function POST(request: Request) {
 
     const data = parsed.data
 
-    // ── Skip duplicate check for drafts ───────────────────────────────────────
     if (!asDraft) {
       const { data: existing } = (await supabase
         .from('recommendations')
@@ -209,7 +194,14 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── Global daily cap check (non-admin, non-draft) ─────────────────────────
+    const moreInfoLink = await resolveMoreInfoLink(
+      body.more_info_link,
+      data.title,
+      data.author,
+      data.artist,
+      data.year_released,
+    )
+
     if (!isAdminOrMod && !asDraft) {
       const { isPeakHour, capReached } = await checkGlobalDailyCap()
 
@@ -241,6 +233,9 @@ export async function POST(request: Request) {
           anilist_id:         body.anilist_id      || null,
           mal_id:             body.mal_id          || null,
           mangadex_id:        body.mangadex_id     || null,
+          more_info_link:             moreInfoLink.more_info_link,
+          more_info_link_source:      moreInfoLink.more_info_link_source,
+          more_info_link_verified_at: moreInfoLink.more_info_link_verified_at,
         }
 
         const { data: draft, error: draftError } = await (supabase as any)
@@ -295,6 +290,9 @@ export async function POST(request: Request) {
       anilist_id:         body.anilist_id      || null,
       mal_id:             body.mal_id          || null,
       mangadex_id:        body.mangadex_id     || null,
+      more_info_link:             moreInfoLink.more_info_link,
+      more_info_link_source:      moreInfoLink.more_info_link_source,
+      more_info_link_verified_at: moreInfoLink.more_info_link_verified_at,
     }
 
     const { data: recommendation, error } = await supabase
@@ -307,8 +305,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // ── New-submission notifications ────────────────────────────────────────
-    // Only for real, non-draft submissions.
     if (!asDraft) {
       const { data: submitterProfile } = await supabase
         .from('profiles')
@@ -321,30 +317,18 @@ export async function POST(request: Request) {
       const recTitle = (recommendation as any).title
 
       if (!isAutoApproved) {
-        // Needs review — admins get notified now (there's an actual task
-        // for them). Followers do NOT get notified here — the comic detail
-        // page requires is_approved=true, so notifying followers at this
-        // point would send them a dead link to a page that 404s until an
-        // admin approves it. Follower notification for this path instead
-        // fires from the admin PATCH route's 'approve' action, once the
-        // rec is actually live. See notifyFollowersOfNewPost call there.
         notifyAdminsOfNewSubmission(supabase, recId, recTitle, submitterUsername).catch(console.error)
       } else {
-        // Auto-approved (admin/mod submitting their own rec) — it's live
-        // immediately, so followers can safely be notified right now; the
-        // link they get will resolve correctly.
         notifyFollowersOfNewPost(supabase, recId, recTitle, user.id, submitterUsername).catch(console.error)
       }
     }
 
-    // ── Increment counters only for real submissions ───────────────────────────
     if (!asDraft) {
       await Promise.all([
         incrementDailyCount(user.id),
         incrementGlobalCount(),
       ])
 
-      // ── Soft cap warning for next submission ──────────────────────────────────
       const softCap = await checkSoftCap(user.id)
       return NextResponse.json(
         {

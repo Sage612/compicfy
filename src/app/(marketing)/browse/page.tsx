@@ -57,7 +57,7 @@ const PAGE_SIZE    = 24
 const SAFE_RATINGS = '("adult","mature")'
 
 // ── Genre section config ──────────────────────────────────────────
-const GENRE_PAGE_SIZE     = 9   // 3 cards per row x 3 rows
+const GENRE_PAGE_SIZE     = 12  // fetch 12; mobile shows 9 via CSS, desktop shows all 12
 const GENRE_MIN_ITEMS     = 6   // don't render a genre section unless it has at least 6 comics
 const GENRE_SECTION_COUNT = 12  // show top N genres by comic count
 
@@ -119,9 +119,6 @@ async function getCommunityFavourites(s: SupabaseClient) {
   return (data as Recommendation[]) ?? []
 }
 
-// Replaces getAdminPicks / getHiddenGems / getYouMightLike being shown all
-// at once. Rotates daily (day-of-year % 3) so all three original queries
-// still get used, just one at a time — keeps the page from being crowded.
 async function getEditorialPick(
   s: SupabaseClient,
   userId: string | null
@@ -166,8 +163,9 @@ async function getEditorialPick(
 }
 
 // Single round-trip genre count — pulls just the `genres` column for all
-// qualifying comics and tallies counts in memory instead of running one
-// count() query per genre (25 queries → 1).
+// qualifying comics and tallies counts by PRIMARY genre (genres[0]) only,
+// matching how getGenreItems assigns each comic to one section. This
+// keeps ranking consistent with what will actually render.
 async function getTopGenresWithCounts(s: SupabaseClient): Promise<string[]> {
   const { data } = await s
     .from('recommendations')
@@ -179,11 +177,9 @@ async function getTopGenresWithCounts(s: SupabaseClient): Promise<string[]> {
 
   const counts = new Map<string, number>()
   for (const row of rows) {
-    if (!row.genres) continue
-    for (const genre of row.genres) {
-      if (!GENRES.includes(genre as any)) continue // ignore stray/legacy values
-      counts.set(genre, (counts.get(genre) ?? 0) + 1)
-    }
+    const primaryGenre = row.genres?.[0]
+    if (!primaryGenre || !GENRES.includes(primaryGenre as any)) continue // ignore stray/legacy values
+    counts.set(primaryGenre, (counts.get(primaryGenre) ?? 0) + 1)
   }
 
   return Array.from(counts.entries())
@@ -193,21 +189,18 @@ async function getTopGenresWithCounts(s: SupabaseClient): Promise<string[]> {
     .map(([genre]) => genre)
 }
 
-// Rotating pick within a genre — cycles through pages of results so the
-// same 9 comics aren't shown every day. Offset by a hash of the genre
-// name so genres don't all rotate in lockstep with each other. Clamps
-// the cycle length to the genre's actual comic count so small genres
-// (right at the GENRE_MIN_ITEMS threshold) never request a page past
-// the end of their available comics.
 async function getGenreItems(s: SupabaseClient, genre: string): Promise<Recommendation[]> {
-  const { count } = await s
+  const { data: countRows } = await s
     .from('recommendations')
-    .select('*', { count: 'exact', head: true })
+    .select('id, genres')
     .eq('is_approved', true)
     .not('content_rating', 'in', SAFE_RATINGS)
     .contains('genres', [genre])
 
-  const total = count ?? 0
+  const primaryMatches = ((countRows as { id: string; genres: string[] | null }[] | null) ?? [])
+    .filter(r => r.genres && r.genres[0] === genre)
+
+  const total = primaryMatches.length
   if (total === 0) return []
 
   const maxCycle = Math.max(1, Math.floor(total / GENRE_PAGE_SIZE) || 1)
@@ -219,14 +212,17 @@ async function getGenreItems(s: SupabaseClient, genre: string): Promise<Recommen
   const cycle  = Math.min(4, maxCycle)
   const offset = ((dayOfYear + seed) % cycle) * GENRE_PAGE_SIZE
 
+  const idsForPage = primaryMatches
+    .slice(offset, offset + GENRE_PAGE_SIZE)
+    .map(r => r.id)
+
+  if (idsForPage.length === 0) return []
+
   const { data } = await s
     .from('recommendations')
     .select('*')
-    .eq('is_approved', true)
-    .not('content_rating', 'in', SAFE_RATINGS)
-    .contains('genres', [genre])
+    .in('id', idsForPage)
     .order('score', { ascending: false })
-    .range(offset, offset + GENRE_PAGE_SIZE - 1)
 
   return (data as Recommendation[]) ?? []
 }
@@ -297,9 +293,6 @@ export default async function BrowsePage({ searchParams }: Props) {
     getInitialGrid(supabase, params),
   ])
 
-  // Genre sections — only computed when not filtering. Two steps: figure
-  // out which genres have enough content, then fetch each one's rotating
-  // items in parallel.
   let genreSections: { genre: string; items: Recommendation[] }[] = []
   if (!isFiltering) {
     const topGenres  = await getTopGenresWithCounts(supabase)
@@ -349,9 +342,7 @@ export default async function BrowsePage({ searchParams }: Props) {
         </Suspense>
       )}
 
-      {/* Horizontal Sections — consolidated from 7 to 4: three fixed
-          shelves plus one rotating editorial slot (Admin Picks / Hidden
-          Gems / You Might Like), cycling daily. */}
+      
       {!isFiltering && (
         <div className="space-y-10">
           <HorizontalSection title="Trending Today"       emoji="🔥" recommendations={trending}      viewAllHref="/browse?sort=trending" />
@@ -365,9 +356,7 @@ export default async function BrowsePage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* Genre Sections — replaces the flat "All Comics" grid. Shows the
-          top 12 genres by comic count (min 6 comics to qualify), each as
-          a 3-per-row grid using the existing ComicCard. Rotates daily. */}
+      
       {!isFiltering && genreSections.length > 0 && (
         <div className="space-y-8 pt-2">
           <div className="relative flex items-center gap-4 py-2">
@@ -400,8 +389,14 @@ export default async function BrowsePage({ searchParams }: Props) {
                   </Button>
                 </Link>
               </div>
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {genreItems.map(rec => <ComicCard key={rec.id} recommendation={rec} />)}
+              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
+                {genreItems.map((rec, i) => (
+                  <ComicCard
+                    key={rec.id}
+                    recommendation={rec}
+                    className={i >= 9 ? 'hidden md:block' : undefined}
+                  />
+                ))}
               </div>
             </div>
           ))}

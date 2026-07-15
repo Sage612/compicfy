@@ -20,11 +20,14 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
-    if      (filter === 'pending')  query = query.eq('is_approved', false).is('rejection_reason', null)
-    else if (filter === 'approved') query = query.eq('is_approved', true)
-    else if (filter === 'rejected') query = query.not('rejection_reason', 'is', null)
-    else if (filter === 'featured') query = query.eq('is_featured', true)
-    else if (filter === 'appeals')  query = query.eq('appeal_status', 'pending')
+    if      (filter === 'pending')    query = query.eq('is_approved', false).is('rejection_reason', null)
+    else if (filter === 'approved')   query = query.eq('is_approved', true)
+    else if (filter === 'rejected')   query = query.not('rejection_reason', 'is', null)
+    else if (filter === 'featured')   query = query.eq('is_featured', true)
+    else if (filter === 'appeals')    query = query.eq('appeal_status', 'pending')
+    else if (filter === 'more_info')  query = query
+      .not('more_info_link', 'is', null)
+      .neq('more_info_link_source', 'admin_approved')
 
     if (q) {
       query = query.or(
