@@ -53,7 +53,7 @@ export async function PATCH(
       'content_warnings', 'content_rating', 'official_platforms',
       'official_links', 'author', 'artist', 'publisher', 'cover_url',
       'banner_url', 'why_recommend', 'chapter_count', 'year_released',
-      'alternative_titles',
+      'alternative_titles', 'more_info_link',
     ]
     const updates: Record<string, any> = {}
     for (const field of allowedFields) {

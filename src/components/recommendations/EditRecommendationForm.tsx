@@ -13,7 +13,7 @@ import { CoverUpload } from './CoverUpload'
 import { GenreSelector } from './GenreSelector'
 import { PlatformSelector } from './PlatformSelector'
 import { toast } from 'sonner'
-import { Loader2, BookOpen, Tag, FileText, Globe, Save } from 'lucide-react'
+import { Loader2, BookOpen, Tag, FileText, Globe, Save, Link2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const formSchema = z.object({
@@ -36,6 +36,10 @@ const formSchema = z.object({
   chapter_count: z.preprocess(
     (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
     z.number().min(1).optional()
+  ),
+  more_info_link: z.string().max(500).default('').refine(
+    (val) => !val || /^https?:\/\/.+/.test(val),
+    { message: 'Must be a valid URL starting with http:// or https://' }
   ),
 })
 
@@ -111,6 +115,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       artist:             rec.artist             ?? '',
       year_released:      rec.year_released      ?? undefined,
       chapter_count:      rec.chapter_count      ?? undefined,
+      more_info_link:     rec.more_info_link     ?? '',
     },
   })
 
@@ -329,6 +334,25 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
             />
           )}
         />
+      </FormSection>
+
+      {/* More Info Link */}
+      <FormSection icon={Link2} title="More Info Link" accent="bg-sky-500">
+        <div className="space-y-1.5">
+          <Label htmlFor="more_info_link" className="text-sm font-semibold">
+            External reference <span className="text-muted-foreground font-normal">(optional)</span>
+          </Label>
+          <Input
+            id="more_info_link"
+            {...register('more_info_link')}
+            placeholder="e.g. https://www.mangaupdates.com/series/..."
+            className="h-10"
+          />
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            Link to a MangaUpdates entry or similar database page.
+          </p>
+          {errors.more_info_link && <p className="text-xs text-destructive">{errors.more_info_link.message}</p>}
+        </div>
       </FormSection>
 
       {/* Submit row */}
