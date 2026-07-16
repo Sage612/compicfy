@@ -22,6 +22,11 @@ export const recommendationBaseSchema = z.object({
     (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
     z.number().min(1).optional()
   ),
+  
+  more_info_link: z.string().max(500).default('').refine(
+    (val) => !val || /^https?:\/\/.+/.test(val),
+    { message: 'Must be a valid URL starting with http:// or https://' }
+  ),
 })
 
 function refineOfficialLinks(
