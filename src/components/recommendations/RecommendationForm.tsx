@@ -48,6 +48,7 @@ const formSchema = z.object({
     (val) => (val === '' || val === null || val === undefined ? undefined : Number(val)),
     z.number().min(1).optional()
   ),
+  alternative_titles: z.array(z.string()).max(5).default([]),
   more_info_link: z.string().max(500).default('').refine(
     (val) => !val || /^https?:\/\/.+/.test(val),
     { message: 'Must be a valid URL starting with http:// or https://' }
@@ -131,6 +132,8 @@ export function RecommendationForm({ userId }: Props) {
 
   const [submitting,         setSubmitting]         = useState(false)
   const [duplicateWarning,   setDuplicateWarning]   = useState<{ id: string; title: string; is_approved: boolean } | null>(null)
+  const [similarWarnings,    setSimilarWarnings]    = useState<{ id: string; title: string; is_approved: boolean; match_type: string; similarity: number }[]>([])
+  const [dismissedSimilar,   setDismissedSimilar]   = useState(false)
   const [checkingDuplicate,  setCheckingDuplicate]  = useState(false)
   const duplicateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [externalIds, setExternalIds] = useState<{
@@ -201,6 +204,7 @@ export function RecommendationForm({ userId }: Props) {
       official_links:     [],
       content_rating:     'all_ages',
       why_recommend:      '',
+      alternative_titles: [],
       more_info_link:     '',
       ...(prefillYear     ? { year_released: Number(prefillYear)     } : {}),
       ...(prefillChapters ? { chapter_count: Number(prefillChapters) } : {}),
@@ -218,12 +222,14 @@ export function RecommendationForm({ userId }: Props) {
   }, [prefillTitle])
 
   const checkDuplicate = async (title: string) => {
-    if (title.trim().length < 2) { setDuplicateWarning(null); return }
+    if (title.trim().length < 2) { setDuplicateWarning(null); setSimilarWarnings([]); return }
     setCheckingDuplicate(true)
     try {
       const res  = await fetch(`/api/recommendations/check-duplicate?title=${encodeURIComponent(title.trim())}`)
       const data = await res.json()
       setDuplicateWarning(data.duplicate ?? null)
+      setSimilarWarnings(data.similar ?? [])
+      setDismissedSimilar(false)
     } catch { /* silent */ } finally { setCheckingDuplicate(false) }
   }
 
@@ -310,6 +316,13 @@ export function RecommendationForm({ userId }: Props) {
     setValue('status',      result.status             || 'ongoing')
     if (result.year)     setValue('year_released', result.year)
     if (result.chapters) setValue('chapter_count', result.chapters)
+    if (Array.isArray(result.alternativeTitles) && result.alternativeTitles.length > 0) {
+      const deduped = Array.from(new Set(
+        result.alternativeTitles
+          .filter((t: string) => t && t.trim() && t.trim().toLowerCase() !== (result.title ?? '').trim().toLowerCase())
+      )).slice(0, 5) as string[]
+      setValue('alternative_titles', deduped)
+    }
     if (result.title)    checkDuplicate(result.title)
     const validGenres = ['Action','Adventure','Comedy','Drama','Fantasy','Horror','Mystery','Romance','Sci-Fi','Slice of Life','Sports','Supernatural','Thriller','Isekai','Martial Arts','School Life','Historical','Psychological','Shounen','Shoujo','Seinen','Josei','Yuri','Yaoi']
     setValue('genres', result.genres?.filter((g: string) => validGenres.includes(g)).slice(0, 5) || [])
@@ -441,6 +454,39 @@ export function RecommendationForm({ userId }: Props) {
                       </Link>
                     </div>
                   )}
+                </div>
+              )}
+              {!duplicateWarning && similarWarnings.length > 0 && !dismissedSimilar && (
+                <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-foreground">
+                        This looks similar to {similarWarnings.length === 1 ? 'an existing comic' : `${similarWarnings.length} existing comics`}
+                      </p>
+                      <div className="mt-1.5 space-y-1">
+                        {similarWarnings.slice(0, 3).map(s => (
+                          <p key={s.id} className="text-xs text-muted-foreground">
+                            "{s.title}" <span className="text-muted-foreground/60">({s.similarity}% similar)</span>
+                          </p>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                        If this is genuinely a different title, you can continue. If it's the same comic under a different name, please search for it above instead of submitting a duplicate.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pl-[26px]">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={() => setDismissedSimilar(true)}
+                    >
+                      This is a different comic, continue
+                    </Button>
+                  </div>
                 </div>
               )}
               {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}

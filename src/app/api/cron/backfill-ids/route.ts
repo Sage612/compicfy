@@ -72,12 +72,13 @@ function normalizeFormat(raw: string | null | undefined): NormalizedFormat {
 }
 
 interface Candidate {
-  id:      string
-  title:   string
-  author?: string
-  artist?: string
-  year?:   number | null
-  format:  NormalizedFormat
+  id:            string
+  title:         string
+  author?:       string
+  artist?:       string
+  year?:         number | null
+  format:        NormalizedFormat
+  altTitles?:    string[]
 }
 
 function smartMatch(
@@ -180,7 +181,7 @@ async function fetchMUDetailType(seriesId: string): Promise<NormalizedFormat> {
 async function findMangaUpdatesID(
   titles: string[], author?: string | null, artist?: string | null,
   year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
-): Promise<{ id: string | null; year: number | null }> {
+): Promise<{ id: string | null; year: number | null; altTitles: string[] }> {
   for (const title of titles) {
     try {
       await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -193,11 +194,14 @@ async function findMangaUpdatesID(
       const data = await res.json()
       const rawResults = (data.results ?? []) as any[]
       const candidatesNoFormat = rawResults.slice(0, 3).map((r: any) => ({
-        id:     String(r.record?.series_id ?? ''),
-        title:  r.record?.title ?? '',
-        author: r.record?.author ?? '',
-        artist: r.record?.artist ?? '',
-        year:   r.record?.year ? Number(r.record.year) : null,
+        id:        String(r.record?.series_id ?? ''),
+        title:     r.record?.title ?? '',
+        author:    r.record?.author ?? '',
+        artist:    r.record?.artist ?? '',
+        year:      r.record?.year ? Number(r.record.year) : null,
+        altTitles: Array.isArray(r.record?.associated)
+          ? r.record.associated.map((a: any) => a?.title).filter(Boolean)
+          : [],
       }))
 
       const candidates: Candidate[] = await Promise.all(
@@ -210,19 +214,19 @@ async function findMangaUpdatesID(
       const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence, 'manga')
       if (matchId) {
         const matched = candidates.find(c => c.id === matchId)
-        return { id: matchId, year: matched?.year ?? null }
+        return { id: matchId, year: matched?.year ?? null, altTitles: matched?.altTitles ?? [] }
       }
     } catch (err) {
       console.error(`MU error for "${title}":`, err)
     }
   }
-  return { id: null, year: null }
+  return { id: null, year: null, altTitles: [] }
 }
 
 async function findMangaDexID(
   titles: string[], author?: string | null, artist?: string | null,
   year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
-): Promise<{ id: string | null; year: number | null }> {
+): Promise<{ id: string | null; year: number | null; altTitles: string[] }> {
   for (const title of titles) {
     try {
       await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -237,35 +241,39 @@ async function findMangaDexID(
         const rels       = r.relationships ?? []
         const authorName = rels.find((rel: any) => rel.type === 'author')?.attributes?.name ?? ''
         const artistName = rels.find((rel: any) => rel.type === 'artist')?.attributes?.name ?? ''
+        const altTitles: string[] = Array.isArray(attr.altTitles)
+          ? attr.altTitles.flatMap((obj: any) => Object.values(obj ?? {})).filter(Boolean)
+          : []
         return {
-          id:     String(r.id ?? ''),
-          title:  String(titleEn),
-          author: authorName,
-          artist: artistName,
-          year:   attr.year ? Number(attr.year) : null,
-          format: 'manga' as NormalizedFormat,
+          id:        String(r.id ?? ''),
+          title:     String(titleEn),
+          author:    authorName,
+          artist:    artistName,
+          year:      attr.year ? Number(attr.year) : null,
+          format:    'manga' as NormalizedFormat,
+          altTitles,
         }
       })
       const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence, 'manga')
       if (matchId) {
         const matched = candidates.find(c => c.id === matchId)
-        return { id: matchId, year: matched?.year ?? null }
+        return { id: matchId, year: matched?.year ?? null, altTitles: matched?.altTitles ?? [] }
       }
     } catch (err) {
       console.error(`MD error for "${title}":`, err)
     }
   }
-  return { id: null, year: null }
+  return { id: null, year: null, altTitles: [] }
 }
 
 async function findAniListID(
   titles: string[], author?: string | null, artist?: string | null,
   year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
-): Promise<{ id: string | null; year: number | null }> {
+): Promise<{ id: string | null; year: number | null; altTitles: string[] }> {
   for (const title of titles) {
     try {
       await new Promise(r => setTimeout(r, API_DELAY_MS))
-      const gql = `query($search:String){Page(perPage:15){media(search:$search,type:MANGA,sort:SEARCH_MATCH){id title{english romaji native}format startDate{year}staff(perPage:10){edges{role node{name{full}}}}}}}`
+      const gql = `query($search:String){Page(perPage:15){media(search:$search,type:MANGA,sort:SEARCH_MATCH){id title{english romaji native}synonyms format startDate{year}staff(perPage:10){edges{role node{name{full}}}}}}}}`
       const res = await fetchWithTimeout('https://graphql.anilist.co', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -277,31 +285,38 @@ async function findAniListID(
         const edges      = r.staff?.edges ?? []
         const authorName = edges.find((e: any) => e.role?.toLowerCase().includes('story'))?.node?.name?.full ?? ''
         const artistName = edges.find((e: any) => e.role?.toLowerCase().includes('art'))?.node?.name?.full ?? ''
+        const primaryTitle = r.title?.english || r.title?.romaji || r.title?.native || ''
+        const altTitles = [
+          r.title?.romaji,
+          r.title?.native,
+          ...(Array.isArray(r.synonyms) ? r.synonyms : []),
+        ].filter((t: string | undefined): t is string => !!t && t !== primaryTitle)
         return {
-          id:     String(r.id ?? ''),
-          title:  r.title?.english || r.title?.romaji || r.title?.native || '',
-          author: authorName,
-          artist: artistName,
-          year:   r.startDate?.year ? Number(r.startDate.year) : null,
-          format: normalizeFormat(r.format ?? null),
+          id:        String(r.id ?? ''),
+          title:     primaryTitle,
+          author:    authorName,
+          artist:    artistName,
+          year:      r.startDate?.year ? Number(r.startDate.year) : null,
+          format:    normalizeFormat(r.format ?? null),
+          altTitles,
         }
       })
       const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence, 'manga')
       if (matchId) {
         const matched = candidates.find(c => c.id === matchId)
-        return { id: matchId, year: matched?.year ?? null }
+        return { id: matchId, year: matched?.year ?? null, altTitles: matched?.altTitles ?? [] }
       }
     } catch (err) {
       console.error(`AL error for "${title}":`, err)
     }
   }
-  return { id: null, year: null }
+  return { id: null, year: null, altTitles: [] }
 }
 
 async function findJikanID(
   titles: string[], author?: string | null, artist?: string | null,
   year?: number | null, yearConfidence?: 'unverified' | 'confirmed',
-): Promise<{ id: string | null; year: number | null }> {
+): Promise<{ id: string | null; year: number | null; altTitles: string[] }> {
   for (const title of titles) {
     try {
       await new Promise(r => setTimeout(r, API_DELAY_MS))
@@ -315,25 +330,30 @@ async function findJikanID(
         const authorName = authors.find((a: any) => a.type === 'Story')?.name ?? authors[0]?.name ?? ''
         const artistName = authors.find((a: any) => a.type === 'Art')?.name ?? ''
         const publishedYear = r.published?.from ? new Date(r.published.from).getFullYear() : null
+        const primaryTitle  = r.title_english || r.title || ''
+        const altTitles: string[] = Array.isArray(r.titles)
+          ? r.titles.map((t: any) => t?.title).filter((t: string) => t && t !== primaryTitle)
+          : (Array.isArray(r.title_synonyms) ? r.title_synonyms : [])
         return {
-          id:     String(r.mal_id ?? ''),
-          title:  r.title_english || r.title || '',
-          author: authorName,
-          artist: artistName,
-          year:   publishedYear,
-          format: normalizeFormat(r.type ?? null),
+          id:        String(r.mal_id ?? ''),
+          title:     primaryTitle,
+          author:    authorName,
+          artist:    artistName,
+          year:      publishedYear,
+          format:    normalizeFormat(r.type ?? null),
+          altTitles,
         }
       })
       const matchId = smartMatch(title, candidates, author, artist, year, yearConfidence, 'manga')
       if (matchId) {
         const matched = candidates.find(c => c.id === matchId)
-        return { id: matchId, year: matched?.year ?? null }
+        return { id: matchId, year: matched?.year ?? null, altTitles: matched?.altTitles ?? [] }
       }
     } catch (err) {
       console.error(`Jikan error for "${title}":`, err)
     }
   }
-  return { id: null, year: null }
+  return { id: null, year: null, altTitles: [] }
 }
 
 async function findExternalIds(
@@ -344,8 +364,9 @@ async function findExternalIds(
   year?:              number | null,
   yearConfidence?:    'unverified' | 'confirmed',
 ): Promise<{
-  ids:   Record<string, string | undefined>
-  years: Record<string, number | null>
+  ids:              Record<string, string | undefined>
+  years:            Record<string, number | null>
+  discoveredTitles: string[]
 }> {
   const ids:   Record<string, string | undefined> = {}
   const years: Record<string, number | null>       = {}
@@ -362,7 +383,24 @@ async function findExternalIds(
   if (al.id)  { ids.anilist_id      = al.id;  years.anilist_id      = al.year }
   if (mal.id) { ids.mal_id          = mal.id; years.mal_id          = mal.year }
 
-  return { ids, years }
+  const normalizedMain = normalize(title)
+  const merged = [
+    ...(mu.altTitles ?? []),
+    ...(md.altTitles ?? []),
+    ...(al.altTitles ?? []),
+    ...(mal.altTitles ?? []),
+  ]
+  const seen = new Set<string>()
+  const discoveredTitles: string[] = []
+  for (const t of merged) {
+    const n = normalize(t)
+    if (!n || n === normalizedMain || seen.has(n)) continue
+    seen.add(n)
+    discoveredTitles.push(t)
+    if (discoveredTitles.length >= 5) break
+  }
+
+  return { ids, years, discoveredTitles }
 }
 
 function deriveYearConsensus(
@@ -524,7 +562,7 @@ export async function GET(req: Request) {
           continue
         }
 
-        const { ids, years } = await findExternalIds(
+        const { ids, years, discoveredTitles } = await findExternalIds(
           comic.title, comic.author, comic.artist, comic.alternative_titles,
           comic.year_released ?? null, yearConfidence,
         )
@@ -547,6 +585,11 @@ export async function GET(req: Request) {
         const { consensusYear, outlierSources } = deriveYearConsensus(years)
 
         const updatePayload: Record<string, any> = { ...mergedIds, last_id_check: timestamp }
+
+        const hasNoAltTitles = !comic.alternative_titles || comic.alternative_titles.length === 0
+        if (hasNoAltTitles && discoveredTitles.length > 0) {
+          updatePayload.alternative_titles = discoveredTitles
+        }
         if (dueForFullReverify) {
           updatePayload.last_full_reverify = timestamp
         }
