@@ -341,6 +341,7 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
       year_released:      rec.year_released      ?? '',
       genres:             rec.genres             ?? [],
       official_platforms: rec.official_platforms ?? [],
+      more_info_link:     rec.more_info_link     ?? '',
     })
   }
 
@@ -693,6 +694,18 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
                           links={editData.official_links ?? []}
                           onLinksChange={(links) => setEditData(d => ({ ...d, official_links: links }))}
                         />
+                      </div>
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">More Info Link</p>
+                        <Input
+                          value={editData.more_info_link ?? ''}
+                          onChange={e => setEditData(d => ({ ...d, more_info_link: e.target.value }))}
+                          placeholder="https://www.mangaupdates.com/series/..."
+                          className="text-sm h-9"
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                          Editing this directly does not change its verification status use Verify/Reject Link below if this comic has an unverified link pending review.
+                        </p>
                       </div>
                       <div className="flex gap-2 justify-end pt-1">
                         <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
