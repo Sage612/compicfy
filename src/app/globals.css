@@ -271,6 +271,7 @@
   --animate-slide-in:       slide-in 0.3s ease-out;
   --animate-fade-in:        fade-in 0.4s ease-out;
   --animate-pulse-soft:     pulse-soft 2s ease-in-out infinite;
+  --animate-marquee:        marquee 8s linear infinite;
 }
 
 /* ── BASE RESETS ── */
@@ -331,6 +332,10 @@
   0%   { background-position: -200% 0; }
   100% { background-position:  200% 0; }
 }
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
 
 /* ── SCROLLBARS ── */
 .scrollbar-discord {
@@ -344,6 +349,13 @@
 
 .no-scrollbar                    { -ms-overflow-style: none; scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Respect reduced-motion preference for the marquee title animation */
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none !important;
+  }
+}
 
 /* ── DASHBOARD LAYOUT ── */
 @custom-variant touch-land (@media (pointer: coarse) and (orientation: landscape) and (max-width: 1024px));

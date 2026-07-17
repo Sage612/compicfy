@@ -13,6 +13,7 @@ import {
   Star, ChevronRight, Heart,
   ThumbsUp, MessageSquare, Bookmark, Trophy,
 } from 'lucide-react'
+import { GENRES, GENRE_MOODS, genreSlug } from '@/lib/utils/constants'
 import type { Recommendation } from '@/types/database.types'
 import type { News } from '@/types/database.types'
 import type { Metadata } from 'next'
@@ -34,19 +35,6 @@ export const metadata: Metadata = {
     images:      [`${SITE_URL}/api/og`],
   },
 }
-
-const GENRES = [
-  { label: 'I need something addictive',    emoji: '⚔️',  href: '/browse?genre=Action'        },
-  { label: 'Give me butterflies',            emoji: '🌸',  href: '/browse?genre=Romance'       },
-  { label: 'Take me somewhere else',         emoji: '✨',  href: '/browse?genre=Fantasy'       },
-  { label: 'I just want to laugh',           emoji: '😂',  href: '/browse?genre=Comedy'        },
-  { label: 'Big brain, big world',           emoji: '🚀',  href: '/browse?genre=Sci-Fi'        },
-  { label: 'Something that hits deep',       emoji: '🎭',  href: '/browse?genre=Drama'         },
-  { label: 'I want to be unsettled',         emoji: '👻',  href: '/browse?genre=Horror'        },
-  { label: 'Hype me up',                     emoji: '⚡',  href: '/browse?genre=Sports'        },
-  { label: 'Cozy, slow, no stress',          emoji: '🍵',  href: '/browse?genre=Slice+of+Life' },
-  { label: "Can't figure out what's real",   emoji: '🔍',  href: '/browse?genre=Mystery'       },
-]
 
 const PLATFORMS = [
   { name: 'Webtoon',     color: '#00d564' },
@@ -354,21 +342,28 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── GENRE MOOD PILLS ── */}
+      {/* ── GENRE MOOD PILLS ──
+          All 25 genres, sourced from GENRE_MOODS (lib/utils/constants.ts) so
+          this stays in lockstep with the browse page genre section labels.
+          Clicking a pill scrolls straight to that genre's section on
+          /browse instead of loading the filtered comic grid. */}
       <section className="border-b border-border">
         <div className="max-w-7xl mx-auto px-4 py-7">
           <p className="text-center text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-5">
             Browse by mood
           </p>
           <div className="flex flex-wrap gap-2 justify-center">
-            {GENRES.map((g) => (
-              <Link key={g.label} href={g.href}>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all duration-150 cursor-pointer select-none font-medium">
-                  <span className="text-base leading-none">{g.emoji}</span>
-                  {g.label}
-                </span>
-              </Link>
-            ))}
+            {GENRES.map((genre) => {
+              const { mood, emoji } = GENRE_MOODS[genre]
+              return (
+                <Link key={genre} href={`/browse#genre-${genreSlug(genre)}`}>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all duration-150 cursor-pointer select-none font-medium">
+                    <span className="text-base leading-none">{emoji}</span>
+                    {mood}
+                  </span>
+                </Link>
+              )
+            })}
           </div>
         </div>
       </section>
@@ -403,7 +398,7 @@ export default async function HomePage() {
         <section className="border-y border-border">
           <div className="max-w-7xl mx-auto px-4 py-12 space-y-8">
             <div className="text-center space-y-2">
-             
+
               <h2 className="text-2xl font-black tracking-tight">The people behind the picks</h2>
               <p className="text-muted-foreground text-sm max-w-sm mx-auto">
                 Real readers sharing what they love.
@@ -444,7 +439,7 @@ export default async function HomePage() {
         <section className="border-y border-border">
           <div className="max-w-7xl mx-auto px-4 py-14 space-y-10">
             <div className="text-center space-y-2">
-              
+
               <h2 className="text-2xl font-black tracking-tight">Collections & reading lists</h2>
               <p className="text-muted-foreground text-sm max-w-sm mx-auto">
                 Themed picks and reading journeys, built by the community.

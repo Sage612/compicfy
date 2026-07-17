@@ -62,3 +62,36 @@ export const FREE_LIMITS = {
   lists:                     5,
   collections:               3,
 } as const
+
+export const GENRE_MOODS: Record<(typeof GENRES)[number], { mood: string; emoji: string }> = {
+  'Action':         { mood: 'I need something addictive',  emoji: '⚔️' },
+  'Adventure':      { mood: 'Take me on a journey',         emoji: '🗺️' },
+  'Comedy':         { mood: 'I just want to laugh',         emoji: '😂' },
+  'Drama':          { mood: 'Something that hits deep',     emoji: '🎭' },
+  'Fantasy':        { mood: 'Take me somewhere else',       emoji: '✨' },
+  'Horror':         { mood: 'I want to be unsettled',       emoji: '👻' },
+  'Mystery':        { mood: "Can't figure out what's real", emoji: '🔍' },
+  'Romance':        { mood: 'Give me butterflies',          emoji: '🌸' },
+  'Sci-Fi':         { mood: 'Big brain, big world',         emoji: '🚀' },
+  'Slice of Life':  { mood: 'Cozy, slow, no stress',        emoji: '🍵' },
+  'Sports':         { mood: 'Hype me up',                   emoji: '⚡' },
+  'Supernatural':   { mood: 'Something otherworldly',       emoji: '🌙' },
+  'Thriller':       { mood: 'Keep me on edge',              emoji: '😱' },
+  'Isekai':         { mood: 'Drop me in another world',     emoji: '🌀' },
+  'Martial Arts':   { mood: 'Show me some skill',           emoji: '🥋' },
+  'School Life':    { mood: 'Take me back to school',       emoji: '🎒' },
+  'Historical':     { mood: 'Show me the past',             emoji: '🏛️' },
+  'Psychological':  { mood: 'Mess with my head',            emoji: '🧠' },
+  'Shounen':        { mood: 'Fuel my fire',                 emoji: '🔥' },
+  'Shoujo':         { mood: 'Sweep me off my feet',         emoji: '💮' },
+  'Seinen':         { mood: 'Something with an edge',       emoji: '🗡️' },
+  'Josei':          { mood: 'Something more grown-up',      emoji: '💐' },
+  'Yuri':           { mood: 'Girls falling for girls',      emoji: '💗' },
+  'Yaoi':           { mood: 'Boys falling for boys',        emoji: '💜' },
+  'Mecha':          { mood: 'Give me robots and stakes',    emoji: '🤖' },
+}
+
+// Slug used for anchor-scroll targets, e.g. #genre-slice-of-life
+export function genreSlug(genre: string): string {
+  return genre.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+}

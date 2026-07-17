@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRef } from 'react'
 import { ComicCard } from './ComicCard'
+import { ScrollingTitle } from './ScrollingTitle'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -44,8 +45,10 @@ export function HorizontalSection({
           {emoji && (
             <span className="text-2xl leading-none shrink-0">{emoji}</span>
           )}
-          <div>
-            <h2 className="text-lg font-black leading-tight tracking-tight">{title}</h2>
+          <div className="min-w-0">
+            <ScrollingTitle>
+              <h2 className="text-lg font-black leading-tight tracking-tight">{title}</h2>
+            </ScrollingTitle>
             <div className="h-0.5 w-8 rounded-full bg-primary mt-1 opacity-60" />
           </div>
         </div>

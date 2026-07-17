@@ -8,7 +8,9 @@ import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
 import { ShieldAlert, BookOpen, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { GENRES } from '@/lib/utils/constants'
+import { GENRES, GENRE_MOODS, genreSlug } from '@/lib/utils/constants'
+import { GenreAnchorFallback } from '@/components/recommendations/GenreAnchorFallback'
+import { ScrollingTitle } from '@/components/recommendations/ScrollingTitle'
 import type { Recommendation } from '@/types/database.types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
@@ -34,35 +36,6 @@ const ADULT_RATINGS = ['adult', 'mature'] as const
 const GENRE_PAGE_SIZE     = 12  // fetch 12; mobile shows 9 via CSS, desktop shows all 12
 const GENRE_MIN_ITEMS     = 6   // don't render a genre section unless it has at least 6 comics
 const GENRE_SECTION_COUNT = 12  // show top N genres by comic count
-
-// Emoji per genre — same visual language as the horizontal sections above.
-const GENRE_EMOJIS: Record<string, string> = {
-  'Action':         '⚔️',
-  'Adventure':      '🗺️',
-  'Comedy':         '😂',
-  'Drama':          '🎭',
-  'Fantasy':        '🐉',
-  'Horror':         '👻',
-  'Mystery':        '🔍',
-  'Romance':        '💕',
-  'Sci-Fi':         '🚀',
-  'Slice of Life':  '🍃',
-  'Sports':         '🏆',
-  'Supernatural':   '🌙',
-  'Thriller':       '😱',
-  'Isekai':         '🌀',
-  'Martial Arts':   '🥋',
-  'School Life':    '🎒',
-  'Historical':     '🏛️',
-  'Psychological':  '🧠',
-  'Shounen':        '🔥',
-  'Shoujo':         '🌸',
-  'Seinen':         '🗡️',
-  'Josei':          '💐',
-  'Yuri':           '💗',
-  'Yaoi':           '💜',
-  'Mecha':          '🤖',
-}
 
 async function getFeatured(s: SupabaseClient) {
   const { data } = await s.from('recommendations').select('*').eq('is_approved', true).in('content_rating', ADULT_RATINGS).order('daily_votes', { ascending: false }).limit(8)
@@ -408,11 +381,10 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* Genre Sections — replaces the flat "All 18+ Comics" grid. Shows
-          the top 12 genres by primary-genre comic count (min 6 to
-          qualify), each as a 3-per-row grid. Rotates daily. */}
       {!isFiltering && genreSections.length > 0 && (
         <div className="space-y-8 pt-2">
+          <GenreAnchorFallback availableSlugs={genreSections.map(s => genreSlug(s.genre))} redirectBase="/browse/adult" />
+
           <div className="relative flex items-center gap-4 py-2">
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
             <div className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card shrink-0">
@@ -422,38 +394,43 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
             <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />
           </div>
 
-          {genreSections.map(({ genre, items: genreItems }) => (
-            <div key={genre} className="space-y-3">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-2xl leading-none shrink-0">{GENRE_EMOJIS[genre] ?? '📚'}</span>
-                  <div>
-                    <h3 className="text-lg font-black leading-tight tracking-tight">{genre}</h3>
-                    <div className="h-0.5 w-8 rounded-full bg-primary mt-1 opacity-60" />
+          {genreSections.map(({ genre, items: genreItems }) => {
+            const { mood, emoji } = GENRE_MOODS[genre as (typeof GENRES)[number]] ?? { mood: genre, emoji: '📚' }
+            return (
+              <div key={genre} id={`genre-${genreSlug(genre)}`} className="space-y-3 scroll-mt-20">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-2xl leading-none shrink-0">{emoji}</span>
+                    <div className="min-w-0">
+                      <ScrollingTitle>
+                        <h3 className="text-lg font-black leading-tight tracking-tight">{mood}</h3>
+                      </ScrollingTitle>
+                      <div className="h-0.5 w-8 rounded-full bg-primary mt-1 opacity-60" />
+                    </div>
                   </div>
+                  <Link href={`/browse/adult?genre=${encodeURIComponent(genre)}`} className="shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-xs text-muted-foreground hover:text-foreground h-8 px-3"
+                    >
+                      View All
+                      <span aria-hidden>→</span>
+                    </Button>
+                  </Link>
                 </div>
-                <Link href={`/browse/adult?genre=${encodeURIComponent(genre)}`} className="shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1 text-xs text-muted-foreground hover:text-foreground h-8 px-3"
-                  >
-                    View All
-                    <span aria-hidden>→</span>
-                  </Button>
-                </Link>
+                <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
+                  {genreItems.map((rec, i) => (
+                    <ComicCard
+                      key={rec.id}
+                      recommendation={rec}
+                      className={i >= 9 ? 'hidden md:block' : undefined}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
-                {genreItems.map((rec, i) => (
-                  <ComicCard
-                    key={rec.id}
-                    recommendation={rec}
-                    className={i >= 9 ? 'hidden md:block' : undefined}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
