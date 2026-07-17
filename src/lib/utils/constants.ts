@@ -95,3 +95,8 @@ export const GENRE_MOODS: Record<(typeof GENRES)[number], { mood: string; emoji:
 export function genreSlug(genre: string): string {
   return genre.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 }
+
+export const HOME_MOOD_GENRES: (typeof GENRES)[number][] = [
+  'Action', 'Romance', 'Fantasy', 'Comedy', 'Sci-Fi',
+  'Drama', 'Horror', 'Sports', 'Slice of Life', 'Mystery',
+]

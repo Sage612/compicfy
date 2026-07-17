@@ -13,7 +13,7 @@ import {
   Star, ChevronRight, Heart,
   ThumbsUp, MessageSquare, Bookmark, Trophy,
 } from 'lucide-react'
-import { GENRES, GENRE_MOODS, genreSlug } from '@/lib/utils/constants'
+import { GENRES, GENRE_MOODS, HOME_MOOD_GENRES, genreSlug } from '@/lib/utils/constants'
 import type { Recommendation } from '@/types/database.types'
 import type { News } from '@/types/database.types'
 import type { Metadata } from 'next'
@@ -353,7 +353,7 @@ export default async function HomePage() {
             Browse by mood
           </p>
           <div className="flex flex-wrap gap-2 justify-center">
-            {GENRES.map((genre) => {
+            {HOME_MOOD_GENRES.map((genre) => {
               const { mood, emoji } = GENRE_MOODS[genre]
               return (
                 <Link key={genre} href={`/browse#genre-${genreSlug(genre)}`}>
