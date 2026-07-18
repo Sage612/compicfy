@@ -5,6 +5,7 @@ import { AdminFloatingButton } from '@/components/admin/AdminFloatingButton'
 import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 import { ProCreatorSidebar } from '@/components/pro/ProCreatorSidebar'
 import { ProMobileNav } from '@/components/pro/ProMobileNav'
+import { DashboardShell } from '@/components/layout/DashboardShell'
 import { isAdmin as isAdminCheck, canAccessAdminDashboard, canAccessProDashboard } from '@/lib/access'
 
 export default async function ProCreatorDashboardLayout({
@@ -24,31 +25,30 @@ export default async function ProCreatorDashboardLayout({
 
   if (!profile) redirect('/login')
 
-  // Admin has lifetime Pro and bypasses everything below.
-  // Moderator is NOT Pro — moderator must NOT bypass this gate.
   const isAdmin = isAdminCheck(profile)
   const canSeeAdminUI = canAccessAdminDashboard(profile) // admin or moderator, for the floating admin button only
 
   if (!isAdmin) {
-    // Non-admin: enforce user_type
+
     if (profile.user_type !== 'creator') redirect('/pro/reader/dashboard')
 
-    // Non-admin: must be real Pro (moderator does NOT get a pass here)
     if (!canAccessProDashboard(profile)) redirect('/pricing?reason=pro_required')
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <div className="flex flex-1 pt-20">
-        <ProCreatorSidebar />
-        <main className="dashboard-main flex-1 min-w-0 overflow-auto pb-24 md:pb-0">
-          <div className="px-4 pt-4 max-w-5xl mx-auto">
-            <IncompleteRecNudge />
-          </div>
-          {children}
-        </main>
-      </div>
+      <DashboardShell
+        topOffset="80px"
+        sidebarWidth="w-60"
+        sidebarClassName="border-r border-border/70 p-3"
+        sidebar={<ProCreatorSidebar />}
+      >
+        <div className="px-4 pt-4 max-w-5xl mx-auto">
+          <IncompleteRecNudge />
+        </div>
+        {children}
+      </DashboardShell>
       <ProMobileNav userType="creator" />
       {canSeeAdminUI && <AdminFloatingButton />}
     </div>

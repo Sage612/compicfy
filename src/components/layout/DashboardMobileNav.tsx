@@ -12,28 +12,38 @@ import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
 const READER_ITEMS = [
-  { href: '/reader/dashboard',                     label: 'Home',       icon: LayoutDashboard, exact: true,  isSubmit: false },
-  { href: '/reader/dashboard/recommendations/new', label: 'Submit',     icon: Plus,            exact: true,  isSubmit: true  },
-  { href: '/reader/dashboard/recommendations',     label: 'My Recs',    icon: BookOpen,        exact: false, isSubmit: false },
-  { href: '/reader/dashboard/saved',               label: 'Saved',      icon: Bookmark,        exact: false, isSubmit: false },
-  { href: '/reader/dashboard/lists',               label: 'Lists',      icon: BookMarked,      exact: false, isSubmit: false },
-  { href: '/reader/dashboard/collections',         label: 'Collections',icon: Layers,          exact: false, isSubmit: false },
-  { href: '/reader/dashboard/notifications',       label: 'Alerts',     icon: Bell,            exact: false, isSubmit: false },
-  { href: '/reader/dashboard/reviews',             label: 'Reviews',    icon: Star,            exact: false, isSubmit: false },
-  { href: '/reader/dashboard/settings',            label: 'Settings',   icon: Settings,        exact: false, isSubmit: false },
-  { href: '/reader/dashboard/billing',             label: 'Billing',    icon: CreditCard,      exact: false, isSubmit: false },
+  { href: '/reader/dashboard',                     label: 'Home',       icon: LayoutDashboard, exact: true,  isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/recommendations/new', label: 'Submit',     icon: Plus,            exact: true,  isSubmit: true,  excludePaths: [] as string[] },
+  { href: '/reader/dashboard/recommendations',     label: 'My Recs',    icon: BookOpen,        exact: false, isSubmit: false, excludePaths: ['/reader/dashboard/recommendations/new'] },
+  { href: '/reader/dashboard/saved',               label: 'Saved',      icon: Bookmark,        exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/lists',               label: 'Lists',      icon: BookMarked,      exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/collections',         label: 'Collections',icon: Layers,          exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/notifications',       label: 'Alerts',     icon: Bell,            exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/reviews',             label: 'Reviews',    icon: Star,            exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/settings',            label: 'Settings',   icon: Settings,        exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/billing',             label: 'Billing',    icon: CreditCard,      exact: false, isSubmit: false, excludePaths: [] as string[] },
 ]
 
 const CREATOR_ITEMS = [
-  { href: '/creator/dashboard',               label: 'Studio',     icon: LayoutDashboard, exact: true,  isSubmit: false },
-  { href: '/creator/dashboard/works/new',     label: 'Add Work',   icon: Plus,            exact: true,  isSubmit: true  },
-  { href: '/creator/dashboard/works',         label: 'Works',      icon: BookOpen,        exact: false, isSubmit: false },
-  { href: '/creator/dashboard/audience',      label: 'Audience',   icon: Users,           exact: false, isSubmit: false },
-  { href: '/creator/dashboard/links',         label: 'Links',      icon: LinkIcon,        exact: false, isSubmit: false },
-  { href: '/creator/dashboard/notifications', label: 'Alerts',     icon: Bell,            exact: false, isSubmit: false },
-  { href: '/creator/dashboard/settings',      label: 'Settings',   icon: Settings,        exact: false, isSubmit: false },
-  { href: '/creator/dashboard/billing',       label: 'Billing',    icon: CreditCard,      exact: false, isSubmit: false },
+  { href: '/creator/dashboard',               label: 'Studio',     icon: LayoutDashboard, exact: true,  isSubmit: false, excludePaths: [] as string[] },
+  { href: '/creator/dashboard/works/new',     label: 'Add Work',   icon: Plus,            exact: true,  isSubmit: true,  excludePaths: [] as string[] },
+  { href: '/creator/dashboard/works',         label: 'Works',      icon: BookOpen,        exact: false, isSubmit: false, excludePaths: ['/creator/dashboard/works/new'] },
+  { href: '/creator/dashboard/audience',      label: 'Audience',   icon: Users,           exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/creator/dashboard/links',         label: 'Links',      icon: LinkIcon,        exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/creator/dashboard/notifications', label: 'Alerts',     icon: Bell,            exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/creator/dashboard/settings',      label: 'Settings',   icon: Settings,        exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/creator/dashboard/billing',       label: 'Billing',    icon: CreditCard,      exact: false, isSubmit: false, excludePaths: [] as string[] },
 ]
+
+function isNavItemActive(
+  pathname: string,
+  href: string,
+  exact: boolean,
+  excludePaths: string[] = [],
+): boolean {
+  if (excludePaths.some(p => pathname === p || pathname.startsWith(p + '/'))) return false
+  return exact ? pathname === href : (pathname === href || pathname.startsWith(href + '/'))
+}
 
 export function DashboardMobileNav() {
   const pathname                  = usePathname()
@@ -64,8 +74,8 @@ export function DashboardMobileNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden touch-land:flex lg:hidden bg-background/95 backdrop-blur-lg border-t border-border">
       <div className="flex overflow-x-auto no-scrollbar px-2 py-2 gap-1">
-        {items.map(({ href, label, icon: Icon, exact, isSubmit }) => {
-          const isActive = exact ? pathname === href : pathname.startsWith(href)
+        {items.map(({ href, label, icon: Icon, exact, isSubmit, excludePaths }) => {
+          const isActive = isNavItemActive(pathname, href, exact, excludePaths)
 
           return (
             <Link

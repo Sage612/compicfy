@@ -6,6 +6,7 @@ import { IncompleteRecNudge } from '@/components/dashboard/IncompleteRecNudge'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
 import { DashboardNav } from '@/components/layout/DashboardNav'
 import { DashboardMobileNav } from '@/components/layout/DashboardMobileNav'
+import { DashboardShell } from '@/components/layout/DashboardShell'
 import { isAdmin as isAdminCheck, isProUser } from '@/lib/access'
 
 export default async function ReaderDashboardLayout({
@@ -36,8 +37,6 @@ export default async function ReaderDashboardLayout({
     if (isPro) redirect('/pro/reader/dashboard')
   }
 
-  // ── Live monthly rec count — never stale ──
-  // Count only recs submitted since the 1st of the current calendar month.
   let recCount = 0
   if (!isAdmin) {
     const startOfMonth = new Date()
@@ -59,32 +58,32 @@ export default async function ReaderDashboardLayout({
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
-      <div className="flex flex-1 pt-20">
-        <aside className="dashboard-sidebar hidden md:flex flex-col w-56 shrink-0 border-r border-border p-3 gap-1">
-          <DashboardNav />
-        </aside>
-        <main className="dashboard-main flex-1 min-w-0 overflow-auto pb-24 md:pb-0">
-          {showBanner && (
-            <div className="px-4 pt-4">
-              <UpgradeBanner
-                current={recCount}
-                limit={FREE_REC_LIMIT}
-                feature="recommendations this month"
-                message={
-                  recCount >= FREE_REC_LIMIT
-                    ? `You've reached your monthly recommendation limit`
-                    : `You're approaching your monthly recommendation limit`
-                }
-                dismissible
-              />
-            </div>
-          )}
+      <DashboardShell
+        topOffset="80px"
+        sidebarWidth="w-56"
+        sidebarClassName="border-r border-border/70 p-3 gap-1"
+        sidebar={<DashboardNav />}
+      >
+        {showBanner && (
           <div className="px-4 pt-4">
-            <IncompleteRecNudge />
+            <UpgradeBanner
+              current={recCount}
+              limit={FREE_REC_LIMIT}
+              feature="recommendations this month"
+              message={
+                recCount >= FREE_REC_LIMIT
+                  ? `You've reached your monthly recommendation limit`
+                  : `You're approaching your monthly recommendation limit`
+              }
+              dismissible
+            />
           </div>
-          {children}
-        </main>
-      </div>
+        )}
+        <div className="px-4 pt-4">
+          <IncompleteRecNudge />
+        </div>
+        {children}
+      </DashboardShell>
       <DashboardMobileNav />
       {isAdmin && <AdminFloatingButton />}
     </div>

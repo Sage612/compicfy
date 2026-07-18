@@ -52,8 +52,7 @@ export function AdminSidebar({ role, proDashHref }: Props) {
   const proActive = pathname.startsWith('/pro/')
 
   return (
-    <aside className="hidden md:flex flex-col w-56 shrink-0 border-r border-border p-3 gap-0.5">
-
+    <>
       {/* Panel header */}
       <div className="flex items-center justify-between px-3 py-2.5 mb-1">
         <div className="flex items-center gap-2">
@@ -125,7 +124,7 @@ export function AdminSidebar({ role, proDashHref }: Props) {
           </Link>
         </>
       )}
-    </aside>
+    </>
   )
 }
 

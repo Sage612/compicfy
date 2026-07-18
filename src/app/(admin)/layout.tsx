@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { AdminSidebar, AdminMobileNav } from '@/components/admin/AdminSidebar'
+import { DashboardShell } from '@/components/layout/DashboardShell'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -37,12 +38,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
-      <div className="flex flex-1 pt-[104px] lg:pt-14">
-        <AdminSidebar role={role} proDashHref={proDashHref} />
-        <main className="flex-1 min-w-0 overflow-auto pb-24 md:pb-0">
-          {children}
-        </main>
-      </div>
+      <DashboardShell
+        topOffset="104px"
+        topOffsetLg="56px"
+        sidebarWidth="w-56"
+        sidebarClassName="border-r border-border/70 p-3 gap-0.5"
+        sidebar={<AdminSidebar role={role} proDashHref={proDashHref} />}
+      >
+        {children}
+      </DashboardShell>
       <AdminMobileNav role={role} proDashHref={proDashHref} />
     </div>
   )
