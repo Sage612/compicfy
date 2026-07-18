@@ -129,7 +129,6 @@ async function autoFetchMangaUpdatesLink(
 
     const json = await res.json()
     const rawResults = (json?.results ?? []) as any[]
-
     const candidatesNoFormat = rawResults.slice(0, 5).map((r: any) => ({
       series_id: Number(r.record?.series_id ?? 0),
       title:     String(r.record?.title ?? ''),
@@ -154,8 +153,8 @@ async function autoFetchMangaUpdatesLink(
 
     const match = smartMatch(title, candidates, author, artist, year)
     if (!match) return null
-
-    return `https://www.mangaupdates.com/series/${match.series_id}`
+    const base36Id = match.series_id.toString(36)
+    return `https://www.mangaupdates.com/series/${base36Id}`
   } catch (err) {
     console.error('[autoFetchMangaUpdatesLink] error (non-fatal):', err)
     return null

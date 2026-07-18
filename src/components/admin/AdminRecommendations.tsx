@@ -9,6 +9,7 @@ import {
   CheckCircle, XCircle, Star, StarOff, Loader2, BookOpen,
   ChevronDown, ChevronUp, Pencil, Eye, Trash2, Search,
   CheckSquare, Square, ListChecks, X, Crown, Clock,
+  Lock, Unlock, ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatDate } from '@/lib/utils/format'
@@ -38,6 +39,19 @@ const TYPES    = ['manga', 'manhwa', 'manhua', 'webtoon', 'comic', 'other']
 const STATUSES = ['ongoing', 'completed', 'hiatus', 'cancelled']
 const RATINGS  = ['all_ages', 'teen', 'mature', 'adult']
 
+// ── External ID fields ──────────────────────────────────────────────────
+// Locking a field here stops the automated id-checker cron from ever
+// touching it (searching, overwriting, or nulling as an outlier). Use this
+// when the cron matched the wrong series, or when a comic genuinely isn't
+// listed on a given source (e.g. a Webtoon-only series absent from
+// MangaUpdates) so it should stop retrying forever.
+const EXTERNAL_ID_FIELDS = [
+  { key: 'mangaupdates_id', label: 'MangaUpdates', urlBase: 'https://www.mangaupdates.com/series/' },
+  { key: 'mangadex_id',     label: 'MangaDex',     urlBase: 'https://mangadex.org/title/' },
+  { key: 'anilist_id',      label: 'AniList',      urlBase: 'https://anilist.co/manga/' },
+  { key: 'mal_id',          label: 'MyAnimeList',  urlBase: 'https://myanimelist.net/manga/' },
+] as const
+
 // ── Carousel duration presets ─────────────────────────────────────────────
 const CAROUSEL_DURATIONS = [
   { label: '6 hours',   hours: 6     },
@@ -64,6 +78,9 @@ function sanitisePayload(data: Record<string, any>): Record<string, any> {
   for (const [key, value] of Object.entries(data)) {
     if (numericFields.includes(key)) {
       result[key] = value === '' || value === null || value === undefined ? null : Number(value)
+    } else if (EXTERNAL_ID_FIELDS.some(f => f.key === key)) {
+      // External ID fields: empty string means "no id" → store as null
+      result[key] = typeof value === 'string' && value.trim() === '' ? null : value
     } else if (typeof value === 'string') {
       result[key] = value
     } else {
@@ -181,6 +198,7 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
   const [bulkMode, setBulkMode]           = useState(false)
   const [selected, setSelected]           = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading]     = useState(false)
+  const [idsOpenFor, setIdsOpenFor]       = useState<string | null>(null) // which rec's External IDs section is expanded
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -241,7 +259,6 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
       }
       toast.success(`${action} successful`)
       if (action === 'feature') {
-        // Update in-place so featured badge + expiry show without refetch
         const data = await res.clone().json().catch(() => ({}))
         setRecs(prev => prev.map(r => r.id === id ? { ...r, is_featured: true, carousel_until: data.carousel_until ?? extra.carousel_until ?? null } : r))
         setFeaturingId(null)
@@ -252,8 +269,6 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
           ? { ...r, more_info_link_source: 'admin_approved', more_info_link_verified_at: new Date().toISOString() }
           : r
         ))
-        // If we're on the more_info filter, this rec no longer qualifies —
-        // drop it from the visible list rather than waiting for a refetch.
         if (filter === 'more_info') {
           setRecs(prev => prev.filter(r => r.id !== id))
         }
@@ -342,6 +357,24 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
       genres:             rec.genres             ?? [],
       official_platforms: rec.official_platforms ?? [],
       more_info_link:     rec.more_info_link     ?? '',
+      // External IDs — used by the automated id-checker cron. Empty string
+      // means "no id set". id_locked_fields holds which of the four field
+      // keys below are protected from being touched by that cron.
+      mangaupdates_id:    rec.mangaupdates_id    ?? '',
+      mangadex_id:        rec.mangadex_id        ?? '',
+      anilist_id:         rec.anilist_id         ?? '',
+      mal_id:             rec.mal_id             ?? '',
+      id_locked_fields:   rec.id_locked_fields   ?? [],
+    })
+  }
+
+  const toggleIdLock = (field: string) => {
+    setEditData(d => {
+      const current: string[] = d.id_locked_fields ?? []
+      const next = current.includes(field)
+        ? current.filter((f: string) => f !== field)
+        : [...current, field]
+      return { ...d, id_locked_fields: next }
     })
   }
 
@@ -475,8 +508,7 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
         )}
       </div>
 
-      {/* Filter tabs — horizontally scrollable, Bulk toggle pinned outside
-          the scroll area so it's always visible */}
+      {/* Filter tabs */}
       <div className="flex items-center gap-2">
         <div className="relative flex-1 min-w-0 overflow-hidden">
           <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-4 z-10 bg-gradient-to-r from-background to-transparent" />
@@ -593,7 +625,6 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
 
                       {rec.rejection_reason && <p className="text-xs text-red-500 bg-red-500/5 border border-red-500/10 rounded-lg px-2.5 py-1">Rejected: {rec.rejection_reason}</p>}
 
-                      {/* Action buttons */}
                       <div className="flex flex-wrap items-center gap-1 pt-1 sm:justify-end">
                         <Link href={`/comic/${rec.id}`} target="_blank">
                           <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs px-2.5 sm:h-8 sm:w-8 sm:p-0">
@@ -634,7 +665,6 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
                         </Button>
                       </div>
 
-                      {/* Feature duration picker */}
                       {isFeaturing && (
                         <FeaturePicker
                           onConfirm={(hours) => handleFeatureConfirm(rec.id, hours)}
@@ -707,6 +737,57 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
                           Editing this directly does not change its verification status use Verify/Reject Link below if this comic has an unverified link pending review.
                         </p>
                       </div>
+
+                      {/* External IDs — used by the id-checker cron */}
+                      <div className="space-y-1.5">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">External IDs</p>
+                        <p className="text-[10px] text-muted-foreground -mt-1">
+                          Lock a field to stop the automated ID checker from ever touching it — use this if it matched the wrong series, or if this comic genuinely isn't listed on that source.
+                        </p>
+                        <div className="space-y-1.5">
+                          {EXTERNAL_ID_FIELDS.map(({ key, label, urlBase }) => {
+                            const locked = (editData.id_locked_fields ?? []).includes(key)
+                            const val    = editData[key] ?? ''
+                            return (
+                              <div key={key} className="flex items-center gap-1.5">
+                                <span className="w-24 shrink-0 text-[10px] text-muted-foreground">{label}</span>
+                                <Input
+                                  value={val}
+                                  onChange={e => setEditData(d => ({ ...d, [key]: e.target.value }))}
+                                  placeholder="Not set"
+                                  className="text-sm h-8 flex-1 min-w-0"
+                                />
+                                {val && (
+                                  <a
+                                    href={`${urlBase}${val}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="shrink-0 text-muted-foreground hover:text-primary"
+                                    title="Open on source"
+                                  >
+                                    <ExternalLink size={13} />
+                                  </a>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleIdLock(key)}
+                                  title={locked ? 'Locked — the automated checker will not touch this field' : 'Unlocked — the automated checker may update this field'}
+                                  className={cn(
+                                    'shrink-0 flex items-center gap-1 h-8 px-2 rounded-md text-[10px] font-semibold border transition-colors',
+                                    locked
+                                      ? 'bg-primary text-primary-foreground border-primary'
+                                      : 'border-border text-muted-foreground hover:border-primary'
+                                  )}
+                                >
+                                  {locked ? <Lock size={11} /> : <Unlock size={11} />}
+                                  {locked ? 'Locked' : 'Lock'}
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+
                       <div className="flex gap-2 justify-end pt-1">
                         <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
                         <Button size="sm" onClick={() => handleEdit(rec.id)} disabled={!!actionLoading} className="gap-2">
@@ -792,7 +873,6 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
             })}
           </div>
 
-          {/* Load more */}
           {hasMore && (
             <div className="flex justify-center pt-2">
               <Button

@@ -39,9 +39,7 @@ type NormalizedFormat = 'manga' | 'novel' | 'other'
 function normalizeFormat(raw: string | null | undefined): NormalizedFormat {
   if (!raw) return 'other'
   const r = raw.toLowerCase().trim()
-
-  // Explicitly exclude prose/novel formats — this is the core fix.
-  // Light novels, novels, and web novels must never satisfy a manga match.
+  
   if (
     r === 'novel' ||
     r === 'light novel' ||
@@ -134,7 +132,6 @@ function smartMatch(
     const yearTiebreak = exactTitleMatches.find(yearConfirmed)
     if (yearTiebreak) return yearTiebreak.id
   }
-  if (exactTitleMatches.length > 0) return exactTitleMatches[0].id
 
   if (na || nr) {
     for (const c of pool) {
@@ -151,7 +148,6 @@ function smartMatch(
       if (isContained && ct !== nq && yearConfirmed(c)) return c.id
     }
   }
-
   return null
 }
 
@@ -363,6 +359,7 @@ async function findExternalIds(
   alternativeTitles?: string[] | null,
   year?:              number | null,
   yearConfidence?:    'unverified' | 'confirmed',
+  lockedFields?:      Set<string>,
 ): Promise<{
   ids:              Record<string, string | undefined>
   years:            Record<string, number | null>
@@ -371,11 +368,14 @@ async function findExternalIds(
   const ids:   Record<string, string | undefined> = {}
   const years: Record<string, number | null>       = {}
   const titles = buildQueryTitles(title, alternativeTitles)
+
+  const shouldCheck = (field: string) => !lockedFields || !lockedFields.has(field)
+
   const [mu, md, al, mal] = await Promise.all([
-    findMangaUpdatesID(titles, author, artist, year, yearConfidence),
-    findMangaDexID(titles, author, artist, year, yearConfidence),
-    findAniListID(titles, author, artist, year, yearConfidence),
-    findJikanID(titles, author, artist, year, yearConfidence),
+    shouldCheck('mangaupdates_id') ? findMangaUpdatesID(titles, author, artist, year, yearConfidence) : Promise.resolve({ id: null, year: null, altTitles: [] }),
+    shouldCheck('mangadex_id')     ? findMangaDexID(titles, author, artist, year, yearConfidence)     : Promise.resolve({ id: null, year: null, altTitles: [] }),
+    shouldCheck('anilist_id')      ? findAniListID(titles, author, artist, year, yearConfidence)      : Promise.resolve({ id: null, year: null, altTitles: [] }),
+    shouldCheck('mal_id')          ? findJikanID(titles, author, artist, year, yearConfidence)        : Promise.resolve({ id: null, year: null, altTitles: [] }),
   ])
 
   if (mu.id)  { ids.mangaupdates_id = mu.id;  years.mangaupdates_id = mu.year }
@@ -444,7 +444,8 @@ interface IDCheckLog {
   status:            'found_all' | 'found_some' | 'found_none' | 'skipped_complete'
   total_ids_found:   number
   reason?:           string
- full_reverify?:    boolean
+  full_reverify?:    boolean
+  locked_fields?:    string[]
   timestamp:         string
 }
 
@@ -463,12 +464,18 @@ async function logIDCheck(supabase: any, log: IDCheckLog) {
 }
 
 const TOTAL_ID_SOURCES = 4
+const ID_FIELDS = ['mangaupdates_id', 'mangadex_id', 'anilist_id', 'mal_id'] as const
 
 function countExternalIds(comic: any): number {
   return [
     comic.mangaupdates_id, comic.mangadex_id,
     comic.anilist_id,      comic.mal_id,
   ].filter(id => id && String(id).trim()).length
+}
+
+function getLockedFields(comic: any): Set<string> {
+  const raw: string[] = Array.isArray(comic.id_locked_fields) ? comic.id_locked_fields : []
+  return new Set(raw.filter((f) => (ID_FIELDS as readonly string[]).includes(f)))
 }
 
 async function acquireLock(supabase: any): Promise<boolean> {
@@ -513,7 +520,7 @@ export async function GET(req: Request) {
 
     const { data: comics, error } = await supabase
       .from('recommendations')
-      .select('id, title, alternative_titles, author, artist, year_released, year_confidence, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check, last_full_reverify')
+      .select('id, title, alternative_titles, author, artist, year_released, year_confidence, mangaupdates_id, mangadex_id, anilist_id, mal_id, id_locked_fields, last_id_check, last_full_reverify')
       .eq('is_approved', true)
       .or(`last_id_check.is.null,last_id_check.lt.${cooloffCutoff},last_full_reverify.is.null,last_full_reverify.lt.${reverifyCutoff}`)
       .limit(BATCH_SIZE)
@@ -543,12 +550,15 @@ export async function GET(req: Request) {
       try {
         const currentIdCount  = countExternalIds(comic)
         const yearConfidence: 'unverified' | 'confirmed' = comic.year_confidence ?? 'unverified'
+        const lockedFields = getLockedFields(comic)
 
         const dueForFullReverify =
           !comic.last_full_reverify ||
           new Date(comic.last_full_reverify) < new Date(reverifyCutoff)
 
-        if (currentIdCount === TOTAL_ID_SOURCES && yearConfidence === 'confirmed' && !dueForFullReverify) {
+        const unlockedMissing = ID_FIELDS.filter(f => !comic[f] && !lockedFields.has(f))
+
+        if (unlockedMissing.length === 0 && currentIdCount + lockedFields.size >= TOTAL_ID_SOURCES && yearConfidence === 'confirmed' && !dueForFullReverify) {
           skippedComplete++
           await supabase.from('recommendations').update({ last_id_check: timestamp }).eq('id', comic.id)
           logs.push({
@@ -557,29 +567,29 @@ export async function GET(req: Request) {
             year_corrected: false,
             databases_checked: [], ids_found: {}, outlier_sources: [],
             status: 'skipped_complete', total_ids_found: TOTAL_ID_SOURCES,
-            reason: 'Already complete and year confirmed', timestamp,
+            reason: 'Already complete and year confirmed', locked_fields: [...lockedFields], timestamp,
           })
           continue
         }
 
         const { ids, years, discoveredTitles } = await findExternalIds(
           comic.title, comic.author, comic.artist, comic.alternative_titles,
-          comic.year_released ?? null, yearConfidence,
+          comic.year_released ?? null, yearConfidence, lockedFields,
         )
         const totalFound = Object.values(ids).filter(Boolean).length
 
         const mergedIds = dueForFullReverify
           ? {
-              mangaupdates_id: ids.mangaupdates_id ?? comic.mangaupdates_id,
-              mangadex_id:     ids.mangadex_id     ?? comic.mangadex_id,
-              anilist_id:      ids.anilist_id      ?? comic.anilist_id,
-              mal_id:          ids.mal_id          ?? comic.mal_id,
+              mangaupdates_id: lockedFields.has('mangaupdates_id') ? comic.mangaupdates_id : (ids.mangaupdates_id ?? comic.mangaupdates_id),
+              mangadex_id:     lockedFields.has('mangadex_id')     ? comic.mangadex_id     : (ids.mangadex_id     ?? comic.mangadex_id),
+              anilist_id:      lockedFields.has('anilist_id')      ? comic.anilist_id      : (ids.anilist_id      ?? comic.anilist_id),
+              mal_id:          lockedFields.has('mal_id')          ? comic.mal_id          : (ids.mal_id          ?? comic.mal_id),
             }
           : {
-              mangaupdates_id: comic.mangaupdates_id || ids.mangaupdates_id,
-              mangadex_id:     comic.mangadex_id     || ids.mangadex_id,
-              anilist_id:      comic.anilist_id      || ids.anilist_id,
-              mal_id:          comic.mal_id          || ids.mal_id,
+              mangaupdates_id: lockedFields.has('mangaupdates_id') ? comic.mangaupdates_id : (comic.mangaupdates_id || ids.mangaupdates_id),
+              mangadex_id:     lockedFields.has('mangadex_id')     ? comic.mangadex_id     : (comic.mangadex_id     || ids.mangadex_id),
+              anilist_id:      lockedFields.has('anilist_id')      ? comic.anilist_id      : (comic.anilist_id      || ids.anilist_id),
+              mal_id:          lockedFields.has('mal_id')          ? comic.mal_id          : (comic.mal_id          || ids.mal_id),
             }
 
         const { consensusYear, outlierSources } = deriveYearConsensus(years)
@@ -610,7 +620,9 @@ export async function GET(req: Request) {
 
         if (consensusYear !== null && outlierSources.length > 0) {
           for (const src of outlierSources) {
-            updatePayload[src] = null
+            if (!lockedFields.has(src)) {
+              updatePayload[src] = null
+            }
           }
         }
 
@@ -631,12 +643,15 @@ export async function GET(req: Request) {
           comic_year_before:  comic.year_released ?? null,
           comic_year_after:   updatePayload.year_released ?? comic.year_released ?? null,
           year_corrected:     yearCorrected,
-          databases_checked:  ['MU', 'MD', 'AL', 'Jikan'],
+          databases_checked:  ID_FIELDS.filter(f => !lockedFields.has(f)).map(f =>
+            ({ mangaupdates_id: 'MU', mangadex_id: 'MD', anilist_id: 'AL', mal_id: 'Jikan' }[f])
+          ),
           ids_found:          mergedIds,
           outlier_sources:    outlierSources,
           status,
           total_ids_found:    newIdCount,
           full_reverify:      dueForFullReverify,
+          locked_fields:      [...lockedFields],
           timestamp,
         })
 

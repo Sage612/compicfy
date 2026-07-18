@@ -334,7 +334,7 @@ export default async function BrowsePage({ searchParams }: Props) {
             <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
             <div className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card shrink-0">
               <BookOpen size={13} className="text-muted-foreground" />
-              <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Explore by Genre</span>
+              <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Explore by Mood</span>
             </div>
             <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />
           </div>
