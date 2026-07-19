@@ -98,6 +98,42 @@ export default function GuidelinesPage() {
         </section>
       ))}
 
+      
+      <section id="submission-limits" className="space-y-4 scroll-mt-20">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <span className="text-lg">⏳</span>
+          </div>
+          <h2 className="text-lg font-black">Submission Limits</h2>
+        </div>
+        <ul className="space-y-2">
+          <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <span className="text-primary mt-0.5 shrink-0 font-bold">→</span>
+            Free accounts have a daily and a monthly cap on recommendation submissions. Your exact limit and usage are shown when you submit.
+          </li>
+          <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <span className="text-primary mt-0.5 shrink-0 font-bold">→</span>
+            Daily limits reset at midnight. Monthly limits reset on the 1st of each month.
+          </li>
+          <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <span className="text-primary mt-0.5 shrink-0 font-bold">→</span>
+            These limits exist to keep review quality high and prevent spam, not to slow down genuine contributors.
+          </li>
+          <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <span className="text-primary mt-0.5 shrink-0 font-bold">→</span>
+            If you hit a limit mid-submission, you can save your entry as a draft instead of losing your work, then submit it once the limit resets.
+          </li>
+          <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <span className="text-primary mt-0.5 shrink-0 font-bold">→</span>
+            Voting and writing reviews are unlimited on every account and directly help the community, even when your submission limit is reached. Saving comics, reading lists, and collections have their own separate limits, shown when you use them.
+          </li>
+          <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
+            <span className="text-primary mt-0.5 shrink-0 font-bold">→</span>
+            We're building a contribution score system so that active, trusted community members unlock higher submission limits over time. More on this soon.
+          </li>
+        </ul>
+      </section>
+
       <div className="p-5 rounded-2xl bg-red-500/5 border border-red-500/20 space-y-2">
         <p className="font-black text-sm text-red-600">Zero Tolerance</p>
         <p className="text-sm text-muted-foreground leading-relaxed">The following will result in an immediate permanent ban with no appeal: linking to pirated content, CSAM, coordinated harassment campaigns, and doxxing (sharing private information about other users).</p>

@@ -152,12 +152,26 @@ export async function POST(request: Request) {
 
     const isAdminOrMod = ['admin', 'moderator'].includes(profile?.role ?? '')
 
-    const { allowed: monthlyOk, error: monthlyError } = await enforceRecLimit(user.id)
-    if (!monthlyOk) return monthlyError!
+    // ── Read save_as_draft BEFORE enforcing limits ──
+    // FIX: limit checks used to run unconditionally, before we even knew
+    // whether this request was a real submission or just a draft save.
+    // That meant a user who hit their monthly/daily cap couldn't save a
+    // draft either — the exact escape hatch the limit-reached modal offers
+    // them was itself blocked by the same limit. Drafts don't consume a
+    // submission slot (incrementDailyCount/incrementGlobalCount only run
+    // on real submissions, never on drafts — see below), so they should
+    // never be gated by these checks.
+    const bodyPreview = await request.clone().json().catch(() => ({}))
+    const asDraftRequest = bodyPreview?.save_as_draft === true
 
-    if (!isAdminOrMod) {
-      const { allowed: dailyOk, error: dailyError } = await enforceDailyRecLimit(user.id)
-      if (!dailyOk) return dailyError!
+    if (!asDraftRequest) {
+      const { allowed: monthlyOk, error: monthlyError } = await enforceRecLimit(user.id)
+      if (!monthlyOk) return monthlyError!
+
+      if (!isAdminOrMod) {
+        const { allowed: dailyOk, error: dailyError } = await enforceDailyRecLimit(user.id)
+        if (!dailyOk) return dailyError!
+      }
     }
 
     const body    = await request.json()

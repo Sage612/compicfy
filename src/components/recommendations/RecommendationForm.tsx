@@ -16,9 +16,10 @@ import { PlatformSelector } from './PlatformSelector'
 import { SubmissionGuidelineBanner } from '@/components/recommendations/SubmissionGuidelineBanner'
 import { toast } from 'sonner'
 import {Loader2, BookOpen, Info, AlertTriangle, Sparkles,
-  Tag, FileText, Globe, Crown, Link2,
+  Tag, FileText, Globe, Link2, CalendarClock,
 } from 'lucide-react'
 import { PeakHourModal } from '@/components/recommendations/PeakHourModal'
+import { LimitReachedModal } from '@/components/recommendations/LimitReachedModal'
 import { FREE_LIMITS } from '@/lib/utils/constants'
 import { cn } from '@/lib/utils'
 import { MangaSearch } from './MangaSearch'
@@ -147,10 +148,14 @@ export function RecommendationForm({ userId }: Props) {
   const [isPro,               setIsPro]               = useState<boolean | null>(null)
   const [unlimitedPerks,      setUnlimitedPerks]      = useState<boolean | null>(null)
   const [peakHourModal, setPeakHourModal] = useState<{
-  open:        boolean
-  messageType: 'peak_spike' | 'peak_cap'
-  draftId:     string | null
-}>({ open: false, messageType: 'peak_spike', draftId: null })
+    open:        boolean
+    messageType: 'peak_spike' | 'peak_cap'
+    draftId:     string | null
+  }>({ open: false, messageType: 'peak_spike', draftId: null })
+  const [limitModal, setLimitModal] = useState<{
+    open:      boolean
+    limitType: 'daily' | 'monthly'
+  }>({ open: false, limitType: 'daily' })
   const supabase = createClient()
 
   useEffect(() => {
@@ -232,80 +237,86 @@ export function RecommendationForm({ userId }: Props) {
       setDismissedSimilar(false)
     } catch { /* silent */ } finally { setCheckingDuplicate(false) }
   }
-
-  const onSubmit = async (data: FormValues) => {
-  if (duplicateWarning) return
-  if (atRecLimit) {
-    toast.error('Monthly limit reached. Upgrade to Pro for unlimited submissions.')
-    return
-  }
-  setSubmitting(true)
-  try {
+ 
+  const saveCurrentFormAsDraft = async () => {
+    const data = getValues()
     const response = await fetch('/api/recommendations', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ ...data, ...externalIds }),
+      body:    JSON.stringify({ ...data, ...externalIds, save_as_draft: true }),
     })
-    const result = await response.json()
-
-    // ── Peak hour — system saved as draft automatically ───────────────────────
-    if (response.status === 202 && result.peak_hour) {
-      setPeakHourModal({
-        open:        true,
-        messageType: result.message === 'peak_cap' ? 'peak_cap' : 'peak_spike',
-        draftId:     result.draft_id,
-      })
-      return
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}))
+      throw new Error(result?.error || 'Failed to save draft')
     }
-
-    if (response.status === 409 && result.error === 'duplicate') {
-      toast(result.is_approved ? 'Already on Compicfy!' : 'Pending review already', {
-        description: result.is_approved
-          ? 'Upvote it, review it, or save it instead — the community builds it up together.'
-          : 'This comic is already submitted and pending review.',
-        action: result.is_approved
-          ? { label: 'View & Upvote', onClick: () => router.push(`/comic/${result.existing_id}`) }
-          : undefined,
-        duration: 6000,
-      })
-      return
-    }
-
-    if (response.status === 403) {
-      toast.error(
-        <div className="flex flex-col gap-1.5">
-          <p className="font-black text-sm">Monthly limit reached</p>
-          <p className="text-xs text-muted-foreground">{result.message}</p>
-          <Link href="/pricing" className="text-xs font-bold text-amber-500 hover:underline flex items-center gap-1 mt-0.5">
-            <Crown size={11} />Upgrade to Pro for unlimited
-          </Link>
-        </div>,
-        { duration: 6000 }
-      )
-      return
-    }
-
-    if (response.status === 429) {
-      toast.error(result.message ?? 'Daily limit reached. Try again tomorrow.')
-      return
-    }
-
-    if (!response.ok) { toast.error(result.error || 'Failed to submit'); return }
-
-    toast.success(
-      result.recommendation.is_approved
-        ? 'Recommendation published!'
-        : 'Recommendation submitted for review!'
-    )
-    router.push(isPro ? '/pro/reader/dashboard/recommendations' : '/reader/dashboard/recommendations')
-    router.refresh()
-  } catch (error) {
-    console.error(error)
-    toast.error('Something went wrong')
-  } finally {
-    setSubmitting(false)
   }
-}
+
+  const onSubmit = async (data: FormValues) => {
+    if (duplicateWarning) return
+    if (atRecLimit) {
+      setLimitModal({ open: true, limitType: 'monthly' })
+      return
+    }
+    setSubmitting(true)
+    try {
+      const response = await fetch('/api/recommendations', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ ...data, ...externalIds }),
+      })
+      const result = await response.json()
+
+      // ── Peak hour — system saved as draft automatically ──
+      if (response.status === 202 && result.peak_hour) {
+        setPeakHourModal({
+          open:        true,
+          messageType: result.message === 'peak_cap' ? 'peak_cap' : 'peak_spike',
+          draftId:     result.draft_id,
+        })
+        return
+      }
+
+      if (response.status === 409 && result.error === 'duplicate') {
+        toast(result.is_approved ? 'Already on Compicfy!' : 'Pending review already', {
+          description: result.is_approved
+            ? 'Upvote it, review it, or save it instead — the community builds it up together.'
+            : 'This comic is already submitted and pending review.',
+          action: result.is_approved
+            ? { label: 'View & Upvote', onClick: () => router.push(`/comic/${result.existing_id}`) }
+            : undefined,
+          duration: 6000,
+        })
+        return
+      }
+
+      // Monthly limit reached
+      if (response.status === 403) {
+        setLimitModal({ open: true, limitType: 'monthly' })
+        return
+      }
+
+      // Daily limit reached
+      if (response.status === 429) {
+        setLimitModal({ open: true, limitType: 'daily' })
+        return
+      }
+
+      if (!response.ok) { toast.error(result.error || 'Failed to submit'); return }
+
+      toast.success(
+        result.recommendation.is_approved
+          ? 'Recommendation published!'
+          : 'Recommendation submitted for review!'
+      )
+      router.push(isPro ? '/pro/reader/dashboard/recommendations' : '/reader/dashboard/recommendations')
+      router.refresh()
+    } catch (error) {
+      console.error(error)
+      toast.error('Something went wrong')
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   const handleMangaSelect = (result: any) => {
     setValue('title',       result.title              || '')
@@ -354,9 +365,9 @@ export function RecommendationForm({ userId }: Props) {
               </span>
             </div>
             {(atRecLimit || nearRecLimit) && (
-              <Link href="/pricing" className="inline-flex items-center gap-1 text-xs font-bold text-amber-500 hover:underline shrink-0">
-                <Crown size={10} className="fill-amber-500" />
-                Go unlimited
+              <Link href="/guidelines#submission-limits" className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline shrink-0">
+                <CalendarClock size={10} />
+                About limits
               </Link>
             )}
           </div>
@@ -373,8 +384,7 @@ export function RecommendationForm({ userId }: Props) {
             <div className="flex items-start gap-2">
               <AlertTriangle size={13} className="text-red-500 shrink-0 mt-0.5" />
               <p className="text-xs text-red-600 font-medium">
-                You've used all {FREE_LIMITS.recommendations_per_month} recommendations for this month.{' '}
-                <Link href="/pricing" className="underline font-bold">Upgrade to Pro</Link> for unlimited submissions.
+                You've used all {FREE_LIMITS.recommendations_per_month} recommendations for this month. It resets on the 1st, in the meantime your entry can be saved as a draft.
               </p>
             </div>
           )}
@@ -730,13 +740,10 @@ export function RecommendationForm({ userId }: Props) {
             atRecLimit ||
             (watch('content_rating') === 'adult' && !watch('adult_content_confirmed'))
           }
-          className={cn(
-            'gap-2 min-w-44',
-            atRecLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 shadow-lg shadow-amber-500/20 cursor-not-allowed'
-          )}
+          className="gap-2 min-w-44"
         >
           {atRecLimit ? (
-            <><Crown size={15} /> Limit Reached, Upgrade</>
+            <><CalendarClock size={15} /> Monthly Limit Reached</>
           ) : submitting ? (
             <><Loader2 size={15} className="animate-spin" /> Submitting…</>
           ) : (
@@ -746,18 +753,25 @@ export function RecommendationForm({ userId }: Props) {
       </div>
 
       <PeakHourModal
-          isOpen={peakHourModal.open}
-          onClose={() => setPeakHourModal(p => ({ ...p, open: false }))}
-          messageType={peakHourModal.messageType}
-          onSaveDraft={async () => {
-            // Draft was already auto-saved by the server — just redirect to dashboard
-            router.push(
-              isPro
-                ? '/pro/reader/dashboard/recommendations'
-                : '/reader/dashboard/recommendations'
-            )
-            router.refresh()
-          }}
+        isOpen={peakHourModal.open}
+        onClose={() => setPeakHourModal(p => ({ ...p, open: false }))}
+        messageType={peakHourModal.messageType}
+        onSaveDraft={async () => {
+          // Draft was already auto-saved by the server — just redirect to dashboard
+          router.push(
+            isPro
+              ? '/pro/reader/dashboard/recommendations'
+              : '/reader/dashboard/recommendations'
+          )
+          router.refresh()
+        }}
+      />
+
+      <LimitReachedModal
+        isOpen={limitModal.open}
+        onClose={() => setLimitModal(m => ({ ...m, open: false }))}
+        limitType={limitModal.limitType}
+        onSaveDraft={saveCurrentFormAsDraft}
       />
     </form>
   )
