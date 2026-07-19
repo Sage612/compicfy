@@ -56,13 +56,14 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
   const isNew     = isNewThisWeek(rec.created_at)
   const coverSrc  = proxyCover(rec.cover_url)
 
+  // System-submitted flag — covers auto-submitter and any future system accounts
   const isSystemSubmitted = rec.is_ai_generated && rec.ai_model === 'auto-submitter'
 
   return (
     <Link
       href={`/comic/${rec.id}`}
       className={cn(
-        
+       
         '@container/card group relative flex flex-col rounded-xl overflow-hidden',
         'border border-border bg-card',
         'hover:border-transparent hover:shadow-xl',
@@ -150,13 +151,14 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
             {status.label}
           </span>
           {showGenres && rec.genres?.length > 0 && (
-            <span className="hidden @xs/card:block text-[9px] text-muted-foreground/60 truncate min-w-0 text-right">
+            <span className="hidden @min-[170px]/card:block text-[9px] text-muted-foreground/60 truncate min-w-0 text-right">
               {rec.genres.slice(0, 2).join(' · ')}
             </span>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 @xs/card:gap-x-2.5 text-[9px] text-muted-foreground">
+        
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 @sm/card:gap-x-2.5 text-[9px] text-muted-foreground">
           <span className="flex items-center gap-0.5 shrink-0">
             <ThumbsUp size={8} className="text-emerald-500/70 shrink-0" />
             {formatNumber(rec.upvotes)}
