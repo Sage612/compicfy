@@ -228,6 +228,7 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
   useEffect(() => {
     setSelected(new Set())
     setBulkMode(false)
+    setIdsOpenFor(null)
   }, [filter, search])
 
   const handleSearchChange = (value: string) => {
@@ -738,54 +739,78 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
                         </p>
                       </div>
 
-                      {/* External IDs — used by the id-checker cron */}
-                      <div className="space-y-1.5">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">External IDs</p>
-                        <p className="text-[10px] text-muted-foreground -mt-1">
-                          Lock a field to stop the automated ID checker from ever touching it — use this if it matched the wrong series, or if this comic genuinely isn't listed on that source.
-                        </p>
-                        <div className="space-y-1.5">
-                          {EXTERNAL_ID_FIELDS.map(({ key, label, urlBase }) => {
-                            const locked = (editData.id_locked_fields ?? []).includes(key)
-                            const val    = editData[key] ?? ''
-                            return (
-                              <div key={key} className="flex items-center gap-1.5">
-                                <span className="w-24 shrink-0 text-[10px] text-muted-foreground">{label}</span>
-                                <Input
-                                  value={val}
-                                  onChange={e => setEditData(d => ({ ...d, [key]: e.target.value }))}
-                                  placeholder="Not set"
-                                  className="text-sm h-8 flex-1 min-w-0"
-                                />
-                                {val && (
-                                  <a
-                                    href={`${urlBase}${val}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="shrink-0 text-muted-foreground hover:text-primary"
-                                    title="Open on source"
-                                  >
-                                    <ExternalLink size={13} />
-                                  </a>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => toggleIdLock(key)}
-                                  title={locked ? 'Locked — the automated checker will not touch this field' : 'Unlocked — the automated checker may update this field'}
-                                  className={cn(
-                                    'shrink-0 flex items-center gap-1 h-8 px-2 rounded-md text-[10px] font-semibold border transition-colors',
-                                    locked
-                                      ? 'bg-primary text-primary-foreground border-primary'
-                                      : 'border-border text-muted-foreground hover:border-primary'
-                                  )}
-                                >
-                                  {locked ? <Lock size={11} /> : <Unlock size={11} />}
-                                  {locked ? 'Locked' : 'Lock'}
-                                </button>
-                              </div>
-                            )
-                          })}
-                        </div>
+                      {/* External IDs — used by the id-checker cron. Collapsed by
+                          default since mods rarely need to touch these. */}
+                      <div className="space-y-1.5 border-t border-border pt-3">
+                        <button
+                          type="button"
+                          onClick={() => setIdsOpenFor(idsOpenFor === rec.id ? null : rec.id)}
+                          className="w-full flex items-center justify-between text-left"
+                        >
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                            External IDs
+                            {(() => {
+                              const setCount = EXTERNAL_ID_FIELDS.filter(f => (editData[f.key] ?? '').trim()).length
+                              const lockCount = (editData.id_locked_fields ?? []).length
+                              return (
+                                <span className="ml-2 normal-case font-normal text-muted-foreground/70">
+                                  {setCount}/4 set{lockCount > 0 ? ` · ${lockCount} locked` : ''}
+                                </span>
+                              )
+                            })()}
+                          </span>
+                          {idsOpenFor === rec.id ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
+                        </button>
+
+                        {idsOpenFor === rec.id && (
+                          <div className="space-y-1.5 pt-1">
+                            <p className="text-[10px] text-muted-foreground">
+                              Lock a field to stop the automated ID checker from ever touching it — use this if it matched the wrong series, or if this comic genuinely isn't listed on that source.
+                            </p>
+                            <div className="space-y-1.5">
+                              {EXTERNAL_ID_FIELDS.map(({ key, label, urlBase }) => {
+                                const locked = (editData.id_locked_fields ?? []).includes(key)
+                                const val    = editData[key] ?? ''
+                                return (
+                                  <div key={key} className="flex items-center gap-1.5">
+                                    <span className="w-24 shrink-0 text-[10px] text-muted-foreground">{label}</span>
+                                    <Input
+                                      value={val}
+                                      onChange={e => setEditData(d => ({ ...d, [key]: e.target.value }))}
+                                      placeholder="Not set"
+                                      className="text-sm h-8 flex-1 min-w-0"
+                                    />
+                                    {val && (
+                                      <a
+                                        href={`${urlBase}${val}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="shrink-0 text-muted-foreground hover:text-primary"
+                                        title="Open on source"
+                                      >
+                                        <ExternalLink size={13} />
+                                      </a>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleIdLock(key)}
+                                      title={locked ? 'Locked — the automated checker will not touch this field' : 'Unlocked — the automated checker may update this field'}
+                                      className={cn(
+                                        'shrink-0 flex items-center gap-1 h-8 px-2 rounded-md text-[10px] font-semibold border transition-colors',
+                                        locked
+                                          ? 'bg-primary text-primary-foreground border-primary'
+                                          : 'border-border text-muted-foreground hover:border-primary'
+                                      )}
+                                    >
+                                      {locked ? <Lock size={11} /> : <Unlock size={11} />}
+                                      {locked ? 'Locked' : 'Lock'}
+                                    </button>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex gap-2 justify-end pt-1">
