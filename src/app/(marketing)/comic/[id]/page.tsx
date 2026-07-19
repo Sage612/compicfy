@@ -438,7 +438,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
         <div className="relative max-w-6xl mx-auto px-4 md:px-6 -mt-10 md:-mt-14 z-20">
 
-          <div className="flex flex-col md:flex-row gap-6 md:gap-10">
+          <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-10">
 
             <div className="md:w-48 shrink-0 order-1">
               <div className="mx-auto md:mx-0 w-40 md:w-48 space-y-4">
@@ -593,7 +593,7 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
         </div>
 
-      
+        
         <div className="max-w-6xl mx-auto px-4 md:px-6 mt-4 md:mt-5 pb-24">
           <div className="flex flex-col md:flex-row gap-6 md:gap-10">
             <div className="hidden md:block md:w-48 shrink-0" aria-hidden="true" />
