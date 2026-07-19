@@ -593,8 +593,11 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
         </div>
 
-        
-        <div className="max-w-4xl ml-auto px-4 md:px-6 mt-8 md:mt-10 pb-24 space-y-10">
+       
+        <div className="max-w-6xl mx-auto px-4 md:px-6 mt-8 md:mt-10 pb-24">
+          <div className="flex flex-col md:flex-row gap-6 md:gap-10">
+            <div className="hidden md:block md:w-48 shrink-0" aria-hidden="true" />
+            <div className="flex-1 min-w-0 max-w-4xl space-y-10">
 
           <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-5 md:gap-6`}>
             <div className="relative rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/30 backdrop-blur-sm p-6 md:p-8 overflow-hidden">
@@ -678,6 +681,8 @@ export default async function ComicDetailPage({ params }: Props) {
             />
           </section>
 
+            </div>
+          </div>
         </div>
       </div>
     </>
