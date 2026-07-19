@@ -601,7 +601,8 @@ export default async function ComicDetailPage({ params }: Props) {
               <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
                 About
               </h2>
-              <p className="text-[15px] leading-relaxed text-dossier-foreground/75">{rec.description}</p>
+              
+              <p className="text-[15px] leading-relaxed text-dossier-foreground/75 max-w-prose">{rec.description}</p>
             </div>
 
             {rec.why_recommend && (
@@ -639,14 +640,9 @@ export default async function ComicDetailPage({ params }: Props) {
                 userType={profile?.user_type ?? null}
               />
             </div>
+           
             <div className="flex items-center gap-3 shrink-0">
               <span className="font-[family-name:var(--font-mono)]">{formatDate(rec.created_at)}</span>
-              <ReportButton
-                entityType="recommendation"
-                entityId={id}
-                isLoggedIn={!!user}
-                compact
-              />
             </div>
           </div>
 
