@@ -593,8 +593,8 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
         </div>
 
-       
-        <div className="max-w-6xl mx-auto px-4 md:px-6 mt-8 md:mt-10 pb-24">
+      
+        <div className="max-w-6xl mx-auto px-4 md:px-6 mt-4 md:mt-5 pb-24">
           <div className="flex flex-col md:flex-row gap-6 md:gap-10">
             <div className="hidden md:block md:w-48 shrink-0" aria-hidden="true" />
             <div className="flex-1 min-w-0 max-w-4xl space-y-10">
@@ -605,7 +605,7 @@ export default async function ComicDetailPage({ params }: Props) {
               <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
                 About
               </h2>
-              
+
               <p className="text-[15px] leading-relaxed text-dossier-foreground/75 max-w-prose">{rec.description}</p>
             </div>
 
@@ -644,7 +644,7 @@ export default async function ComicDetailPage({ params }: Props) {
                 userType={profile?.user_type ?? null}
               />
             </div>
-           
+
             <div className="flex items-center gap-3 shrink-0">
               <span className="font-[family-name:var(--font-mono)]">{formatDate(rec.created_at)}</span>
             </div>
