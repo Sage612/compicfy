@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { FeedCard } from './FeedCard'
-import { Loader2, BookOpen, LayoutList, UserPlus, Radar } from 'lucide-react'
+import { BookOpen, LayoutList, UserPlus, Radar, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -18,6 +18,87 @@ interface Props {
 }
 
 const PAGE_SIZE = 20
+
+function SkeletonBase({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden animate-pulse">
+      <div className="flex items-center gap-2.5 px-4 pt-4 pb-3 border-b border-border/50">
+        <div className="h-7 w-7 rounded-full bg-muted shrink-0" />
+        <div className="h-3 w-24 rounded bg-muted" />
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function ComicSkeleton() {
+  return (
+    <SkeletonBase>
+      <div className="flex gap-4 p-4">
+        <div className="w-14 h-20 rounded-xl bg-muted shrink-0" />
+        <div className="flex-1 min-w-0 space-y-2 py-0.5">
+          <div className="h-4 w-3/4 rounded bg-muted" />
+          <div className="flex gap-1.5">
+            <div className="h-4 w-14 rounded-full bg-muted" />
+            <div className="h-4 w-16 rounded-full bg-muted" />
+          </div>
+          <div className="h-3 w-full rounded bg-muted" />
+          <div className="h-3 w-2/3 rounded bg-muted" />
+        </div>
+      </div>
+    </SkeletonBase>
+  )
+}
+
+function MosaicSkeleton() {
+  return (
+    <SkeletonBase>
+      <div className="flex gap-4 p-4">
+        <div className="w-14 h-20 rounded-xl bg-muted shrink-0 grid grid-cols-2 grid-rows-2 gap-px overflow-hidden">
+          <div className="bg-muted-foreground/10" />
+          <div className="bg-muted-foreground/10" />
+          <div className="bg-muted-foreground/10" />
+          <div className="bg-muted-foreground/10" />
+        </div>
+        <div className="flex-1 min-w-0 space-y-2 py-0.5">
+          <div className="h-4 w-2/3 rounded bg-muted" />
+          <div className="h-3 w-full rounded bg-muted" />
+          <div className="h-3 w-1/3 rounded bg-muted" />
+        </div>
+      </div>
+    </SkeletonBase>
+  )
+}
+
+function ReviewSkeleton() {
+  return (
+    <SkeletonBase>
+      <div className="flex gap-4 p-4">
+        <div className="w-14 h-20 rounded-xl bg-muted shrink-0" />
+        <div className="flex-1 min-w-0 space-y-2 py-0.5">
+          <div className="h-4 w-1/2 rounded bg-muted" />
+          <div className="h-4 w-16 rounded-full bg-muted" />
+          <div className="h-3 w-full rounded bg-muted" />
+          <div className="h-3 w-full rounded bg-muted" />
+          <div className="h-3 w-1/2 rounded bg-muted" />
+        </div>
+      </div>
+    </SkeletonBase>
+  )
+}
+
+const SKELETON_CYCLE = [ComicSkeleton, ComicSkeleton, ReviewSkeleton, ComicSkeleton, MosaicSkeleton]
+
+function FeedLoadingSkeletons({ count = 3 }: { count?: number }) {
+  return (
+    <div className="space-y-3">
+      {Array.from({ length: count }).map((_, i) => {
+        const Skeleton = SKELETON_CYCLE[i % SKELETON_CYCLE.length]
+        return <Skeleton key={i} />
+      })}
+    </div>
+  )
+}
 
 export function FeedList({
   initialItems,
@@ -315,7 +396,7 @@ export function FeedList({
       <div className="space-y-3">
         {items.map((item: any) => (
           <FeedCard
-
+           
             key={`${item.item_type}-${item.id}`}
             rec={item}
             isLoggedIn={true}
@@ -328,11 +409,7 @@ export function FeedList({
 
       <div ref={sentinelRef} className="h-4" />
 
-      {loading && (
-        <div className="flex justify-center py-4">
-          <Loader2 size={20} className="animate-spin text-muted-foreground" />
-        </div>
-      )}
+      {loading && <FeedLoadingSkeletons count={3} />}
 
       {!hasMore && items.length >= PAGE_SIZE && (
         <p className="text-center text-xs text-muted-foreground py-4">
