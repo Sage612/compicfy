@@ -593,7 +593,7 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
         </div>
 
-       
+        
         <div className="max-w-4xl px-4 md:px-6 mt-8 md:mt-10 pb-24 space-y-10">
 
           <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-5 md:gap-6`}>
