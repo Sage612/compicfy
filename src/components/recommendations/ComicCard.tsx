@@ -63,7 +63,7 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
     <Link
       href={`/comic/${rec.id}`}
       className={cn(
-       
+        
         '@container/card group relative flex flex-col rounded-xl overflow-hidden',
         'border border-border bg-card',
         'hover:border-transparent hover:shadow-xl',
@@ -142,7 +142,7 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
         </div>
       </div>
 
-     
+      
       <div className="px-3 pt-2 pb-2.5 space-y-1.5 pl-4 @container/meta">
 
        
@@ -151,13 +151,13 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
             {status.label}
           </span>
           {showGenres && rec.genres?.length > 0 && (
-            <span className="hidden @min-[170px]/card:block text-[9px] text-muted-foreground/60 truncate min-w-0 text-right">
+            <span className="hidden @min-[130px]/card:block text-[9px] text-muted-foreground/60 truncate min-w-0 max-w-[60%] text-right">
               {rec.genres.slice(0, 2).join(' · ')}
             </span>
           )}
         </div>
 
-        
+       
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 @sm/card:gap-x-2.5 text-[9px] text-muted-foreground">
           <span className="flex items-center gap-0.5 shrink-0">
             <ThumbsUp size={8} className="text-emerald-500/70 shrink-0" />
@@ -173,6 +173,7 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
           </span>
         </div>
 
+       
         {rec.cover_url && (
           <p className="text-[8px] text-muted-foreground/40 truncate">
             © {rec.author ?? 'respective rights holder'}
