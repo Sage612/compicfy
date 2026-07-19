@@ -63,7 +63,7 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
     <Link
       href={`/comic/${rec.id}`}
       className={cn(
-        
+      
         '@container/card group relative flex flex-col rounded-xl overflow-hidden',
         'border border-border bg-card',
         'hover:border-transparent hover:shadow-xl',
@@ -97,10 +97,10 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
         {/* Scrim — only bottom */}
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
 
-        {/* ── Top-left: type badge ── */}
-        <div className="absolute top-2 left-3.5 z-10">
+        
+        <div className="absolute top-1.5 left-2.5 @min-[150px]/card:top-2 @min-[150px]/card:left-3.5 z-10">
           <span className={cn(
-            'inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border',
+            'inline-flex items-center px-1 py-0.5 rounded text-[7px] @min-[150px]/card:px-1.5 @min-[150px]/card:text-[9px] font-black uppercase tracking-wider border',
             accent.badge
           )}>
             {rec.type}
@@ -108,14 +108,15 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
         </div>
 
         {/* ── Top-right: NEW or score ── */}
-        <div className="absolute top-2 right-2 z-10">
+        <div className="absolute top-1.5 right-1.5 @min-[150px]/card:top-2 @min-[150px]/card:right-2 z-10">
           {isNew ? (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-500 text-white">
+            <span className="inline-flex items-center px-1 py-0.5 rounded text-[7px] @min-[150px]/card:px-1.5 @min-[150px]/card:text-[9px] font-black bg-emerald-500 text-white">
               NEW
             </span>
           ) : score > 0 ? (
-            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black bg-black/60 backdrop-blur-sm text-white/90">
-              <TrendingUp size={7} />
+            <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[7px] @min-[150px]/card:px-1.5 @min-[150px]/card:text-[9px] font-black bg-black/60 backdrop-blur-sm text-white/90">
+              <TrendingUp size={6} className="@min-[150px]/card:hidden" />
+              <TrendingUp size={7} className="hidden @min-[150px]/card:block" />
               {formatNumber(score)}
             </span>
           ) : null}
@@ -123,10 +124,10 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
 
         {/* ── SYS badge ── */}
         {isSystemSubmitted && (
-          <div className="absolute bottom-7 left-3.5 z-10">
+          <div className="absolute bottom-6 left-2.5 @min-[150px]/card:bottom-7 @min-[150px]/card:left-3.5 z-10">
             <span
               title="Submitted by ComPicfy system"
-              className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-black bg-black/50 backdrop-blur-sm text-white/60 border border-white/10"
+              className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[7px] @min-[150px]/card:text-[8px] font-black bg-black/50 backdrop-blur-sm text-white/60 border border-white/10"
             >
               <Bot size={6} />
               SYS
@@ -142,10 +143,9 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
         </div>
       </div>
 
-      
+     
       <div className="px-3 pt-2 pb-2.5 space-y-1.5 pl-4 @container/meta">
 
-       
         <div className="flex items-center justify-between gap-1 min-w-0">
           <span className={cn('text-[9px] font-bold shrink-0', status.color)}>
             {status.label}
@@ -157,7 +157,7 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
           )}
         </div>
 
-       
+      
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 @sm/card:gap-x-2.5 text-[9px] text-muted-foreground">
           <span className="flex items-center gap-0.5 shrink-0">
             <ThumbsUp size={8} className="text-emerald-500/70 shrink-0" />
@@ -173,7 +173,7 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
           </span>
         </div>
 
-       
+      
         {rec.cover_url && (
           <p className="text-[8px] text-muted-foreground/40 truncate">
             © {rec.author ?? 'respective rights holder'}
