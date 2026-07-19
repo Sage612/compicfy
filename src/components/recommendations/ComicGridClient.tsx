@@ -260,8 +260,9 @@ export function ComicGridClient({
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {forYouItems.length} picks based on your taste
               </p>
+            
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {forYouItems.map(rec => <ComicCard key={rec.id} recommendation={rec} />)}
+                {forYouItems.map(rec => <ComicCard key={rec.id} recommendation={rec} showGenres />)}
               </div>
             </div>
           )}
@@ -316,8 +317,9 @@ export function ComicGridClient({
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {items.length} of {total} comic{total !== 1 ? 's' : ''}
               </p>
+              
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                {items.map(rec => <ComicCard key={rec.id} recommendation={rec} />)}
+                {items.map(rec => <ComicCard key={rec.id} recommendation={rec} showGenres />)}
               </div>
 
               {/* Infinite scroll sentinel */}

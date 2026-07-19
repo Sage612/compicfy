@@ -368,8 +368,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         </Suspense>
       )}
 
-      {/* Horizontal Sections — consolidated from 7 to 4: three fixed
-          shelves plus one rotating editorial slot, cycling daily. */}
+      
       {!isFiltering && (
         <div className="space-y-10">
           {trending.length > 0      && <HorizontalSection title="Trending Today"       emoji="🔥" recommendations={trending}      viewAllHref="/browse/adult?sort=trending" />}
@@ -425,6 +424,8 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
                       key={rec.id}
                       recommendation={rec}
                       className={i >= 9 ? 'hidden md:block' : undefined}
+                      
+                      showGenres={false}
                     />
                   ))}
                 </div>

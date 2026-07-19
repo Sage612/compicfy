@@ -29,7 +29,7 @@ interface Props {
 const PAGE_SIZE    = 24
 const SAFE_RATINGS = '("adult","mature")'
 
-// ── Genre section config ──────────────────────────────────────────
+// ── Genre section config ─────────────────────────────────────────
 const GENRE_PAGE_SIZE     = 12  // fetch 12; mobile shows 9 via CSS, desktop shows all 12
 const GENRE_MIN_ITEMS     = 6   // don't render a genre section unless it has at least 6 comics
 const GENRE_SECTION_COUNT = 12  // show top N genres by comic count
@@ -314,6 +314,7 @@ export default async function BrowsePage({ searchParams }: Props) {
 
       {!isFiltering && (
         <div className="space-y-10">
+          
           <HorizontalSection title="Trending Today"       emoji="🔥" recommendations={trending}      viewAllHref="/browse?sort=trending" />
           {newThisWeek.length > 0 && (
             <HorizontalSection title="New This Week"      emoji="🆕" recommendations={newThisWeek}   viewAllHref="/browse?sort=recent"   />
@@ -370,6 +371,8 @@ export default async function BrowsePage({ searchParams }: Props) {
                       key={rec.id}
                       recommendation={rec}
                       className={i >= 9 ? 'hidden md:block' : undefined}
+                     
+                      showGenres={false}
                     />
                   ))}
                 </div>

@@ -15,6 +15,7 @@ interface Props {
   recommendations: Recommendation[]
   viewAllHref?: string
   className?: string
+  showGenres?: boolean
 }
 
 export function HorizontalSection({
@@ -23,6 +24,7 @@ export function HorizontalSection({
   recommendations,
   viewAllHref,
   className,
+  showGenres = true,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -92,7 +94,7 @@ export function HorizontalSection({
       >
         {recommendations.map((rec) => (
           <div key={rec.id} className="flex-none w-36 sm:w-40">
-            <ComicCard recommendation={rec} />
+            <ComicCard recommendation={rec} showGenres={showGenres} />
           </div>
         ))}
       </div>

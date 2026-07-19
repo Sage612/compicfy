@@ -9,6 +9,7 @@ import type { Recommendation } from '@/types/database.types'
 interface ComicCardProps {
   recommendation: Recommendation
   className?:     string
+  showGenres?:    boolean
 }
 
 // ── Type accent system ────────────────────────────────────────────
@@ -48,7 +49,7 @@ function proxyCover(url: string | null | undefined): string | null {
   return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
-export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
+export function ComicCard({ recommendation: rec, className, showGenres = true }: ComicCardProps) {
   const accent    = TYPE_ACCENTS[rec.type] ?? TYPE_ACCENTS.other
   const status    = STATUS_META[rec.status] ?? { label: rec.status, color: 'text-muted-foreground' }
   const score     = rec.score ?? (rec.upvotes - rec.downvotes)
@@ -61,7 +62,7 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
     <Link
       href={`/comic/${rec.id}`}
       className={cn(
-       
+        
         '@container/card group relative flex flex-col rounded-xl overflow-hidden',
         'border border-border bg-card',
         'hover:border-transparent hover:shadow-xl',
@@ -140,22 +141,21 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
         </div>
       </div>
 
-    
+     
       <div className="px-3 pt-2 pb-2.5 space-y-1.5 pl-4 @container/meta">
 
-        
+       
         <div className="flex items-center justify-between gap-1 min-w-0">
           <span className={cn('text-[9px] font-bold shrink-0', status.color)}>
             {status.label}
           </span>
-          {rec.genres?.length > 0 && (
+          {showGenres && rec.genres?.length > 0 && (
             <span className="hidden @xs/card:block text-[9px] text-muted-foreground/60 truncate min-w-0 text-right">
               {rec.genres.slice(0, 2).join(' · ')}
             </span>
           )}
         </div>
 
-       
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 @xs/card:gap-x-2.5 text-[9px] text-muted-foreground">
           <span className="flex items-center gap-0.5 shrink-0">
             <ThumbsUp size={8} className="text-emerald-500/70 shrink-0" />
@@ -171,7 +171,6 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
           </span>
         </div>
 
-       
         {rec.cover_url && (
           <p className="text-[8px] text-muted-foreground/40 truncate">
             © {rec.author ?? 'respective rights holder'}
