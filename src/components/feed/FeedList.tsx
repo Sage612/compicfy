@@ -91,14 +91,18 @@ export function FeedList({
     }
   }
 
+  // Reactions only apply to recommendation-type feed items — collections,
+  // lists, and reviews don't have a reactions row to look up.
   const fetchReactions = useCallback(async (currentItems: any[]) => {
-    if (currentItems.length === 0) return
-    const ids = currentItems.map((i: any) => i.id)
+    const recIds = currentItems
+      .filter((i: any) => i.item_type === 'recommendation')
+      .map((i: any) => i.id)
+    if (recIds.length === 0) return
 
     const { data } = await supabase
       .from('reactions')
       .select('recommendation_id, user_id')
-      .in('recommendation_id', ids)
+      .in('recommendation_id', recIds)
 
     if (!mountedRef.current) return
 
@@ -156,7 +160,7 @@ export function FeedList({
     return () => observer.disconnect()
   }, [loadMore])
 
-  // ── Empty: following nobody ──────────────────────────────────────
+  // ── Empty: following nobody ─────────────────────────────────────
   if (tab === 'following' && isFollowingNobody) {
     return (
       <div className="space-y-6">
@@ -264,7 +268,7 @@ export function FeedList({
         </div>
         <p className="text-sm font-black">Nothing here yet</p>
         <p className="text-xs text-muted-foreground mt-1 text-center max-w-xs px-4">
-          The people you follow haven't shared any approved recommendations yet
+          The people you follow haven't shared any approved recommendations, collections, lists, or reviews yet
         </p>
         <Link href="/feed?tab=discover" className="mt-6">
           <Button variant="outline" size="sm" className="gap-2">
@@ -276,7 +280,7 @@ export function FeedList({
     )
   }
 
-  // ── Empty: discover tab ──────────────────────────────────────────
+  // ── Empty: discover tab ───────────────────────────────────────────
   if (tab === 'discover' && items.length === 0) {
     return (
       <div className="relative flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border overflow-hidden">
@@ -301,21 +305,22 @@ export function FeedList({
     )
   }
 
-  // ── Feed items ───────────────────────────────────────────────────
+  // ── Feed items ─────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-        {items.length} of {total} recommendation{total !== 1 ? 's' : ''}
+        {items.length} of {total} item{total !== 1 ? 's' : ''}
       </p>
 
       <div className="space-y-3">
-        {items.map((rec: any) => (
+        {items.map((item: any) => (
           <FeedCard
-            key={rec.id}
-            rec={rec}
+
+            key={`${item.item_type}-${item.id}`}
+            rec={item}
             isLoggedIn={true}
-            reactionCount={reactionCounts[rec.id] ?? 0}
-            userReacted={userReactions[rec.id]    ?? false}
+            reactionCount={item.item_type === 'recommendation' ? (reactionCounts[item.id] ?? 0) : 0}
+            userReacted={item.item_type === 'recommendation' ? (userReactions[item.id] ?? false) : false}
             onReactionToggle={handleReactionToggle}
           />
         ))}
