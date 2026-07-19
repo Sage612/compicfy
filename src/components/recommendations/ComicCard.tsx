@@ -62,7 +62,8 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
     <Link
       href={`/comic/${rec.id}`}
       className={cn(
-        'group relative flex flex-col rounded-xl overflow-hidden',
+       
+        '@container/card group relative flex flex-col rounded-xl overflow-hidden',
         'border border-border bg-card',
         'hover:border-transparent hover:shadow-xl',
         accent.glow,
@@ -140,40 +141,40 @@ export function ComicCard({ recommendation: rec, className }: ComicCardProps) {
         </div>
       </div>
 
-      {/* ── Meta strip ── */}
-      <div className="px-3 pt-2 pb-2.5 space-y-1.5 pl-4">
+      
+      <div className="px-3 pt-2 pb-2.5 space-y-1.5 pl-4 @container/meta">
 
-        {/* Status + genre row */}
+      
         <div className="flex items-center justify-between gap-1 min-w-0">
-          <span className={cn('text-[9px] font-bold', status.color)}>
+          <span className={cn('text-[9px] font-bold shrink-0', status.color)}>
             {status.label}
           </span>
           {rec.genres?.length > 0 && (
-            <span className="text-[9px] text-muted-foreground/60 truncate max-w-[80px] text-right">
+            <span className="hidden @xs/card:block text-[9px] text-muted-foreground/60 truncate min-w-0 text-right">
               {rec.genres.slice(0, 2).join(' · ')}
             </span>
           )}
         </div>
 
-        {/* Stats row */}
-        <div className="flex items-center gap-2.5 text-[9px] text-muted-foreground">
-          <span className="flex items-center gap-0.5">
-            <ThumbsUp size={8} className="text-emerald-500/70" />
+        
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 @xs/card:gap-x-2.5 text-[9px] text-muted-foreground">
+          <span className="flex items-center gap-0.5 shrink-0">
+            <ThumbsUp size={8} className="text-emerald-500/70 shrink-0" />
             {formatNumber(rec.upvotes)}
           </span>
-          <span className="flex items-center gap-0.5">
-            <MessageSquare size={8} className="text-amber-500/70" />
+          <span className="flex items-center gap-0.5 shrink-0">
+            <MessageSquare size={8} className="text-amber-500/70 shrink-0" />
             {formatNumber(rec.review_count)}
           </span>
-          <span className="flex items-center gap-0.5">
-            <Bookmark size={8} className="text-blue-500/70" />
+          <span className="flex items-center gap-0.5 shrink-0">
+            <Bookmark size={8} className="text-blue-500/70 shrink-0" />
             {formatNumber(rec.save_count)}
           </span>
         </div>
 
-        {/* Cover credit */}
+        
         {rec.cover_url && (
-          <p className="text-[8px] text-muted-foreground/40 truncate">
+          <p className="hidden @sm/card:block text-[8px] text-muted-foreground/40 truncate">
             © {rec.author ?? 'respective rights holder'}
           </p>
         )}
