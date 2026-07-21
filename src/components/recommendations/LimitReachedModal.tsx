@@ -12,6 +12,7 @@ interface Props {
   onSaveDraft: () => Promise<void>
   /** 'daily' resets at midnight tonight. 'monthly' resets on the 1st of next month. */
   limitType:   'daily' | 'monthly'
+  alreadyDraft?: boolean
 }
 
 function getResetLabel(limitType: 'daily' | 'monthly'): string {
@@ -26,7 +27,7 @@ function getResetLabel(limitType: 'daily' | 'monthly'): string {
   return `Resets ${firstOfNextMonth.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}`
 }
 
-export function LimitReachedModal({ isOpen, onClose, onSaveDraft, limitType }: Props) {
+export function LimitReachedModal({ isOpen, onClose, onSaveDraft, limitType, alreadyDraft = false }: Props) {
   const [saving, setSaving] = useState(false)
   if (!isOpen) return null
 
@@ -34,7 +35,9 @@ export function LimitReachedModal({ isOpen, onClose, onSaveDraft, limitType }: P
     setSaving(true)
     try {
       await onSaveDraft()
-      toast.success('Saved to drafts! Submit it once your limit resets.')
+      if (!alreadyDraft) {
+        toast.success('Saved to drafts! Submit it once your limit resets.')
+      }
       onClose()
     } catch {
       toast.error('Failed to save draft')
@@ -47,7 +50,7 @@ export function LimitReachedModal({ isOpen, onClose, onSaveDraft, limitType }: P
 
   return (
     // Backdrop
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
@@ -78,7 +81,10 @@ export function LimitReachedModal({ isOpen, onClose, onSaveDraft, limitType }: P
                 }
               </p>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {resetLabel}. Your recommendation isn't lost, save it as a draft and submit it the moment your limit resets.
+                {alreadyDraft
+                  ? `${resetLabel}. This entry is already saved as a draft, it'll be ready to submit the moment your limit resets.`
+                  : `${resetLabel}. Your recommendation isn't lost, save it as a draft and submit it the moment your limit resets.`
+                }
               </p>
             </div>
           </div>
@@ -104,24 +110,38 @@ export function LimitReachedModal({ isOpen, onClose, onSaveDraft, limitType }: P
 
           {/* Actions */}
           <div className="flex gap-2 pt-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              className="flex-1 gap-1.5 text-xs h-9"
-            >
-              <Clock size={12} />
-              Okay
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSaveDraft}
-              disabled={saving}
-              className="flex-1 gap-1.5 text-xs h-9"
-            >
-              <BookmarkPlus size={12} />
-              {saving ? 'Saving…' : 'Save as Draft'}
-            </Button>
+            {alreadyDraft ? (
+              <Button
+                size="sm"
+                onClick={handleSaveDraft}
+                disabled={saving}
+                className="flex-1 gap-1.5 text-xs h-9"
+              >
+                <Clock size={12} />
+                Got It
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onClose}
+                  className="flex-1 gap-1.5 text-xs h-9"
+                >
+                  <Clock size={12} />
+                  Okay
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveDraft}
+                  disabled={saving}
+                  className="flex-1 gap-1.5 text-xs h-9"
+                >
+                  <BookmarkPlus size={12} />
+                  {saving ? 'Saving…' : 'Save as Draft'}
+                </Button>
+              </>
+            )}
           </div>
           <p className="text-[10px] text-muted-foreground text-center">
             Find your drafts in Dashboard → Recommendations → Drafts tab

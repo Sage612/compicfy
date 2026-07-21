@@ -4,9 +4,11 @@ import {
   incrementDailyCount,
   incrementGlobalCount,
   checkGlobalDailyCap,
+  enforceRecLimit,
+  enforceDailyRecLimit,
 } from '@/lib/utils/proEnforce'
 
-// ── Local types — don't rely on Supabase inference for new columns ────────────
+// ── Local types — don't rely on Supabase inference for new columns ──────────
 interface NudgeRec {
   id:            string
   title:         string
@@ -37,7 +39,7 @@ export async function GET(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ drafts: [] })
 
-    // ── Nudge mode ────────────────────────────────────────────────────────────
+    // ── Nudge mode ────────────────────────────────────────────────────────
     if (type === 'nudge') {
       const { data, error } = await (supabase as any)
         .from('recommendations')
@@ -58,7 +60,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ drafts: nudges })
     }
 
-    // ── Drafts mode ───────────────────────────────────────────────────────────
+    // ── Drafts mode ───────────────────────────────────────────────────────
     if (type === 'drafts') {
       const { data, error } = await (supabase as any)
         .from('recommendations')
@@ -72,7 +74,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ drafts: (data ?? []) as DraftRec[] })
     }
 
-    // ── Default (backwards compat for IncompleteRecNudge) ─────────────────────
+    // ── Default (backwards compat for IncompleteRecNudge) ───────────────────
     const { data, error } = await (supabase as any)
       .from('recommendations')
       .select('id, title, why_recommend')
@@ -95,7 +97,7 @@ export async function GET(request: Request) {
   }
 }
 
-// ── PATCH — promote draft to real submission ──────────────────────────────────
+// ── PATCH — promote draft to real submission ─────────────────────────────
 export async function PATCH(request: Request) {
   try {
     const supabase = await createClient()
@@ -116,6 +118,21 @@ export async function PATCH(request: Request) {
 
     if (!draft || !draft.is_draft) {
       return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
+    }
+
+    const { data: profileForLimit } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+    const isAdminOrMod = ['admin', 'moderator'].includes((profileForLimit as any)?.role ?? '')
+
+    const { allowed: monthlyOk, error: monthlyError } = await enforceRecLimit(user.id)
+    if (!monthlyOk) return monthlyError!
+
+    if (!isAdminOrMod) {
+      const { allowed: dailyOk, error: dailyError } = await enforceDailyRecLimit(user.id)
+      if (!dailyOk) return dailyError!
     }
 
     const { isPeakHour } = await checkGlobalDailyCap()
@@ -151,7 +168,7 @@ export async function PATCH(request: Request) {
   }
 }
 
-// ── DELETE — discard a draft ──────────────────────────────────────────────────
+// ── DELETE — discard a draft ─────────────────────────────────────────────
 export async function DELETE(request: Request) {
   try {
     const supabase = await createClient()

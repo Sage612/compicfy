@@ -73,15 +73,19 @@ export function Header() {
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
-    const handleScroll = () => {
-      const currentY = window.scrollY
+    const handleScroll = (e: Event) => {
+      const target   = e.target as Document | HTMLElement
+      const currentY = target === document
+        ? window.scrollY
+        : (target as HTMLElement).scrollTop ?? window.scrollY
+
       if (currentY < 60)                           setMobileVisible(true)
       else if (currentY > lastScrollY.current + 4) setMobileVisible(false)
       else if (currentY < lastScrollY.current - 4) setMobileVisible(true)
       lastScrollY.current = currentY
     }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
+    document.addEventListener('scroll', handleScroll, { passive: true, capture: true })
+    return () => document.removeEventListener('scroll', handleScroll, true)
   }, [])
 
   useEffect(() => {
@@ -111,9 +115,6 @@ export function Header() {
     setRole(profile.role)
     setUserType((profile.user_type as UserType) ?? 'reader')
     setIsPro(proActive)
-    // Hide the "Upgrade to Pro" CTA only for people who are genuinely Pro
-    // (or admin, who has lifetime Pro). Moderators are NOT Pro and should
-    // still see the upsell — they only get separate unlimited perks.
     setShowPro(shouldHideProUpsell(profile) ? false : true)
   }
 

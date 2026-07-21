@@ -1,23 +1,18 @@
 'use client'
-
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Zap, Clock, BookmarkPlus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-
 interface Props {
   isOpen:      boolean
   onClose:     () => void
   onSaveDraft: () => Promise<void>
   messageType: 'peak_spike' | 'peak_cap'
 }
-
 export function PeakHourModal({ isOpen, onClose, onSaveDraft, messageType }: Props) {
   const [saving, setSaving] = useState(false)
-
   if (!isOpen) return null
-
   const handleSaveDraft = async () => {
     setSaving(true)
     try {
@@ -30,21 +25,17 @@ export function PeakHourModal({ isOpen, onClose, onSaveDraft, messageType }: Pro
       setSaving(false)
     }
   }
-
   return (
-    // Backdrop
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-4">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-
       {/* Modal */}
       <div className={cn(
         'relative w-full max-w-sm rounded-2xl border bg-card shadow-2xl',
         'animate-in fade-in slide-in-from-bottom-4 duration-300'
       )}>
-
         {/* Close */}
         <button
           onClick={onClose}
@@ -52,9 +43,7 @@ export function PeakHourModal({ isOpen, onClose, onSaveDraft, messageType }: Pro
         >
           <X size={14} />
         </button>
-
         <div className="p-5 space-y-4">
-
           {/* Icon + heading */}
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -75,7 +64,6 @@ export function PeakHourModal({ isOpen, onClose, onSaveDraft, messageType }: Pro
               </p>
             </div>
           </div>
-
           {/* Peak hour indicator */}
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 border border-border">
             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
@@ -83,7 +71,6 @@ export function PeakHourModal({ isOpen, onClose, onSaveDraft, messageType }: Pro
               <span className="font-semibold text-foreground">Peak hours</span> usually last 1–2 hours. Drafts are saved indefinitely.
             </p>
           </div>
-
           {/* Actions */}
           <div className="flex gap-2 pt-1">
             <Button
@@ -105,7 +92,6 @@ export function PeakHourModal({ isOpen, onClose, onSaveDraft, messageType }: Pro
               {saving ? 'Saving…' : 'Save as Draft'}
             </Button>
           </div>
-
           <p className="text-[10px] text-muted-foreground text-center">
             Find your drafts in Dashboard → Recommendations → Drafts tab
           </p>

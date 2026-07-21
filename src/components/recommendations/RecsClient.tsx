@@ -17,6 +17,8 @@ import { toast } from 'sonner'
 import { PinButton } from '@/components/recommendations/PinButton'
 import { AppealButton } from '@/components/user/AppealButton'
 import { createClient } from '@/lib/supabase/client'
+import { PeakHourModal } from '@/components/recommendations/PeakHourModal'
+import { LimitReachedModal } from '@/components/recommendations/LimitReachedModal'
 
 type FilterKey = 'all' | 'approved' | 'pending' | 'rejected' | 'drafts'
 
@@ -80,6 +82,18 @@ export function RecsClient({
   const [deletingId,    setDeletingId]    = useState<string | null>(null)
   const [pinnedId,      setPinnedId]      = useState<string | null>(null)
   const [submittingId,  setSubmittingId]  = useState<string | null>(null)
+
+  // Which draft is currently blocked, so retrying after a limit resets
+  // or promoting once traffic eases can target the right one.
+  const [blockedDraft, setBlockedDraft] = useState<{ id: string; title: string } | null>(null)
+  const [peakHourModal, setPeakHourModal] = useState<{
+    open:        boolean
+    messageType: 'peak_spike' | 'peak_cap'
+  }>({ open: false, messageType: 'peak_spike' })
+  const [limitModal, setLimitModal] = useState<{
+    open:      boolean
+    limitType: 'daily' | 'monthly'
+  }>({ open: false, limitType: 'daily' })
 
   useEffect(() => {
     const fetchPinned = async () => {
@@ -147,15 +161,40 @@ export function RecsClient({
   const handleSubmitDraft = useCallback(async (id: string, title: string) => {
     setSubmittingId(id)
     try {
-      const res = await fetch('/api/recommendations/drafts', {
+      const res  = await fetch('/api/recommendations/drafts', {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ draft_id: id }),
       })
       const json = await res.json()
 
-      if (json.peak_hour) {
-        toast.warning("Still busy right now — try submitting a bit later!")
+      // Site-wide peak hour — same modal already used on the main submit form.
+      // The draft itself is untouched either way, so nothing to lose here.
+      if (res.status === 202 && json.peak_hour) {
+        setBlockedDraft({ id, title })
+        setPeakHourModal({
+          open:        true,
+          messageType: json.message === 'peak_cap' ? 'peak_cap' : 'peak_spike',
+        })
+        return
+      }
+
+      // FIX: promoting a draft used to skip the user's own monthly/daily
+      // limit entirely — only the site-wide peak-hour cap was checked. That
+      // let someone hit their personal limit, get routed here by the
+      // limit-reached modal to save a draft, then immediately resubmit that
+      // same draft and bypass the very limit they'd just been blocked by.
+      // The API route now enforces the same checks a fresh submission
+      // would, so this handles the resulting 403 (monthly) / 429 (daily)
+      // the same way the main form does.
+      if (res.status === 403) {
+        setBlockedDraft({ id, title })
+        setLimitModal({ open: true, limitType: 'monthly' })
+        return
+      }
+      if (res.status === 429) {
+        setBlockedDraft({ id, title })
+        setLimitModal({ open: true, limitType: 'daily' })
         return
       }
 
@@ -551,6 +590,25 @@ export function RecsClient({
           )}
         </>
       )}
+
+      <PeakHourModal
+        isOpen={peakHourModal.open}
+        onClose={() => setPeakHourModal(p => ({ ...p, open: false }))}
+        messageType={peakHourModal.messageType}
+        onSaveDraft={async () => {
+          // The draft this came from is already saved — nothing further to do.
+          setPeakHourModal(p => ({ ...p, open: false }))
+        }}
+      />
+
+      <LimitReachedModal
+        isOpen={limitModal.open}
+        onClose={() => setLimitModal(m => ({ ...m, open: false }))}
+        limitType={limitModal.limitType}
+        alreadyDraft
+        onSaveDraft={async () => {
+        }}
+      />
     </div>
   )
 }

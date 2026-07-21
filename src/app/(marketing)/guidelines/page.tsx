@@ -109,7 +109,7 @@ export default function GuidelinesPage() {
         <ul className="space-y-2">
           <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
             <span className="text-primary mt-0.5 shrink-0 font-bold">→</span>
-            Free accounts have a daily and a monthly cap on recommendation submissions. Your exact limit and usage are shown when you submit.
+            Accounts have a daily and a monthly cap on recommendation submissions. Your exact limit and usage are shown when you submit.
           </li>
           <li className="flex items-start gap-2.5 text-sm text-muted-foreground">
             <span className="text-primary mt-0.5 shrink-0 font-bold">→</span>
