@@ -1,8 +1,6 @@
 'use client'
 
-import useEmblaCarousel from 'embla-carousel-react'
-import Autoplay from 'embla-carousel-autoplay'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, BookOpen, ThumbsUp, Star, Zap, Users } from 'lucide-react'
@@ -11,7 +9,7 @@ import { formatNumber } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/database.types'
 
 interface Props {
-  recommendations:  Recommendation[]
+  recommendations: Recommendation[]
   adminFeaturedIds: Set<string>  // ids of admin-curated picks — rest are community voted
 }
 
@@ -38,264 +36,267 @@ function proxyCover(url: string | null | undefined): string | null {
   return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
+function calculateGap(width: number) {
+  const minWidth = 640
+  const maxWidth = 1100
+  const minGap = 40
+  const maxGap = 70
+  if (width <= minWidth) return minGap
+  if (width >= maxWidth) return maxGap
+  return minGap + (maxGap - minGap) * ((width - minWidth) / (maxWidth - minWidth))
+}
+
 export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
-  const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: true, align: 'start' },
-    [Autoplay({ delay: 5000, stopOnInteraction: false, stopOnMouseEnter: true })]
-  )
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [contentVisible, setContentVisible] = useState(true)
+  const [containerWidth, setContainerWidth] = useState(800)
 
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const [canScrollPrev, setCanScrollPrev] = useState(false)
-  const [canScrollNext, setCanScrollNext] = useState(false)
+  const stageRef = useRef<HTMLDivElement>(null)
+  const autoplayRef = useRef<NodeJS.Timeout | null>(null)
+  const touchStartX = useRef<number | null>(null)
 
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return
-    setSelectedIndex(emblaApi.selectedScrollSnap())
-    setCanScrollPrev(emblaApi.canScrollPrev())
-    setCanScrollNext(emblaApi.canScrollNext())
-  }, [emblaApi])
+  const length = recommendations.length
 
   useEffect(() => {
-    if (!emblaApi) return
-    onSelect()
-    emblaApi.on('select', onSelect)
-    emblaApi.on('reInit', onSelect)
-    return () => {
-      emblaApi.off('select', onSelect)
-      emblaApi.off('reInit', onSelect)
+    function handleResize() {
+      if (stageRef.current) setContainerWidth(stageRef.current.offsetWidth)
     }
-  }, [emblaApi, onSelect])
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
-  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi])
-  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi])
-  const scrollTo   = useCallback((i: number) => emblaApi?.scrollTo(i), [emblaApi])
+  const goTo = useCallback((index: number) => {
+    setContentVisible(false)
+    window.setTimeout(() => {
+      setActiveIndex(((index % length) + length) % length)
+      setContentVisible(true)
+    }, 150)
+  }, [length])
 
-  if (!recommendations.length) return null
+  const next = useCallback(() => goTo(activeIndex + 1), [activeIndex, goTo])
+  const prev = useCallback(() => goTo(activeIndex - 1), [activeIndex, goTo])
+
+  const restartAutoplay = useCallback(() => {
+    if (autoplayRef.current) clearInterval(autoplayRef.current)
+    if (length <= 1) return
+    autoplayRef.current = setInterval(() => {
+      setContentVisible(false)
+      window.setTimeout(() => {
+        setActiveIndex(prevIdx => (prevIdx + 1) % length)
+        setContentVisible(true)
+      }, 150)
+    }, 5500)
+  }, [length])
+
+  useEffect(() => {
+    restartAutoplay()
+    return () => {
+      if (autoplayRef.current) clearInterval(autoplayRef.current)
+    }
+  }, [restartAutoplay])
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') { prev(); restartAutoplay() }
+      if (e.key === 'ArrowRight') { next(); restartAutoplay() }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [prev, next, restartAutoplay])
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX
+  }
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null) return
+    const delta = e.changedTouches[0].clientX - touchStartX.current
+    if (Math.abs(delta) > 40) {
+      if (delta < 0) { next(); restartAutoplay() } else { prev(); restartAutoplay() }
+    }
+    touchStartX.current = null
+  }
+
+  function getCoverStyle(index: number): React.CSSProperties {
+    const gap = calculateGap(containerWidth)
+    const lift = gap * 0.5
+    const isActive = index === activeIndex
+    const isLeft = (activeIndex - 1 + length) % length === index
+    const isRight = (activeIndex + 1) % length === index
+
+    if (isActive) {
+      return {
+        zIndex: 3,
+        opacity: 1,
+        pointerEvents: 'auto',
+        transform: 'translateX(0px) translateY(0px) scale(1) rotateY(0deg)',
+        transition: 'all 0.7s cubic-bezier(.4,2,.3,1)',
+      }
+    }
+    if (isLeft) {
+      return {
+        zIndex: 2,
+        opacity: 1,
+        pointerEvents: 'auto',
+        transform: `translateX(-${gap}px) translateY(-${lift}px) scale(0.82) rotateY(18deg)`,
+        transition: 'all 0.7s cubic-bezier(.4,2,.3,1)',
+      }
+    }
+    if (isRight) {
+      return {
+        zIndex: 2,
+        opacity: 1,
+        pointerEvents: 'auto',
+        transform: `translateX(${gap}px) translateY(-${lift}px) scale(0.82) rotateY(-18deg)`,
+        transition: 'all 0.7s cubic-bezier(.4,2,.3,1)',
+      }
+    }
+    return {
+      zIndex: 1,
+      opacity: 0,
+      pointerEvents: 'none',
+      transform: 'scale(0.7)',
+      transition: 'all 0.7s cubic-bezier(.4,2,.3,1)',
+    }
+  }
+
+  if (!length) return null
+
+  const rec = recommendations[activeIndex]
+  const accentColor = TYPE_COLORS[rec.type] ?? TYPE_COLORS.other
+  const status = STATUS_CONFIG[rec.status as keyof typeof STATUS_CONFIG]
+  const isAdminPick = adminFeaturedIds.has(rec.id)
+  const badge = isAdminPick
+    ? { icon: Star, label: 'Featured', className: 'text-amber-400', fill: 'fill-amber-400' }
+    : { icon: Users, label: 'Community Voted', className: 'text-sky-400', fill: '' }
+  const cornerLabel = isAdminPick ? '✨ Top Pick' : '🗳️ Community Vote'
 
   return (
-    <div className="relative rounded-lg overflow-hidden group">
-      <div ref={emblaRef} className="overflow-hidden">
-        <div className="flex">
-          {recommendations.map((rec, i) => {
-            const accentColor = TYPE_COLORS[rec.type] ?? TYPE_COLORS.other
-            const status      = STATUS_CONFIG[rec.status as keyof typeof STATUS_CONFIG]
-            const coverSrc    = proxyCover(rec.cover_url)
-            const isAdminPick = adminFeaturedIds.has(rec.id)
-
-            // Badge config — admin pick vs community voted
-            const badge = isAdminPick
-              ? { icon: Star,  label: 'Featured',        className: 'text-amber-400',   fill: 'fill-amber-400'   }
-              : { icon: Users, label: 'Community Voted', className: 'text-sky-400',     fill: ''                 }
-
-            const cornerLabel = isAdminPick ? '✨ Top Pick' : '🗳️ Community Vote'
-
+    <div
+      className="relative w-full max-w-5xl mx-auto px-4 py-6 md:py-10"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className="grid gap-10 md:grid-cols-2 md:items-center">
+        {/* Cover stack */}
+        <div
+          ref={stageRef}
+          className="relative w-full h-64 sm:h-80 md:h-96 [perspective:1000px]"
+        >
+          {recommendations.map((r, i) => {
+            const src = proxyCover(r.cover_url)
             return (
-              <div key={rec.id} className="relative flex-none w-full min-w-0">
-
-                {/* ── MOBILE ── */}
-                <div className="sm:hidden relative overflow-hidden bg-zinc-950" style={{ height: '460px' }}>
-                  {coverSrc ? (
-                    <img src={coverSrc} alt={rec.title} className="absolute inset-0 w-full h-full object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
-                      <BookOpen size={48} className="text-white/20" />
-                    </div>
-                  )}
-
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/50 to-transparent" />
-                  <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: accentColor }} />
-
-                  <div className="absolute top-4 right-4 text-[10px] text-white/30 font-mono tabular-nums">
-                    {String(i + 1).padStart(2, '0')} / {String(recommendations.length).padStart(2, '0')}
+              <div key={r.id} className="absolute inset-0" style={getCoverStyle(i)}>
+                <Link href={`/comic/${r.id}`} className="block w-full h-full">
+                  <div className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.35)] bg-zinc-900">
+                    {src ? (
+                      <img src={src} alt={r.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <BookOpen size={40} className="text-white/20" />
+                      </div>
+                    )}
+                    {i === activeIndex && (
+                      <div className="absolute top-3 right-3 px-2 py-0.5 rounded bg-black/60 text-[10px] font-black text-white border border-white/10">
+                        {cornerLabel}
+                      </div>
+                    )}
                   </div>
-
-                  <div className="absolute bottom-0 left-0 right-0 px-5 pb-10 pt-8 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider"
-                        style={{ background: `${accentColor}25`, border: `1px solid ${accentColor}40`, color: accentColor }}
-                      >
-                        <Zap size={9} />
-                        {rec.type}
-                      </span>
-                      {/* Dynamic badge */}
-                      <span className={cn('flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider', badge.className)}>
-                        <badge.icon size={9} className={badge.fill} />
-                        {badge.label}
-                      </span>
-                    </div>
-
-                    <h2 className="text-2xl font-black leading-tight text-white tracking-tight line-clamp-2">
-                      {rec.title}
-                    </h2>
-
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {status && (
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/10 border border-white/10">
-                          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status.color)} />
-                          <span className="text-[10px] text-white/70 capitalize">{status.label}</span>
-                        </div>
-                      )}
-                      {rec.genres?.slice(0, 2).map(g => (
-                        <span key={g} className="px-2 py-0.5 rounded text-[10px] text-white/60 bg-white/10 border border-white/10">
-                          {g}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-1">
-                      <Link href={`/comic/${rec.id}`} className="flex-1">
-                        <Button
-                          size="sm"
-                          className="w-full gap-2 font-bold border-0 h-10 text-sm rounded"
-                          style={{ background: accentColor, color: '#fff' }}
-                        >
-                          <BookOpen size={13} />
-                          Read More
-                        </Button>
-                      </Link>
-                      <div className="flex items-center gap-1 text-sm text-white/40 shrink-0">
-                        <ThumbsUp size={12} />
-                        {formatNumber(rec.upvotes)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── DESKTOP ── */}
-                <div className="hidden sm:block relative h-[360px] md:h-[440px] overflow-hidden bg-zinc-950">
-
-                  {coverSrc && (
-                    <img
-                      src={coverSrc}
-                      alt=""
-                      aria-hidden
-                      className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-20"
-                    />
-                  )}
-
-                  <div className="absolute inset-0 bg-gradient-to-r from-zinc-950/98 via-zinc-950/80 to-zinc-950/30" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/40 via-transparent to-transparent" />
-                  <div className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: accentColor }} />
-
-                  <div className="relative h-full flex items-center px-8 md:px-12 gap-8 py-8">
-
-                    <div className="shrink-0">
-                      <div className="w-32 md:w-40 aspect-[3/4] rounded-lg overflow-hidden border border-white/10 shadow-2xl">
-                        {coverSrc ? (
-                          <img src={coverSrc} alt={rec.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-white/5">
-                            <BookOpen size={32} className="text-white/30" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex-1 min-w-0 flex flex-col justify-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider"
-                          style={{ background: `${accentColor}25`, border: `1px solid ${accentColor}40`, color: accentColor }}
-                        >
-                          <Zap size={9} />
-                          {rec.type}
-                        </span>
-                        {/* Dynamic badge */}
-                        <span className={cn('flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider', badge.className)}>
-                          <badge.icon size={9} className={badge.fill} />
-                          {badge.label}
-                        </span>
-                      </div>
-
-                      <h2 className="text-3xl md:text-4xl font-black leading-tight text-white tracking-tight line-clamp-2">
-                        {rec.title}
-                      </h2>
-
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {status && (
-                          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 border border-white/10">
-                            <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status.color)} />
-                            <span className="text-[10px] text-white/60 capitalize">{status.label}</span>
-                          </div>
-                        )}
-                        {rec.genres?.slice(0, 3).map(g => (
-                          <span key={g} className="px-2 py-0.5 rounded text-[10px] text-white/50 bg-white/5 border border-white/10">
-                            {g}
-                          </span>
-                        ))}
-                      </div>
-
-                      {rec.description && (
-                        <p className="text-sm text-white/40 leading-relaxed line-clamp-2 max-w-md">
-                          {rec.description}
-                        </p>
-                      )}
-
-                      <div className="flex items-center gap-4 pt-1">
-                        <Link href={`/comic/${rec.id}`}>
-                          <Button
-                            size="sm"
-                            className="gap-2 font-bold border-0 rounded"
-                            style={{ background: accentColor, color: '#fff' }}
-                          >
-                            <BookOpen size={13} />
-                            Read More
-                          </Button>
-                        </Link>
-                        <div className="flex items-center gap-1.5 text-sm text-white/30">
-                          <ThumbsUp size={12} />
-                          {formatNumber(rec.upvotes)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="absolute top-4 right-4 px-2 py-0.5 rounded bg-black/60 text-[10px] font-black text-white border border-white/10">
-                    {cornerLabel}
-                  </div>
-                </div>
-
+                </Link>
               </div>
             )
           })}
         </div>
+
+        {/* Content */}
+        <div
+          className={cn(
+            'space-y-3 transition-all duration-300',
+            contentVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider"
+              style={{ background: `${accentColor}25`, border: `1px solid ${accentColor}40`, color: accentColor }}
+            >
+              <Zap size={9} />
+              {rec.type}
+            </span>
+            <span className={cn('flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider', badge.className)}>
+              <badge.icon size={9} className={badge.fill} />
+              {badge.label}
+            </span>
+          </div>
+
+          <h2 className="text-2xl md:text-4xl font-black leading-tight tracking-tight line-clamp-2">
+            {rec.title}
+          </h2>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {status && (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 border border-white/10">
+                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status.color)} />
+                <span className="text-[10px] text-white/60 capitalize">{status.label}</span>
+              </div>
+            )}
+            {rec.genres?.slice(0, 3).map(g => (
+              <span key={g} className="px-2 py-0.5 rounded text-[10px] text-white/50 bg-white/5 border border-white/10">
+                {g}
+              </span>
+            ))}
+          </div>
+
+          {rec.description && (
+            <p className="text-sm text-white/40 leading-relaxed line-clamp-3 max-w-md">
+              {rec.description}
+            </p>
+          )}
+
+          <div className="flex items-center gap-4 pt-1">
+            <Link href={`/comic/${rec.id}`}>
+              <Button
+                size="sm"
+                className="gap-2 font-bold border-0 rounded"
+                style={{ background: accentColor, color: '#fff' }}
+              >
+                <BookOpen size={13} />
+                Read More
+              </Button>
+            </Link>
+            <div className="flex items-center gap-1.5 text-sm text-white/30">
+              <ThumbsUp size={12} />
+              {formatNumber(rec.upvotes)}
+            </div>
+          </div>
+        </div>
       </div>
 
+      {/* Arrows */}
       <button
-        onClick={scrollPrev}
-        className={cn(
-          'hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded',
-          'bg-black/40 border border-white/10 items-center justify-center text-white',
-          'opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-black/60',
-          !canScrollPrev && 'cursor-not-allowed opacity-20'
-        )}
+        onClick={() => { prev(); restartAutoplay() }}
+        className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 w-9 h-9 rounded-full bg-black/40 border border-white/10 items-center justify-center text-white transition-colors duration-200 hover:bg-black/60"
         aria-label="Previous"
       >
         <ChevronLeft size={16} />
       </button>
-
       <button
-        onClick={scrollNext}
-        className={cn(
-          'hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded',
-          'bg-black/40 border border-white/10 items-center justify-center text-white',
-          'opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-black/60',
-          !canScrollNext && 'cursor-not-allowed opacity-20'
-        )}
+        onClick={() => { next(); restartAutoplay() }}
+        className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 w-9 h-9 rounded-full bg-black/40 border border-white/10 items-center justify-center text-white transition-colors duration-200 hover:bg-black/60"
         aria-label="Next"
       >
         <ChevronRight size={16} />
       </button>
 
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+      {/* Dots */}
+      <div className="flex items-center justify-center gap-1.5 mt-6">
         {recommendations.map((_, index) => (
           <button
             key={index}
-            onClick={() => scrollTo(index)}
+            onClick={() => { goTo(index); restartAutoplay() }}
             className={cn(
               'rounded-full transition-all duration-300',
-              selectedIndex === index ? 'w-5 h-1 bg-white' : 'w-1 h-1 bg-white/25 hover:bg-white/40'
+              activeIndex === index ? 'w-5 h-1 bg-white' : 'w-1 h-1 bg-white/25 hover:bg-white/40'
             )}
             aria-label={`Go to slide ${index + 1}`}
           />
