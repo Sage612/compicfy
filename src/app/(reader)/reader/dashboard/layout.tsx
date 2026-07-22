@@ -56,7 +56,7 @@ export default async function ReaderDashboardLayout({
   const showBanner     = !isAdmin && recCount >= 20
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background lg:pl-12">
       <Header />
       <DashboardShell
         topOffset="80px"

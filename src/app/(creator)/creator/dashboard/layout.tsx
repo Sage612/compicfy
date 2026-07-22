@@ -31,7 +31,9 @@ export default async function CreatorDashboardLayout({
     if (isPro) redirect('/pro/creator/dashboard')
   }
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    // lg:pl-12 reserves space for NavRail's fixed 48px collapsed strip,
+    // which now renders on dashboard routes too instead of being hidden.
+    <div className="min-h-screen flex flex-col bg-background lg:pl-12">
       <Header />
       <DashboardShell
         topOffset="80px"

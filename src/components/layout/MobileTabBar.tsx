@@ -40,8 +40,6 @@ const DASHBOARD_PREFIXES = [
   '/admin',
 ]
 
-// Header height is ~64px (h-12 + pt-3 = 48+12 = 60px, round to 64)
-// Tab bar height is ~44px (py-2 + content)
 const HEADER_H = 64
 
 export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBarProps) {
@@ -54,15 +52,21 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
   const lastScrollY = useRef(0)
 
   useEffect(() => {
-    const handleScroll = () => {
-      const currentY = window.scrollY
+    const handleScroll = (e: Event) => {
+      const target   = e.target as Document | HTMLElement
+      const currentY = target === document
+        ? window.scrollY
+        : (target as HTMLElement).scrollTop ?? window.scrollY
+
       if (currentY < 60)                           setHeaderVisible(true)
       else if (currentY > lastScrollY.current + 4) setHeaderVisible(false)
       else if (currentY < lastScrollY.current - 4) setHeaderVisible(true)
       lastScrollY.current = currentY
     }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
+    // Capture phase so this also receives scroll events from scrollable
+    // descendants (DashboardShell's main/aside), not just window scroll.
+    document.addEventListener('scroll', handleScroll, { passive: true, capture: true })
+    return () => document.removeEventListener('scroll', handleScroll, true)
   }, [])
 
   const isOnDashboard = DASHBOARD_PREFIXES.some(p => pathname.startsWith(p))
@@ -110,9 +114,6 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
     ] : []),
   ]
 
-  // When the header is visible:  top = HEADER_H px (sits right below header)
-  // When the header is hidden:   top = 0px (slides up to fill where header was)
-  // The transition animates between these two positions smoothly.
   const topValue = headerVisible ? `${HEADER_H}px` : '0px'
 
   return (

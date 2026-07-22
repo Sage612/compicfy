@@ -38,9 +38,10 @@ export function DashboardShell({
 
   return (
     <div className="flex flex-1 min-h-0 dashboard-shell-row" style={shellStyle}>
+     
       <aside
         className={cn(
-          'hidden md:flex flex-col shrink-0 overflow-y-auto dashboard-shell-aside',
+          'dashboard-sidebar flex-col shrink-0 overflow-y-auto no-scrollbar dashboard-shell-aside',
           sidebarWidth,
           sidebarClassName,
         )}
@@ -50,7 +51,7 @@ export function DashboardShell({
 
       <main
         className={cn(
-          'dashboard-main flex-1 min-w-0 overflow-y-auto pb-24 md:pb-0 dashboard-shell-main',
+          'dashboard-main flex-1 min-w-0 overflow-y-auto no-scrollbar pb-24 md:pb-0 dashboard-shell-main',
           mainClassName,
         )}
       >

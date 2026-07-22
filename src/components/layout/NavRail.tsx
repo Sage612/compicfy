@@ -40,16 +40,6 @@ export function NavRail({ isLoggedIn, isPro, isCreator, listsHref, listsLabel }:
   const pathname        = usePathname()
   const [open, setOpen] = useState(false)
   const closeTimer      = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const isDashboard =
-    pathname.startsWith('/reader/dashboard') ||
-    pathname.startsWith('/creator/dashboard') ||
-    pathname.startsWith('/pro/reader/dashboard') ||
-    pathname.startsWith('/pro/creator/dashboard') ||
-    pathname.startsWith('/admin')
-
-  if (isDashboard) return null
-
   const handleMouseEnter = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current)
     setOpen(true)

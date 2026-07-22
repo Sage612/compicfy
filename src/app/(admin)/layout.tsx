@@ -36,7 +36,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     : '/pro/reader/dashboard'
 
   return (
-    <div className="min-h-screen flex flex-col">
+    // lg:pl-12 reserves space for NavRail's fixed 48px collapsed strip,
+    // which now renders on dashboard routes too instead of being hidden.
+    <div className="min-h-screen flex flex-col lg:pl-12">
       <Header />
       <DashboardShell
         topOffset="104px"
