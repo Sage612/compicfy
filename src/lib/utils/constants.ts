@@ -28,6 +28,111 @@ export const STATUSES = [
   { value: 'cancelled', label: 'Cancelled' },
 ] as const
 
+export const TYPE_META: Record<(typeof COMIC_TYPES)[number]['value'], {
+  label:    string
+  badge:    string  // compact badge: bg/text/border, used on ComicCard/FeedCard chips
+  bar:      string  // solid accent bar color, used on ComicCard's left edge
+  glow:     string  // hover shadow glow, used on ComicCard
+  gradient: string  // hero gradient, used on comic detail page background/cover glow
+  border:   string  // accent border, used on comic detail page panels
+}> = {
+  manga: {
+    label: 'Manga',
+    badge: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    bar:   'bg-rose-500',
+    glow:  'hover:shadow-rose-500/10',
+    gradient: 'from-rose-500 to-pink-600',
+    border:   'border-rose-500/30',
+  },
+  manhwa: {
+    label: 'Manhwa',
+    badge: 'text-teal-400 bg-teal-500/10 border-teal-500/20',
+    bar:   'bg-teal-500',
+    glow:  'hover:shadow-teal-500/10',
+    gradient: 'from-teal-500 to-cyan-600',
+    border:   'border-teal-500/30',
+  },
+  manhua: {
+    label: 'Manhua',
+    badge: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    bar:   'bg-amber-500',
+    glow:  'hover:shadow-amber-500/10',
+    gradient: 'from-amber-500 to-orange-500',
+    border:   'border-amber-500/30',
+  },
+  webtoon: {
+    label: 'Webtoon',
+    badge: 'text-teal-400 bg-teal-500/10 border-teal-500/20',
+    bar:   'bg-teal-500',
+    glow:  'hover:shadow-teal-500/10',
+    gradient: 'from-teal-500 to-cyan-600',
+    border:   'border-teal-500/30',
+  },
+  comic: {
+    label: 'Comic',
+    badge: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+    bar:   'bg-blue-500',
+    glow:  'hover:shadow-blue-500/10',
+    gradient: 'from-blue-500 to-indigo-600',
+    border:   'border-blue-500/30',
+  },
+  other: {
+    label: 'Other',
+    badge: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20',
+    bar:   'bg-zinc-500',
+    glow:  'hover:shadow-zinc-500/10',
+    gradient: 'from-primary to-rose-600',
+    border:   'border-primary/20',
+  },
+}
+
+export const DEFAULT_TYPE_META = TYPE_META.other
+
+export const STATUS_META: Record<(typeof STATUSES)[number]['value'], {
+  label:  string
+  color:  string  // text color only, used on ComicCard's compact status line
+  badge:  string  // full badge classes (bg/text/border), used on comic detail page pills
+}> = {
+  ongoing: {
+    label: 'Ongoing',
+    color: 'text-emerald-400',
+    badge: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+  },
+  completed: {
+    label: 'Complete',
+    color: 'text-sky-400',
+    badge: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  },
+  hiatus: {
+    label: 'Hiatus',
+    color: 'text-amber-400',
+    badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+  },
+  cancelled: {
+    label: 'Dropped',
+    color: 'text-rose-400',
+    badge: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+  },
+}
+
+export function resolveStatusMeta(
+  status: string,
+  translationStatus?: string | null,
+): { label: string; color: string; badge: string } {
+  if (translationStatus === 'translation_ongoing') {
+    return {
+      label: 'Catching Up',
+      color: 'text-amber-400',
+      badge: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    }
+  }
+  return STATUS_META[status as (typeof STATUSES)[number]['value']] ?? {
+    label: status,
+    color: 'text-muted-foreground',
+    badge: 'bg-muted text-muted-foreground border-border',
+  }
+}
+
 export const CONTENT_RATINGS = [
   { value: 'all_ages', label: 'All Ages'     },
   { value: 'teen',     label: 'Teen (13+)'   },

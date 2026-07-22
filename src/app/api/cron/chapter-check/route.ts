@@ -1,6 +1,5 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 const BATCH_SIZE         = 10
 const API_DELAY_MS       = 600
@@ -9,7 +8,6 @@ const LOCK_NAME          = 'chapter_checker'
 const LOCK_DURATION_MS   = 55_000 // just under the 1-minute cron interval
 const ID_LOCK_NAME       = 'id_checker'
 
-// ── Fetch with timeout ────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
   const timeoutId  = setTimeout(() => controller.abort(), timeoutMs)
@@ -105,7 +103,6 @@ function normalizeALStatus(raw: string | null | undefined): ResolvedStatus {
   return null
 }
 
-// ── Logging ───────────────────────────────────────────────────────
 interface CheckLog {
   comic_id:          string
   comic_title:       string
@@ -350,7 +347,6 @@ async function resolveChapterCount(comic: any): Promise<{
     }
   }
 
-  // ── Chapter count resolution — unchanged logic from before ──
   if (muChapter !== null && mdChapter !== null && Math.abs(muChapter - mdChapter) <= 1) {
     return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried, resolvedStatus, statusSources, formatRejections }
   }
@@ -386,7 +382,6 @@ async function resolveChapterCount(comic: any): Promise<{
   return { chapter: null, source: null, tried, resolvedStatus, statusSources, formatRejections }
 }
 
-// ── Lock helpers ──────────────────────────────────────────────────
 async function acquireLock(supabase: any): Promise<boolean> {
   const { data: existing } = await supabase
     .from('cron_locks')
@@ -419,7 +414,6 @@ async function releaseLock(supabase: any) {
   await supabase.from('cron_locks').delete().eq('job_name', LOCK_NAME)
 }
 
-// ── Main handler ──────────────────────────────────────────────────
 export async function GET(req: Request) {
   const secret = req.headers.get('x-cron-secret')
   if (secret !== process.env.CRON_SECRET) {
@@ -546,7 +540,7 @@ export async function GET(req: Request) {
           continue
         }
 
-        // ── Conditional Routing Path ─────────────────────────────────
+ 
         if (newChapterCount && newChapterCount > (comic.chapter_count ?? 0)) {
           // 1. SUCCESS: Chapter progression found
           await supabase.from('recommendations')
@@ -561,23 +555,18 @@ export async function GET(req: Request) {
 
           if (trackers && trackers.length > 0) {
             const userIds       = [...new Set(trackers.map((t: any) => t.reading_lists?.user_id).filter(Boolean))]
-            const pushTitle     = `📖 ${comic.title} updated`
+            const pushTitle     = `ðŸ“– ${comic.title} updated`
             const pushBody      = `New chapters available, now at chapter ${newChapterCount}`
             const notifications = userIds.map((userId: string) => ({
               user_id: userId,
               type:    'system',
               title:   pushTitle,
               content: pushBody,
+              should_push: true,
               data:    { recommendation_id: comic.id, new_chapter_count: newChapterCount, old_chapter_count: comic.chapter_count },
             }))
 
             await supabase.from('notifications').insert(notifications)
-
-            Promise.allSettled(
-              userIds.map((userId: string) =>
-                sendPushForUser(userId, pushTitle, pushBody, `/comic/${comic.id}`)
-              )
-            ).catch(() => {})
           }
 
           updated++
@@ -616,7 +605,7 @@ export async function GET(req: Request) {
 
         } else if (newChapterCount === null) {
           // 3. ZERO RESULTS FOUND (this now also covers "all sources were
-          // format-rejected" — the bad IDs were already cleared above)
+          // format-rejected" â€” the bad IDs were already cleared above)
           await supabase.from('recommendations')
             .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)

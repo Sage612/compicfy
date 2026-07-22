@@ -1,6 +1,4 @@
-import { sendPushForUser } from '@/lib/utils/pushHelper'
- 
-export async function notifyFollowersOfNewPost(
+﻿export async function notifyFollowersOfNewPost(
   supabase: any,
   recId:    string,
   recTitle: string,
@@ -38,12 +36,10 @@ export async function notifyFollowersOfNewPost(
             user_id: follower.id,
             type:    'followed_user_posted',
             title:   notifTitle,
+            content: notifBody,
+            should_push: prefs.push !== false,
             data:    { recommendation_id: recId, submitter_id: submitterId, submitter_username: submitterUsername },
           })
-        }
-
-        if (prefs.push !== false) {
-          await sendPushForUser(follower.id, notifTitle, notifBody, `/comic/${recId}`)
         }
 
         if (prefs.email !== false) {

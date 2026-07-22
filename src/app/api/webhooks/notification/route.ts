@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: Request) {
@@ -19,7 +19,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ skipped: true })
     }
 
-    // Use service role to bypass RLS — no user session in webhook context
+    // NEW: respect the per-notification push preference computed at insert time.
+    // Defaults to true (via DB column default) for any insert path that hasn't
+    // been updated to set it explicitly yet.
+    if (notif.should_push === false) {
+      return NextResponse.json({ skipped: true, reason: 'push_not_requested' })
+    }
+
+    // Use service role to bypass RLS â€” no user session in webhook context
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -35,7 +42,7 @@ export async function POST(req: Request) {
     console.log('Sub check:', subCheck, 'user_id:', notif.user_id)
 
     if (!subCheck || subCheck.length === 0) {
-      console.log('No subscriptions found — skipping')
+      console.log('No subscriptions found â€” skipping')
       return NextResponse.json({ skipped: true, reason: 'no_subscriptions' })
     }
 
@@ -109,7 +116,7 @@ export async function POST(req: Request) {
       {
         method:  'POST',
         headers: {
-          'Content-Type':  'application/json',
+          'Content-type':  'application/json',
           'Authorization': `Bearer ${process.env.INTERNAL_API_SECRET ?? ''}`,
         },
         body: JSON.stringify({

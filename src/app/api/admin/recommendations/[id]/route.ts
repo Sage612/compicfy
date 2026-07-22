@@ -1,10 +1,9 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/utils/requireRole'
 import { logAction } from '@/lib/utils/admin'
 import { createClient } from '@/lib/supabase/server'
 import { sendApprovedEmail, sendRejectedEmail, sendAppealResolvedEmail } from '@/lib/email/send'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { sendPushForUser } from '@/lib/utils/pushHelper'
 import { notifyFollowersOfNewPost } from '@/lib/utils/followerNotify'
 
 function getServiceClient() {
@@ -46,7 +45,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Admin access required to feature recommendations' }, { status: 403 })
   }
 
-  // ── Plain field edit (no action key) ─────────────────────────────────────
+  // â”€â”€ Plain field edit (no action key) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (!action) {
     const allowedFields = [
       'title', 'description', 'type', 'status', 'genres', 'themes',
@@ -70,7 +69,7 @@ export async function PATCH(
     return NextResponse.json({ recommendation: data })
   }
 
-  // ── Action-based updates ──────────────────────────────────────────────────
+  // â”€â”€ Action-based updates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let updates: Record<string, any> = {}
   let logMsg = ''
 
@@ -159,7 +158,7 @@ export async function PATCH(
       const recUserId = (data as any).user_id as string
 
       const notifTitle: Record<string, string> = {
-        approve:        `Your recommendation "${recTitle}" has been approved! 🎉`,
+        approve:        `Your recommendation "${recTitle}" has been approved! ðŸŽ‰`,
         reject:         `Your recommendation "${recTitle}" was not approved.`,
         resolve_appeal: `Your appeal for "${recTitle}" has been ${body.appeal_status}.`,
       }
@@ -173,11 +172,11 @@ export async function PATCH(
         user_id: recUserId,
         type:    'system',
         title:   notifTitle[action],
+        content: pushBody[action],
+        should_push: true,
         data:    { recommendation_id: id, action, reason: body.reason ?? null },
       } as any)
       if (notifError) console.error('Notification insert error:', notifError)
-
-      await sendPushForUser(recUserId, notifTitle[action], pushBody[action], `/comic/${id}`)
 
       const recJustBecameVisible =
         action === 'approve' ||

@@ -4,33 +4,13 @@ import Link from 'next/link'
 import { ThumbsUp, MessageSquare, Bookmark, TrendingUp, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
+import { TYPE_META, DEFAULT_TYPE_META, resolveStatusMeta } from '@/lib/utils/constants'
 import type { Recommendation } from '@/types/database.types'
 
 interface ComicCardProps {
   recommendation: Recommendation
   className?:     string
   showGenres?:    boolean
-}
-
-// ── Type accent system ────────────────────────────────────────────
-const TYPE_ACCENTS: Record<string, {
-  bar:   string
-  badge: string
-  glow:  string
-}> = {
-  manga:   { bar: 'bg-rose-500',   badge: 'text-rose-400   bg-rose-500/10   border-rose-500/20',   glow: 'hover:shadow-rose-500/10'   },
-  manhwa:  { bar: 'bg-teal-500',   badge: 'text-teal-400   bg-teal-500/10   border-teal-500/20',   glow: 'hover:shadow-teal-500/10'   },
-  manhua:  { bar: 'bg-amber-500',  badge: 'text-amber-400  bg-amber-500/10  border-amber-500/20',  glow: 'hover:shadow-amber-500/10'  },
-  webtoon: { bar: 'bg-teal-500',   badge: 'text-teal-400   bg-teal-500/10   border-teal-500/20',   glow: 'hover:shadow-teal-500/10'   },
-  comic:   { bar: 'bg-blue-500',   badge: 'text-blue-400   bg-blue-500/10   border-blue-500/20',   glow: 'hover:shadow-blue-500/10'   },
-  other:   { bar: 'bg-zinc-500',   badge: 'text-zinc-400   bg-zinc-500/10   border-zinc-500/20',   glow: 'hover:shadow-zinc-500/10'   },
-}
-
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  ongoing:   { label: 'Ongoing',  color: 'text-emerald-400' },
-  completed: { label: 'Complete', color: 'text-sky-400'     },
-  hiatus:    { label: 'Hiatus',   color: 'text-amber-400'   },
-  cancelled: { label: 'Dropped',  color: 'text-rose-400'    },
 }
 
 function isNewThisWeek(createdAt: string): boolean {
@@ -50,8 +30,8 @@ function proxyCover(url: string | null | undefined): string | null {
 }
 
 export function ComicCard({ recommendation: rec, className, showGenres = true }: ComicCardProps) {
-  const accent    = TYPE_ACCENTS[rec.type] ?? TYPE_ACCENTS.other
-  const status    = STATUS_META[rec.status] ?? { label: rec.status, color: 'text-muted-foreground' }
+  const accent    = TYPE_META[rec.type as keyof typeof TYPE_META] ?? DEFAULT_TYPE_META
+  const status    = resolveStatusMeta(rec.status, (rec as any).translation_status)
   const score     = rec.score ?? (rec.upvotes - rec.downvotes)
   const isNew     = isNewThisWeek(rec.created_at)
   const coverSrc  = proxyCover(rec.cover_url)
@@ -63,7 +43,6 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
     <Link
       href={`/comic/${rec.id}`}
       className={cn(
-      
         '@container/card group relative flex flex-col rounded-xl overflow-hidden',
         'border border-border bg-card',
         'hover:border-transparent hover:shadow-xl',
@@ -97,7 +76,6 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
         {/* Scrim — only bottom */}
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
 
-        
         <div className="absolute top-1.5 left-2.5 @min-[150px]/card:top-2 @min-[150px]/card:left-3.5 z-10">
           <span className={cn(
             'inline-flex items-center px-1 py-0.5 rounded text-[7px] @min-[150px]/card:px-1.5 @min-[150px]/card:text-[9px] font-black uppercase tracking-wider border',
@@ -157,7 +135,6 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
           )}
         </div>
 
-      
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 @sm/card:gap-x-2.5 text-[9px] text-muted-foreground">
           <span className="flex items-center gap-0.5 shrink-0">
             <ThumbsUp size={8} className="text-emerald-500/70 shrink-0" />
@@ -173,7 +150,8 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
           </span>
         </div>
 
-      
+        {/* Cover credit — always shown; both the narrow horizontal-carousel
+            cards and the wider grid cards need attribution visible. */}
         {rec.cover_url && (
           <p className="text-[8px] text-muted-foreground/40 truncate">
             © {rec.author ?? 'respective rights holder'}

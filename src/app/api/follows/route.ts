@@ -1,7 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendFollowNotificationEmail } from '@/lib/email/send'
-import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 const FREE_FOLLOW_LIMIT = 50
 
@@ -43,7 +42,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // â”€â”€ Insert follow 
+    // â”€â”€ Insert follow â”€â”€
     const { error: followError } = await (supabase as any)
       .from('follows')
       .insert({ follower_id: user.id, following_id })
@@ -78,23 +77,16 @@ export async function POST(request: Request) {
           type:    'follow',
           title:   notifTitle,
           content: `@${followerUsername} is now following you.`,
+          should_push: true,
           data: {
             follower_id:       user.id,
-            follower_username: followerUsername,   // â† used by NotificationsClient for routing
-            follower_type:     followerUserType,   // â† so we build /reader/ vs /creator/ correctly
+            follower_username: followerUsername,   // â†  used by NotificationsClient for routing
+            follower_type:     followerUserType,   // â†  so we build /reader/ vs /creator/ correctly
           },
         })
     } catch (notifErr) {
       console.error('[follows/POST] notification error (non-fatal):', notifErr)
     }
-
-    // Push notification â€” fire and forget
-    sendPushForUser(
-      following_id,
-      notifTitle,
-      `@${followerUsername} is now following you.`,
-      `/${followerUserType === 'creator' ? 'creator' : 'reader'}/${followerUsername}`
-    ).catch((e) => console.error('[follows/POST] push error:', e))
 
     sendFollowNotificationEmail(
       following_id,

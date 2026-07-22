@@ -1,7 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { recommendationSchema } from '@/lib/utils/validators'
-import { sendPushForUser } from '@/lib/utils/pushHelper'
 import { resolveMoreInfoLink } from '@/lib/utils/moreInfoLink'
 import { notifyFollowersOfNewPost } from '@/lib/utils/followerNotify'
 import {
@@ -48,12 +47,10 @@ async function notifyAdminsOfNewSubmission(
             user_id: admin.id,
             type:    'admin_new_submission',
             title:   notifTitle,
+            content: notifBody,
+            should_push: prefs.push !== false,
             data:    { recommendation_id: recId, submitter_username: submitterUsername },
           })
-        }
-
-        if (prefs.push !== false) {
-          await sendPushForUser(admin.id, notifTitle, notifBody, `/admin/recommendations`)
         }
 
         if (prefs.email !== false) {
@@ -152,14 +149,14 @@ export async function POST(request: Request) {
 
     const isAdminOrMod = ['admin', 'moderator'].includes(profile?.role ?? '')
 
-    // ── Read save_as_draft BEFORE enforcing limits ──
+    // â”€â”€ Read save_as_draft BEFORE enforcing limits â”€â”€
     // FIX: limit checks used to run unconditionally, before we even knew
     // whether this request was a real submission or just a draft save.
     // That meant a user who hit their monthly/daily cap couldn't save a
-    // draft either — the exact escape hatch the limit-reached modal offers
+    // draft either â€” the exact escape hatch the limit-reached modal offers
     // them was itself blocked by the same limit. Drafts don't consume a
     // submission slot (incrementDailyCount/incrementGlobalCount only run
-    // on real submissions, never on drafts — see below), so they should
+    // on real submissions, never on drafts â€” see below), so they should
     // never be gated by these checks.
     const bodyPreview = await request.clone().json().catch(() => ({}))
     const asDraftRequest = bodyPreview?.save_as_draft === true

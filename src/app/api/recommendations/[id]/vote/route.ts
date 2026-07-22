@@ -1,7 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendVoteNotificationEmail } from '@/lib/email/send'
-import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 export async function POST(
   request: Request,
@@ -50,22 +49,15 @@ export async function POST(
       const voterName = (voter as any)?.username ?? 'someone'
       const notifTitle = `@${voterName} ${vote_type === 'up' ? 'upvoted' : 'downvoted'} your recommendation "${(rec as any).title}"`
 
-      // In-app notification
+      // In-app + push notification (push only for upvotes, handled by DB webhook via should_push)
       await (supabase as any).from('notifications').insert({
         user_id: rec.user_id,
         type: 'vote',
         title: notifTitle,
+        content: 'Tap to view your recommendation.',
+        should_push: vote_type === 'up',
         data: { recommendation_id: id, voter_id: user.id, vote_type },
       })
-
-      if (vote_type === 'up') {
-        sendPushForUser(
-          rec.user_id,
-          notifTitle,
-          'Tap to view your recommendation.',
-          `/comic/${id}`
-        ).catch(console.error)
-      }
 
       // Email notification fire and forget
       sendVoteNotificationEmail(

@@ -1,9 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { sendPushForUser } from '@/lib/utils/pushHelper'
 
-// POST — save a collection
-// DELETE — unsave a collection
+// POST â€” save a collection
+// DELETE â€” unsave a collection
 
 export async function POST(
   request: Request,
@@ -25,7 +24,7 @@ export async function POST(
 
     if (insertError) throw insertError
 
-    // Recalculate save_count from actual rows — source of truth
+    // Recalculate save_count from actual rows â€” source of truth
     const { count } = await (supabase as any)
       .from('collection_saves')
       .select('*', { count: 'exact', head: true })
@@ -36,7 +35,7 @@ export async function POST(
       .update({ save_count: count ?? 0 })
       .eq('id', id)
 
-    // ── Notify collection owner — don't notify yourself ──────────────────
+    // â”€â”€ Notify collection owner â€” don't notify yourself â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try {
       const [{ data: collection }, { data: saver }] = await Promise.all([
         (supabase as any).from('collections').select('user_id, title').eq('id', id).single(),
@@ -63,17 +62,10 @@ export async function POST(
             user_id: collection.user_id,
             type:    'collection_saved',
             title:   notifTitle,
+            content: `@${saverUsername} just saved your collection.`,
+            should_push: prefs.push !== false,
             data:    { collection_id: id, saver_id: user.id, saver_username: saverUsername },
           })
-        }
-
-        if (prefs.push !== false) {
-          sendPushForUser(
-            collection.user_id,
-            notifTitle,
-            `@${saverUsername} just saved your collection.`,
-            `/collections/${id}`
-          ).catch(console.error)
         }
 
         if (prefs.email !== false) {
@@ -111,7 +103,7 @@ export async function DELETE(
       .eq('user_id', user.id)
       .eq('collection_id', id)
 
-    // Recalculate save_count from actual rows — source of truth
+    // Recalculate save_count from actual rows â€” source of truth
     const { count } = await (supabase as any)
       .from('collection_saves')
       .select('*', { count: 'exact', head: true })

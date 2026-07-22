@@ -181,7 +181,7 @@ export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
         {/* Cover stack */}
         <div
           ref={stageRef}
-          className="relative w-full h-64 sm:h-80 md:h-96 [perspective:1000px]"
+          className="relative w-full h-56 sm:h-80 md:h-96 [perspective:1000px]"
         >
           {recommendations.map((r, i) => {
             const src = proxyCover(r.cover_url)
@@ -248,7 +248,7 @@ export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
           </div>
 
           {rec.description && (
-            <p className="text-sm text-white/40 leading-relaxed line-clamp-3 max-w-md">
+            <p className="hidden md:block text-sm text-white/40 leading-relaxed line-clamp-3 max-w-md">
               {rec.description}
             </p>
           )}

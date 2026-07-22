@@ -1,12 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 interface RouteContext {
   params: Promise<{ id: string }>
 }
 
-// POST — star a list
+// POST â€” star a list
 export async function POST(_req: Request, { params }: RouteContext) {
   try {
     const { id } = await params
@@ -32,7 +31,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
       .update({ star_count: count ?? 0 })
       .eq('id', id)
 
-    // ── Notify list owner — don't notify yourself ────────────────────────
+    // â”€â”€ Notify list owner â€” don't notify yourself â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try {
       const [{ data: list }, { data: starrer }] = await Promise.all([
         (supabase as any).from('reading_lists').select('user_id, name').eq('id', id).single(),
@@ -59,17 +58,10 @@ export async function POST(_req: Request, { params }: RouteContext) {
             user_id: list.user_id,
             type:    'list_starred',
             title:   notifTitle,
+            content: `@${starrerUsername} just starred your list.`,
+            should_push: prefs.push !== false,
             data:    { list_id: id, starrer_id: user.id, starrer_username: starrerUsername },
           })
-        }
-
-        if (prefs.push !== false) {
-          sendPushForUser(
-            list.user_id,
-            notifTitle,
-            `@${starrerUsername} just starred your list.`,
-            `/lists/${id}`
-          ).catch(console.error)
         }
 
         if (prefs.email !== false) {
@@ -91,7 +83,7 @@ export async function POST(_req: Request, { params }: RouteContext) {
   }
 }
 
-// DELETE — unstar a list
+// DELETE â€” unstar a list
 export async function DELETE(_req: Request, { params }: RouteContext) {
   try {
     const { id } = await params

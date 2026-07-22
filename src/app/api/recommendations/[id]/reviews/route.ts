@@ -1,8 +1,7 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { reviewSchema } from '@/lib/utils/validators'
 import { sendReviewNotificationEmail } from '@/lib/email/send'
-import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 export async function GET(
   request: Request,
@@ -101,21 +100,15 @@ export async function POST(
         const reviewerName     = reviewer?.display_name || reviewerUsername
         const notifTitle       = `${reviewerName} reviewed your recommendation "${rec.title}"`
 
-        // In-app notification
+        // In-app + push notification (push handled by DB webhook via should_push)
         await (supabase as any).from('notifications').insert({
           user_id: rec.user_id,
           type:    'review',
           title:   notifTitle,
+          content: parsed.data.content.slice(0, 100),
+          should_push: true,
           data:    { recommendation_id: id, reviewer_id: user.id },
         })
-
-        // Push notification â€” fire and forget
-        sendPushForUser(
-          rec.user_id,
-          notifTitle,
-          parsed.data.content.slice(0, 100),
-          `/comic/${id}`
-        ).catch(console.error)
 
         // Email notification â€” fire and forget
         sendReviewNotificationEmail(
