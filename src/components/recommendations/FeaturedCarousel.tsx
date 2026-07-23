@@ -6,27 +6,12 @@ import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, BookOpen, ThumbsUp, Star, Zap, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
+import { TYPE_META, DEFAULT_TYPE_META, resolveStatusMeta, CAROUSEL_AUTOPLAY_DELAY } from '@/lib/utils/constants'
 import type { Recommendation } from '@/types/database.types'
 
 interface Props {
   recommendations: Recommendation[]
   adminFeaturedIds: Set<string>  // ids of admin-curated picks — rest are community voted
-}
-
-const TYPE_COLORS: Record<string, string> = {
-  manga:   '#f43f5e',
-  manhwa:  '#0ea5b0',
-  manhua:  '#f59e0b',
-  webtoon: '#0ea5b0',
-  comic:   '#3b82f6',
-  other:   '#6b7280',
-}
-
-const STATUS_CONFIG = {
-  ongoing:   { color: 'bg-emerald-500', label: 'Ongoing'   },
-  completed: { color: 'bg-sky-500',     label: 'Completed' },
-  hiatus:    { color: 'bg-amber-500',   label: 'Hiatus'    },
-  cancelled: { color: 'bg-rose-500',    label: 'Cancelled' },
 }
 
 function proxyCover(url: string | null | undefined): string | null {
@@ -86,7 +71,7 @@ export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
         setActiveIndex(prevIdx => (prevIdx + 1) % length)
         setContentVisible(true)
       }, 150)
-    }, 5500)
+    }, CAROUSEL_AUTOPLAY_DELAY)
   }, [length])
 
   useEffect(() => {
@@ -163,12 +148,12 @@ export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
   if (!length) return null
 
   const rec = recommendations[activeIndex]
-  const accentColor = TYPE_COLORS[rec.type] ?? TYPE_COLORS.other
-  const status = STATUS_CONFIG[rec.status as keyof typeof STATUS_CONFIG]
+  const accent = TYPE_META[rec.type as keyof typeof TYPE_META] ?? DEFAULT_TYPE_META
+  const status = resolveStatusMeta(rec.status, (rec as any).translation_status)
   const isAdminPick = adminFeaturedIds.has(rec.id)
   const badge = isAdminPick
-    ? { icon: Star, label: 'Featured', className: 'text-amber-400', fill: 'fill-amber-400' }
-    : { icon: Users, label: 'Community Voted', className: 'text-sky-400', fill: '' }
+    ? { icon: Star, label: 'Featured', className: 'text-amber-500 dark:text-amber-400', fill: 'fill-amber-500 dark:fill-amber-400' }
+    : { icon: Users, label: 'Community Voted', className: 'text-sky-600 dark:text-sky-400', fill: '' }
   const cornerLabel = isAdminPick ? '✨ Top Pick' : '🗳️ Community Vote'
 
   return (
@@ -216,10 +201,10 @@ export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
           )}
         >
           <div className="flex items-center gap-2">
-            <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider"
-              style={{ background: `${accentColor}25`, border: `1px solid ${accentColor}40`, color: accentColor }}
-            >
+            <span className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border',
+              accent.badge
+            )}>
               <Zap size={9} />
               {rec.type}
             </span>
@@ -229,26 +214,23 @@ export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
             </span>
           </div>
 
-          <h2 className="text-2xl md:text-4xl font-black leading-tight tracking-tight line-clamp-2">
+          <h2 className="text-2xl md:text-4xl font-black leading-tight tracking-tight line-clamp-2 text-foreground">
             {rec.title}
           </h2>
 
           <div className="flex flex-wrap items-center gap-1.5">
-            {status && (
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/5 border border-white/10">
-                <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', status.color)} />
-                <span className="text-[10px] text-white/60 capitalize">{status.label}</span>
-              </div>
-            )}
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted border border-border">
+              <span className={cn('text-[10px] font-bold', status.color)}>{status.label}</span>
+            </div>
             {rec.genres?.slice(0, 3).map(g => (
-              <span key={g} className="px-2 py-0.5 rounded text-[10px] text-white/50 bg-white/5 border border-white/10">
+              <span key={g} className="px-2 py-0.5 rounded text-[10px] text-muted-foreground bg-muted border border-border">
                 {g}
               </span>
             ))}
           </div>
 
           {rec.description && (
-            <p className="hidden md:block text-sm text-white/40 leading-relaxed line-clamp-3 max-w-md">
+            <p className="hidden md:block text-sm text-muted-foreground leading-relaxed line-clamp-3 max-w-md">
               {rec.description}
             </p>
           )}
@@ -257,14 +239,13 @@ export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
             <Link href={`/comic/${rec.id}`}>
               <Button
                 size="sm"
-                className="gap-2 font-bold border-0 rounded"
-                style={{ background: accentColor, color: '#fff' }}
+                className={cn('gap-2 font-bold border-0 rounded text-white', accent.bar, 'hover:opacity-90')}
               >
                 <BookOpen size={13} />
                 Read More
               </Button>
             </Link>
-            <div className="flex items-center gap-1.5 text-sm text-white/30">
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <ThumbsUp size={12} />
               {formatNumber(rec.upvotes)}
             </div>
@@ -275,14 +256,14 @@ export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
       {/* Arrows */}
       <button
         onClick={() => { prev(); restartAutoplay() }}
-        className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 w-9 h-9 rounded-full bg-black/40 border border-white/10 items-center justify-center text-white transition-colors duration-200 hover:bg-black/60"
+        className="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 w-9 h-9 rounded-full bg-background/80 border border-border items-center justify-center text-foreground transition-colors duration-200 hover:bg-muted shadow-sm"
         aria-label="Previous"
       >
         <ChevronLeft size={16} />
       </button>
       <button
         onClick={() => { next(); restartAutoplay() }}
-        className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 w-9 h-9 rounded-full bg-black/40 border border-white/10 items-center justify-center text-white transition-colors duration-200 hover:bg-black/60"
+        className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 w-9 h-9 rounded-full bg-background/80 border border-border items-center justify-center text-foreground transition-colors duration-200 hover:bg-muted shadow-sm"
         aria-label="Next"
       >
         <ChevronRight size={16} />
@@ -296,7 +277,7 @@ export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
             onClick={() => { goTo(index); restartAutoplay() }}
             className={cn(
               'rounded-full transition-all duration-300',
-              activeIndex === index ? 'w-5 h-1 bg-white' : 'w-1 h-1 bg-white/25 hover:bg-white/40'
+              activeIndex === index ? 'w-5 h-1 bg-foreground' : 'w-1 h-1 bg-foreground/25 hover:bg-foreground/40'
             )}
             aria-label={`Go to slide ${index + 1}`}
           />

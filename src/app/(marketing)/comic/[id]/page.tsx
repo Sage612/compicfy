@@ -214,20 +214,7 @@ function ComicJsonLd({
   )
 }
 
-const TYPE_STYLES: Record<string, { gradient: string; badge: string; glow: string; border: string }> = {
-  manga:   { gradient: 'from-rose-500   to-pink-600',   badge: 'bg-rose-500/15   text-rose-500   border-rose-500/25',   glow: 'bg-rose-500/20',   border: 'border-rose-500/30'   },
-  manhwa:  { gradient: 'from-teal-500   to-cyan-600',   badge: 'bg-teal-500/15   text-teal-500   border-teal-500/25',   glow: 'bg-teal-500/20',   border: 'border-teal-500/30'   },
-  manhua:  { gradient: 'from-amber-500  to-orange-500', badge: 'bg-amber-500/15  text-amber-500  border-amber-500/25',  glow: 'bg-amber-500/20',  border: 'border-amber-500/30'  },
-  webtoon: { gradient: 'from-teal-500   to-cyan-600',   badge: 'bg-teal-500/15   text-teal-500   border-teal-500/25',   glow: 'bg-teal-500/20',   border: 'border-teal-500/30'   },
-  comic:   { gradient: 'from-blue-500   to-indigo-600', badge: 'bg-blue-500/15   text-blue-500   border-blue-500/25',   glow: 'bg-blue-500/20',   border: 'border-blue-500/30'   },
-}
-
-const STATUS_STYLES: Record<string, string> = {
-  ongoing:   'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
-  completed: 'bg-blue-500/10   text-blue-600    dark:text-blue-400    border-blue-500/20',
-  hiatus:    'bg-amber-500/10  text-amber-600   dark:text-amber-400   border-amber-500/20',
-  cancelled: 'bg-red-500/10    text-red-600     dark:text-red-400     border-red-500/20',
-}
+import { TYPE_META, DEFAULT_TYPE_META, STATUS_META, resolveStatusMeta } from '@/lib/utils/constants'
 
 export default async function ComicDetailPage({ params }: Props) {
   const { id } = await params
@@ -350,12 +337,8 @@ export default async function ComicDetailPage({ params }: Props) {
     isSaved  = !!saveRes.data
   }
 
-  const typeStyle = TYPE_STYLES[rec.type] ?? {
-    gradient: 'from-primary to-rose-600',
-    badge:    'bg-primary/15 text-primary border-primary/25',
-    glow:     'bg-primary/15',
-    border:   'border-primary/20',
-  }
+  const typeStyle = TYPE_META[rec.type as keyof typeof TYPE_META] ?? DEFAULT_TYPE_META
+  const statusMeta = resolveStatusMeta(rec.status, (rec as any).translation_status)
 
   const stats = [
     { icon: ThumbsUp,      label: 'Upvotes', value: rec.upvotes      ?? 0 },
@@ -453,7 +436,7 @@ export default async function ComicDetailPage({ params }: Props) {
                   </div>
 
                   <div className="relative w-40 md:w-[164px] aspect-[3/4] rounded-r-lg md:rounded-l-none rounded-lg overflow-hidden border-y border-r border-dossier-foreground/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] bg-dossier-panel">
-                    <div className={`absolute -inset-4 rounded-2xl ${typeStyle.glow} blur-2xl opacity-30 -z-10`} />
+                    <div className={`absolute -inset-4 rounded-2xl ${typeStyle.detailGlow} blur-2xl opacity-30 -z-10`} />
                     {rec.cover_url ? (
                       <img
                         src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
@@ -484,8 +467,8 @@ export default async function ComicDetailPage({ params }: Props) {
 
                 <div className="md:hidden space-y-2">
                   <div className="flex flex-wrap items-center justify-center gap-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
-                      {rec.status}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${statusMeta.badge}`}>
+                      {statusMeta.label}
                     </span>
                     <span className="px-1.5 py-0.5 rounded border border-dossier-foreground/10 text-dossier-foreground/40 text-[10px] capitalize">
                       {rec.content_rating?.replace('_', ' ')}
@@ -506,8 +489,8 @@ export default async function ComicDetailPage({ params }: Props) {
 
               <div className="hidden md:block space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${STATUS_STYLES[rec.status] ?? ''}`}>
-                    {rec.status}
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${statusMeta.badge}`}>
+                    {statusMeta.label}
                   </span>
                   <span className="px-1.5 py-0.5 rounded border border-dossier-foreground/10 text-dossier-foreground/40 text-[10px] capitalize">
                     {rec.content_rating?.replace('_', ' ')}
@@ -593,7 +576,7 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
         </div>
 
-        
+      
         <div className="max-w-6xl mx-auto px-4 md:px-6 mt-4 md:mt-5 pb-24">
           <div className="flex flex-col md:flex-row gap-6 md:gap-10">
             <div className="hidden md:block md:w-48 shrink-0" aria-hidden="true" />
@@ -601,7 +584,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
           <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-5 md:gap-6`}>
             <div className="relative rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/30 backdrop-blur-sm p-6 md:p-8 overflow-hidden">
-              <div className={`absolute -top-10 -right-10 w-40 h-40 rounded-full ${typeStyle.glow} blur-3xl opacity-20`} />
+              <div className={`absolute -top-10 -right-10 w-40 h-40 rounded-full ${typeStyle.detailGlow} blur-3xl opacity-20`} />
               <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
                 About
               </h2>

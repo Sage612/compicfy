@@ -7,15 +7,8 @@ import { timeAgo } from '@/lib/utils/format'
 import { ReactionButton } from './ReactionButton'
 import { UserBadges } from '@/components/pro/UserBadges'
 import { cn } from '@/lib/utils'
+import { TYPE_META, DEFAULT_TYPE_META } from '@/lib/utils/constants'
 import type { FeedItem } from '@/lib/utils/feedTypes'
-
-const TYPE_COLORS: Record<string, string> = {
-  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
-  manhwa:  'bg-teal-500/10   text-teal-500   border-teal-500/20',
-  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
-  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
-  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
-}
 
 function proxyCover(url: string | null | undefined): string | null {
   if (!url) return null
@@ -96,7 +89,7 @@ function CoverMosaic({ covers }: { covers: string[] }) {
 export function FeedCard({ rec: item, isLoggedIn, reactionCount, userReacted, onReactionToggle }: Props) {
   // ── Recommendation ──────────────────────────────────────────────
   if (item.item_type === 'recommendation') {
-    const typeStyle = TYPE_COLORS[item.type] ?? 'bg-muted text-muted-foreground border-border'
+    const typeStyle = (TYPE_META[item.type as keyof typeof TYPE_META] ?? DEFAULT_TYPE_META).badge
     const coverSrc  = proxyCover(item.cover_url)
 
     return (

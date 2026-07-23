@@ -16,6 +16,7 @@ import { formatDate } from '@/lib/utils/format'
 import Link from 'next/link'
 import { PlatformSelector } from '@/components/recommendations/PlatformSelector'
 import { GenreSelector } from '@/components/recommendations/GenreSelector'
+import { TYPE_META, DEFAULT_TYPE_META, COMIC_TYPES, STATUSES as STATUS_OPTIONS, CONTENT_RATINGS } from '@/lib/utils/constants'
 
 const FILTERS = [
   { value: 'all',        label: 'All',            color: 'text-foreground'  },
@@ -27,24 +28,10 @@ const FILTERS = [
   { value: 'more_info',  label: 'More Info 🔗',   color: 'text-sky-500'     },
 ]
 
-const TYPE_COLORS: Record<string, string> = {
-  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
-  manhwa:  'bg-teal-500/10 text-teal-500 border-teal-500/20',
-  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
-  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
-  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
-}
+const TYPES    = COMIC_TYPES.map(t => t.value)
+const STATUSES = STATUS_OPTIONS.map(s => s.value)
+const RATINGS  = CONTENT_RATINGS.map(r => r.value)
 
-const TYPES    = ['manga', 'manhwa', 'manhua', 'webtoon', 'comic', 'other']
-const STATUSES = ['ongoing', 'completed', 'hiatus', 'cancelled']
-const RATINGS  = ['all_ages', 'teen', 'mature', 'adult']
-
-// ── External ID fields ──────────────────────────────────────────────────
-// Locking a field here stops the automated id-checker cron from ever
-// touching it (searching, overwriting, or nulling as an outlier). Use this
-// when the cron matched the wrong series, or when a comic genuinely isn't
-// listed on a given source (e.g. a Webtoon-only series absent from
-// MangaUpdates) so it should stop retrying forever.
 const EXTERNAL_ID_FIELDS = [
   { key: 'mangaupdates_id', label: 'MangaUpdates', urlBase: 'https://www.mangaupdates.com/series/' },
   { key: 'mangadex_id',     label: 'MangaDex',     urlBase: 'https://mangadex.org/title/' },
@@ -576,7 +563,7 @@ export function AdminRecommendations({ role }: { role: 'admin' | 'moderator' }) 
               const isEditing   = editingId  === rec.id
               const isFeaturing = featuringId === rec.id
               const profile     = rec.profiles
-              const typeStyle   = TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border'
+              const typeStyle   = (TYPE_META[rec.type as keyof typeof TYPE_META] ?? DEFAULT_TYPE_META).badge
               const isPending   = !rec.is_approved && !rec.rejection_reason
               const isSelected  = selected.has(rec.id)
               const isProSub    = !!rec.is_pro_submission

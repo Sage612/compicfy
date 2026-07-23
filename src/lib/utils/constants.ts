@@ -29,18 +29,20 @@ export const STATUSES = [
 ] as const
 
 export const TYPE_META: Record<(typeof COMIC_TYPES)[number]['value'], {
-  label:    string
-  badge:    string  // compact badge: bg/text/border, used on ComicCard/FeedCard chips
-  bar:      string  // solid accent bar color, used on ComicCard's left edge
-  glow:     string  // hover shadow glow, used on ComicCard
-  gradient: string  // hero gradient, used on comic detail page background/cover glow
-  border:   string  // accent border, used on comic detail page panels
+  label:       string
+  badge:       string  // compact badge: bg/text/border, used on ComicCard/FeedCard chips
+  bar:         string  // solid accent bar color, used on ComicCard's left edge
+  glow:        string  // hover shadow glow utility, used on ComicCard (e.g. 'hover:shadow-rose-500/10')
+  detailGlow:  string  // plain background-color glow, used on comic detail page's blurred orbs (e.g. 'bg-rose-500/20')
+  gradient:    string  // hero gradient, used on comic detail page background/cover glow
+  border:      string  // accent border, used on comic detail page panels
 }> = {
   manga: {
     label: 'Manga',
     badge: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
     bar:   'bg-rose-500',
     glow:  'hover:shadow-rose-500/10',
+    detailGlow: 'bg-rose-500/20',
     gradient: 'from-rose-500 to-pink-600',
     border:   'border-rose-500/30',
   },
@@ -49,6 +51,7 @@ export const TYPE_META: Record<(typeof COMIC_TYPES)[number]['value'], {
     badge: 'text-teal-400 bg-teal-500/10 border-teal-500/20',
     bar:   'bg-teal-500',
     glow:  'hover:shadow-teal-500/10',
+    detailGlow: 'bg-teal-500/20',
     gradient: 'from-teal-500 to-cyan-600',
     border:   'border-teal-500/30',
   },
@@ -57,6 +60,7 @@ export const TYPE_META: Record<(typeof COMIC_TYPES)[number]['value'], {
     badge: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
     bar:   'bg-amber-500',
     glow:  'hover:shadow-amber-500/10',
+    detailGlow: 'bg-amber-500/20',
     gradient: 'from-amber-500 to-orange-500',
     border:   'border-amber-500/30',
   },
@@ -65,6 +69,7 @@ export const TYPE_META: Record<(typeof COMIC_TYPES)[number]['value'], {
     badge: 'text-teal-400 bg-teal-500/10 border-teal-500/20',
     bar:   'bg-teal-500',
     glow:  'hover:shadow-teal-500/10',
+    detailGlow: 'bg-teal-500/20',
     gradient: 'from-teal-500 to-cyan-600',
     border:   'border-teal-500/30',
   },
@@ -73,6 +78,7 @@ export const TYPE_META: Record<(typeof COMIC_TYPES)[number]['value'], {
     badge: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
     bar:   'bg-blue-500',
     glow:  'hover:shadow-blue-500/10',
+    detailGlow: 'bg-blue-500/20',
     gradient: 'from-blue-500 to-indigo-600',
     border:   'border-blue-500/30',
   },
@@ -81,6 +87,7 @@ export const TYPE_META: Record<(typeof COMIC_TYPES)[number]['value'], {
     badge: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20',
     bar:   'bg-zinc-500',
     glow:  'hover:shadow-zinc-500/10',
+    detailGlow: 'bg-primary/15',
     gradient: 'from-primary to-rose-600',
     border:   'border-primary/20',
   },
@@ -169,7 +176,7 @@ export const FREE_LIMITS = {
 } as const
 
 export const GENRE_MOODS: Record<(typeof GENRES)[number], { mood: string; emoji: string }> = {
-  'Action':         { mood: 'I Need Something Addictive',  emoji: '⚔️' },
+ 'Action':         { mood: 'I Need Something Addictive',  emoji: '⚔️' },
   'Adventure':      { mood: 'Take Me On A Journey',         emoji: '🗺️' },
   'Comedy':         { mood: 'I Just Want To Laugh',         emoji: '😂' },
   'Drama':          { mood: 'Something That Hits Deep',     emoji: '🎭' },
