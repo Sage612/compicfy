@@ -1,5 +1,6 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendPushForUser } from '@/lib/utils/pushHelper'
 
 const BATCH_SIZE         = 10
 const API_DELAY_MS       = 600
@@ -7,7 +8,9 @@ const REQUEST_TIMEOUT_MS = 8000
 const LOCK_NAME          = 'chapter_checker'
 const LOCK_DURATION_MS   = 55_000 // just under the 1-minute cron interval
 const ID_LOCK_NAME       = 'id_checker'
+const CHAPTER_CATCHUP_TOLERANCE = 1
 
+// ── Fetch with timeout ────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
   const timeoutId  = setTimeout(() => controller.abort(), timeoutMs)
@@ -103,6 +106,7 @@ function normalizeALStatus(raw: string | null | undefined): ResolvedStatus {
   return null
 }
 
+// ── Logging ────────────────────────────────────────────────────────
 interface CheckLog {
   comic_id:          string
   comic_title:       string
@@ -347,6 +351,7 @@ async function resolveChapterCount(comic: any): Promise<{
     }
   }
 
+  // ── Chapter count resolution — unchanged logic from before ──
   if (muChapter !== null && mdChapter !== null && Math.abs(muChapter - mdChapter) <= 1) {
     return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried, resolvedStatus, statusSources, formatRejections }
   }
@@ -382,6 +387,7 @@ async function resolveChapterCount(comic: any): Promise<{
   return { chapter: null, source: null, tried, resolvedStatus, statusSources, formatRejections }
 }
 
+// ── Lock helpers ────────────────────────────────────────────────
 async function acquireLock(supabase: any): Promise<boolean> {
   const { data: existing } = await supabase
     .from('cron_locks')
@@ -414,6 +420,7 @@ async function releaseLock(supabase: any) {
   await supabase.from('cron_locks').delete().eq('job_name', LOCK_NAME)
 }
 
+// ── Main handler ────────────────────────────────────────────────
 export async function GET(req: Request) {
   const secret = req.headers.get('x-cron-secret')
   if (secret !== process.env.CRON_SECRET) {
@@ -441,7 +448,7 @@ export async function GET(req: Request) {
     const [{ data: fastPool, error: fastError }, { data: slowPool, error: slowError }] = await Promise.all([
       supabase
         .from('recommendations')
-        .select('id, title, status, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check')
+        .select('id, title, status, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check, translation_status, original_total_chapters, pending_original_status')
         .eq('is_approved', true)
         .in('status', ['ongoing', 'hiatus'])
         .or(`last_chapter_check.is.null,last_chapter_check.lt.${fastCutoff}`)
@@ -449,7 +456,7 @@ export async function GET(req: Request) {
         .limit(BATCH_SIZE),
       supabase
         .from('recommendations')
-        .select('id, title, status, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check')
+        .select('id, title, status, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check, translation_status, original_total_chapters, pending_original_status')
         .eq('is_approved', true)
         .in('status', ['completed', 'cancelled'])
         .or(`last_chapter_check.is.null,last_chapter_check.lt.${slowCutoff}`)
@@ -524,15 +531,78 @@ export async function GET(req: Request) {
 
         if (resolvedStatus && resolvedStatus !== comic.status) {
           const finalChapter = newChapterCount ?? comic.chapter_count ?? 0
+
+          // ── Original vs. translation completion ──────────────────────
+          // When 2+ external sources agree the ORIGINAL release just
+          // became completed or cancelled, that does NOT mean the
+          // translation tracked on this platform is actually done — the
+          // translation's chapter_count may still be behind the
+          // original's real chapter total. Only flip the user-facing
+          // `status` to a terminal state once the tracked chapter count
+          // has caught up (within a small tolerance for off-by-one
+          // numbering differences between sources). Until then, we park
+          // the detected terminal status in `pending_original_status` so
+          // the later chapter-progression branch knows what to apply once
+          // the gap closes.
+          const isTerminalOriginalStatus = resolvedStatus === 'completed' || resolvedStatus === 'cancelled'
+
+          if (isTerminalOriginalStatus) {
+            const originalTotal = comic.original_total_chapters ?? newChapterCount ?? comic.chapter_count ?? null
+            const hasCaughtUp = originalTotal !== null &&
+              finalChapter >= originalTotal - CHAPTER_CATCHUP_TOLERANCE
+
+            const updatePayload: Record<string, any> = {
+              chapter_count:            finalChapter,
+              last_chapter_check:       timestamp,
+              original_total_chapters:  originalTotal,
+            }
+
+            if (hasCaughtUp) {
+              // Translation has genuinely caught up — safe to apply the
+              // original's terminal status immediately.
+              updatePayload.status                   = resolvedStatus
+              updatePayload.translation_status       = 'translation_completed'
+              updatePayload.pending_original_status  = null
+            } else {
+              // Original is done, but our tracked translation chapter
+              // count hasn't caught up yet. Leave `status` as-is (still
+              // 'ongoing'/'hiatus' from the reader's perspective), park
+              // the terminal status for later, and record that the
+              // translation is the thing still catching up — so the UI
+              // can show both facts distinctly instead of a misleading
+              // single "Completed" badge.
+              updatePayload.translation_status      = 'translation_ongoing'
+              updatePayload.pending_original_status = resolvedStatus
+            }
+
+            await supabase.from('recommendations').update(updatePayload).eq('id', comic.id)
+
+            logEntry.status = hasCaughtUp
+              ? (resolvedStatus === 'completed' ? 'completed_corrected' : 'status_corrected')
+              : 'status_corrected'
+            logEntry.new_status        = hasCaughtUp ? resolvedStatus : comic.status
+            logEntry.new_chapter_count = finalChapter
+            logEntry.reason = hasCaughtUp
+              ? `${statusSources.length} sources (${statusSources.join(', ')}) agree original is "${resolvedStatus}", and translation (ch. ${finalChapter}) has caught up to original total (ch. ${originalTotal}).`
+              : `${statusSources.length} sources (${statusSources.join(', ')}) agree ORIGINAL is "${resolvedStatus}", but translation is only at ch. ${finalChapter} of ${originalTotal} — marked translation_ongoing, status left as "${comic.status}" pending catch-up.`
+            logs.push(logEntry)
+            continue
+          }
+
+          // Non-terminal status change (e.g. resumed from hiatus back to
+          // ongoing) — behaves exactly as before, no original/translation
+          // distinction needed since there's no completion ambiguity.
           const updatePayload: Record<string, any> = {
-            status:              resolvedStatus,
-            chapter_count:       finalChapter,
-            last_chapter_check:  timestamp,
+            status:                 resolvedStatus,
+            chapter_count:          finalChapter,
+            last_chapter_check:     timestamp,
+            translation_status:     'following_original',
+            pending_original_status: null,
           }
 
           await supabase.from('recommendations').update(updatePayload).eq('id', comic.id)
 
-          logEntry.status           = resolvedStatus === 'completed' ? 'completed_corrected' : 'status_corrected'
+          logEntry.status           = 'status_corrected'
           logEntry.new_status       = resolvedStatus
           logEntry.new_chapter_count = finalChapter
           logEntry.reason           = `${statusSources.length} sources (${statusSources.join(', ')}) agree status is now "${resolvedStatus}".`
@@ -540,11 +610,30 @@ export async function GET(req: Request) {
           continue
         }
 
- 
+        // ── Conditional Routing Path ──────────────────────────────
         if (newChapterCount && newChapterCount > (comic.chapter_count ?? 0)) {
           // 1. SUCCESS: Chapter progression found
+          const updatePayload: Record<string, any> = {
+            chapter_count:      newChapterCount,
+            last_chapter_check: timestamp,
+          }
+
+          // If the translation was catching up to an already-finished
+          // original (pending_original_status set on a previous run),
+          // check whether this new chapter count finally closes the gap.
+          if (
+            comic.translation_status === 'translation_ongoing' &&
+            comic.pending_original_status &&
+            comic.original_total_chapters &&
+            newChapterCount >= comic.original_total_chapters - CHAPTER_CATCHUP_TOLERANCE
+          ) {
+            updatePayload.status                  = comic.pending_original_status
+            updatePayload.translation_status      = 'translation_completed'
+            updatePayload.pending_original_status = null
+          }
+
           await supabase.from('recommendations')
-            .update({ chapter_count: newChapterCount, last_chapter_check: timestamp })
+            .update(updatePayload)
             .eq('id', comic.id)
 
           const { data: trackers } = await supabase
@@ -555,18 +644,23 @@ export async function GET(req: Request) {
 
           if (trackers && trackers.length > 0) {
             const userIds       = [...new Set(trackers.map((t: any) => t.reading_lists?.user_id).filter(Boolean))]
-            const pushTitle     = `ðŸ“– ${comic.title} updated`
+            const pushTitle     = `📖 ${comic.title} updated`
             const pushBody      = `New chapters available, now at chapter ${newChapterCount}`
             const notifications = userIds.map((userId: string) => ({
               user_id: userId,
               type:    'system',
               title:   pushTitle,
               content: pushBody,
-              should_push: true,
               data:    { recommendation_id: comic.id, new_chapter_count: newChapterCount, old_chapter_count: comic.chapter_count },
             }))
 
             await supabase.from('notifications').insert(notifications)
+
+            Promise.allSettled(
+              userIds.map((userId: string) =>
+                sendPushForUser(userId, pushTitle, pushBody, `/comic/${comic.id}`)
+              )
+            ).catch(() => {})
           }
 
           updated++
@@ -605,7 +699,7 @@ export async function GET(req: Request) {
 
         } else if (newChapterCount === null) {
           // 3. ZERO RESULTS FOUND (this now also covers "all sources were
-          // format-rejected" â€” the bad IDs were already cleared above)
+          // format-rejected" — the bad IDs were already cleared above)
           await supabase.from('recommendations')
             .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)
