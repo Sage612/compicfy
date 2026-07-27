@@ -183,7 +183,11 @@ async function findMangaUpdatesLink(
       )
 
       const match = smartMatch(title, candidates, author, artist, year)
-      if (match) return `https://www.mangaupdates.com/series/${match.series_id}`
+      // CONFIRMED FIX (2026-07-16): MangaUpdates URLs use the series_id
+      // base36-encoded, not the raw numeric ID — same fix applied in
+      // lib/utils/moreInfoLink.ts. See that file's comment for the
+      // verified example (4136941890 → "1wf10si").
+      if (match) return `https://www.mangaupdates.com/series/${match.series_id.toString(36)}`
     } catch (err) {
       console.error(`[more_info_checker] MU error for "${title}":`, err)
     }
@@ -256,6 +260,9 @@ export async function GET(req: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
+  // Yield to both ID Checker and Chapter Checker — this job is lowest
+  // priority of the three, matching Chapter Checker's existing deference
+  // to ID Checker.
   if (await isOtherCheckerActive(supabase)) {
     return NextResponse.json({ message: 'ID Checker or Chapter Checker lock is active. Yielding this tick.' })
   }
@@ -268,6 +275,10 @@ export async function GET(req: Request) {
   try {
     const recheckCutoff = new Date(Date.now() - RECHECK_DAYS * 24 * 60 * 60 * 1000).toISOString()
 
+    // Only comics with NO link at all, or a link that's still unverified
+    // after RECHECK_DAYS (gives auto_fetched/user_submitted links time to
+    // be reviewed before we'd ever try to re-fetch over them — and we
+    // never touch admin_approved links).
     const { data: comics, error } = await supabase
       .from('recommendations')
       .select('id, title, alternative_titles, author, artist, year_released, more_info_link, more_info_link_source, last_more_info_check')
@@ -292,6 +303,9 @@ export async function GET(req: Request) {
       const timestamp = new Date().toISOString()
 
       if (comic.more_info_link) {
+        // Shouldn't normally happen given the query filter, but guards
+        // against a race with a user submitting one between query and
+        // processing.
         logs.push({
           comic_id: comic.id, comic_title: comic.title,
           status: 'skipped_has_link', timestamp,
