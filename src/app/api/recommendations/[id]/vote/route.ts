@@ -2,6 +2,18 @@
 import { NextResponse } from 'next/server'
 import { sendVoteNotificationEmail } from '@/lib/email/send'
 
+// CRITICAL: this route mutates the database (votes table) on every POST.
+// Without an explicit dynamic export, Next.js route handlers can be
+// treated as cacheable under certain conditions, which was observed
+// causing this exact route to return a synthesized `{"action":"created"}`
+// success response without the underlying Supabase insert ever executing
+// — the response headers showed `cache-control: public, max-age=0,
+// must-revalidate` on a mutating POST, which should never be cacheable.
+// `force-dynamic` guarantees this route always executes fresh, end to end,
+// on every request.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -25,20 +37,36 @@ export async function POST(
     if (existing) {
       if (existing.vote_type === vote_type) {
         // Remove vote
-        await supabase.from('votes').delete().eq('id', existing.id)
+        const { error: deleteError } = await supabase.from('votes').delete().eq('id', existing.id)
+        if (deleteError) {
+          console.error('Vote delete error:', deleteError)
+          return NextResponse.json({ error: 'Failed to remove vote' }, { status: 500 })
+        }
         return NextResponse.json({ action: 'removed', vote_type: null })
       } else {
         // Update vote
-        await (supabase as any).from('votes').update({ vote_type }).eq('id', existing.id)
+        const { error: updateError } = await (supabase as any).from('votes').update({ vote_type }).eq('id', existing.id)
+        if (updateError) {
+          console.error('Vote update error:', updateError)
+          return NextResponse.json({ error: 'Failed to update vote' }, { status: 500 })
+        }
         return NextResponse.json({ action: 'updated', vote_type })
       }
     }
     // Insert new vote
-    await (supabase as any).from('votes').insert({
+    const { error: insertError } = await (supabase as any).from('votes').insert({
       user_id: user.id,
       recommendation_id: id,
       vote_type,
     })
+    if (insertError) {
+      // Previously this error was swallowed silently — the route returned
+      // a 500 via the outer catch, but nothing distinguished "insert
+      // actually failed" from any other failure mode, making this bug
+      // invisible in logs. Now it's explicit.
+      console.error('Vote insert error:', insertError)
+      return NextResponse.json({ error: 'Failed to save vote', details: insertError.message }, { status: 500 })
+    }
     // Get recommendation owner and voter info for notification
     const [{ data: rec }, { data: voter }] = await Promise.all([
       (supabase as any).from('recommendations').select('user_id, title').eq('id', id).single(),
@@ -69,7 +97,8 @@ export async function POST(
       ).catch(console.error)
     }
     return NextResponse.json({ action: 'created', vote_type })
-  } catch {
+  } catch (err: any) {
+    console.error('Vote route unexpected error:', err)
     return NextResponse.json({ error: 'Failed to vote' }, { status: 500 })
   }
 }
