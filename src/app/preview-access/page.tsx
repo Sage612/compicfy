@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 
@@ -10,7 +10,7 @@ export default function PreviewAccessPage() {
     e.preventDefault()
     setError('')
 
-    const res = await fetch('/preview-access', {
+    const res = await fetch('/preview-access/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
