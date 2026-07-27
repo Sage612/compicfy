@@ -6,6 +6,8 @@ export async function POST(req: Request) {
   if (!process.env.PREVIEW_ACCESS_SECRET || code !== process.env.PREVIEW_ACCESS_SECRET) {
     return NextResponse.json({ error: 'Invalid code' }, { status: 401 })
   }
+  console.log('Received code:', JSON.stringify(code))
+console.log('Expected code:', JSON.stringify(process.env.PREVIEW_ACCESS_SECRET))
 
   const res = NextResponse.json({ success: true })
   res.cookies.set('vercel_preview_access', code, {
