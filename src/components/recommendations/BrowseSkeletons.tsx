@@ -99,3 +99,25 @@ export function GenreGridSkeleton({ count = 9 }: { count?: number }) {
     </div>
   )
 }
+
+// ── Matches the genre section wrapper: divider + section skeletons stacked ──
+export function GenreSectionsSkeleton({ sections = 2 }: { sections?: number }) {
+  return (
+    <div className="space-y-8 pt-2">
+      <div className="relative flex items-center gap-4 py-2">
+        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
+        <Shimmer className="h-8 w-36 rounded-lg" />
+        <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />
+      </div>
+      {Array.from({ length: sections }).map((_, i) => (
+        <div key={i} className="space-y-3">
+          <div className="flex items-center gap-3">
+            <Shimmer className="w-6 h-6 rounded-full shrink-0" />
+            <Shimmer className="h-5 w-40" />
+          </div>
+          <GenreGridSkeleton />
+        </div>
+      ))}
+    </div>
+  )
+}

@@ -5,6 +5,11 @@ import { FeaturedCarousel } from '@/components/recommendations/FeaturedCarousel'
 import { HorizontalSection } from '@/components/recommendations/HorizontalSection'
 import { ComicCard } from '@/components/recommendations/ComicCard'
 import { ComicGridClient } from '@/components/recommendations/ComicGridClient'
+import {
+  FeaturedCarouselSkeleton,
+  HorizontalSectionSkeleton,
+  GenreSectionsSkeleton,
+} from '@/components/recommendations/BrowseSkeletons'
 import { ShieldAlert, BookOpen, ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -225,6 +230,105 @@ function AccessGate({ title, description, actions }: {
   )
 }
 
+// ── Independently-streaming sections ─────────────────────────────
+// Same pattern as the main browse page — takes the already-created
+// supabase client (server.ts's createClient() isn't cache()-wrapped,
+// so we pass the single instance down instead of calling it again).
+
+async function FeaturedCarouselSection({ supabase }: { supabase: SupabaseClient }) {
+  const items = await getFeatured(supabase)
+  if (items.length === 0) return null
+  return <FeaturedCarousel recommendations={items} adminFeaturedIds={new Set()} />
+}
+
+async function TrendingSection({ supabase }: { supabase: SupabaseClient }) {
+  const items = await getTrending(supabase)
+  if (items.length === 0) return null
+  return <HorizontalSection title="Trending Today" emoji="🔥" recommendations={items} viewAllHref="/browse/adult?sort=trending" />
+}
+
+async function NewThisWeekSection({ supabase }: { supabase: SupabaseClient }) {
+  const items = await getNewThisWeek(supabase)
+  if (items.length === 0) return null
+  return <HorizontalSection title="New This Week" emoji="🆕" recommendations={items} viewAllHref="/browse/adult?sort=recent" />
+}
+
+async function CommunityFavouritesSection({ supabase }: { supabase: SupabaseClient }) {
+  const items = await getCommunityFavourites(supabase)
+  if (items.length === 0) return null
+  return <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={items} viewAllHref="/browse/adult?sort=score" />
+}
+
+async function EditorialSection({ supabase, userId }: { supabase: SupabaseClient; userId: string }) {
+  const editorial = await getEditorialPick(supabase, userId)
+  if (editorial.items.length === 0) return null
+  return <HorizontalSection title={editorial.title} emoji={editorial.emoji} recommendations={editorial.items} />
+}
+
+async function GenreSections({ supabase }: { supabase: SupabaseClient }) {
+  const topGenres  = await getTopGenresWithCounts(supabase)
+  const genreItems = await Promise.all(topGenres.map(g => getGenreItems(supabase, g)))
+  const genreSections = topGenres
+    .map((genre, i) => ({ genre, items: genreItems[i] }))
+    .filter(section => section.items.length > 0) // safety net: never render an empty section
+
+  if (genreSections.length === 0) return null
+
+  return (
+    <div className="space-y-8 pt-2">
+      <GenreAnchorFallback availableSlugs={genreSections.map(s => genreSlug(s.genre))} redirectBase="/browse/adult" />
+
+      <div className="relative flex items-center gap-4 py-2">
+        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card shrink-0">
+          <BookOpen size={13} className="text-muted-foreground" />
+          <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Explore by Mood</span>
+        </div>
+        <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />
+      </div>
+
+      {genreSections.map(({ genre, items: genreItems }) => {
+        const { mood, emoji } = GENRE_MOODS[genre as (typeof GENRES)[number]] ?? { mood: genre, emoji: '📚' }
+        return (
+          <div key={genre} id={`genre-${genreSlug(genre)}`} className="space-y-3 scroll-mt-20">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-2xl leading-none shrink-0">{emoji}</span>
+                <div className="min-w-0">
+                  <ScrollingTitle>
+                    <h3 className="text-lg font-black leading-tight tracking-tight">{mood}</h3>
+                  </ScrollingTitle>
+                  <div className="h-0.5 w-8 rounded-full bg-primary mt-1 opacity-60" />
+                </div>
+              </div>
+              <Link href={`/browse/adult?genre=${encodeURIComponent(genre)}`} className="shrink-0">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1 text-xs text-muted-foreground hover:text-foreground h-8 px-3"
+                >
+                  View All
+                  <span aria-hidden>→</span>
+                </Button>
+              </Link>
+            </div>
+            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
+              {genreItems.map((rec, i) => (
+                <ComicCard
+                  key={rec.id}
+                  recommendation={rec}
+                  className={i >= 9 ? 'hidden md:block' : undefined}
+                  showGenres={false}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 export default async function AdultBrowsePage({ searchParams }: Props) {
   const params      = await searchParams
   const isFiltering = hasActiveFilters(params)
@@ -286,33 +390,13 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
     )
   }
 
-  const [
-    featured,
-    trending,
-    newThisWeek,
-    communityFavs,
-    editorial,
-    { items, total },
-    interactionCount,
-  ] = await Promise.all([
-    isFiltering ? Promise.resolve([]) : getFeatured(supabase),
-    isFiltering ? Promise.resolve([]) : getTrending(supabase),
-    isFiltering ? Promise.resolve([]) : getNewThisWeek(supabase),
-    isFiltering ? Promise.resolve([]) : getCommunityFavourites(supabase),
-    isFiltering ? Promise.resolve({ title: '', emoji: '', items: [] }) : getEditorialPick(supabase, user.id),
+  // Grid + interaction count block the page shell (ComicGridClient needs
+  // initial items/total/isPro synchronously). Featured/trending/genre
+  // sections stream independently below via their own Suspense boundaries.
+  const [{ items, total }, interactionCount] = await Promise.all([
     getInitialGrid(supabase, params),
     getInteractionCount(supabase, user.id),
   ])
-
-  // Genre sections — only computed when not filtering.
-  let genreSections: { genre: string; items: Recommendation[] }[] = []
-  if (!isFiltering) {
-    const topGenres  = await getTopGenresWithCounts(supabase)
-    const genreItems = await Promise.all(topGenres.map(g => getGenreItems(supabase, g)))
-    genreSections    = topGenres
-      .map((genre, i) => ({ genre, items: genreItems[i] }))
-      .filter(section => section.items.length > 0) // safety net: never render an empty section
-  }
 
   const clientParams: Record<string, string> = { adult: 'true' }
   if (params.q)      clientParams.q      = params.q
@@ -361,78 +445,36 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
         </p>
       </div>
 
-      {/* Featured Carousel */}
-      {!isFiltering && featured.length > 0 && (
-        <Suspense fallback={<div className="h-[280px] sm:h-[360px] rounded-2xl bg-muted animate-pulse" />}>
-         <FeaturedCarousel recommendations={featured} adminFeaturedIds={new Set()} />
+      {/* Featured Carousel — streams independently */}
+      {!isFiltering && (
+        <Suspense fallback={<FeaturedCarouselSkeleton />}>
+          <FeaturedCarouselSection supabase={supabase} />
         </Suspense>
       )}
 
-      
+      {/* Horizontal sections — each streams independently, in parallel */}
       {!isFiltering && (
         <div className="space-y-10">
-          {trending.length > 0      && <HorizontalSection title="Trending Today"       emoji="🔥" recommendations={trending}      viewAllHref="/browse/adult?sort=trending" />}
-          {newThisWeek.length > 0   && <HorizontalSection title="New This Week"        emoji="🆕" recommendations={newThisWeek}   viewAllHref="/browse/adult?sort=recent"   />}
-          {communityFavs.length > 0 && <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={communityFavs} viewAllHref="/browse/adult?sort=score"    />}
-          {editorial.items.length > 0 && (
-            <HorizontalSection title={editorial.title} emoji={editorial.emoji} recommendations={editorial.items} />
-          )}
+          <Suspense fallback={<HorizontalSectionSkeleton />}>
+            <TrendingSection supabase={supabase} />
+          </Suspense>
+          <Suspense fallback={<HorizontalSectionSkeleton />}>
+            <NewThisWeekSection supabase={supabase} />
+          </Suspense>
+          <Suspense fallback={<HorizontalSectionSkeleton />}>
+            <CommunityFavouritesSection supabase={supabase} />
+          </Suspense>
+          <Suspense fallback={<HorizontalSectionSkeleton />}>
+            <EditorialSection supabase={supabase} userId={user.id} />
+          </Suspense>
         </div>
       )}
 
-      {!isFiltering && genreSections.length > 0 && (
-        <div className="space-y-8 pt-2">
-          <GenreAnchorFallback availableSlugs={genreSections.map(s => genreSlug(s.genre))} redirectBase="/browse/adult" />
-
-          <div className="relative flex items-center gap-4 py-2">
-            <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
-            <div className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card shrink-0">
-              <BookOpen size={13} className="text-muted-foreground" />
-              <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Explore by Mood</span>
-            </div>
-            <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />
-          </div>
-
-          {genreSections.map(({ genre, items: genreItems }) => {
-            const { mood, emoji } = GENRE_MOODS[genre as (typeof GENRES)[number]] ?? { mood: genre, emoji: '📚' }
-            return (
-              <div key={genre} id={`genre-${genreSlug(genre)}`} className="space-y-3 scroll-mt-20">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="text-2xl leading-none shrink-0">{emoji}</span>
-                    <div className="min-w-0">
-                      <ScrollingTitle>
-                        <h3 className="text-lg font-black leading-tight tracking-tight">{mood}</h3>
-                      </ScrollingTitle>
-                      <div className="h-0.5 w-8 rounded-full bg-primary mt-1 opacity-60" />
-                    </div>
-                  </div>
-                  <Link href={`/browse/adult?genre=${encodeURIComponent(genre)}`} className="shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-1 text-xs text-muted-foreground hover:text-foreground h-8 px-3"
-                    >
-                      View All
-                      <span aria-hidden>→</span>
-                    </Button>
-                  </Link>
-                </div>
-                <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
-                  {genreItems.map((rec, i) => (
-                    <ComicCard
-                      key={rec.id}
-                      recommendation={rec}
-                      className={i >= 9 ? 'hidden md:block' : undefined}
-                      
-                      showGenres={false}
-                    />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </div>
+      {/* Genre sections — stream independently */}
+      {!isFiltering && (
+        <Suspense fallback={<GenreSectionsSkeleton />}>
+          <GenreSections supabase={supabase} />
+        </Suspense>
       )}
 
       {/* Filter Bar */}
