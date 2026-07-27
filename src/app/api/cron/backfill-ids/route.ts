@@ -39,7 +39,7 @@ type NormalizedFormat = 'manga' | 'novel' | 'other'
 function normalizeFormat(raw: string | null | undefined): NormalizedFormat {
   if (!raw) return 'other'
   const r = raw.toLowerCase().trim()
-  
+
   if (
     r === 'novel' ||
     r === 'light novel' ||
@@ -70,13 +70,13 @@ function normalizeFormat(raw: string | null | undefined): NormalizedFormat {
 }
 
 interface Candidate {
-  id:            string
-  title:         string
-  author?:       string
-  artist?:       string
-  year?:         number | null
-  format:        NormalizedFormat
-  altTitles?:    string[]
+  id:         string
+  title:      string
+  author?:    string
+  artist?:    string
+  year?:      number | null
+  format:     NormalizedFormat
+  altTitles?: string[]
 }
 
 function smartMatch(
@@ -132,6 +132,7 @@ function smartMatch(
     const yearTiebreak = exactTitleMatches.find(yearConfirmed)
     if (yearTiebreak) return yearTiebreak.id
   }
+  if (exactTitleMatches.length > 0) return exactTitleMatches[0].id
 
   if (na || nr) {
     for (const c of pool) {
@@ -148,6 +149,7 @@ function smartMatch(
       if (isContained && ct !== nq && yearConfirmed(c)) return c.id
     }
   }
+
   return null
 }
 
@@ -195,6 +197,11 @@ async function findMangaUpdatesID(
         author:    r.record?.author ?? '',
         artist:    r.record?.artist ?? '',
         year:      r.record?.year ? Number(r.record.year) : null,
+        // MangaUpdates' `associated` array carries alternate/synonym
+        // titles for a series — this is exactly the field that would
+        // have caught "The Patron of Villains" / "Raising Villains the
+        // Right Way" / "Became a Supporter of Villains" as the same
+        // series, had it been captured before now.
         altTitles: Array.isArray(r.record?.associated)
           ? r.record.associated.map((a: any) => a?.title).filter(Boolean)
           : [],
@@ -237,16 +244,18 @@ async function findMangaDexID(
         const rels       = r.relationships ?? []
         const authorName = rels.find((rel: any) => rel.type === 'author')?.attributes?.name ?? ''
         const artistName = rels.find((rel: any) => rel.type === 'artist')?.attributes?.name ?? ''
+        // MangaDex's altTitles is an array of { [langCode]: string }
+        // objects — flatten every language's value into one list.
         const altTitles: string[] = Array.isArray(attr.altTitles)
           ? attr.altTitles.flatMap((obj: any) => Object.values(obj ?? {})).filter(Boolean)
           : []
         return {
-          id:        String(r.id ?? ''),
-          title:     String(titleEn),
-          author:    authorName,
-          artist:    artistName,
-          year:      attr.year ? Number(attr.year) : null,
-          format:    'manga' as NormalizedFormat,
+          id:     String(r.id ?? ''),
+          title:  String(titleEn),
+          author: authorName,
+          artist: artistName,
+          year:   attr.year ? Number(attr.year) : null,
+          format: 'manga' as NormalizedFormat,
           altTitles,
         }
       })
@@ -269,7 +278,7 @@ async function findAniListID(
   for (const title of titles) {
     try {
       await new Promise(r => setTimeout(r, API_DELAY_MS))
-      const gql = `query($search:String){Page(perPage:15){media(search:$search,type:MANGA,sort:SEARCH_MATCH){id title{english romaji native}synonyms format startDate{year}staff(perPage:10){edges{role node{name{full}}}}}}}}`
+      const gql = `query($search:String){Page(perPage:15){media(search:$search,type:MANGA,sort:SEARCH_MATCH){id title{english romaji native}synonyms format startDate{year}staff(perPage:10){edges{role node{name{full}}}}}}}`
       const res = await fetchWithTimeout('https://graphql.anilist.co', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -282,18 +291,22 @@ async function findAniListID(
         const authorName = edges.find((e: any) => e.role?.toLowerCase().includes('story'))?.node?.name?.full ?? ''
         const artistName = edges.find((e: any) => e.role?.toLowerCase().includes('art'))?.node?.name?.full ?? ''
         const primaryTitle = r.title?.english || r.title?.romaji || r.title?.native || ''
+        // Include romaji/native when they differ from whichever variant
+        // became the primary title, plus AniList's own synonyms array —
+        // this is often where fan-translation alt-titles like "Became a
+        // Supporter of Villains" would actually surface.
         const altTitles = [
           r.title?.romaji,
           r.title?.native,
           ...(Array.isArray(r.synonyms) ? r.synonyms : []),
         ].filter((t: string | undefined): t is string => !!t && t !== primaryTitle)
         return {
-          id:        String(r.id ?? ''),
-          title:     primaryTitle,
-          author:    authorName,
-          artist:    artistName,
-          year:      r.startDate?.year ? Number(r.startDate.year) : null,
-          format:    normalizeFormat(r.format ?? null),
+          id:     String(r.id ?? ''),
+          title:  primaryTitle,
+          author: authorName,
+          artist: artistName,
+          year:   r.startDate?.year ? Number(r.startDate.year) : null,
+          format: normalizeFormat(r.format ?? null),
           altTitles,
         }
       })
@@ -327,16 +340,20 @@ async function findJikanID(
         const artistName = authors.find((a: any) => a.type === 'Art')?.name ?? ''
         const publishedYear = r.published?.from ? new Date(r.published.from).getFullYear() : null
         const primaryTitle  = r.title_english || r.title || ''
+        // Jikan's `titles` array is type-tagged (Default/English/
+        // Japanese/Synonym) — take anything that isn't identical to
+        // the primary title. Falls back to title_synonyms on older
+        // response shapes that don't include the titles array.
         const altTitles: string[] = Array.isArray(r.titles)
           ? r.titles.map((t: any) => t?.title).filter((t: string) => t && t !== primaryTitle)
           : (Array.isArray(r.title_synonyms) ? r.title_synonyms : [])
         return {
-          id:        String(r.mal_id ?? ''),
-          title:     primaryTitle,
-          author:    authorName,
-          artist:    artistName,
-          year:      publishedYear,
-          format:    normalizeFormat(r.type ?? null),
+          id:     String(r.mal_id ?? ''),
+          title:  primaryTitle,
+          author: authorName,
+          artist: artistName,
+          year:   publishedYear,
+          format: normalizeFormat(r.type ?? null),
           altTitles,
         }
       })
@@ -359,7 +376,6 @@ async function findExternalIds(
   alternativeTitles?: string[] | null,
   year?:              number | null,
   yearConfidence?:    'unverified' | 'confirmed',
-  lockedFields?:      Set<string>,
 ): Promise<{
   ids:              Record<string, string | undefined>
   years:            Record<string, number | null>
@@ -368,14 +384,11 @@ async function findExternalIds(
   const ids:   Record<string, string | undefined> = {}
   const years: Record<string, number | null>       = {}
   const titles = buildQueryTitles(title, alternativeTitles)
-
-  const shouldCheck = (field: string) => !lockedFields || !lockedFields.has(field)
-
   const [mu, md, al, mal] = await Promise.all([
-    shouldCheck('mangaupdates_id') ? findMangaUpdatesID(titles, author, artist, year, yearConfidence) : Promise.resolve({ id: null, year: null, altTitles: [] }),
-    shouldCheck('mangadex_id')     ? findMangaDexID(titles, author, artist, year, yearConfidence)     : Promise.resolve({ id: null, year: null, altTitles: [] }),
-    shouldCheck('anilist_id')      ? findAniListID(titles, author, artist, year, yearConfidence)      : Promise.resolve({ id: null, year: null, altTitles: [] }),
-    shouldCheck('mal_id')          ? findJikanID(titles, author, artist, year, yearConfidence)        : Promise.resolve({ id: null, year: null, altTitles: [] }),
+    findMangaUpdatesID(titles, author, artist, year, yearConfidence),
+    findMangaDexID(titles, author, artist, year, yearConfidence),
+    findAniListID(titles, author, artist, year, yearConfidence),
+    findJikanID(titles, author, artist, year, yearConfidence),
   ])
 
   if (mu.id)  { ids.mangaupdates_id = mu.id;  years.mangaupdates_id = mu.year }
@@ -383,6 +396,10 @@ async function findExternalIds(
   if (al.id)  { ids.anilist_id      = al.id;  years.anilist_id      = al.year }
   if (mal.id) { ids.mal_id          = mal.id; years.mal_id          = mal.year }
 
+  // Merge alt titles harvested from all 4 sources into one deduped
+  // list, dropping anything identical to the comic's own title, capped
+  // at 5 — same cap rule the MangaSearch autofill path uses, kept
+  // consistent so it doesn't matter which path populated the field.
   const normalizedMain = normalize(title)
   const merged = [
     ...(mu.altTitles ?? []),
@@ -443,9 +460,9 @@ interface IDCheckLog {
   outlier_sources:   string[]
   status:            'found_all' | 'found_some' | 'found_none' | 'skipped_complete'
   total_ids_found:   number
+  alt_titles_added?: string[]
   reason?:           string
-  full_reverify?:    boolean
-  locked_fields?:    string[]
+ full_reverify?:    boolean
   timestamp:         string
 }
 
@@ -464,18 +481,12 @@ async function logIDCheck(supabase: any, log: IDCheckLog) {
 }
 
 const TOTAL_ID_SOURCES = 4
-const ID_FIELDS = ['mangaupdates_id', 'mangadex_id', 'anilist_id', 'mal_id'] as const
 
 function countExternalIds(comic: any): number {
   return [
     comic.mangaupdates_id, comic.mangadex_id,
     comic.anilist_id,      comic.mal_id,
   ].filter(id => id && String(id).trim()).length
-}
-
-function getLockedFields(comic: any): Set<string> {
-  const raw: string[] = Array.isArray(comic.id_locked_fields) ? comic.id_locked_fields : []
-  return new Set(raw.filter((f) => (ID_FIELDS as readonly string[]).includes(f)))
 }
 
 async function acquireLock(supabase: any): Promise<boolean> {
@@ -520,7 +531,7 @@ export async function GET(req: Request) {
 
     const { data: comics, error } = await supabase
       .from('recommendations')
-      .select('id, title, alternative_titles, author, artist, year_released, year_confidence, mangaupdates_id, mangadex_id, anilist_id, mal_id, id_locked_fields, last_id_check, last_full_reverify')
+      .select('id, title, alternative_titles, author, artist, year_released, year_confidence, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check, last_full_reverify')
       .eq('is_approved', true)
       .or(`last_id_check.is.null,last_id_check.lt.${cooloffCutoff},last_full_reverify.is.null,last_full_reverify.lt.${reverifyCutoff}`)
       .limit(BATCH_SIZE)
@@ -534,7 +545,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ message: 'No comics need checking', processed: 0 })
     }
 
-    let foundAll = 0, foundSome = 0, foundNone = 0, skippedComplete = 0, yearsCorrected = 0
+    let foundAll = 0, foundSome = 0, foundNone = 0, skippedComplete = 0, yearsCorrected = 0, altTitlesBackfilled = 0
     let timedOutEarly = false
     const runStart = Date.now()
     const logs: IDCheckLog[] = []
@@ -550,15 +561,19 @@ export async function GET(req: Request) {
       try {
         const currentIdCount  = countExternalIds(comic)
         const yearConfidence: 'unverified' | 'confirmed' = comic.year_confidence ?? 'unverified'
-        const lockedFields = getLockedFields(comic)
 
         const dueForFullReverify =
           !comic.last_full_reverify ||
           new Date(comic.last_full_reverify) < new Date(reverifyCutoff)
 
-        const unlockedMissing = ID_FIELDS.filter(f => !comic[f] && !lockedFields.has(f))
+        const hasNoAltTitles = !comic.alternative_titles || comic.alternative_titles.length === 0
 
-        if (unlockedMissing.length === 0 && currentIdCount + lockedFields.size >= TOTAL_ID_SOURCES && yearConfidence === 'confirmed' && !dueForFullReverify) {
+        // Skip-complete no longer skips comics that still have no
+        // alt-titles — even a comic with all 4 IDs found and a
+        // confirmed year is worth one more pass if alternative_titles
+        // is empty, since that's the exact gap that let near-duplicate
+        // titles slip through undetected.
+        if (currentIdCount === TOTAL_ID_SOURCES && yearConfidence === 'confirmed' && !dueForFullReverify && !hasNoAltTitles) {
           skippedComplete++
           await supabase.from('recommendations').update({ last_id_check: timestamp }).eq('id', comic.id)
           logs.push({
@@ -567,39 +582,45 @@ export async function GET(req: Request) {
             year_corrected: false,
             databases_checked: [], ids_found: {}, outlier_sources: [],
             status: 'skipped_complete', total_ids_found: TOTAL_ID_SOURCES,
-            reason: 'Already complete and year confirmed', locked_fields: [...lockedFields], timestamp,
+            reason: 'Already complete, year confirmed, and alt titles present', timestamp,
           })
           continue
         }
 
         const { ids, years, discoveredTitles } = await findExternalIds(
           comic.title, comic.author, comic.artist, comic.alternative_titles,
-          comic.year_released ?? null, yearConfidence, lockedFields,
+          comic.year_released ?? null, yearConfidence,
         )
         const totalFound = Object.values(ids).filter(Boolean).length
 
         const mergedIds = dueForFullReverify
           ? {
-              mangaupdates_id: lockedFields.has('mangaupdates_id') ? comic.mangaupdates_id : (ids.mangaupdates_id ?? comic.mangaupdates_id),
-              mangadex_id:     lockedFields.has('mangadex_id')     ? comic.mangadex_id     : (ids.mangadex_id     ?? comic.mangadex_id),
-              anilist_id:      lockedFields.has('anilist_id')      ? comic.anilist_id      : (ids.anilist_id      ?? comic.anilist_id),
-              mal_id:          lockedFields.has('mal_id')          ? comic.mal_id          : (ids.mal_id          ?? comic.mal_id),
+              mangaupdates_id: ids.mangaupdates_id ?? comic.mangaupdates_id,
+              mangadex_id:     ids.mangadex_id     ?? comic.mangadex_id,
+              anilist_id:      ids.anilist_id      ?? comic.anilist_id,
+              mal_id:          ids.mal_id          ?? comic.mal_id,
             }
           : {
-              mangaupdates_id: lockedFields.has('mangaupdates_id') ? comic.mangaupdates_id : (comic.mangaupdates_id || ids.mangaupdates_id),
-              mangadex_id:     lockedFields.has('mangadex_id')     ? comic.mangadex_id     : (comic.mangadex_id     || ids.mangadex_id),
-              anilist_id:      lockedFields.has('anilist_id')      ? comic.anilist_id      : (comic.anilist_id      || ids.anilist_id),
-              mal_id:          lockedFields.has('mal_id')          ? comic.mal_id          : (comic.mal_id          || ids.mal_id),
+              mangaupdates_id: comic.mangaupdates_id || ids.mangaupdates_id,
+              mangadex_id:     comic.mangadex_id     || ids.mangadex_id,
+              anilist_id:      comic.anilist_id      || ids.anilist_id,
+              mal_id:          comic.mal_id          || ids.mal_id,
             }
 
         const { consensusYear, outlierSources } = deriveYearConsensus(years)
 
         const updatePayload: Record<string, any> = { ...mergedIds, last_id_check: timestamp }
 
-        const hasNoAltTitles = !comic.alternative_titles || comic.alternative_titles.length === 0
+        // Backfill alternative_titles only if the comic doesn't already
+        // have any — never overwrites titles a user or MangaSearch
+        // autofill already set, only fills a genuine gap.
+        let altTitlesAdded: string[] = []
         if (hasNoAltTitles && discoveredTitles.length > 0) {
           updatePayload.alternative_titles = discoveredTitles
+          altTitlesAdded = discoveredTitles
+          altTitlesBackfilled++
         }
+
         if (dueForFullReverify) {
           updatePayload.last_full_reverify = timestamp
         }
@@ -620,9 +641,7 @@ export async function GET(req: Request) {
 
         if (consensusYear !== null && outlierSources.length > 0) {
           for (const src of outlierSources) {
-            if (!lockedFields.has(src)) {
-              updatePayload[src] = null
-            }
+            updatePayload[src] = null
           }
         }
 
@@ -643,15 +662,13 @@ export async function GET(req: Request) {
           comic_year_before:  comic.year_released ?? null,
           comic_year_after:   updatePayload.year_released ?? comic.year_released ?? null,
           year_corrected:     yearCorrected,
-          databases_checked:  ID_FIELDS.filter(f => !lockedFields.has(f)).map(f =>
-            ({ mangaupdates_id: 'MU', mangadex_id: 'MD', anilist_id: 'AL', mal_id: 'Jikan' }[f])
-          ),
+          databases_checked:  ['MU', 'MD', 'AL', 'Jikan'],
           ids_found:          mergedIds,
           outlier_sources:    outlierSources,
           status,
           total_ids_found:    newIdCount,
+          alt_titles_added:   altTitlesAdded.length > 0 ? altTitlesAdded : undefined,
           full_reverify:      dueForFullReverify,
-          locked_fields:      [...lockedFields],
           timestamp,
         })
 
@@ -675,15 +692,16 @@ export async function GET(req: Request) {
     for (const log of logs) await logIDCheck(supabase, log)
 
     return NextResponse.json({
-      processed:          logs.length,
-      fetched_this_batch: comics.length,
-      found_all:          foundAll,
-      found_some:         foundSome,
-      found_none:         foundNone,
-      skipped_complete:   skippedComplete,
-      years_corrected:    yearsCorrected,
-      logs_count:         logs.length,
-      timed_out_early:    timedOutEarly,
+      processed:              logs.length,
+      fetched_this_batch:     comics.length,
+      found_all:              foundAll,
+      found_some:             foundSome,
+      found_none:             foundNone,
+      skipped_complete:       skippedComplete,
+      years_corrected:        yearsCorrected,
+      alt_titles_backfilled:  altTitlesBackfilled,
+      logs_count:             logs.length,
+      timed_out_early:        timedOutEarly,
     })
   } finally {
     await releaseLock(supabase)
