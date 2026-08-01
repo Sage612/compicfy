@@ -461,6 +461,7 @@ interface IDCheckLog {
   status:            'found_all' | 'found_some' | 'found_none' | 'skipped_complete'
   total_ids_found:   number
   alt_titles_added?: string[]
+  locked_fields_skipped?: string[]
   reason?:           string
  full_reverify?:    boolean
   timestamp:         string
@@ -481,6 +482,7 @@ async function logIDCheck(supabase: any, log: IDCheckLog) {
 }
 
 const TOTAL_ID_SOURCES = 4
+const ID_FIELDS = ['mangaupdates_id', 'mangadex_id', 'anilist_id', 'mal_id'] as const
 
 function countExternalIds(comic: any): number {
   return [
@@ -531,7 +533,10 @@ export async function GET(req: Request) {
 
     const { data: comics, error } = await supabase
       .from('recommendations')
-      .select('id, title, alternative_titles, author, artist, year_released, year_confidence, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check, last_full_reverify')
+      // id_locked_fields added — needed so this cron can tell which of
+      // the four ID fields an admin has locked via the admin UI and
+      // must never overwrite, on either a normal or full-reverify pass.
+      .select('id, title, alternative_titles, author, artist, year_released, year_confidence, mangaupdates_id, mangadex_id, anilist_id, mal_id, id_locked_fields, last_id_check, last_full_reverify')
       .eq('is_approved', true)
       .or(`last_id_check.is.null,last_id_check.lt.${cooloffCutoff},last_full_reverify.is.null,last_full_reverify.lt.${reverifyCutoff}`)
       .limit(BATCH_SIZE)
@@ -561,6 +566,7 @@ export async function GET(req: Request) {
       try {
         const currentIdCount  = countExternalIds(comic)
         const yearConfidence: 'unverified' | 'confirmed' = comic.year_confidence ?? 'unverified'
+        const lockedFields = new Set<string>(comic.id_locked_fields ?? [])
 
         const dueForFullReverify =
           !comic.last_full_reverify ||
@@ -593,21 +599,29 @@ export async function GET(req: Request) {
         )
         const totalFound = Object.values(ids).filter(Boolean).length
 
+        // Locked fields are always pinned to their current DB value,
+        // regardless of whether this is a normal pass or a full
+        // reverify — a locked field must never be touched by the cron,
+        // whether that means leaving a populated value alone or
+        // refusing to re-fill one the admin deliberately cleared.
         const mergedIds = dueForFullReverify
           ? {
-              mangaupdates_id: ids.mangaupdates_id ?? comic.mangaupdates_id,
-              mangadex_id:     ids.mangadex_id     ?? comic.mangadex_id,
-              anilist_id:      ids.anilist_id      ?? comic.anilist_id,
-              mal_id:          ids.mal_id          ?? comic.mal_id,
+              mangaupdates_id: lockedFields.has('mangaupdates_id') ? comic.mangaupdates_id : (ids.mangaupdates_id ?? comic.mangaupdates_id),
+              mangadex_id:     lockedFields.has('mangadex_id')     ? comic.mangadex_id     : (ids.mangadex_id     ?? comic.mangadex_id),
+              anilist_id:      lockedFields.has('anilist_id')      ? comic.anilist_id      : (ids.anilist_id      ?? comic.anilist_id),
+              mal_id:          lockedFields.has('mal_id')          ? comic.mal_id          : (ids.mal_id          ?? comic.mal_id),
             }
           : {
-              mangaupdates_id: comic.mangaupdates_id || ids.mangaupdates_id,
-              mangadex_id:     comic.mangadex_id     || ids.mangadex_id,
-              anilist_id:      comic.anilist_id      || ids.anilist_id,
-              mal_id:          comic.mal_id          || ids.mal_id,
+              mangaupdates_id: lockedFields.has('mangaupdates_id') ? comic.mangaupdates_id : (comic.mangaupdates_id || ids.mangaupdates_id),
+              mangadex_id:     lockedFields.has('mangadex_id')     ? comic.mangadex_id     : (comic.mangadex_id     || ids.mangadex_id),
+              anilist_id:      lockedFields.has('anilist_id')      ? comic.anilist_id      : (comic.anilist_id      || ids.anilist_id),
+              mal_id:          lockedFields.has('mal_id')          ? comic.mal_id          : (comic.mal_id          || ids.mal_id),
             }
 
-        const { consensusYear, outlierSources } = deriveYearConsensus(years)
+        const { consensusYear, outlierSources: rawOutlierSources } = deriveYearConsensus(years)
+
+        // Never null out a locked ID field via the year-outlier path either.
+        const outlierSources = rawOutlierSources.filter(src => !lockedFields.has(src))
 
         const updatePayload: Record<string, any> = { ...mergedIds, last_id_check: timestamp }
 
@@ -668,6 +682,7 @@ export async function GET(req: Request) {
           status,
           total_ids_found:    newIdCount,
           alt_titles_added:   altTitlesAdded.length > 0 ? altTitlesAdded : undefined,
+          locked_fields_skipped: lockedFields.size > 0 ? Array.from(lockedFields) : undefined,
           full_reverify:      dueForFullReverify,
           timestamp,
         })
