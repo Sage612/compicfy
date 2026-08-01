@@ -155,6 +155,19 @@ export type Database = {
           mangadex_id: string | null
           mangabaka_id: string | null
           kuroiru_id: string | null
+          // Which of the four external-ID fields above are locked from
+          // being touched by the automated id-checker cron. Set/cleared
+          // from the admin recommendations edit panel.
+          id_locked_fields: string[]
+          // Whether year_released has been corroborated by the
+          // id-checker cron's cross-source consensus, or is still just
+          // whatever was entered/autofetched on submission.
+          year_confidence: 'unverified' | 'confirmed'
+          // Last time the id-checker cron touched this row (light pass).
+          last_id_check: string | null
+          // Last time the id-checker cron did a full re-verification
+          // pass (re-checks all 4 sources even if already complete).
+          last_full_reverify: string | null
           rejection_reason: string | null
           appeal_status: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text: string | null
@@ -210,6 +223,10 @@ export type Database = {
           mangadex_id?: string | null
           mangabaka_id?: string | null
           kuroiru_id?: string | null
+          id_locked_fields?: string[]
+          year_confidence?: 'unverified' | 'confirmed'
+          last_id_check?: string | null
+          last_full_reverify?: string | null
           rejection_reason?: string | null
           appeal_status?: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text?: string | null
@@ -261,6 +278,10 @@ export type Database = {
           mangadex_id?: string | null
           mangabaka_id?: string | null
           kuroiru_id?: string | null
+          id_locked_fields?: string[]
+          year_confidence?: 'unverified' | 'confirmed'
+          last_id_check?: string | null
+          last_full_reverify?: string | null
           rejection_reason?: string | null
           appeal_status?: 'none' | 'pending' | 'approved' | 'rejected' | null
           appeal_text?: string | null
