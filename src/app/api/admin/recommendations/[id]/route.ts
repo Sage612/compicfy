@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/utils/requireRole'
 import { logAction } from '@/lib/utils/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -45,7 +45,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Admin access required to feature recommendations' }, { status: 403 })
   }
 
-  // â”€â”€ Plain field edit (no action key) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Plain field edit (no action key) ────────────────────────────────
   if (!action) {
     const allowedFields = [
       'title', 'description', 'type', 'status', 'genres', 'themes',
@@ -53,6 +53,12 @@ export async function PATCH(
       'official_links', 'author', 'artist', 'publisher', 'cover_url',
       'banner_url', 'why_recommend', 'chapter_count', 'year_released',
       'alternative_titles', 'more_info_link',
+      // External IDs used by the automated id-checker cron, plus the
+      // lock list that tells the cron which of them to leave alone.
+      // These were previously missing here, so the admin edit form's
+      // ID fields and the "Lock" toggle were silently dropped on save.
+      'mangaupdates_id', 'mangadex_id', 'anilist_id', 'mal_id',
+      'id_locked_fields',
     ]
     const updates: Record<string, any> = {}
     for (const field of allowedFields) {
@@ -69,7 +75,7 @@ export async function PATCH(
     return NextResponse.json({ recommendation: data })
   }
 
-  // â”€â”€ Action-based updates â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Action-based updates ─────────────────────────────────────────────
   let updates: Record<string, any> = {}
   let logMsg = ''
 
@@ -95,7 +101,7 @@ export async function PATCH(
       break
 
     case 'feature':
-     
+
       updates = {
         is_featured:    true,
         featured_at:    new Date().toISOString(),
@@ -158,7 +164,7 @@ export async function PATCH(
       const recUserId = (data as any).user_id as string
 
       const notifTitle: Record<string, string> = {
-        approve:        `Your recommendation "${recTitle}" has been approved! ðŸŽ‰`,
+        approve:        `Your recommendation "${recTitle}" has been approved! 🎉`,
         reject:         `Your recommendation "${recTitle}" was not approved.`,
         resolve_appeal: `Your appeal for "${recTitle}" has been ${body.appeal_status}.`,
       }
