@@ -587,7 +587,14 @@ export type Database = {
         Row: {
           id: string
           user_id: string
-          type: 'vote' | 'review' | 'reply' | 'feature' | 'achievement' | 'system'
+          // FIX: this union previously listed only 6 of the 13 notification
+          // types the app actually inserts and renders (NotificationsClient
+          // already had all 13 in its own local interface). TypeScript
+          // couldn't catch a typo'd type value on insert because the real
+          // shape wasn't reflected here.
+          type: 'vote' | 'vote_milestone' | 'review' | 'reply' | 'feature' | 'achievement' | 'system'
+              | 'follow' | 'chapter_update' | 'collection_saved' | 'list_starred'
+              | 'followed_user_posted' | 'admin_new_submission'
           title: string
           content: string | null
           data: Json
@@ -598,7 +605,9 @@ export type Database = {
         Insert: {
           id?: string
           user_id: string
-          type: 'vote' | 'review' | 'reply' | 'feature' | 'achievement' | 'system'
+          type: 'vote' | 'vote_milestone' | 'review' | 'reply' | 'feature' | 'achievement' | 'system'
+              | 'follow' | 'chapter_update' | 'collection_saved' | 'list_starred'
+              | 'followed_user_posted' | 'admin_new_submission'
           title: string
           content?: string | null
           data?: Json
@@ -843,7 +852,7 @@ export type Database = {
 
 
 
-// ─── Convenience type exports ───────────────────────────────────────────────
+// ─── Convenience type exports ─────────────────────────────────────────
 
 export type Profile       = Database['public']['Tables']['profiles']['Row']
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
@@ -898,7 +907,7 @@ export type DailySubmissionCountInsert = Database['public']['Tables']['daily_sub
 export type GlobalDailyStats           = Database['public']['Tables']['global_daily_stats']['Row']
 export type GlobalDailyStatsInsert     = Database['public']['Tables']['global_daily_stats']['Insert']
 
-// ─── API Response & Error Types ────────────────────────────────────────────
+// ─── API Response & Error Types ─────────────────────────────────────────
 
 export type ApiError = { error: string }
 

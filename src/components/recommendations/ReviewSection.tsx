@@ -8,15 +8,26 @@ import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { Loader2, MessageSquare, LogIn, Plus, Star } from 'lucide-react'
 import { StarRating } from './StarRating'
 import { cn } from '@/lib/utils'
+import type { ReplyWithProfile } from './ReplyThread'
 
 interface Props {
   recommendationId: string
-  currentUserId: string | null
-  isLoggedIn: boolean
+  currentUserId:    string | null
+  isLoggedIn:       boolean
+  recommenderId?:    string | null
+  currentUserRole?:  string | null
 }
 
-export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: Props) {
-  const [reviews, setReviews] = useState<ReviewWithProfile[]>([])
+type ReviewWithReplies = ReviewWithProfile & { review_replies?: ReplyWithProfile[] }
+
+export function ReviewSection({
+  recommendationId,
+  currentUserId,
+  isLoggedIn,
+  recommenderId = null,
+  currentUserRole = null,
+}: Props) {
+  const [reviews, setReviews] = useState<ReviewWithReplies[]>([])
   const [total, setTotal] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -27,6 +38,9 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
   const LIMIT = 10
 
   const userReview = reviews.find(r => r.user_id === currentUserId)
+
+  const isStaff        = currentUserRole === 'admin' || currentUserRole === 'moderator'
+  const isRecommender  = !!currentUserId && currentUserId === recommenderId
 
   const fetchReviews = useCallback(async (currentOffset: number, append = false) => {
     try {
@@ -61,7 +75,7 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
   }
 
   const handleUpdate = (updated: ReviewWithProfile) =>
-    setReviews(prev => prev.map(r => r.id === updated.id ? updated : r))
+    setReviews(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r))
 
   const handleDelete = (id: string) => {
     setReviews(prev => prev.filter(r => r.id !== id))
@@ -226,16 +240,30 @@ export function ReviewSection({ recommendationId, currentUserId, isLoggedIn }: P
         </div>
       ) : (
         <div className="space-y-3">
-          {reviews.map(review => (
-            <ReviewCard
-              key={review.id}
-              review={review}
-              currentUserId={currentUserId}
-              recommendationId={recommendationId}
-              onUpdate={handleUpdate}
-              onDelete={handleDelete}
-            />
-          ))}
+          {reviews.map(review => {
+            // A viewer can reply if they're: the review's own author, the
+            // comic's recommender, or staff (admin/mod). This mirrors the
+            // RLS policy and API check exactly, so the UI never offers a
+            // reply option the backend would reject.
+            const canReply = isLoggedIn && (
+              currentUserId === review.user_id ||
+              isRecommender ||
+              isStaff
+            )
+
+            return (
+              <ReviewCard
+                key={review.id}
+                review={review}
+                currentUserId={currentUserId}
+                recommendationId={recommendationId}
+                onUpdate={handleUpdate}
+                onDelete={handleDelete}
+                canReply={canReply}
+                isStaff={isStaff}
+              />
+            )
+          })}
 
           {hasMore && (
             <div className="flex justify-center pt-2">

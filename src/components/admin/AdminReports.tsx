@@ -36,11 +36,12 @@ const ENTITY_TYPE_COLORS: Record<string, string> = {
 }
 
 const REASON_COLORS: Record<string, string> = {
+  wrong_info:      'bg-amber-500/10  text-amber-600  border-amber-500/20',
+  duplicate:       'bg-blue-500/10   text-blue-600   border-blue-500/20',
   spam:            'bg-zinc-500/10   text-zinc-600   border-zinc-500/20',
   inappropriate:   'bg-red-500/10    text-red-600    border-red-500/20',
-  misinformation:  'bg-amber-500/10  text-amber-600  border-amber-500/20',
-  piracy:          'bg-rose-500/10   text-rose-600   border-rose-500/20',
-  harassment:      'bg-orange-500/10 text-orange-600 border-orange-500/20',
+  wrong_platform:  'bg-violet-500/10 text-violet-600 border-violet-500/20',
+  broken_links:    'bg-orange-500/10 text-orange-600 border-orange-500/20',
   other:           'bg-muted         text-muted-foreground border-border',
 }
 

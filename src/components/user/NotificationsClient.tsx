@@ -63,9 +63,16 @@ type FilterKey = typeof FILTERS[number]['key']
 interface Props {
   initialNotifications: Notification[]
   profileBase?: string
+  /**
+   * True when this is being rendered inside the admin notifications page.
+   * Report notifications (type: 'system' with entity_type/entity_id in
+   * data) link to /admin/reports for admins instead of to the reported
+   * content itself, since that's where they can actually act on it.
+   */
+  isAdminView?: boolean
 }
 
-export function NotificationsClient({ initialNotifications, profileBase = '/reader' }: Props) {
+export function NotificationsClient({ initialNotifications, profileBase = '/reader', isAdminView = false }: Props) {
   const [notifications,  setNotifications]  = useState<Notification[]>(initialNotifications)
   const [isClearingAll,  setIsClearingAll]  = useState(false)
   const [isMarkingAll,   setIsMarkingAll]   = useState(false)
@@ -141,7 +148,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
         return null // still loading from cache
       }
 
-      // ── Pass 2 notification types ──────────────────────────────────────
+      // ── Pass 2 notification types ─────────────────────────────────────
       case 'collection_saved':
         return data.collection_id ? `/collections/${data.collection_id}` : null
 
@@ -155,8 +162,20 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
         return '/admin/recommendations'
 
       case 'achievement':
-      case 'system':
         return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
+
+      case 'system': {       
+        if (data.entity_type && data.entity_id) {
+          if (isAdminView) {         
+            return '/admin/reports'
+          }
+          if (data.entity_type === 'recommendation') {
+            return `/comic/${data.entity_id}`
+          }         
+          return null
+        }
+        return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
+      }
 
       default:
         return null

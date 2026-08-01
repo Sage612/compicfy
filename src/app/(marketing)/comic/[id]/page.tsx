@@ -28,6 +28,7 @@ import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { MoreInfoSection } from '@/components/comic-detail/MoreInfoSection'
 import { headers } from 'next/headers'
 import { Fraunces, JetBrains_Mono } from 'next/font/google'
+import { TYPE_META, DEFAULT_TYPE_META, resolveStatusMeta } from '@/lib/utils/constants'
 
 const display = Fraunces({
   subsets: ['latin'],
@@ -214,7 +215,6 @@ function ComicJsonLd({
   )
 }
 
-import { TYPE_META, DEFAULT_TYPE_META, STATUS_META, resolveStatusMeta } from '@/lib/utils/constants'
 
 export default async function ComicDetailPage({ params }: Props) {
   const { id } = await params
@@ -576,7 +576,6 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
         </div>
 
-      
         <div className="max-w-6xl mx-auto px-4 md:px-6 mt-4 md:mt-5 pb-24">
           <div className="flex flex-col md:flex-row gap-6 md:gap-10">
             <div className="hidden md:block md:w-48 shrink-0" aria-hidden="true" />
@@ -641,6 +640,8 @@ export default async function ComicDetailPage({ params }: Props) {
               recommendationId={id}
               currentUserId={user?.id ?? null}
               isLoggedIn={!!user}
+              recommenderId={rec.user_id}
+              currentUserRole={currentUserProfile?.role ?? null}
             />
           </section>
 

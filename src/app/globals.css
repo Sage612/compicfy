@@ -11,35 +11,36 @@
 
 /* ── LIGHT MODE ── */
 :root {
-  /* Backgrounds */
-  --background: oklch(0.98 0 0);
-  --foreground: oklch(0.08 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.08 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.08 0 0);
+  /* Backgrounds — tinted toward the brand's teal/sage family (extracted from brand reference) */
+  --background: oklch(0.95 0.006 240);
+  --foreground: oklch(0.08 0.01 200);
+  --card: oklch(0.98 0.004 220);
+  --card-foreground: oklch(0.08 0.01 200);
+  --popover: oklch(0.98 0.004 220);
+  --popover-foreground: oklch(0.08 0.01 200);
 
   /* Comic Dossier / Editorial Variables */
-  --dossier: oklch(0.98 0 0);
-  --dossier-foreground: oklch(0.08 0 0);
-  --dossier-panel: oklch(1 0 0);
-  --dossier-panel-foreground: oklch(0.08 0 0);
+  --dossier: oklch(0.95 0.006 240);
+  --dossier-foreground: oklch(0.08 0.01 200);
+  --dossier-panel: oklch(0.98 0.004 220);
+  --dossier-panel-foreground: oklch(0.08 0.01 200);
 
   /*
      Brand — ComPicfy Teal/Cyan (Light Mode Variant)
-     #0891B2 -> oklch(0.55 0.18 196) 
+     #0891B2 -> oklch(0.55 0.18 196)
      Per logo spec: "Teal Deep #0891B2 - Light mode primary"
+     (unchanged — this was already correct)
   */
   --primary: oklch(0.55 0.18 196);
   --primary-foreground: oklch(0.99 0 0);
 
-  /* Secondary */
-  --secondary: oklch(0.94 0 0);
-  --secondary-foreground: oklch(0.12 0 0);
+  /* Secondary — sage-tinted instead of pure gray */
+  --secondary: oklch(0.90 0.012 190);
+  --secondary-foreground: oklch(0.14 0.01 200);
 
-  /* Muted — darkened for stronger contrast on light backgrounds */
-  --muted: oklch(0.94 0 0);
-  --muted-foreground: oklch(0.32 0 0);
+  /* Muted — sage-green family, extracted from brand reference (was pure gray) */
+  --muted: oklch(0.90 0.015 189);
+  --muted-foreground: oklch(0.34 0.02 190);
 
   /* Accent — teal tinted */
   --accent: oklch(0.94 0.05 192);
@@ -49,9 +50,9 @@
   --destructive: oklch(0.55 0.22 27);
   --destructive-foreground: oklch(0.99 0 0);
 
-  /* Borders + inputs */
-  --border: oklch(0.88 0 0);
-  --input: oklch(0.88 0 0);
+  /* Borders + inputs — sage-tinted instead of pure gray */
+  --border: oklch(0.85 0.015 190);
+  --input: oklch(0.85 0.015 190);
   --ring: oklch(0.55 0.18 196);
 
   --radius: 0.375rem;
@@ -60,6 +61,14 @@
   --pro: oklch(0.78 0.16 70);
   --pro-foreground: oklch(0.15 0 0);
 
+  /* Verified accent — now teal (brand primary), replacing old purple */
+  --verified: oklch(0.55 0.18 196);
+  --verified-foreground: oklch(0.99 0 0);
+
+  /* Patron accent — indigo-violet, distinct from teal (verified) and gold (pro) */
+  --patron: oklch(0.55 0.20 288);
+  --patron-foreground: oklch(0.99 0 0);
+
   /* Charts */
   --chart-1: oklch(0.55 0.18 196);
   --chart-2: oklch(0.60 0.16 168);
@@ -67,48 +76,48 @@
   --chart-4: oklch(0.78 0.16 70);
   --chart-5: oklch(0.645 0.246 16.439);
 
-  /* Sidebar */
-  --sidebar: oklch(0.96 0 0);
-  --sidebar-foreground: oklch(0.08 0 0);
+  /* Sidebar — sage-tinted */
+  --sidebar: oklch(0.93 0.01 200);
+  --sidebar-foreground: oklch(0.08 0.01 200);
   --sidebar-primary: oklch(0.55 0.18 196);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.92 0 0);
-  --sidebar-accent-foreground: oklch(0.12 0 0);
-  --sidebar-border: oklch(0.88 0 0);
+  --sidebar-accent: oklch(0.89 0.015 190);
+  --sidebar-accent-foreground: oklch(0.14 0.01 200);
+  --sidebar-border: oklch(0.85 0.015 190);
   --sidebar-ring: oklch(0.55 0.18 196);
 }
 
 /* ── DARK MODE ── */
 .dark {
-  /* Backgrounds — true rich black */
-  --background: oklch(0.1 0 0);
+  /* Backgrounds — extracted near-black w/ green tint from brand reference (was pure black) */
+  --background: oklch(0.23 0.017 196);
   --foreground: oklch(0.95 0 0);
-  --card: oklch(0.14 0 0);
+  --card: oklch(0.27 0.02 196);
   --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.14 0 0);
+  --popover: oklch(0.27 0.02 196);
   --popover-foreground: oklch(0.95 0 0);
 
   /* Comic Dossier / Editorial Variables */
-  --dossier: oklch(0.07 0 0);
+  --dossier: oklch(0.18 0.015 196);
   --dossier-foreground: oklch(0.96 0.01 80);
-  --dossier-panel: oklch(0.11 0 0);
+  --dossier-panel: oklch(0.22 0.018 196);
   --dossier-panel-foreground: oklch(0.96 0.01 80);
 
   /*
     Dark mode primary — #0ea5b0
     Per logo spec: "Primary Teal #0EA5B0"
-    Brighter so it pops on near-black backgrounds.
+    Brighter so it pops on near-black backgrounds. (unchanged — already correct)
   */
   --primary: oklch(0.72 0.19 192);
   --primary-foreground: oklch(0.08 0 0);
 
-  /* Secondary */
-  --secondary: oklch(0.2 0 0);
+  /* Secondary — sage-tinted */
+  --secondary: oklch(0.30 0.02 196);
   --secondary-foreground: oklch(0.95 0 0);
 
-  /* Muted — raised significantly for legibility on near-black backgrounds */
-  --muted: oklch(0.18 0 0);
-  --muted-foreground: oklch(0.72 0 0);
+  /* Muted — sage-green family, extracted from brand reference (was pure gray) */
+  --muted: oklch(0.30 0.027 189);
+  --muted-foreground: oklch(0.74 0.02 190);
 
   /* Accent */
   --accent: oklch(0.18 0.05 192);
@@ -118,7 +127,7 @@
   --destructive: oklch(0.62 0.22 27);
   --destructive-foreground: oklch(0.99 0 0);
 
-  /* Borders + inputs */
+  /* Borders + inputs — sage-tinted */
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 10%);
   --ring: oklch(0.72 0.19 192);
@@ -127,6 +136,14 @@
   --pro: oklch(0.78 0.16 70);
   --pro-foreground: oklch(0.15 0 0);
 
+  /* Verified accent — now teal (brand primary), replacing old purple */
+  --verified: oklch(0.72 0.19 192);
+  --verified-foreground: oklch(0.08 0 0);
+
+  /* Patron accent — indigo-violet, distinct from teal (verified) and gold (pro) */
+  --patron: oklch(0.68 0.20 288);
+  --patron-foreground: oklch(0.08 0 0);
+
   /* Charts */
   --chart-1: oklch(0.72 0.19 192);
   --chart-2: oklch(0.696 0.17 162.48);
@@ -134,12 +151,12 @@
   --chart-4: oklch(0.78 0.16 70);
   --chart-5: oklch(0.645 0.246 16.439);
 
-  /* Sidebar */
-  --sidebar: oklch(0.14 0 0);
+  /* Sidebar — sage-tinted */
+  --sidebar: oklch(0.27 0.02 196);
   --sidebar-foreground: oklch(0.95 0 0);
   --sidebar-primary: oklch(0.72 0.19 192);
   --sidebar-primary-foreground: oklch(0.08 0 0);
-  --sidebar-accent: oklch(0.18 0 0);
+  --sidebar-accent: oklch(0.30 0.027 189);
   --sidebar-accent-foreground: oklch(0.95 0 0);
   --sidebar-border: oklch(1 0 0 / 8%);
   --sidebar-ring: oklch(0.72 0.19 192);
@@ -148,25 +165,25 @@
 /* ── SYSTEM THEME FALLBACK ── */
 @media (prefers-color-scheme: dark) {
   :root:not(.light) {
-    --background: oklch(0.1 0 0);
+    --background: oklch(0.23 0.017 196);
     --foreground: oklch(0.95 0 0);
-    --card: oklch(0.14 0 0);
+    --card: oklch(0.27 0.02 196);
     --card-foreground: oklch(0.95 0 0);
-    --popover: oklch(0.14 0 0);
+    --popover: oklch(0.27 0.02 196);
     --popover-foreground: oklch(0.95 0 0);
 
     /* Comic Dossier / Editorial Variables */
-    --dossier: oklch(0.07 0 0);
+    --dossier: oklch(0.18 0.015 196);
     --dossier-foreground: oklch(0.96 0.01 80);
-    --dossier-panel: oklch(0.11 0 0);
+    --dossier-panel: oklch(0.22 0.018 196);
     --dossier-panel-foreground: oklch(0.96 0.01 80);
 
     --primary: oklch(0.72 0.19 192);
     --primary-foreground: oklch(0.08 0 0);
-    --secondary: oklch(0.2 0 0);
+    --secondary: oklch(0.30 0.02 196);
     --secondary-foreground: oklch(0.95 0 0);
-    --muted: oklch(0.18 0 0);
-    --muted-foreground: oklch(0.72 0 0);
+    --muted: oklch(0.30 0.027 189);
+    --muted-foreground: oklch(0.74 0.02 190);
     --accent: oklch(0.18 0.05 192);
     --accent-foreground: oklch(0.72 0.19 192);
     --destructive: oklch(0.62 0.22 27);
@@ -176,16 +193,20 @@
     --ring: oklch(0.72 0.19 192);
     --pro: oklch(0.78 0.16 70);
     --pro-foreground: oklch(0.15 0 0);
+    --verified: oklch(0.72 0.19 192);
+    --verified-foreground: oklch(0.08 0 0);
+    --patron: oklch(0.68 0.20 288);
+    --patron-foreground: oklch(0.08 0 0);
     --chart-1: oklch(0.72 0.19 192);
     --chart-2: oklch(0.696 0.17 162.48);
     --chart-3: oklch(0.769 0.188 70.08);
     --chart-4: oklch(0.78 0.16 70);
     --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.14 0 0);
+    --sidebar: oklch(0.27 0.02 196);
     --sidebar-foreground: oklch(0.95 0 0);
     --sidebar-primary: oklch(0.72 0.19 192);
     --sidebar-primary-foreground: oklch(0.08 0 0);
-    --sidebar-accent: oklch(0.18 0 0);
+    --sidebar-accent: oklch(0.30 0.027 189);
     --sidebar-accent-foreground: oklch(0.95 0 0);
     --sidebar-border: oklch(1 0 0 / 8%);
     --sidebar-ring: oklch(0.72 0.19 192);
@@ -220,6 +241,10 @@
   --color-ring: var(--ring);
   --color-pro: var(--pro);
   --color-pro-foreground: var(--pro-foreground);
+  --color-verified: var(--verified);
+  --color-verified-foreground: var(--verified-foreground);
+  --color-patron: var(--patron);
+  --color-patron-foreground: var(--patron-foreground);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);

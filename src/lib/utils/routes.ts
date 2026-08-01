@@ -34,6 +34,14 @@ export function getDashboardRoutes(userType: UserType, isPro: boolean) {
   }
 }
 
+export function getAdminRoutes() {
+  return {
+    dashboard:     '/admin',
+    notifications: '/admin/notifications',
+    reports:       '/admin/reports',
+  }
+}
+
 export function getProfileRoute(username: string, userType: UserType) {
   return userType === 'creator' ? `/creator/${username}` : `/reader/${username}`
 }

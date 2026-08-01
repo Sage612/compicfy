@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { StarRating } from './StarRating'
 import { ReviewForm, type ReviewWithProfile } from './ReviewForm'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
+import { ReplyThread, type ReplyWithProfile } from './ReplyThread'
 import { toast } from 'sonner'
 import {
   AlertTriangle, Eye, EyeOff, Pencil, Trash2, ThumbsUp, Flag,
@@ -15,11 +17,16 @@ import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  review:           ReviewWithProfile
+  review:           ReviewWithProfile & { review_replies?: ReplyWithProfile[] }
   currentUserId:    string | null
   recommendationId: string
   onUpdate:         (updated: ReviewWithProfile) => void
   onDelete:         (id: string) => void
+  // Reply permissions — computed by ReviewSection from recommenderId /
+  // currentUserRole, since a single review card doesn't know on its own
+  // whether the viewer is the comic's recommender or a moderator.
+  canReply:         boolean
+  isStaff:          boolean
 }
 
 const REPORT_REASONS = [
@@ -155,6 +162,8 @@ export function ReviewCard({
   recommendationId,
   onUpdate,
   onDelete,
+  canReply,
+  isStaff,
 }: Props) {
   const [isEditing,        setIsEditing]        = useState(false)
   const [showSpoiler,      setShowSpoiler]       = useState(false)
@@ -163,6 +172,7 @@ export function ReviewCard({
   const [hasMarkedHelpful, setHasMarkedHelpful]  = useState(false)
   const [showReportModal,  setShowReportModal]   = useState(false)
   const [reportSubmitting, setReportSubmitting]  = useState(false)
+  const [replies,          setReplies]           = useState<ReplyWithProfile[]>(review.review_replies ?? [])
 
   // Auth modal state
   const [showAuth,   setShowAuth]   = useState(false)
@@ -172,6 +182,7 @@ export function ReviewCard({
   const profile  = review.profiles
   const initials = (profile?.display_name || profile?.username || 'U')
     .slice(0, 2).toUpperCase()
+  const profileHref = profile?.username ? `/profile/${profile.username}` : null
 
   const requireAuth = (action: 'helpful' | 'report', fn: () => void) => {
     if (!currentUserId) {
@@ -270,16 +281,21 @@ export function ReviewCard({
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={profile?.avatar_url ?? undefined} />
-              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            <Link href={profileHref ?? '#'}>
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={profile?.avatar_url ?? undefined} />
+                <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
             <div>
-              <p className="text-sm font-semibold leading-none">
+              <Link
+                href={profileHref ?? '#'}
+                className="text-sm font-semibold leading-none hover:text-primary transition-colors"
+              >
                 {profile?.display_name || profile?.username}
-              </p>
+              </Link>
               <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-xs text-muted-foreground">{timeAgo(review.created_at)}</p>
                 {review.is_edited && (
@@ -377,6 +393,17 @@ export function ReviewCard({
             </button>
           )}
         </div>
+
+        <ReplyThread
+          recommendationId={recommendationId}
+          reviewId={review.id}
+          replies={replies}
+          canReply={canReply}
+          currentUserId={currentUserId}
+          isStaff={isStaff}
+          onReplyAdded={(reply) => setReplies(prev => [...prev, reply])}
+          onReplyDeleted={(replyId) => setReplies(prev => prev.filter(r => r.id !== replyId))}
+        />
       </div>
 
       {/* Report modal */}

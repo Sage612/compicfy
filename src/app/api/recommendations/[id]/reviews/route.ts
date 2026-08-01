@@ -17,7 +17,7 @@ export async function GET(
 
     const { data, error, count } = await supabase
       .from('reviews')
-      .select('*, profiles(username, display_name, avatar_url)', { count: 'exact' })
+      .select('*, profiles(username, display_name, avatar_url), review_replies(*, profiles(username, display_name, avatar_url, role))', { count: 'exact' })
       .eq('recommendation_id', id)
       .eq('is_approved', true)
       .order('created_at', { ascending: false })
@@ -25,8 +25,17 @@ export async function GET(
 
     if (error) throw error
 
+    // Sort each review's replies oldest-first (a natural reading order for
+    // a Q&A-style thread), since the nested select doesn't guarantee order.
+    const reviews = (data ?? []).map((review: any) => ({
+      ...review,
+      review_replies: (review.review_replies ?? []).sort(
+        (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      ),
+    }))
+
     return NextResponse.json({
-      reviews: data,
+      reviews,
       total: count,
       hasMore: (count ?? 0) > offset + limit,
     })
@@ -88,7 +97,7 @@ export async function POST(
 
     if (error) throw error
 
-    // Notify comic owner â€” don't notify yourself
+    // Notify comic owner — don't notify yourself
     try {
       const [{ data: rec }, { data: reviewer }] = await Promise.all([
         (supabase as any).from('recommendations').select('user_id, title').eq('id', id).single(),
@@ -110,7 +119,7 @@ export async function POST(
           data:    { recommendation_id: id, reviewer_id: user.id },
         })
 
-        // Email notification â€” fire and forget
+        // Email notification — fire and forget
         sendReviewNotificationEmail(
           rec.user_id,
           reviewerUsername,

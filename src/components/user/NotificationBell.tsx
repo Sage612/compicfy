@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Bell } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { getDashboardRoutes } from '@/lib/utils/routes'
+import { getDashboardRoutes, getAdminRoutes } from '@/lib/utils/routes'
 import type { UserType } from '@/lib/utils/routes'
 import { getFirebaseMessaging } from '@/lib/firebase/client'
 import { onMessage } from 'firebase/messaging'
@@ -32,6 +32,17 @@ export function NotificationBell({ userId }: { userId: string }) {
         .eq('id', currentUser.id)
         .single()
       if (!profile || !isMounted) return
+
+      // FIX: this previously derived the bell's destination purely from
+      // user_type (reader/creator), with no admin/moderator case at all.
+      // An admin's bell silently sent them to their personal reader or
+      // creator dashboard's notifications page — nowhere near the report
+      // queue their notifications were actually about.
+      if (['admin', 'moderator'].includes(profile.role)) {
+        if (isMounted) setNotifHref(getAdminRoutes().notifications)
+        return
+      }
+
       // Real Pro status only — moderator does NOT count as Pro here.
       const isPro = isProUser(profile)
       const userType = (profile.user_type ?? 'reader') as UserType
@@ -54,11 +65,6 @@ export function NotificationBell({ userId }: { userId: string }) {
     let isMounted = true
     fetchUnread()
 
-    // Channel name must be unique per mount. A static name can collide with
-    // a channel Supabase's client still has cached as "already subscribed"
-    // (e.g. React StrictMode double-invoke, or fast remounts before the
-    // previous cleanup's removeChannel() finishes), which throws:
-    // "cannot add 'postgres_changes' callbacks ... after 'subscribe'".
     const channel = supabase.channel(`notifications_bell_${userId}_${Date.now()}`)
 
     channel
