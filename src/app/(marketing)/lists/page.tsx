@@ -20,7 +20,7 @@ export default async function PublicListsPage() {
   if (user) {
     const [starsResult, profileResult, countResult] = await Promise.all([
       (supabase as any).from('list_stars').select('list_id').eq('user_id', user.id),
-      supabase.from('profiles').select('user_type, role, is_pro, pro_expires_at').eq('id', user.id).single(),
+      supabase.from('profiles').select('user_type, role, is_pro, pro_expires_at, is_patron, patron_expires_at').eq('id', user.id).single(),
       (supabase as any).from('reading_lists').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
     ])
 

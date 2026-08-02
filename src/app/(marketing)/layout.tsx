@@ -19,7 +19,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
 
   if (user) {
     const [profileResult, listCountResult, collectionCountResult] = await Promise.all([
-      supabase.from('profiles').select('role, is_pro, pro_expires_at, user_type').eq('id', user.id).single(),
+      supabase.from('profiles').select('role, is_pro, pro_expires_at, is_patron, patron_expires_at, user_type').eq('id', user.id).single(),
       (supabase as any).from('reading_lists').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
       (supabase as any).from('collections').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
     ])

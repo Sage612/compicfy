@@ -15,7 +15,7 @@ export default async function ProCreatorBillingPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('is_pro, pro_expires_at, role, email')
+    .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role, email')
     .eq('id', user.id)
     .single() as { data: any }
 

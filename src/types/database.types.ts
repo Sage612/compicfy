@@ -28,6 +28,8 @@ export type Database = {
           role: 'user' | 'moderator' | 'admin'
           is_pro: boolean
           pro_expires_at: string | null
+          is_patron: boolean
+          patron_expires_at: string | null
           is_banned: boolean
           ban_reason: string | null
           banned_at: string | null
@@ -60,6 +62,8 @@ export type Database = {
           role?: 'user' | 'moderator' | 'admin'
           is_pro?: boolean
           pro_expires_at?: string | null
+          is_patron?: boolean
+          patron_expires_at?: string | null
           is_banned?: boolean
           ban_reason?: string | null
           banned_at?: string | null
@@ -89,6 +93,8 @@ export type Database = {
           role?: 'user' | 'moderator' | 'admin'
           is_pro?: boolean
           pro_expires_at?: string | null
+          is_patron?: boolean
+          patron_expires_at?: string | null
           is_banned?: boolean
           ban_reason?: string | null
           banned_at?: string | null

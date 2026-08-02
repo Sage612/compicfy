@@ -242,7 +242,7 @@ export default async function ComicDetailPage({ params }: Props) {
   if (user) {
     const { data } = await supabase
       .from('profiles')
-      .select('role, is_pro, pro_expires_at, user_type')
+      .select('role, is_pro, pro_expires_at, is_patron, patron_expires_at, user_type')
       .eq('id', user.id)
       .single()
     currentUserProfile = data as any
@@ -297,7 +297,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
   const { data: profileData } = await supabase
     .from('profiles')
-    .select('username, display_name, avatar_url, role, is_pro, pro_expires_at, verified_recommender, user_type')
+    .select('username, display_name, avatar_url, role, is_pro, pro_expires_at, is_patron, patron_expires_at, verified_recommender, user_type')
     .eq('id', rec.user_id)
     .maybeSingle()
 

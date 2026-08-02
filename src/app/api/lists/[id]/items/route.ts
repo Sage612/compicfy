@@ -28,7 +28,7 @@ async function isListLocked(
   // Get profile to check pro status
   const { data: profile } = await (supabase as any)
     .from('profiles')
-    .select('is_pro, pro_expires_at, role')
+    .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role')
     .eq('id', userId)
     .single()
 

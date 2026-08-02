@@ -133,7 +133,7 @@ export function Header() {
 
         const { data: profile } = await (supabase as any)
           .from('profiles')
-          .select('avatar_url, display_name, username, is_pro, pro_expires_at, role, user_type')
+          .select('avatar_url, display_name, username, is_pro, pro_expires_at, is_patron, patron_expires_at, role, user_type')
           .eq('id', currentUser.id)
           .single()
 
@@ -168,7 +168,7 @@ export function Header() {
         const fetchProfile = async () => {
           const { data: profile } = await (supabase as any)
             .from('profiles')
-            .select('avatar_url, display_name, username, is_pro, pro_expires_at, role, user_type')
+            .select('avatar_url, display_name, username, is_pro, pro_expires_at, is_patron, patron_expires_at, role, user_type')
             .eq('id', session.user.id)
             .single()
           if (profile) {

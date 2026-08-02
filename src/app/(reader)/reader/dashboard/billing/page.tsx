@@ -17,7 +17,7 @@ export default async function ReaderBillingPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('is_pro, pro_expires_at, role, username, email')
+    .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role, username, email')
     .eq('id', user.id)
     .single() as { data: any }
 

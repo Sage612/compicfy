@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     // Get user profile to check pro status and current pin
     const { data: profile } = await (supabase as any)
       .from('profiles')
-      .select('is_pro, pro_expires_at, role, pinned_recommendation_id')
+      .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role, pinned_recommendation_id')
       .eq('id', user.id)
       .single()
 

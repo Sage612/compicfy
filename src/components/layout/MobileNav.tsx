@@ -76,7 +76,7 @@ export function MobileNav() {
         // ── 2. Always fetch fresh in background ──────────────────────
         const { data: profile } = await (supabase as any)
           .from('profiles')
-          .select('is_pro, pro_expires_at, role, avatar_url, display_name, username, user_type')
+          .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role, avatar_url, display_name, username, user_type')
           .eq('id', currentUser.id)
           .single()
 
@@ -109,7 +109,7 @@ export function MobileNav() {
         const fetchProfile = async () => {
           const { data: profile } = await (supabase as any)
             .from('profiles')
-            .select('is_pro, pro_expires_at, role, avatar_url, display_name, username, user_type')
+            .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role, avatar_url, display_name, username, user_type')
             .eq('id', session.user.id)
             .single()
           if (profile) {

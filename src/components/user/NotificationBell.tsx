@@ -28,7 +28,7 @@ export function NotificationBell({ userId }: { userId: string }) {
       if (!currentUser || !isMounted) return
       const { data: profile } = await (supabase as any)
         .from('profiles')
-        .select('role, is_pro, pro_expires_at, user_type')
+        .select('role, is_pro, pro_expires_at, is_patron, patron_expires_at, user_type')
         .eq('id', currentUser.id)
         .single()
       if (!profile || !isMounted) return

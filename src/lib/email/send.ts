@@ -27,7 +27,7 @@ async function getDashboardPath(userId: string): Promise<string> {
     const admin = getAdminClient()
     const { data: profile } = await admin
       .from('profiles')
-      .select('user_type, is_pro, pro_expires_at, role')
+      .select('user_type, is_pro, pro_expires_at, is_patron, patron_expires_at, role')
       .eq('id', userId)
       .single() as { data: any }
 

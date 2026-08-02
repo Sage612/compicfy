@@ -11,19 +11,19 @@
 
 /* ── LIGHT MODE ── */
 :root {
-  /* Backgrounds — tinted toward the brand's teal/sage family (extracted from brand reference) */
-  --background: oklch(0.95 0.006 240);
-  --foreground: oklch(0.08 0.01 200);
-  --card: oklch(0.98 0.004 220);
-  --card-foreground: oklch(0.08 0.01 200);
-  --popover: oklch(0.98 0.004 220);
-  --popover-foreground: oklch(0.08 0.01 200);
+  /* Backgrounds — stronger sage/teal tint so light mode reads as dark mode's sibling */
+  --background: oklch(0.94 0.012 200);
+  --foreground: oklch(0.10 0.015 200);
+  --card: oklch(0.97 0.008 210);
+  --card-foreground: oklch(0.10 0.015 200);
+  --popover: oklch(0.97 0.008 210);
+  --popover-foreground: oklch(0.10 0.015 200);
 
   /* Comic Dossier / Editorial Variables */
-  --dossier: oklch(0.95 0.006 240);
-  --dossier-foreground: oklch(0.08 0.01 200);
-  --dossier-panel: oklch(0.98 0.004 220);
-  --dossier-panel-foreground: oklch(0.08 0.01 200);
+  --dossier: oklch(0.94 0.012 200);
+  --dossier-foreground: oklch(0.10 0.015 200);
+  --dossier-panel: oklch(0.97 0.008 210);
+  --dossier-panel-foreground: oklch(0.10 0.015 200);
 
   /*
      Brand — ComPicfy Teal/Cyan (Light Mode Variant)
@@ -34,25 +34,25 @@
   --primary: oklch(0.55 0.18 196);
   --primary-foreground: oklch(0.99 0 0);
 
-  /* Secondary — sage-tinted instead of pure gray */
-  --secondary: oklch(0.90 0.012 190);
-  --secondary-foreground: oklch(0.14 0.01 200);
+  /* Secondary — sage-tinted, stronger than before */
+  --secondary: oklch(0.88 0.02 195);
+  --secondary-foreground: oklch(0.15 0.015 200);
 
-  /* Muted — sage-green family, extracted from brand reference (was pure gray) */
-  --muted: oklch(0.90 0.015 189);
-  --muted-foreground: oklch(0.34 0.02 190);
+  /* Muted — sage-green family, extracted from brand reference, pushed stronger for light mode */
+  --muted: oklch(0.87 0.025 189);
+  --muted-foreground: oklch(0.36 0.03 190);
 
   /* Accent — teal tinted */
-  --accent: oklch(0.94 0.05 192);
+  --accent: oklch(0.90 0.06 192);
   --accent-foreground: oklch(0.55 0.18 196);
 
   /* Destructive */
   --destructive: oklch(0.55 0.22 27);
   --destructive-foreground: oklch(0.99 0 0);
 
-  /* Borders + inputs — sage-tinted instead of pure gray */
-  --border: oklch(0.85 0.015 190);
-  --input: oklch(0.85 0.015 190);
+  /* Borders + inputs — sage-tinted, stronger + more visible than the flat gray version */
+  --border: oklch(0.80 0.025 192);
+  --input: oklch(0.80 0.025 192);
   --ring: oklch(0.55 0.18 196);
 
   --radius: 0.375rem;
@@ -76,14 +76,14 @@
   --chart-4: oklch(0.78 0.16 70);
   --chart-5: oklch(0.645 0.246 16.439);
 
-  /* Sidebar — sage-tinted */
-  --sidebar: oklch(0.93 0.01 200);
-  --sidebar-foreground: oklch(0.08 0.01 200);
+  /* Sidebar — sage-tinted, stronger */
+  --sidebar: oklch(0.91 0.015 200);
+  --sidebar-foreground: oklch(0.10 0.015 200);
   --sidebar-primary: oklch(0.55 0.18 196);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.89 0.015 190);
-  --sidebar-accent-foreground: oklch(0.14 0.01 200);
-  --sidebar-border: oklch(0.85 0.015 190);
+  --sidebar-accent: oklch(0.86 0.025 190);
+  --sidebar-accent-foreground: oklch(0.15 0.015 200);
+  --sidebar-border: oklch(0.80 0.025 192);
   --sidebar-ring: oklch(0.55 0.18 196);
 }
 

@@ -15,7 +15,7 @@ export default async function PricingPage() {
   if (user) {
     const { data } = await supabase
       .from('profiles')
-      .select('is_pro, pro_expires_at, role, recommendation_count_this_month, total_saves, user_type')
+      .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role, recommendation_count_this_month, total_saves, user_type')
       .eq('id', user.id)
       .single()
     profile = data

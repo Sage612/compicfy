@@ -29,7 +29,7 @@ export default async function ProfileRecsPage({ params }: Props) {
 
   const { data: profileData } = await supabase
     .from('profiles')
-    .select('id, username, display_name, avatar_url, bio, is_pro, pro_expires_at, role, verified_recommender')
+    .select('id, username, display_name, avatar_url, bio, is_pro, pro_expires_at, is_patron, patron_expires_at, role, verified_recommender')
     .eq('username', username.toLowerCase())
     .single()
 

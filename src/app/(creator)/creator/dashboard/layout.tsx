@@ -18,7 +18,7 @@ export default async function CreatorDashboardLayout({
   if (!user) redirect('/login')
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, is_pro, pro_expires_at, user_type')
+    .select('role, is_pro, pro_expires_at, is_patron, patron_expires_at, user_type')
     .eq('id', user.id)
     .single() as { data: any }
   if (!profile) redirect('/login')

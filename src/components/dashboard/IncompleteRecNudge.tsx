@@ -36,7 +36,7 @@ export function IncompleteRecNudge() {
         if (user) {
           const { data: profile } = await (supabase as any)
             .from('profiles')
-            .select('is_pro, pro_expires_at, role')
+            .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role')
             .eq('id', user.id)
             .single()
 

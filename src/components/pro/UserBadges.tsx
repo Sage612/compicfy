@@ -1,44 +1,47 @@
 import { ProBadge } from './ProBadge'
+import { PatronBadge } from './PatronBadge'
 import { VerifiedBadge } from './VerifiedBadge'
 import { CombinedBadge } from './CombinedBadge'
 
 interface Props {
   role?: string
   isPro?: boolean
+  isPatron?: boolean
   isVerified?: boolean
   size?: 'sm' | 'md'
   className?: string
 }
 
-/*
-  Badge rules:
-  - Pro (gold) + Verified (purple) together → red combined badge instead of two
-  - Pro only                                → gold Pro badge
-  - Verified only                           → purple Verified badge
-  - Admin                                   → primary Admin badge (no pro/verified override)
-  - Mod                                     → blue Mod badge
-*/
-export function UserBadges({ role, isPro, isVerified, size = 'md', className }: Props) {
+export function UserBadges({ role, isPro, isPatron, isVerified, size = 'md', className }: Props) {
   const isAdmin = role === 'admin'
-  const isMod = role === 'moderator'
+  const isMod   = role === 'moderator'
 
   // Admin and Mod badges are role-based, shown independently
-  // They don't get merged into the combined red badge
   if (isAdmin || isMod) {
     return <ProBadge role={role} isPro={isPro} size={size} className={className} />
   }
 
-  // Both Pro + Verified → single red badge
-  if (isPro && isVerified) {
-    return <CombinedBadge size={size} className={className} />
+  // Patron + Verified -> single violet->teal combined badge
+  if (isPatron && isVerified) {
+    return <CombinedBadge tier="patron" size={size} className={className} />
   }
 
-  // Pro only → gold
+  // Pro + Verified -> single gold->teal combined badge
+  if (isPro && isVerified) {
+    return <CombinedBadge tier="pro" size={size} className={className} />
+  }
+
+  // Patron only -> violet (implies Pro, so no separate Pro badge shown alongside)
+  if (isPatron) {
+    return <PatronBadge size={size} className={className} />
+  }
+
+  // Pro only -> gold
   if (isPro) {
     return <ProBadge role={role} isPro={isPro} size={size} className={className} />
   }
 
-  // Verified only → purple
+  // Verified only -> teal
   if (isVerified) {
     return <VerifiedBadge size={size} className={className} />
   }

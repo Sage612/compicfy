@@ -1,4 +1,4 @@
-﻿import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: Request) {
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     // Fetch profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('email_notifications, is_banned, is_suspended, role, is_pro, pro_expires_at')
+      .select('email_notifications, is_banned, is_suspended, role, is_pro, pro_expires_at, is_patron, patron_expires_at')
       .eq('id', notif.user_id)
       .single()
 

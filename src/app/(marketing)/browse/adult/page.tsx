@@ -357,7 +357,7 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('adult_content_enabled, is_pro, pro_expires_at, role')
+    .select('adult_content_enabled, is_pro, pro_expires_at, is_patron, patron_expires_at, role')
     .eq('id', user.id)
     .single()
 

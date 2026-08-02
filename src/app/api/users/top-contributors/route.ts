@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, username, display_name, avatar_url, total_recommendations, total_votes_received, role, is_pro, pro_expires_at')
+      .select('id, username, display_name, avatar_url, total_recommendations, total_votes_received, role, is_pro, pro_expires_at, is_patron, patron_expires_at')
       .eq('is_banned', false)
       .not('role', 'eq', 'admin')         // exclude admins from the list
       .gt('total_recommendations', 0)      // must have at least 1 rec

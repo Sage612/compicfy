@@ -1,4 +1,4 @@
-﻿import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { recommendationSchema } from '@/lib/utils/validators'
 import { resolveMoreInfoLink } from '@/lib/utils/moreInfoLink'
@@ -132,7 +132,7 @@ export async function POST(request: Request) {
 
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('role, is_banned, is_pro, pro_expires_at')
+      .select('role, is_banned, is_pro, pro_expires_at, is_patron, patron_expires_at')
       .eq('id', user.id)
       .single()
 

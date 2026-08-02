@@ -28,8 +28,7 @@ interface ProfileStats {
 function toRoleProfile(profile: ProfileRecord): RoleProfile {
   return {
     role: profile.role,
-    is_pro: profile.is_pro,
-    pro_expires_at: profile.pro_expires_at,
+    is_pro: profile.is_pro, pro_expires_at, is_patron, patron_expires_at: profile.pro_expires_at,
   }
 }
 
@@ -88,7 +87,7 @@ export async function enforceDailyRecLimit(
 
   const { data: profileRaw } = await supabase
     .from('profiles')
-    .select('is_pro, pro_expires_at, role, total_saves')
+    .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role, total_saves')
     .eq('id', userId)
     .single()
 
@@ -109,8 +108,7 @@ export async function enforceDailyRecLimit(
 
   const typedProfile: ProfileRecord = {
     total_saves:    profile.total_saves,
-    is_pro:         profile.is_pro,
-    pro_expires_at: profile.pro_expires_at,
+    is_pro:         profile.is_pro, pro_expires_at, is_patron, patron_expires_at: profile.pro_expires_at,
     role:           profile.role,
   }
 
@@ -212,7 +210,7 @@ export async function enforceSaveLimit(
 
   const { data: profileRaw } = await supabase
     .from('profiles')
-    .select('total_saves, is_pro, pro_expires_at, role')
+    .select('total_saves, is_pro, pro_expires_at, is_patron, patron_expires_at, role')
     .eq('id', userId)
     .single()
 
@@ -239,7 +237,7 @@ export async function enforceListLimit(
 
   const { data: profileRaw } = await supabase
     .from('profiles')
-    .select('total_saves, is_pro, pro_expires_at, role')
+    .select('total_saves, is_pro, pro_expires_at, is_patron, patron_expires_at, role')
     .eq('id', userId)
     .single()
 
@@ -267,7 +265,7 @@ export async function enforceCollectionLimit(
 
   const { data: profileRaw } = await supabase
     .from('profiles')
-    .select('total_saves, is_pro, pro_expires_at, role')
+    .select('total_saves, is_pro, pro_expires_at, is_patron, patron_expires_at, role')
     .eq('id', userId)
     .single()
 
@@ -301,7 +299,7 @@ export async function checkSoftCap(userId: string): Promise<{
 
   const { data: profileRaw } = await supabase
     .from('profiles')
-    .select('is_pro, pro_expires_at, role, total_saves')
+    .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role, total_saves')
     .eq('id', userId)
     .single()
 

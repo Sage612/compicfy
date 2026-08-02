@@ -20,7 +20,7 @@ export default async function ReaderDashboardLayout({
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, is_pro, pro_expires_at, user_type')
+    .select('role, is_pro, pro_expires_at, is_patron, patron_expires_at, user_type')
     .eq('id', user.id)
     .single() as { data: any }
 

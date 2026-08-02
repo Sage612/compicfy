@@ -14,7 +14,7 @@ export default async function ProCreatorLinksPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('comic_url, patreon_url, kickstarter_url, is_pro, pro_expires_at, role')
+    .select('comic_url, patreon_url, kickstarter_url, is_pro, pro_expires_at, is_patron, patron_expires_at, role')
     .eq('id', user.id)
     .single() as { data: any }
 

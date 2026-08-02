@@ -13,7 +13,7 @@ export default async function ProReaderCollectionsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, is_pro, pro_expires_at')
+    .select('role, is_pro, pro_expires_at, is_patron, patron_expires_at')
     .eq('id', user.id)
     .single() as { data: any }
 

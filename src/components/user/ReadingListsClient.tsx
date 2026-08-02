@@ -127,7 +127,7 @@ export function ReadingListsClient({
       if (!user) { setIsProUser(false); return }
       setUserId(user.id)
       const { data: p } = await (supabase as any)
-        .from('profiles').select('is_pro, pro_expires_at, role').eq('id', user.id).single()
+        .from('profiles').select('is_pro, pro_expires_at, is_patron, patron_expires_at, role').eq('id', user.id).single()
       if (!p) { setIsProUser(false); return }
       setIsProUser(hasUnlimitedPerks(p))
     }

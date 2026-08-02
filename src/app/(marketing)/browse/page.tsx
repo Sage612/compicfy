@@ -340,7 +340,7 @@ export default async function BrowsePage({ searchParams }: Props) {
 
   if (user) {
     const [profileRes, interactions] = await Promise.all([
-      supabase.from('profiles').select('adult_content_enabled, is_pro, pro_expires_at, role').eq('id', user.id).single(),
+      supabase.from('profiles').select('adult_content_enabled, is_pro, pro_expires_at, is_patron, patron_expires_at, role').eq('id', user.id).single(),
       getInteractionCount(supabase, user.id),
     ])
     adultEnabled     = (profileRes.data as any)?.adult_content_enabled === true

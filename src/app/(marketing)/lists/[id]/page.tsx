@@ -66,7 +66,7 @@ export default async function PublicListPage({ params }: Props) {
   if (user && isOwner) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('user_type, role, is_pro, pro_expires_at')
+      .select('user_type, role, is_pro, pro_expires_at, is_patron, patron_expires_at')
       .eq('id', user.id)
       .single()
 

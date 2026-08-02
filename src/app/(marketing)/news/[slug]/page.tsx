@@ -60,7 +60,7 @@ export default async function NewsDetailPage({ params }: Props) {
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_pro, pro_expires_at, role')
+      .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role')
       .eq('id', user.id)
       .single() as { data: { is_pro: boolean; pro_expires_at: string | null; role: string } | null }
 

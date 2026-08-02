@@ -1,4 +1,4 @@
-﻿import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendFollowNotificationEmail } from '@/lib/email/send'
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('is_pro, pro_expires_at, role')
+      .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role')
       .eq('id', user.id)
       .single() as { data: any }
 

@@ -11,7 +11,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const { data: profile } = await (supabase as any)
     .from('profiles')
-    .select('role, user_type, is_pro, pro_expires_at')
+    .select('role, user_type, is_pro, pro_expires_at, is_patron, patron_expires_at')
     .eq('id', user.id)
     .single()
 
