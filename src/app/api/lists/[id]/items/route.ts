@@ -1,13 +1,13 @@
 // src/app/api/lists/[id]/items/route.ts
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { FREE_LIMITS } from '@/lib/utils/constants'
 
 interface RouteContext {
   params: Promise<{ id: string }>
 }
 
 const VALID_STATUSES = ['reading', 'plan_to_read', 'marinating', 'completed', 'on_hold', 'dropped']
-const FREE_LIST_LIMIT = 3
 
 async function verifyOwnership(supabase: Awaited<ReturnType<typeof createClient>>, listId: string, userId: string) {
   const { data, error } = await supabase
@@ -19,7 +19,7 @@ async function verifyOwnership(supabase: Awaited<ReturnType<typeof createClient>
   return { list: data, error: null }
 }
 
-// Check if a list is locked for this user (free tier, beyond slot 3)
+// Check if a list is locked for this user (free tier, beyond slot 5)
 async function isListLocked(
   supabase: Awaited<ReturnType<typeof createClient>>,
   listId: string,
@@ -28,7 +28,7 @@ async function isListLocked(
   // Get profile to check pro status
   const { data: profile } = await (supabase as any)
     .from('profiles')
-    .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role')
+    .select('is_pro, pro_expires_at, role')
     .eq('id', userId)
     .single()
 
@@ -52,8 +52,8 @@ async function isListLocked(
 
   if (!allLists) return false
 
-  // First 3 are free, rest are locked
-  const freeListIds = new Set(allLists.slice(0, FREE_LIST_LIMIT).map((l: any) => l.id))
+  // First N are free (per FREE_LIMITS.lists SSOT), rest are locked
+  const freeListIds = new Set(allLists.slice(0, FREE_LIMITS.lists).map((l: any) => l.id))
   return !freeListIds.has(listId)
 }
 
