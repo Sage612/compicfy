@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { isProUser, hasUnlimitedPerks } from '@/lib/access'
+import { FREE_LIMITS } from '@/lib/utils/constants'
 
 interface Props {
   recommendationId: string
@@ -29,8 +30,6 @@ const STATUSES = [
   { value: 'on_hold',      label: 'On Hold',      emoji: '⏸️' },
   { value: 'dropped',      label: 'Dropped',      emoji: '🗑️' },
 ]
-
-const FREE_LIST_LIMIT = 3
 
 export function AddToListButton({ recommendationId, userId }: Props) {
   const [open, setOpen]                       = useState(false)
@@ -102,7 +101,7 @@ export function AddToListButton({ recommendationId, userId }: Props) {
             id:         l.id,
             name:       l.name,
             created_at: l.created_at,
-            isLocked:   !unlimited && index >= FREE_LIST_LIMIT,
+            isLocked:   !unlimited && index >= FREE_LIMITS.lists,
           }))
         )
       } catch {
