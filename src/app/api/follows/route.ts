@@ -1,8 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendFollowNotificationEmail } from '@/lib/email/send'
-
-const FREE_FOLLOW_LIMIT = 50
+import { FREE_LIMITS } from '@/lib/utils/constants'
 
 export async function POST(request: Request) {
   try {
@@ -32,17 +31,17 @@ export async function POST(request: Request) {
         .select('*', { count: 'exact', head: true })
         .eq('follower_id', user.id)
 
-      if ((count ?? 0) >= FREE_FOLLOW_LIMIT) {
+      if ((count ?? 0) >= FREE_LIMITS.follows) {
         return NextResponse.json({
           error:   'follow_limit_reached',
-          message: `Free accounts can follow up to ${FREE_FOLLOW_LIMIT} people. Upgrade to Pro for unlimited follows.`,
-          limit:   FREE_FOLLOW_LIMIT,
+          message: `Free accounts can follow up to ${FREE_LIMITS.follows} people. Upgrade to Pro for unlimited follows.`,
+          limit:   FREE_LIMITS.follows,
           current: count,
         }, { status: 403 })
       }
     }
 
-    // â”€â”€ Insert follow â”€â”€
+    // ── Insert follow ──
     const { error: followError } = await (supabase as any)
       .from('follows')
       .insert({ follower_id: user.id, following_id })
@@ -80,8 +79,8 @@ export async function POST(request: Request) {
           should_push: true,
           data: {
             follower_id:       user.id,
-            follower_username: followerUsername,   // â†  used by NotificationsClient for routing
-            follower_type:     followerUserType,   // â†  so we build /reader/ vs /creator/ correctly
+            follower_username: followerUsername,   // ← used by NotificationsClient for routing
+            follower_type:     followerUserType,   // ← so we build /reader/ vs /creator/ correctly
           },
         })
     } catch (notifErr) {

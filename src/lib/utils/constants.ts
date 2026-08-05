@@ -173,6 +173,7 @@ export const FREE_LIMITS = {
   saves:                     100,
   lists:                     5,
   collections:               3,
+  follows:                   50,
 } as const
 
 export const GENRE_MOODS: Record<(typeof GENRES)[number], { mood: string; emoji: string }> = {

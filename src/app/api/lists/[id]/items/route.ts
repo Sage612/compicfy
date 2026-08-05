@@ -8,6 +8,7 @@ interface RouteContext {
 }
 
 const VALID_STATUSES = ['reading', 'plan_to_read', 'marinating', 'completed', 'on_hold', 'dropped']
+const MAX_NOTE_LENGTH = 500
 
 async function verifyOwnership(supabase: Awaited<ReturnType<typeof createClient>>, listId: string, userId: string) {
   const { data, error } = await supabase
@@ -19,7 +20,7 @@ async function verifyOwnership(supabase: Awaited<ReturnType<typeof createClient>
   return { list: data, error: null }
 }
 
-// Check if a list is locked for this user (free tier, beyond slot 5)
+// Check if a list is locked for this user (free tier, beyond slot 3)
 async function isListLocked(
   supabase: Awaited<ReturnType<typeof createClient>>,
   listId: string,
@@ -149,6 +150,97 @@ export async function POST(req: Request, { params }: RouteContext) {
     return NextResponse.json({ item: data }, { status: 201 })
   } catch {
     return NextResponse.json({ error: 'Failed to add to list' }, { status: 500 })
+  }
+}
+
+// PATCH /api/lists/[id]/items — update an existing item (status, progress_chapter, notes)
+// Body: { recommendation_id: string, notes?: string | null, status?: string, progress_chapter?: number | null }
+// At least one of notes/status/progress_chapter must be provided.
+export async function PATCH(req: Request, { params }: RouteContext) {
+  try {
+    const { id: listId } = await params
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { list, error: ownerErr } = await verifyOwnership(supabase, listId, user.id)
+    if (!list) return NextResponse.json({ error: ownerErr }, { status: 404 })
+    if ((list as any).user_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Locked free-tier lists can still be edited for notes/status — only
+    // NEW adds are blocked (see POST). A user shouldn't lose the ability
+    // to annotate comics they already have just because they're over the
+    // free list cap; that's punitive rather than a real upsell lever.
+
+    const body = await req.json()
+    const { recommendation_id, notes, status, progress_chapter } = body
+
+    if (!recommendation_id) {
+      return NextResponse.json({ error: 'recommendation_id is required' }, { status: 400 })
+    }
+
+    if (notes === undefined && status === undefined && progress_chapter === undefined) {
+      return NextResponse.json(
+        { error: 'At least one of notes, status, or progress_chapter is required' },
+        { status: 400 }
+      )
+    }
+
+    const updates: Record<string, any> = {}
+
+    if (notes !== undefined) {
+      if (notes !== null && typeof notes !== 'string') {
+        return NextResponse.json({ error: 'notes must be a string or null' }, { status: 400 })
+      }
+      if (notes !== null && notes.length > MAX_NOTE_LENGTH) {
+        return NextResponse.json(
+          { error: `Notes must be ${MAX_NOTE_LENGTH} characters or fewer` },
+          { status: 400 }
+        )
+      }
+      // Empty string clears the note, same as null
+      updates.notes = notes === '' ? null : notes
+    }
+
+    if (status !== undefined) {
+      if (!VALID_STATUSES.includes(status)) {
+        return NextResponse.json(
+          { error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` },
+          { status: 400 }
+        )
+      }
+      updates.status = status
+    }
+
+    if (progress_chapter !== undefined) {
+      if (progress_chapter !== null && (typeof progress_chapter !== 'number' || progress_chapter < 0)) {
+        return NextResponse.json({ error: 'progress_chapter must be a non-negative number or null' }, { status: 400 })
+      }
+      updates.progress_chapter = progress_chapter
+    }
+
+    const { data, error } = await (supabase as any)
+      .from('reading_list_items')
+      .update(updates)
+      .eq('list_id', listId)
+      .eq('recommendation_id', recommendation_id)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Item PATCH error:', error)
+      return NextResponse.json({ error: 'Failed to update item' }, { status: 500 })
+    }
+
+    if (!data) {
+      return NextResponse.json({ error: 'Item not found in this list' }, { status: 404 })
+    }
+
+    return NextResponse.json({ item: data })
+  } catch {
+    return NextResponse.json({ error: 'Failed to update item' }, { status: 500 })
   }
 }
 

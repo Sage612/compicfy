@@ -8,9 +8,7 @@ import {
   Plus, X, Layers, BookMarked, Shield, Crown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const FREE_LIST_LIMIT       = 5
-const FREE_COLLECTION_LIMIT = 3
+import { FREE_LIMITS } from '@/lib/utils/constants'
 
 interface Props {
   userId:               string | null
@@ -54,12 +52,12 @@ export function SpeedDialFAB({
   // 3. Early return condition sits safely right before variables used strictly in the layout
   if (hidden || !userId) return null
 
-  const listAtLimit       = !isProUser && userListCount >= FREE_LIST_LIMIT
-  const collectionAtLimit = !isProUser && userCollectionCount >= FREE_COLLECTION_LIMIT
+  const listAtLimit       = !isProUser && userListCount >= FREE_LIMITS.lists
+  const collectionAtLimit = !isProUser && userCollectionCount >= FREE_LIMITS.collections
 
   const handleNewList = () => {
     if (listAtLimit) {
-      toast.error(`Free users can create up to ${FREE_LIST_LIMIT} lists — upgrade to Pro`)
+      toast.error(`Free users can create up to ${FREE_LIMITS.lists} lists — upgrade to Pro`)
       setOpen(false)
       return
     }
@@ -69,7 +67,7 @@ export function SpeedDialFAB({
 
   const handleNewCollection = () => {
     if (collectionAtLimit) {
-      toast.error(`Free users can create up to ${FREE_COLLECTION_LIMIT} collections — upgrade to Pro`)
+      toast.error(`Free users can create up to ${FREE_LIMITS.collections} collections — upgrade to Pro`)
       setOpen(false)
       return
     }

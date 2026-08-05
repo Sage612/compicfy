@@ -14,6 +14,7 @@ import { cn } from '@/lib/utils/cn'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
 import { createClient } from '@/lib/supabase/client'
 import { hasUnlimitedPerks } from '@/lib/access'
+import { FREE_LIMITS } from '@/lib/utils/constants'
 
 interface ReadingList {
   id:          string
@@ -27,8 +28,6 @@ interface ReadingList {
   _item_count?: number
   _cover_urls?: string[]
 }
-
-const FREE_LIST_LIMIT = 5
 
 const THEME_GRAD: Record<number, string> = {
   0: 'from-primary/60 via-primary/20 to-primary/5',
@@ -135,10 +134,10 @@ export function ReadingListsClient({
   }, [supabase])
 
   const sorted    = [...lists].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-  const freeIds   = new Set(sorted.slice(0, FREE_LIST_LIMIT).map(l => l.id))
+  const freeIds   = new Set(sorted.slice(0, FREE_LIMITS.lists).map(l => l.id))
   const isLocked  = (id: string) => isProUser === false && !freeIds.has(id)
-  const atLimit   = isProUser === false && lists.length >= FREE_LIST_LIMIT
-  const nearLimit = isProUser === false && lists.length === FREE_LIST_LIMIT - 1
+  const atLimit   = isProUser === false && lists.length >= FREE_LIMITS.lists
+  const nearLimit = isProUser === false && lists.length === FREE_LIMITS.lists - 1
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -228,7 +227,7 @@ export function ReadingListsClient({
                 {lists.length} list{lists.length !== 1 ? 's' : ''}
                 {isProUser === false && (
                   <span className="text-muted-foreground/60 ml-1">
-                    · {Math.max(0, FREE_LIST_LIMIT - lists.length)} free slot{FREE_LIST_LIMIT - lists.length !== 1 ? 's' : ''} remaining
+                    · {Math.max(0, FREE_LIMITS.lists - lists.length)} free slot{FREE_LIMITS.lists - lists.length !== 1 ? 's' : ''} remaining
                   </span>
                 )}
               </p>
@@ -254,15 +253,15 @@ export function ReadingListsClient({
         </div>
       )}
 
-      {nearLimit && <UpgradeBanner current={lists.length} limit={FREE_LIST_LIMIT} feature="reading lists" message="You're almost at your reading list limit" dismissible />}
-      {atLimit && !showCreate && <UpgradeBanner current={lists.length} limit={FREE_LIST_LIMIT} feature="reading lists" dismissible={false} />}
+      {nearLimit && <UpgradeBanner current={lists.length} limit={FREE_LIMITS.lists} feature="reading lists" message="You're almost at your reading list limit" dismissible />}
+      {atLimit && !showCreate && <UpgradeBanner current={lists.length} limit={FREE_LIMITS.lists} feature="reading lists" dismissible={false} />}
 
-      {isProUser === false && lists.length > FREE_LIST_LIMIT && (
+      {isProUser === false && lists.length > FREE_LIMITS.lists && (
         <div className="flex items-start gap-3 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5">
           <Crown size={14} className="text-amber-500 shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-amber-600">
-              {lists.length - FREE_LIST_LIMIT} list{lists.length - FREE_LIST_LIMIT !== 1 ? 's are' : ' is'} locked
+              {lists.length - FREE_LIMITS.lists} list{lists.length - FREE_LIMITS.lists !== 1 ? 's are' : ' is'} locked
             </p>
             <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
               Your comics are safe. Resubscribe to Pro to unlock all {lists.length} lists.
@@ -606,7 +605,7 @@ export function ReadingListsClient({
         </>
       )}
 
-      {isProUser === false && lists.length > 0 && lists.length < FREE_LIST_LIMIT && (
+      {isProUser === false && lists.length > 0 && lists.length < FREE_LIMITS.lists && (
         <div className="flex items-center justify-center pt-2">
           <Link href="/pricing" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-500 transition-colors">
             <Sparkles size={11} />Upgrade to Pro for unlimited reading lists

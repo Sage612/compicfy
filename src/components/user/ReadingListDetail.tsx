@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { ArrowLeft, BookOpen, Trash2, Globe, Lock,
   Loader2, BookMarked, ChevronRight, Crown, Sparkles,
+  StickyNote, Check, X, Pencil,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -57,6 +58,7 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 const STATUSES = Object.entries(STATUS_META).map(([value, meta]) => ({ value, ...meta }))
+const MAX_NOTE_LENGTH = 500
 
 interface Props {
   list:         ReadingList
@@ -77,6 +79,11 @@ export function ReadingListDetail({
   const [items,        setItems]        = useState(initialItems)
   const [removingId,   setRemovingId]   = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<string | null>(null)
+
+  // Notes editing state — tracked by item id, one open editor at a time
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [noteDraft,     setNoteDraft]     = useState('')
+  const [savingNoteId,  setSavingNoteId]  = useState<string | null>(null)
 
   const handleRemove = async (e: React.MouseEvent, item: ListItem) => {
     e.stopPropagation()
@@ -101,6 +108,45 @@ export function ReadingListDetail({
 
   const handleAdded = (_comicId: string, _title: string, _listId: string, _status: string) => {
     window.location.reload()
+  }
+
+  const startEditingNote = (e: React.MouseEvent, item: ListItem) => {
+    e.stopPropagation()
+    setEditingNoteId(item.id)
+    setNoteDraft(item.notes ?? '')
+  }
+
+  const cancelEditingNote = (e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    setEditingNoteId(null)
+    setNoteDraft('')
+  }
+
+  const handleSaveNote = async (e: React.MouseEvent, item: ListItem) => {
+    e.stopPropagation()
+    const trimmed = noteDraft.trim()
+    setSavingNoteId(item.id)
+    try {
+      const res = await fetch(`/api/lists/${list.id}/items`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recommendation_id: item.recommendations.id,
+          notes: trimmed === '' ? null : trimmed,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      setItems(prev => prev.map(i =>
+        i.id === item.id ? { ...i, notes: trimmed === '' ? null : trimmed } : i
+      ))
+      setEditingNoteId(null)
+      setNoteDraft('')
+      toast.success(trimmed === '' ? 'Note removed' : 'Note saved')
+    } catch {
+      toast.error('Failed to save note')
+    } finally {
+      setSavingNoteId(null)
+    }
   }
 
   const filtered = filterStatus ? items.filter(i => i.status === filterStatus) : items
@@ -131,7 +177,7 @@ export function ReadingListDetail({
           <div className="flex-1 min-w-0 space-y-1">
             <p className="text-sm font-black text-amber-600">This list is locked</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              You can view your comics but can't add new ones or change statuses until you resubscribe.
+              You can view your comics but can't add new ones until you resubscribe. You can still update statuses and notes on comics already here.
             </p>
           </div>
           <Link href="/pricing" className="shrink-0">
@@ -242,6 +288,9 @@ export function ReadingListDetail({
             const progressPct = rec.chapter_count && item.progress_chapter
               ? Math.min(100, Math.round((item.progress_chapter / rec.chapter_count) * 100))
               : null
+            const isEditingNote = editingNoteId === item.id
+            const isSavingNote  = savingNoteId === item.id
+            const hasNote       = !!item.notes
 
             return (
               <div
@@ -255,8 +304,8 @@ export function ReadingListDetail({
                 )}
 
                 <div
-                  onClick={() => router.push(`/comic/${rec.id}`)}
-                  className="flex gap-4 p-4 cursor-pointer"
+                  onClick={() => !isEditingNote && router.push(`/comic/${rec.id}`)}
+                  className={cn('flex gap-4 p-4', !isEditingNote && 'cursor-pointer')}
                 >
                   <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                     {rec.cover_url ? (
@@ -294,27 +343,77 @@ export function ReadingListDetail({
                       </button>
                     </div>
 
-                    {!isLocked ? (
-                      <ChapterUpdater
-                        comicId={rec.id}
-                        listId={list.id}
-                        currentChapter={item.progress_chapter}
-                        totalChapters={rec.chapter_count}
-                        status={item.status}
-                        compact
-                        onUpdate={(chapter, status) => handleProgressUpdate(item.id, chapter, status)}
-                      />
-                    ) : (
-                      <div className="flex items-center gap-1.5 text-[10px] text-amber-500/70">
-                        <Lock size={9} />
-                        {item.progress_chapter ? `Ch. ${item.progress_chapter}` : 'No progress'} · Read-only
-                      </div>
-                    )}
+                    <ChapterUpdater
+                      comicId={rec.id}
+                      listId={list.id}
+                      currentChapter={item.progress_chapter}
+                      totalChapters={rec.chapter_count}
+                      status={item.status}
+                      compact
+                      onUpdate={(chapter, status) => handleProgressUpdate(item.id, chapter, status)}
+                    />
 
                     <p className="text-[10px] text-muted-foreground">Added {formatDate(item.added_at)}</p>
                   </div>
 
                   <ChevronRight size={14} className="text-muted-foreground/30 group-hover:text-muted-foreground shrink-0 self-center opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+
+                {/* ── Private note ── */}
+                <div className="px-4 pb-4 -mt-1" onClick={e => e.stopPropagation()}>
+                  {isEditingNote ? (
+                    <div className="space-y-1.5">
+                      <textarea
+                        value={noteDraft}
+                        onChange={e => setNoteDraft(e.target.value)}
+                        placeholder="Why did you pause this? What chapter should you remember? Notes are private, only you can see them."
+                        maxLength={MAX_NOTE_LENGTH}
+                        autoFocus
+                        rows={2}
+                        className="w-full text-xs rounded-xl border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40"
+                      />
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-muted-foreground/60">{noteDraft.length}/{MAX_NOTE_LENGTH}</span>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 text-[10px] px-2 gap-1"
+                            onClick={cancelEditingNote}
+                            disabled={isSavingNote}
+                          >
+                            <X size={10} /> Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="h-6 text-[10px] px-2 gap-1"
+                            onClick={e => handleSaveNote(e, item)}
+                            disabled={isSavingNote}
+                          >
+                            {isSavingNote ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                            Save
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : hasNote ? (
+                    <button
+                      onClick={e => startEditingNote(e, item)}
+                      className="w-full text-left flex items-start gap-1.5 px-3 py-2 rounded-xl bg-muted/50 hover:bg-muted border border-transparent hover:border-border transition-colors group/note"
+                    >
+                      <StickyNote size={11} className="text-muted-foreground/60 shrink-0 mt-0.5" />
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 flex-1 leading-snug">{item.notes}</p>
+                      <Pencil size={10} className="text-muted-foreground/0 group-hover/note:text-muted-foreground/60 transition-colors shrink-0 mt-0.5" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={e => startEditingNote(e, item)}
+                      className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors flex items-center gap-1"
+                    >
+                      <StickyNote size={10} />
+                      Add a private note
+                    </button>
+                  )}
                 </div>
               </div>
             )
@@ -324,4 +423,3 @@ export function ReadingListDetail({
     </div>
   )
 }
-

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, formatNumber, timeAgo } from '@/lib/utils/format'
+import { FREE_LIMITS } from '@/lib/utils/constants'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Dashboard' }
@@ -93,14 +94,10 @@ export default async function ReaderDashboardPage() {
     .from('collections').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
 
   const recCount              = monthlyRecCount ?? 0   // ← live monthly count, not all-time total
-  const FREE_REC_LIMIT        = 50
-  const FREE_FOLLOW_LIMIT     = 50
-  const FREE_LIST_LIMIT       = 5
-  const FREE_COLLECTION_LIMIT = 3
-  const recPct                = Math.min((recCount / FREE_REC_LIMIT) * 100, 100)
-  const followPct             = Math.min(((followingCount ?? 0) / FREE_FOLLOW_LIMIT) * 100, 100)
-  const listPct               = Math.min(((listsCount ?? 0) / FREE_LIST_LIMIT) * 100, 100)
-  const collectionPct         = Math.min(((collectionsCount ?? 0) / FREE_COLLECTION_LIMIT) * 100, 100)
+  const recPct                = Math.min((recCount / FREE_LIMITS.recommendations_per_month) * 100, 100)
+  const followPct             = Math.min(((followingCount ?? 0) / FREE_LIMITS.follows) * 100, 100)
+  const listPct               = Math.min(((listsCount ?? 0) / FREE_LIMITS.lists) * 100, 100)
+  const collectionPct         = Math.min(((collectionsCount ?? 0) / FREE_LIMITS.collections) * 100, 100)
 
   const feedItems = (rawFeedItems ?? []).map((r: any) => {
     const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
@@ -190,10 +187,10 @@ export default async function ReaderDashboardPage() {
         </div>
         <div className="space-y-2.5">
           {[
-            { label: 'Recs this month', current: recCount,              limit: FREE_REC_LIMIT,        pct: recPct,        color: 'bg-violet-500' },
-            { label: 'Following',       current: followingCount ?? 0,   limit: FREE_FOLLOW_LIMIT,     pct: followPct,     color: 'bg-primary'    },
-            { label: 'Reading Lists',   current: listsCount ?? 0,       limit: FREE_LIST_LIMIT,       pct: listPct,       color: 'bg-teal-500'   },
-            { label: 'Collections',     current: collectionsCount ?? 0, limit: FREE_COLLECTION_LIMIT, pct: collectionPct, color: 'bg-indigo-500' },
+            { label: 'Recs this month', current: recCount,              limit: FREE_LIMITS.recommendations_per_month, pct: recPct,        color: 'bg-violet-500' },
+            { label: 'Following',       current: followingCount ?? 0,   limit: FREE_LIMITS.follows,                  pct: followPct,     color: 'bg-primary'    },
+            { label: 'Reading Lists',   current: listsCount ?? 0,       limit: FREE_LIMITS.lists,                    pct: listPct,       color: 'bg-teal-500'   },
+            { label: 'Collections',     current: collectionsCount ?? 0, limit: FREE_LIMITS.collections,              pct: collectionPct, color: 'bg-indigo-500' },
           ].map(({ label, current, limit, pct, color }) => (
             <div key={label} className="space-y-1">
               <div className="flex items-center justify-between">

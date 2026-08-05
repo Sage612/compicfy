@@ -161,18 +161,9 @@ export type Database = {
           mangadex_id: string | null
           mangabaka_id: string | null
           kuroiru_id: string | null
-          // Which of the four external-ID fields above are locked from
-          // being touched by the automated id-checker cron. Set/cleared
-          // from the admin recommendations edit panel.
           id_locked_fields: string[]
-          // Whether year_released has been corroborated by the
-          // id-checker cron's cross-source consensus, or is still just
-          // whatever was entered/autofetched on submission.
           year_confidence: 'unverified' | 'confirmed'
-          // Last time the id-checker cron touched this row (light pass).
           last_id_check: string | null
-          // Last time the id-checker cron did a full re-verification
-          // pass (re-checks all 4 sources even if already complete).
           last_full_reverify: string | null
           rejection_reason: string | null
           appeal_status: 'none' | 'pending' | 'approved' | 'rejected' | null
@@ -184,6 +175,9 @@ export type Database = {
           more_info_link:             string | null
           more_info_link_source:      'user_submitted' | 'auto_fetched' | 'admin_approved' | null
           more_info_link_verified_at: string | null
+          translation_status: 'following_original' | 'translation_ongoing' | 'translation_completed'
+          original_total_chapters: number | null
+          pending_original_status: 'completed' | 'cancelled' | null
           created_at: string
           updated_at: string
         }
@@ -243,6 +237,9 @@ export type Database = {
           more_info_link?:             string | null
           more_info_link_source?:      'user_submitted' | 'auto_fetched' | 'admin_approved' | null
           more_info_link_verified_at?: string | null
+          translation_status?: 'following_original' | 'translation_ongoing' | 'translation_completed'
+          original_total_chapters?: number | null
+          pending_original_status?: 'completed' | 'cancelled' | null
         }
         Update: {
           title?: string
@@ -298,6 +295,9 @@ export type Database = {
           more_info_link?:             string | null
           more_info_link_source?:      'user_submitted' | 'auto_fetched' | 'admin_approved' | null
           more_info_link_verified_at?: string | null
+          translation_status?: 'following_original' | 'translation_ongoing' | 'translation_completed'
+          original_total_chapters?: number | null
+          pending_original_status?: 'completed' | 'cancelled' | null
           updated_at?: string
         }
       }
@@ -512,6 +512,33 @@ export type Database = {
         }
       }
 
+      review_replies: {
+        Row: {
+          id:         string
+          review_id:  string
+          user_id:    string
+          content:    string
+          is_edited:  boolean
+          edited_at:  string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?:        string
+          review_id:  string
+          user_id:    string
+          content:    string
+          is_edited?: boolean
+          edited_at?: string | null
+        }
+        Update: {
+          content?:    string
+          is_edited?:  boolean
+          edited_at?:  string | null
+          updated_at?: string
+        }
+      }
+
       news: {
         Row: {
           id: string
@@ -593,11 +620,6 @@ export type Database = {
         Row: {
           id: string
           user_id: string
-          // FIX: this union previously listed only 6 of the 13 notification
-          // types the app actually inserts and renders (NotificationsClient
-          // already had all 13 in its own local interface). TypeScript
-          // couldn't catch a typo'd type value on insert because the real
-          // shape wasn't reflected here.
           type: 'vote' | 'vote_milestone' | 'review' | 'reply' | 'feature' | 'achievement' | 'system'
               | 'follow' | 'chapter_update' | 'collection_saved' | 'list_starred'
               | 'followed_user_posted' | 'admin_new_submission'
@@ -889,6 +911,10 @@ export type RecommendationAnalytics = Database['public']['Tables']['recommendati
 export type Review       = Database['public']['Tables']['reviews']['Row']
 export type ReviewInsert = Database['public']['Tables']['reviews']['Insert']
 export type ReviewUpdate = Database['public']['Tables']['reviews']['Update']
+
+export type ReviewReply       = Database['public']['Tables']['review_replies']['Row']
+export type ReviewReplyInsert = Database['public']['Tables']['review_replies']['Insert']
+export type ReviewReplyUpdate = Database['public']['Tables']['review_replies']['Update']
 
 export type News       = Database['public']['Tables']['news']['Row']
 export type NewsInsert = Database['public']['Tables']['news']['Insert']

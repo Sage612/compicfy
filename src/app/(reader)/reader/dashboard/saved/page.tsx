@@ -8,10 +8,9 @@ import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
 import type { Recommendation } from '@/types/database.types'
 import type { Metadata } from 'next'
 import { hasUnlimitedPerks } from '@/lib/access'
+import { FREE_LIMITS } from '@/lib/utils/constants'
 
 export const metadata: Metadata = { title: 'Saved Comics' }
-
-const FREE_SAVE_LIMIT = 100
 
 export default async function ReaderSavedPage() {
   const supabase = await createClient()
@@ -38,9 +37,9 @@ export default async function ReaderSavedPage() {
     .filter(Boolean) as Recommendation[]
 
   const saveCount      = comics.length
-  const showBanner     = !isPro && saveCount >= Math.floor(FREE_SAVE_LIMIT * 0.8) // show at 80%
-  const atLimit        = !isPro && saveCount >= FREE_SAVE_LIMIT
-  const savePercentage = Math.min(100, Math.round((saveCount / FREE_SAVE_LIMIT) * 100))
+  const showBanner     = !isPro && saveCount >= Math.floor(FREE_LIMITS.saves * 0.8) // show at 80%
+  const atLimit        = !isPro && saveCount >= FREE_LIMITS.saves
+  const savePercentage = Math.min(100, Math.round((saveCount / FREE_LIMITS.saves) * 100))
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
@@ -50,7 +49,7 @@ export default async function ReaderSavedPage() {
           <p className="text-xs text-muted-foreground mt-0.5">
             {isPro
               ? `${saveCount} saved`
-              : `${saveCount} / ${FREE_SAVE_LIMIT} saved`
+              : `${saveCount} / ${FREE_LIMITS.saves} saved`
             }
           </p>
         </div>
@@ -65,7 +64,7 @@ export default async function ReaderSavedPage() {
       {showBanner && (
         <UpgradeBanner
           current={saveCount}
-          limit={FREE_SAVE_LIMIT}
+          limit={FREE_LIMITS.saves}
           feature="saved comics"
           message={
             atLimit

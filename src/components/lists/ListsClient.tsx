@@ -12,8 +12,7 @@ import {Layers, Globe, BookOpen, Star, Share2,
 import { cn } from '@/lib/utils'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { ListsSkeleton } from '@/components/lists/ListsSkeleton'
-
-const FREE_LIST_LIMIT = 5
+import { FREE_LIMITS } from '@/lib/utils/constants'
 
 interface PublicList {
   id:          string
@@ -142,8 +141,8 @@ export function ListsClient({
     }
   }, [searchParams, userId])
 
-  // atLimit: free users can only have FREE_LIST_LIMIT lists total
-  const atLimit = !isProUser && userListCount >= FREE_LIST_LIMIT
+  // atLimit: free users can only have FREE_LIMITS.lists lists total
+  const atLimit = !isProUser && userListCount >= FREE_LIMITS.lists
 
   useEffect(() => { fetchLists() }, [])
 
@@ -163,7 +162,7 @@ export function ListsClient({
   const handleNewListClick = () => {
     if (!userId) { setAuthPrompt(true); return }
     if (atLimit) {
-      toast.error(`Free users can create up to ${FREE_LIST_LIMIT} lists upgrade to Pro for unlimited`)
+      toast.error(`Free users can create up to ${FREE_LIMITS.lists} lists upgrade to Pro for unlimited`)
       return
     }
     setShowCreate(true)
@@ -542,8 +541,7 @@ export function ListsClient({
         </div>
       )}
 
-      
+
     </div>
   )
 }
-
