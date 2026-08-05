@@ -13,10 +13,12 @@ import type {
 } from '@/types/database.types'
 
 interface ProfileRecord {
-  total_saves:    number | null
-  is_pro:         boolean
-  pro_expires_at: string | null
-  role:           'admin' | 'moderator' | 'user'
+  total_saves:       number | null
+  is_pro:            boolean
+  pro_expires_at:    string | null
+  is_patron:         boolean
+  patron_expires_at: string | null
+  role:              'admin' | 'moderator' | 'user'
 }
 
 interface ProfileStats {
@@ -27,8 +29,11 @@ interface ProfileStats {
 
 function toRoleProfile(profile: ProfileRecord): RoleProfile {
   return {
-    role: profile.role,
-    is_pro: profile.is_pro, pro_expires_at, is_patron, patron_expires_at: profile.pro_expires_at,
+    role:              profile.role,
+    is_pro:            profile.is_pro,
+    pro_expires_at:    profile.pro_expires_at,
+    is_patron:         profile.is_patron,
+    patron_expires_at: profile.patron_expires_at,
   }
 }
 
@@ -91,12 +96,7 @@ export async function enforceDailyRecLimit(
     .eq('id', userId)
     .single()
 
-  const profile = profileRaw as {
-    is_pro:         boolean
-    pro_expires_at: string | null
-    role:           'admin' | 'moderator' | 'user'
-    total_saves:    number | null
-  } | null
+  const profile = profileRaw as ProfileRecord | null
 
   if (!profile) {
     return {
@@ -106,11 +106,7 @@ export async function enforceDailyRecLimit(
     }
   }
 
-  const typedProfile: ProfileRecord = {
-    total_saves:    profile.total_saves,
-    is_pro:         profile.is_pro, pro_expires_at, is_patron, patron_expires_at: profile.pro_expires_at,
-    role:           profile.role,
-  }
+  const typedProfile: ProfileRecord = profile
 
   if (isPrivileged(typedProfile)) return { allowed: true, remaining: Infinity }
 
@@ -286,7 +282,7 @@ export async function enforceCollectionLimit(
   return { allowed: true }
 }
 
-// ── checkSoftCap ──────────────────────────────────────────────────────────────
+// ── checkSoftCap ────────────────────────────────────────────────────
 // Warn but don't block — returns warning info for frontend toast
 export async function checkSoftCap(userId: string): Promise<{
   isNearLimit: boolean
