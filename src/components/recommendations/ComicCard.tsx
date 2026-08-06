@@ -13,8 +13,14 @@ interface ComicCardProps {
   showGenres?:    boolean
 }
 
-function isNewThisWeek(createdAt: string): boolean {
-  return Date.now() - new Date(createdAt).getTime() < 7 * 24 * 60 * 60 * 1000
+// Uses reviewed_at (approval timestamp) instead of created_at (submission
+// timestamp) — same fix as getNewThisWeek on the browse pages. A comic that
+// sat in the approval queue for days shouldn't lose its "new" badge before
+// it's even been approved. No reviewed_at on record → no badge, rather than
+// silently falling back to created_at and reopening the same bug.
+function isNewThisWeek(reviewedAt: string | null): boolean {
+  if (!reviewedAt) return false
+  return Date.now() - new Date(reviewedAt).getTime() < 7 * 24 * 60 * 60 * 1000
 }
 
 // ── Proxy helper — routes all cover images through our proxy ──────
@@ -33,7 +39,7 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
   const accent    = TYPE_META[rec.type as keyof typeof TYPE_META] ?? DEFAULT_TYPE_META
   const status    = resolveStatusMeta(rec.status, (rec as any).translation_status)
   const score     = rec.score ?? (rec.upvotes - rec.downvotes)
-  const isNew     = isNewThisWeek(rec.created_at)
+  const isNew     = isNewThisWeek(rec.reviewed_at)
   const coverSrc  = proxyCover(rec.cover_url)
 
   // System-submitted flag — covers auto-submitter and any future system accounts
