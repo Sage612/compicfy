@@ -79,6 +79,12 @@ async function getTrending(s: SupabaseClient) {
   return (data as Recommendation[]) ?? []
 }
 
+// Uses reviewed_at (approval timestamp) instead of created_at (submission
+// timestamp) — a comic sitting in the approval queue for several days
+// shouldn't lose its "new" window before it's even been approved. Only
+// matches rows where reviewed_at is actually set, so older approved comics
+// with no reviewed_at on record don't fall back to created_at and reopen
+// the same bug.
 async function getNewThisWeek(s: SupabaseClient) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const { data } = await s
@@ -86,7 +92,8 @@ async function getNewThisWeek(s: SupabaseClient) {
     .select('*')
     .eq('is_approved', true)
     .not('content_rating', 'in', SAFE_RATINGS)
-    .gte('created_at', sevenDaysAgo)
+    .not('reviewed_at', 'is', null)
+    .gte('reviewed_at', sevenDaysAgo)
     .order('score', { ascending: false })
     .limit(12)
   return (data as Recommendation[]) ?? []

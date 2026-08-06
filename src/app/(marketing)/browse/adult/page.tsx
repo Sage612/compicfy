@@ -52,6 +52,9 @@ async function getTrending(s: SupabaseClient) {
   return (data as Recommendation[]) ?? []
 }
 
+// Uses reviewed_at (approval timestamp) instead of created_at (submission
+// timestamp) — same fix as the main browse page's getNewThisWeek, applied
+// here for consistency. Only matches rows where reviewed_at is set.
 async function getNewThisWeek(s: SupabaseClient) {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
   const { data } = await s
@@ -59,7 +62,8 @@ async function getNewThisWeek(s: SupabaseClient) {
     .select('*')
     .eq('is_approved', true)
     .in('content_rating', ADULT_RATINGS)
-    .gte('created_at', sevenDaysAgo)
+    .not('reviewed_at', 'is', null)
+    .gte('reviewed_at', sevenDaysAgo)
     .order('score', { ascending: false })
     .limit(12)
   return (data as Recommendation[]) ?? []
