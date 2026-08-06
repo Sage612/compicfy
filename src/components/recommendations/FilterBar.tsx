@@ -63,6 +63,7 @@ export function FilterBar({ adult = false }: Props) {
   const [dropdownQuery, setDropdownQuery] = useState('')
   const [showDropdown, setShowDropdown]   = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const currentType   = searchParams.get('type')   ?? ''
   const currentGenre  = searchParams.get('genre')  ?? ''
@@ -81,7 +82,12 @@ export function FilterBar({ adult = false }: Props) {
     [pathname, router, searchParams]
   )
 
-  const clearAll = () => startTransition(() => router.push(pathname))
+  const clearAll = () => {
+    setDropdownQuery('')
+    setShowDropdown(false)
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+    startTransition(() => router.push(pathname))
+  }
   const hasActiveFilters = currentType || currentGenre || currentStatus || currentSearch
 
   return (
@@ -100,14 +106,17 @@ export function FilterBar({ adult = false }: Props) {
             onChange={(e) => {
               const val = e.target.value
               setDropdownQuery(val)
-              setShowDropdown(true)
-              const t = setTimeout(() => updateParam('q', val), 400)
-              return () => clearTimeout(t)
+              setShowDropdown(true)       
+              if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
+              searchDebounceRef.current = setTimeout(() => {
+                updateParam('q', val.trim())
+              }, 400)
             }}
           />
           {currentSearch && (
             <button
               onClick={() => {
+                if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current)
                 updateParam('q', '')
                 setDropdownQuery('')
                 setShowDropdown(false)
@@ -119,9 +128,9 @@ export function FilterBar({ adult = false }: Props) {
             </button>
           )}
 
-          {showDropdown && dropdownQuery.length >= 2 && (
+          {showDropdown && dropdownQuery.trim().length >= 2 && (
             <SearchDropdown
-              query={dropdownQuery}
+              query={dropdownQuery.trim()}
               adult={adult}
               onSelect={() => {
                 setShowDropdown(false)

@@ -232,11 +232,11 @@ export function ReadingListDetail({
 
       {/* Status filter tabs */}
       {items.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
           <button
             onClick={() => setFilterStatus(null)}
             className={cn(
-              'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+              'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all shrink-0 whitespace-nowrap',
               !filterStatus ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border text-muted-foreground hover:border-primary'
             )}
           >
@@ -247,7 +247,7 @@ export function ReadingListDetail({
               key={s.value}
               onClick={() => setFilterStatus(filterStatus === s.value ? null : s.value)}
               className={cn(
-                'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all',
+                'px-3 py-1.5 rounded-full text-xs font-semibold border transition-all shrink-0 whitespace-nowrap',
                 filterStatus === s.value ? 'bg-primary text-primary-foreground border-primary shadow-sm' : 'border-border text-muted-foreground hover:border-primary'
               )}
             >
