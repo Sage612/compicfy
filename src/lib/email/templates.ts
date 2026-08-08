@@ -18,6 +18,8 @@ const C = {
   emeraldTint: '#effaf4',
   red:         '#b3261e',
   redTint:     '#fdf1f0',
+  violet:      '#7c3aed',
+  violetTint:  '#f5f3ff',
 }
 
 const DEFAULT_DASHBOARD_PATH = '/reader/dashboard'
@@ -378,6 +380,29 @@ export const templates = {
     `)}
     ${p(`While you wait, browse the community, submit recommendations, and build your reading lists. The platform is live and free right now.`)}
     ${cta('Start exploring', `${SITE_URL}/browse`)}
+  `, DEFAULT_DASHBOARD_PATH),
+
+  patronWaitlist: (email: string) => shell(`
+    ${eyebrow(`You're on the list`, C.violet)}
+    ${h1(`Patron is coming, you're a founding member`)}
+    ${p(`We've added ${strong(email)} to the ${SITE_NAME} Patron waitlist. When Patron launches, you'll get an email before anyone else — and your founding pricing stays locked in.`)}
+    ${infoBox(`
+      ${label(`What you'll get with Patron`)}
+      <div style="margin-top:10px;">
+        ${checklist([
+          'Everything in Pro, unlimited',
+          'Full nested folders across lists & collections',
+          'Full Manhwa Shelf reordering, up to 27 comics',
+          'Audience overlap & drop-off analytics (creators)',
+          'Unlimited hiatus/update push to trackers (creators)',
+          'Exclusive Patron badge on your profile',
+          'Founding member recognition',
+          'And more...',
+        ])}
+      </div>
+    `)}
+    ${p(`While you wait, browse the community, submit recommendations, and build your reading lists. The platform is live and free right now.`)}
+    ${cta('Start exploring', `${SITE_URL}/browse`, C.violet)}
   `, DEFAULT_DASHBOARD_PATH),
 
   digestSummary: (

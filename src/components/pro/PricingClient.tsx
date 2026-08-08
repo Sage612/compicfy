@@ -11,6 +11,7 @@ import {
   Download, Bell, ArrowRight,
   Shield, Users, BadgeCheck, Flame,
   Palette, Lock, Sparkles, Loader2, CheckCircle2,
+  Gem, Layers, Shuffle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -22,6 +23,8 @@ interface Props {
   profile: {
     is_pro: boolean
     pro_expires_at: string | null
+    is_patron?: boolean
+    patron_expires_at?: string | null
     role: string
     recommendation_count_this_month: number
     total_saves: number
@@ -68,19 +71,44 @@ const CREATOR_PRO_POWER = [
   { icon: Crown,     text: 'Creator Pro badge'              },
 ]
 
-const YEARLY_BILLED     = '$29.99'
-const MONTHLY_PRICE     = '$4.99'
-const EFFECTIVE_MONTHLY = '$2.49'
+const PATRON_STATUS = [
+  { icon: Gem,        text: 'Exclusive 💎 Patron badge on profile' },
+  { icon: BadgeCheck, text: 'Priority eligibility for Verified'    },
+  { icon: Sparkles,   text: 'Founding Patron recognition'          },
+]
+
+const READER_PATRON_POWER = [
+  { icon: Layers,    text: 'Full nested folders (lists & collections)' },
+  { icon: Shuffle,   text: 'Full Manhwa Shelf reordering — up to 27'   },
+  { icon: BarChart2, text: 'Everything in Pro'                        },
+]
+
+const CREATOR_PATRON_POWER = [
+  { icon: Users,     text: 'Audience overlap & drop-off analytics'    },
+  { icon: Bell,      text: 'Unlimited hiatus/update push to trackers' },
+  { icon: BarChart2, text: 'Everything in Pro Creator'                },
+]
+
+const PRO_YEARLY_BILLED     = '$29.99'
+const PRO_MONTHLY_PRICE     = '$4.99'
+const PRO_EFFECTIVE_MONTHLY = '$2.49'
+
+const PATRON_YEARLY_BILLED     = '$49.99'
+const PATRON_MONTHLY_PRICE     = '$9.99'
+const PATRON_EFFECTIVE_MONTHLY = '$4.17'
 
 export function PricingClient({ user, profile }: Props) {
   const [email,   setEmail]     = useState(user?.email ?? '')
-  const [joining, setJoining]   = useState(false)
-  const [joined,  setJoined]    = useState(false)
+  const [joining, setJoining]   = useState<'pro' | 'patron' | null>(null)
+  const [joinedPro,    setJoinedPro]    = useState(false)
+  const [joinedPatron, setJoinedPatron] = useState(false)
   const searchParams               = useSearchParams()
 
-  const isAdmin   = profile?.role === 'admin'
-  const isPro     = isAdmin || (profile?.is_pro &&
+  const isAdmin  = profile?.role === 'admin'
+  const isPro    = isAdmin || (profile?.is_pro &&
     (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+  const isPatron = isAdmin || (profile?.is_patron &&
+    (!profile.patron_expires_at || new Date(profile.patron_expires_at) > new Date()))
   const isCreator = profile?.user_type === 'creator'
 
   useEffect(() => {
@@ -96,100 +124,97 @@ export function PricingClient({ user, profile }: Props) {
     }
   }, [searchParams])
 
-  const handleWaitlist = async () => {
+  const handleWaitlist = async (tier: 'pro' | 'patron') => {
     if (!email || !email.includes('@')) {
       toast.error('Please enter a valid email')
       return
     }
 
-    setJoining(true)
+    setJoining(tier)
     try {
       const res = await fetch('/api/pro/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, tier }),
       })
       if (!res.ok) throw new Error()
-      setJoined(true)
+      if (tier === 'patron') setJoinedPatron(true)
+      else setJoinedPro(true)
       toast.success("You're on the list! Check your email.")
     } catch {
       toast.error('Something went wrong. Try again.')
     } finally {
-      setJoining(false)
+      setJoining(null)
     }
   }
 
-  const freeFeatures  = isCreator ? CREATOR_FREE  : READER_FREE
-  const proPower      = isCreator ? CREATOR_PRO_POWER : READER_PRO_POWER
+  const freeFeatures      = isCreator ? CREATOR_FREE         : READER_FREE
+  const proPower          = isCreator ? CREATOR_PRO_POWER    : READER_PRO_POWER
+  const patronPower       = isCreator ? CREATOR_PATRON_POWER : READER_PATRON_POWER
 
   const heroTitle = isCreator
     ? <>Grow your <span className="text-teal-500">creator studio</span></>
     : <>Stand out as a <span className="text-amber-500">top recommender</span></>
 
   const heroSub = isCreator
-    ? 'Pro gives creators deep analytics, audience insights, and the tools to grow their readership.'
-    : "Pro isn't just about removing limits, it's the recognition, visibility, and tools that serious collectors deserve."
+    ? 'Pro and Patron give creators deep analytics, audience insights, and the tools to grow their readership.'
+    : "Pro and Patron aren't just about removing limits — they're the recognition, visibility, and tools that serious collectors deserve."
 
   const dashboardHref = isAdmin
     ? '/admin'
-    : isPro
+    : (isPro || isPatron)
     ? isCreator ? '/pro/creator/dashboard' : '/pro/reader/dashboard'
     : isCreator ? '/creator/dashboard'     : '/reader/dashboard'
 
-  const accentTeal   = isCreator
-  const accentColor = accentTeal ? 'text-teal-500' : 'text-amber-500'
-  const accentBg    = accentTeal ? 'bg-teal-500/10 border-teal-500/20 text-teal-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-600'
-  const accentGrad  = accentTeal
-    ? 'bg-gradient-to-r from-teal-400 to-cyan-500'
-    : 'bg-gradient-to-r from-amber-400 to-orange-500'
-  const accentBorder = accentTeal ? 'border-teal-500/40' : 'border-amber-500/40'
-  const accentCardBg = accentTeal ? 'from-teal-500/5' : 'from-amber-500/5'
-  const checkColor   = accentTeal ? 'text-teal-500' : 'text-amber-500'
-
   return (
-    <div className="max-w-5xl mx-auto px-4 py-12 space-y-14">
+    <div className="max-w-6xl mx-auto px-4 py-12 space-y-14">
 
       {/* Header */}
       <div className="text-center space-y-4">
         <div className={cn(
           'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm font-semibold border',
-          accentBg
+          isCreator ? 'bg-teal-500/10 border-teal-500/20 text-teal-600' : 'bg-amber-500/10 border-amber-500/20 text-amber-600'
         )}>
           {isCreator ? <Palette size={14} /> : <Crown size={14} className="fill-amber-500" />}
-          ComPicfy Pro
+          Compicfy Pro & Patron
         </div>
         <h1 className="text-4xl md:text-5xl font-black tracking-tight">{heroTitle}</h1>
         <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">{heroSub}</p>
       </div>
 
-      {/* Already Pro / Admin */}
-      {(isAdmin || isPro) && (
+      {/* Already Pro/Patron/Admin */}
+      {(isAdmin || isPro || isPatron) && (
         <div className={cn(
           'max-w-md mx-auto p-6 rounded-2xl border text-center space-y-3 shadow-sm',
           isAdmin   ? 'border-primary/30 bg-primary/5'   :
+          isPatron  ? 'border-violet-500/30 bg-violet-500/5' :
           isCreator ? 'border-teal-500/30 bg-teal-500/5' :
                       'border-amber-500/30 bg-amber-500/5'
         )}>
           <div className={cn(
             'w-12 h-12 rounded-xl flex items-center justify-center mx-auto',
-            isAdmin ? 'bg-primary/10' : isCreator ? 'bg-teal-500/10' : 'bg-amber-500/10'
+            isAdmin ? 'bg-primary/10' : isPatron ? 'bg-violet-500/10' : isCreator ? 'bg-teal-500/10' : 'bg-amber-500/10'
           )}>
             {isAdmin
               ? <Shield size={22} className="text-primary" />
+              : isPatron
+              ? <Gem size={22} className="text-violet-500 fill-violet-500/20" />
               : isCreator
               ? <Palette size={22} className="text-teal-500" />
               : <Crown   size={22} className="text-amber-500 fill-amber-500" />
             }
           </div>
           <p className="font-black text-lg">
-            {isAdmin ? 'Admin Access Active' : `You're already on Pro! ${isCreator ? '🎨' : '👑'}`}
+            {isAdmin ? 'Admin Access Active' : isPatron ? "You're a Patron! 💎" : `You're already on Pro! ${isCreator ? '🎨' : '👑'}`}
           </p>
           <p className="text-sm text-muted-foreground">
             {isAdmin
               ? 'You have full access to all features.'
-              : profile?.pro_expires_at
+              : isPatron && profile?.patron_expires_at
+                ? `Active until ${new Date(profile.patron_expires_at).toLocaleDateString(undefined, { dateStyle: 'long' })}.`
+                : isPro && profile?.pro_expires_at
                 ? `Active until ${new Date(profile.pro_expires_at).toLocaleDateString(undefined, { dateStyle: 'long' })}.`
-                : 'Your Pro access is active.'
+                : 'Your subscription is active.'
             }
           </p>
           <Link href={dashboardHref}>
@@ -198,7 +223,7 @@ export function PricingClient({ user, profile }: Props) {
         </div>
       )}
 
-      {!isAdmin && !isPro && (
+      {!isAdmin && !isPro && !isPatron && (
         <div className="space-y-10">
 
           {/* Coming soon banner */}
@@ -209,51 +234,36 @@ export function PricingClient({ user, profile }: Props) {
               <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center mx-auto">
                 <Lock size={24} className="text-amber-500" />
               </div>
-              <h2 className="text-2xl font-black">Pro is coming soon</h2>
+              <h2 className="text-2xl font-black">Pro & Patron are coming soon</h2>
               <p className="text-muted-foreground text-sm max-w-md mx-auto leading-relaxed">
-                We're still building the platform. Pro will open when we're ready.
-                Join the waitlist and you'll be the first to know, and the first to get access.
+                We're still building the platform. Both tiers will open when we're ready.
+                Join a waitlist below and you'll be the first to know, and the first to get access.
               </p>
             </div>
 
-            {/* Email capture */}
-            {joined ? (
-              <div className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-sm font-bold">
-                <CheckCircle2 size={16} />
-                You're on the list! Check your inbox.
-              </div>
-            ) : (
+            {/* Email capture — shared input, tier chosen per-card below */}
+            {!joinedPro && !joinedPatron && (
               <div className="max-w-sm mx-auto space-y-2">
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    id="waitlist-email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleWaitlist()}
-                    className="h-11 bg-background/60 border-amber-500/30 focus-visible:ring-amber-500/30"
-                  />
-                  <Button
-                    onClick={handleWaitlist}
-                    disabled={joining}
-                    className="h-11 px-5 shrink-0 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white hover:opacity-90 font-bold"
-                  >
-                    {joining ? <Loader2 size={14} className="animate-spin" /> : <><Sparkles size={14} /> Notify me</>}
-                  </Button>
-                </div>
+                <Input
+                  type="email"
+                  id="waitlist-email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="h-11 bg-background/60 border-amber-500/30 focus-visible:ring-amber-500/30"
+                />
                 <p className="text-xs text-muted-foreground">
-                  No spam. One email when Pro launches. That's it.
+                  Enter your email once, then pick a waitlist below. No spam.
                 </p>
               </div>
             )}
           </div>
 
-          {/* Pricing preview — no toggle, just yearly shown as default */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+          {/* Pricing grid — Free / Pro / Patron */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto items-start">
 
             {/* Free card */}
-            <div className="p-6 rounded-2xl border border-border bg-card flex flex-col">
+            <div className="p-6 rounded-2xl border border-border bg-card flex flex-col h-full">
               <div className="mb-6">
                 <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
                   {isCreator ? 'Free Creator' : 'Free'}
@@ -278,49 +288,43 @@ export function PricingClient({ user, profile }: Props) {
               </Link>
             </div>
 
+            {/* Pro card */}
             <div className={cn(
-              'relative p-6 rounded-2xl border-2 space-y-6 flex flex-col',
-              accentBorder,
-              `bg-gradient-to-b ${accentCardBg} to-card`
+              'relative p-6 rounded-2xl border-2 space-y-6 flex flex-col h-full',
+              'border-amber-500/40 bg-gradient-to-b from-amber-500/5 to-card'
             )}>
               <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                <span className={cn('px-3 py-1 rounded-full text-white text-xs font-black shadow-md', accentGrad)}>
+                <span className="px-3 py-1 rounded-full text-white text-xs font-black shadow-md bg-gradient-to-r from-amber-400 to-orange-500">
                   {isCreator ? '🎨 PRO CREATOR' : '✨ PRO READER'}
                 </span>
               </div>
 
-              {/* Price */}
               <div>
-                <p className={cn('text-xs font-black uppercase tracking-widest', accentColor)}>
+                <p className="text-xs font-black uppercase tracking-widest text-amber-500">
                   Pro {isCreator ? '🎨' : '👑'}
                 </p>
                 <div className="flex items-end gap-1 mt-1">
-                  <span className="text-4xl font-black">{EFFECTIVE_MONTHLY}</span>
+                  <span className="text-4xl font-black">{PRO_EFFECTIVE_MONTHLY}</span>
                   <span className="text-muted-foreground text-sm mb-1.5">/month</span>
                 </div>
                 <p className="text-xs text-emerald-600 font-bold mt-1">
-                  Billed {YEARLY_BILLED}/year · save 50% vs {MONTHLY_PRICE}/mo
+                  Billed {PRO_YEARLY_BILLED}/year · save 50% vs {PRO_MONTHLY_PRICE}/mo
                 </p>
               </div>
 
-              {/* Features */}
               <div className="space-y-4 flex-grow">
                 <div className="space-y-2">
-                  <p className={cn('text-[10px] font-black uppercase tracking-widest', accentColor)}>
-                    Recognition
-                  </p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">Recognition</p>
                   {PRO_STATUS.map(f => (
                     <div key={f.text} className="flex items-start gap-2.5 text-sm font-medium">
-                      <Check size={14} className={cn('mt-0.5 shrink-0', checkColor)} />
+                      <Check size={14} className="mt-0.5 shrink-0 text-amber-500" />
                       {f.text}
                     </div>
                   ))}
                 </div>
                 <div className="h-px bg-border" />
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    Power Tools
-                  </p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Power Tools</p>
                   {proPower.map(f => (
                     <div key={f.text} className="flex items-start gap-2.5 text-sm text-muted-foreground">
                       <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
@@ -330,20 +334,90 @@ export function PricingClient({ user, profile }: Props) {
                 </div>
               </div>
 
-              {/* Coming soon CTA */}
               <div className="space-y-2">
-                <Button
-                  onClick={() => {
-                    document.getElementById('waitlist-email')?.focus()
-                    window.scrollTo({ top: 0, behavior: 'smooth' })
-                  }}
-                  className={cn('w-full border-0 text-white font-bold h-11', accentGrad)}
-                >
-                  <Sparkles size={14} className="mr-2" />
-                  Join the Waitlist
-                </Button>
+                {joinedPro ? (
+                  <div className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-sm font-bold w-full justify-center">
+                    <CheckCircle2 size={16} />
+                    On the list!
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => handleWaitlist('pro')}
+                    disabled={joining === 'pro'}
+                    className="w-full border-0 text-white font-bold h-11 bg-gradient-to-r from-amber-400 to-orange-500"
+                  >
+                    {joining === 'pro' ? <Loader2 size={14} className="animate-spin" /> : <><Sparkles size={14} className="mr-2" /> Join Pro Waitlist</>}
+                  </Button>
+                )}
                 <p className="text-center text-[10px] text-muted-foreground">
                   Pro launching soon · be first to know
+                </p>
+              </div>
+            </div>
+
+            {/* Patron card */}
+            <div className={cn(
+              'relative p-6 rounded-2xl border-2 space-y-6 flex flex-col h-full',
+              'border-violet-500/40 bg-gradient-to-b from-violet-500/5 to-card'
+            )}>
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                <span className="px-3 py-1 rounded-full text-white text-xs font-black shadow-md bg-gradient-to-r from-violet-500 to-primary">
+                  💎 FOUNDING PATRON
+                </span>
+              </div>
+
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-violet-500">
+                  Patron 💎
+                </p>
+                <div className="flex items-end gap-1 mt-1">
+                  <span className="text-4xl font-black">{PATRON_EFFECTIVE_MONTHLY}</span>
+                  <span className="text-muted-foreground text-sm mb-1.5">/month</span>
+                </div>
+                <p className="text-xs text-emerald-600 font-bold mt-1">
+                  Billed {PATRON_YEARLY_BILLED}/year · less than Pro's own monthly price
+                </p>
+              </div>
+
+              <div className="space-y-4 flex-grow">
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-violet-500">Recognition</p>
+                  {PATRON_STATUS.map(f => (
+                    <div key={f.text} className="flex items-start gap-2.5 text-sm font-medium">
+                      <Check size={14} className="mt-0.5 shrink-0 text-violet-500" />
+                      {f.text}
+                    </div>
+                  ))}
+                </div>
+                <div className="h-px bg-border" />
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Everything Pro Has, Plus</p>
+                  {patronPower.map(f => (
+                    <div key={f.text} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <Check size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                      {f.text}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {joinedPatron ? (
+                  <div className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-sm font-bold w-full justify-center">
+                    <CheckCircle2 size={16} />
+                    On the list!
+                  </div>
+                ) : (
+                  <Button
+                    onClick={() => handleWaitlist('patron')}
+                    disabled={joining === 'patron'}
+                    className="w-full border-0 text-white font-bold h-11 bg-gradient-to-r from-violet-500 to-primary"
+                  >
+                    {joining === 'patron' ? <Loader2 size={14} className="animate-spin" /> : <><Gem size={14} className="mr-2" /> Join Patron Waitlist</>}
+                  </Button>
+                )}
+                <p className="text-center text-[10px] text-muted-foreground">
+                  Patron launching soon · founding pricing locked for early members
                 </p>
               </div>
             </div>
