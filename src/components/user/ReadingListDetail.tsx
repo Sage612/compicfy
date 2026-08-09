@@ -188,6 +188,10 @@ export function ReadingListDetail({
     }
   }
 
+  // ── Drag-and-reorder ──
+  // Only meaningful when no filter/search is active — reordering a filtered
+  // subset would desync from the real underlying order, so we disable drag
+  // entirely while filtered/searched (dropHandled below also guards this).
   const canReorder = !isLocked && !filterStatus && !searchQuery.trim()
 
   const persistOrder = async (newItems: ListItem[]) => {
@@ -446,13 +450,13 @@ export function ReadingListDetail({
                 onDrop={e => handleDrop(e, item.id)}
                 onDragEnd={handleDragEnd}
                 className={cn(
-                  'group rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-200 overflow-hidden',
+                  'group rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-200',
                   isDragging && 'opacity-40',
                   isDragOver && 'border-primary/60 border-2',
                 )}
               >
                 {progressPct !== null && (
-                  <div className="h-0.5 bg-muted">
+                  <div className="h-0.5 bg-muted rounded-t-2xl overflow-hidden">
                     <div className="h-full bg-primary transition-all" style={{ width: `${progressPct}%` }} />
                   </div>
                 )}
@@ -482,18 +486,18 @@ export function ReadingListDetail({
 
                   <div className="flex-1 min-w-0 space-y-2 py-0.5">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 space-y-1.5">
+                      <div className="min-w-0 space-y-1.5 flex-1">
                         <p className="font-black text-sm line-clamp-1 group-hover:text-primary transition-colors">{rec.title}</p>
-                        <div className="flex flex-wrap gap-1.5 items-center">
-                          <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize', typeStyle)}>{rec.type}</span>
+                        <div className="flex flex-nowrap items-center gap-1.5 overflow-hidden">
+                          <span className={cn('inline-flex items-center shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize', typeStyle)}>{rec.type}</span>
 
                           {/* ── Clickable status pill → opens compact status picker ── */}
-                          <div className="relative" onClick={e => e.stopPropagation()}>
+                          <div className="relative shrink-0" onClick={e => e.stopPropagation()}>
                             <button
                               onClick={() => setStatusPickerId(isPickingStatus ? null : item.id)}
                               disabled={isSavingStatus}
                               className={cn(
-                                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors',
+                                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors whitespace-nowrap',
                                 statusMeta.className,
                                 'hover:brightness-95 cursor-pointer'
                               )}
@@ -505,13 +509,13 @@ export function ReadingListDetail({
                             </button>
 
                             {isPickingStatus && (
-                              <div className="absolute top-full left-0 mt-1 z-30 bg-card border border-border rounded-xl shadow-lg overflow-hidden min-w-[140px]">
+                              <div className="absolute top-full left-0 mt-1 z-[100] bg-card border border-border rounded-xl shadow-xl overflow-hidden min-w-[150px]">
                                 {STATUSES.map(s => (
                                   <button
                                     key={s.value}
                                     onClick={e => handleQuickStatusChange(e, item, s.value)}
                                     className={cn(
-                                      'w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-accent transition-colors',
+                                      'w-full flex items-center gap-2 px-3 py-2.5 text-xs text-left hover:bg-accent transition-colors',
                                       s.value === item.status && 'bg-accent/60 font-bold'
                                     )}
                                   >
@@ -525,7 +529,7 @@ export function ReadingListDetail({
                           </div>
 
                           {progressPct !== null && (
-                            <span className="text-[10px] text-primary font-bold">{progressPct}%</span>
+                            <span className="text-[10px] text-primary font-bold shrink-0">{progressPct}%</span>
                           )}
                         </div>
                       </div>

@@ -76,13 +76,13 @@ export async function GET(_req: Request, { params }: RouteContext) {
     const { data, error } = await supabase
       .from('reading_list_items')
       .select(`
-        id, status, progress_chapter, notes, added_at,
+        id, status, progress_chapter, notes, added_at, position,
         recommendations (
           id, title, cover_url, type, status, genres, upvotes
         )
       `)
       .eq('list_id', listId)
-      .order('added_at', { ascending: false })
+      .order('position', { ascending: true })
 
     if (error) return NextResponse.json({ error: 'Failed to fetch items' }, { status: 500 })
 

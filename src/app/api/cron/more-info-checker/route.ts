@@ -8,7 +8,7 @@ const LOCK_NAME          = 'more_info_checker'
 const LOCK_DURATION_MS   = 55_000
 const ID_LOCK_NAME       = 'id_checker'
 const CHAPTER_LOCK_NAME  = 'chapter_checker'
-const RECHECK_DAYS       = 14 // re-attempt comics that still have no link after this long
+const RECHECK_DAYS       = 7 // re-attempt comics that still have no link after this long
 const YEAR_TOLERANCE     = 1
 
 // ── Fetch with timeout — same helper as id-checker / chapter-checker ──

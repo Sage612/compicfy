@@ -149,14 +149,14 @@ export async function POST(request: Request) {
 
     const isAdminOrMod = ['admin', 'moderator'].includes(profile?.role ?? '')
 
-    // â”€â”€ Read save_as_draft BEFORE enforcing limits â”€â”€
+    // ── Read save_as_draft BEFORE enforcing limits ──
     // FIX: limit checks used to run unconditionally, before we even knew
     // whether this request was a real submission or just a draft save.
     // That meant a user who hit their monthly/daily cap couldn't save a
-    // draft either â€” the exact escape hatch the limit-reached modal offers
+    // draft either — the exact escape hatch the limit-reached modal offers
     // them was itself blocked by the same limit. Drafts don't consume a
     // submission slot (incrementDailyCount/incrementGlobalCount only run
-    // on real submissions, never on drafts â€” see below), so they should
+    // on real submissions, never on drafts — see below), so they should
     // never be gated by these checks.
     const bodyPreview = await request.clone().json().catch(() => ({}))
     const asDraftRequest = bodyPreview?.save_as_draft === true
@@ -277,6 +277,7 @@ export async function POST(request: Request) {
       (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
     )
 
+    
     const insertData = {
       user_id:            user.id,
       title:              data.title,
@@ -294,6 +295,8 @@ export async function POST(request: Request) {
       year_released:      data.year_released || null,
       chapter_count:      data.chapter_count || null,
       is_approved:        isAutoApproved,
+      reviewed_by:        isAutoApproved ? user.id : null,
+      reviewed_at:        isAutoApproved ? new Date().toISOString() : null,
       is_draft:           asDraft,
       draft_saved_at:     asDraft ? new Date().toISOString() : null,
       is_pro_submission:  isProSubmission,

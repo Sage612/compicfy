@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Loader2, BookOpen } from 'lucide-react'
+import { Check, Loader2, BookOpen, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +32,9 @@ export function ChapterUpdater({
   const [chapter, setChapter] = useState<string>(currentChapter?.toString() ?? '')
   const [saving,  setSaving]  = useState(false)
   const [dirty,   setDirty]   = useState(false)
+  // Separate saving flag for the +1 button so it doesn't fight with the
+  // manual-input save state (e.g. typing then immediately tapping +1)
+  const [incrementing, setIncrementing] = useState(false)
 
   const save = async (newChapter?: string, newStatus?: string) => {
     setSaving(true)
@@ -67,6 +70,42 @@ export function ChapterUpdater({
     }
   }
 
+  // Quick +1 — bumps from current saved chapter (not the input's live/dirty
+  // value, so it always increments from what's actually persisted) and
+  // saves immediately, no separate confirm step needed for a one-tap action.
+  const handleIncrement = async () => {
+    const base = currentChapter ?? 0
+    const next = base + 1
+
+    if (totalChapters && next > totalChapters) {
+      toast.error(`Already at the last chapter (${totalChapters})`)
+      return
+    }
+
+    setIncrementing(true)
+    try {
+      const res = await fetch(`/api/reading-progress/${comicId}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          list_id:          listId,
+          progress_chapter: next,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+
+      setChapter(next.toString())
+      setDirty(false)
+      onUpdate?.(next, status)
+      toast.success(`Ch. ${next}`)
+    } catch {
+      toast.error('Failed to update')
+    } finally {
+      setIncrementing(false)
+    }
+  }
+
   if (compact) {
     return (
       <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
@@ -84,6 +123,21 @@ export function ChapterUpdater({
         {totalChapters && (
           <span className="text-[10px] text-muted-foreground">/ {totalChapters}</span>
         )}
+
+        {/* Quick +1 — always available (unless already at the last chapter),
+            sits right after the input so both paths (type a number, or tap
+            to bump by one) are reachable without the layout jumping around */}
+        {!(totalChapters && (currentChapter ?? 0) >= totalChapters) && (
+          <button
+            onClick={handleIncrement}
+            disabled={incrementing || saving}
+            title="Add 1 chapter"
+            className="h-6 w-6 rounded-md border border-border text-muted-foreground hover:border-primary hover:text-primary flex items-center justify-center transition-colors shrink-0"
+          >
+            {incrementing ? <Loader2 size={10} className="animate-spin" /> : <Plus size={11} />}
+          </button>
+        )}
+
         {dirty && (
           <button
             onClick={() => save()}
@@ -117,6 +171,18 @@ export function ChapterUpdater({
         {totalChapters && (
           <span className="text-[10px] text-muted-foreground">of {totalChapters}</span>
         )}
+
+        {!(totalChapters && (currentChapter ?? 0) >= totalChapters) && (
+          <button
+            onClick={handleIncrement}
+            disabled={incrementing || saving}
+            title="Add 1 chapter"
+            className="h-7 w-7 rounded-lg border border-border text-muted-foreground hover:border-primary hover:text-primary flex items-center justify-center transition-colors shrink-0"
+          >
+            {incrementing ? <Loader2 size={12} className="animate-spin" /> : <Plus size={13} />}
+          </button>
+        )}
+
         {dirty && (
           <button
             onClick={() => save()}
