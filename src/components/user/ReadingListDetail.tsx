@@ -1,13 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { ArrowLeft, BookOpen, Trash2, Globe, Lock,
   Loader2, BookMarked, ChevronRight, Crown, Sparkles,
-  StickyNote, Check, X, Pencil,
+  StickyNote, Check, X, Pencil, Search, GripVertical,
+  ChevronDown,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -28,6 +30,7 @@ interface ListItem {
   progress_chapter: number | null
   notes:            string | null
   added_at:         string
+  position?:        number | null
   recommendations: {
     id:            string
     title:         string
@@ -79,11 +82,21 @@ export function ReadingListDetail({
   const [items,        setItems]        = useState(initialItems)
   const [removingId,   setRemovingId]   = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<string | null>(null)
+  const [searchQuery,  setSearchQuery]  = useState('')
 
   // Notes editing state — tracked by item id, one open editor at a time
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [noteDraft,     setNoteDraft]     = useState('')
   const [savingNoteId,  setSavingNoteId]  = useState<string | null>(null)
+
+  // Status-switcher popover state — tracked by item id, one open at a time
+  const [statusPickerId, setStatusPickerId] = useState<string | null>(null)
+  const [savingStatusId, setSavingStatusId] = useState<string | null>(null)
+
+  // Drag-reorder state
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [reordering, setReordering] = useState(false)
 
   const handleRemove = async (e: React.MouseEvent, item: ListItem) => {
     e.stopPropagation()
@@ -149,7 +162,103 @@ export function ReadingListDetail({
     }
   }
 
-  const filtered = filterStatus ? items.filter(i => i.status === filterStatus) : items
+  // ── Status switcher (compact) ──
+  const handleQuickStatusChange = async (e: React.MouseEvent, item: ListItem, newStatus: string) => {
+    e.stopPropagation()
+    if (newStatus === item.status) { setStatusPickerId(null); return }
+    setSavingStatusId(item.id)
+    try {
+      const res = await fetch(`/api/lists/${list.id}/items`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recommendation_id: item.recommendations.id,
+          status: newStatus,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: newStatus } : i))
+      setStatusPickerId(null)
+      const meta = STATUS_META[newStatus]
+      toast.success(`${meta.emoji} ${meta.label}`)
+    } catch {
+      toast.error('Failed to update status')
+    } finally {
+      setSavingStatusId(null)
+    }
+  }
+
+  const canReorder = !isLocked && !filterStatus && !searchQuery.trim()
+
+  const persistOrder = async (newItems: ListItem[]) => {
+    setReordering(true)
+    try {
+      const res = await fetch(`/api/lists/${list.id}/reorder`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          item_ids: newItems.map(i => i.id),
+        }),
+      })
+      if (!res.ok) throw new Error()
+    } catch {
+      toast.error('Failed to save order')
+      // Revert on failure
+      setItems(initialItems)
+    } finally {
+      setReordering(false)
+    }
+  }
+
+  const handleDragStart = (id: string) => {
+    if (!canReorder) return
+    setDraggingId(id)
+  }
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    if (!canReorder || !draggingId) return
+    e.preventDefault()
+    if (id !== dragOverId) setDragOverId(id)
+  }
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    if (!canReorder || !draggingId || draggingId === targetId) {
+      setDraggingId(null)
+      setDragOverId(null)
+      return
+    }
+    e.preventDefault()
+
+    setItems(prev => {
+      const fromIndex = prev.findIndex(i => i.id === draggingId)
+      const toIndex   = prev.findIndex(i => i.id === targetId)
+      if (fromIndex === -1 || toIndex === -1) return prev
+
+      const next = [...prev]
+      const [moved] = next.splice(fromIndex, 1)
+      next.splice(toIndex, 0, moved)
+      persistOrder(next)
+      return next
+    })
+
+    setDraggingId(null)
+    setDragOverId(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggingId(null)
+    setDragOverId(null)
+  }
+
+  // ── Filter + search ──
+  const filtered = useMemo(() => {
+    let result = filterStatus ? items.filter(i => i.status === filterStatus) : items
+    const q = searchQuery.trim().toLowerCase()
+    if (q) {
+      result = result.filter(i => i.recommendations.title.toLowerCase().includes(q))
+    }
+    return result
+  }, [items, filterStatus, searchQuery])
 
   const statusCounts = items.reduce((acc, item) => {
     acc[item.status] = (acc[item.status] ?? 0) + 1
@@ -230,6 +339,27 @@ export function ReadingListDetail({
         />
       )}
 
+      {/* Search within this list */}
+      {items.length > 3 && (
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <Input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search this list…"
+            className="pl-9 h-9 text-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Status filter tabs */}
       {items.length > 0 && (
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
@@ -257,6 +387,14 @@ export function ReadingListDetail({
         </div>
       )}
 
+      {/* Reorder hint — only shown when reordering is actually available */}
+      {canReorder && items.length > 1 && (
+        <p className="text-[10px] text-muted-foreground/60 flex items-center gap-1 -mt-2">
+          <GripVertical size={10} />
+          Drag comics to reorder · clear filters/search to reorder
+        </p>
+      )}
+
       {/* Empty states */}
       {items.length === 0 ? (
         <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-3">
@@ -277,7 +415,9 @@ export function ReadingListDetail({
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 rounded-2xl border border-dashed border-border">
-          <p className="text-sm text-muted-foreground">No comics with this status</p>
+          <p className="text-sm text-muted-foreground">
+            {searchQuery ? 'No comics match your search' : 'No comics with this status'}
+          </p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -288,14 +428,28 @@ export function ReadingListDetail({
             const progressPct = rec.chapter_count && item.progress_chapter
               ? Math.min(100, Math.round((item.progress_chapter / rec.chapter_count) * 100))
               : null
-            const isEditingNote = editingNoteId === item.id
-            const isSavingNote  = savingNoteId === item.id
-            const hasNote       = !!item.notes
+            const isEditingNote   = editingNoteId === item.id
+            const isSavingNote    = savingNoteId === item.id
+            const hasNote         = !!item.notes
+            const isPickingStatus = statusPickerId === item.id
+            const isSavingStatus  = savingStatusId === item.id
+            const isDragging      = draggingId === item.id
+            const isDragOver      = dragOverId === item.id && draggingId !== item.id
+            const blockClick      = isEditingNote || isPickingStatus
 
             return (
               <div
                 key={item.id}
-                className="group rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-200 overflow-hidden"
+                draggable={canReorder}
+                onDragStart={() => handleDragStart(item.id)}
+                onDragOver={e => handleDragOver(e, item.id)}
+                onDrop={e => handleDrop(e, item.id)}
+                onDragEnd={handleDragEnd}
+                className={cn(
+                  'group rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-200 overflow-hidden',
+                  isDragging && 'opacity-40',
+                  isDragOver && 'border-primary/60 border-2',
+                )}
               >
                 {progressPct !== null && (
                   <div className="h-0.5 bg-muted">
@@ -304,9 +458,18 @@ export function ReadingListDetail({
                 )}
 
                 <div
-                  onClick={() => !isEditingNote && router.push(`/comic/${rec.id}`)}
-                  className={cn('flex gap-4 p-4', !isEditingNote && 'cursor-pointer')}
+                  onClick={() => !blockClick && router.push(`/comic/${rec.id}`)}
+                  className={cn('flex gap-3 p-4', !blockClick && 'cursor-pointer')}
                 >
+                  {canReorder && (
+                    <div
+                      className="flex items-center shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <GripVertical size={14} />
+                    </div>
+                  )}
+
                   <div className="w-14 h-20 rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
                     {rec.cover_url ? (
                       <img src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -323,9 +486,44 @@ export function ReadingListDetail({
                         <p className="font-black text-sm line-clamp-1 group-hover:text-primary transition-colors">{rec.title}</p>
                         <div className="flex flex-wrap gap-1.5 items-center">
                           <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border capitalize', typeStyle)}>{rec.type}</span>
-                          <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border', statusMeta.className)}>
-                            {statusMeta.emoji} {statusMeta.label}
-                          </span>
+
+                          {/* ── Clickable status pill → opens compact status picker ── */}
+                          <div className="relative" onClick={e => e.stopPropagation()}>
+                            <button
+                              onClick={() => setStatusPickerId(isPickingStatus ? null : item.id)}
+                              disabled={isSavingStatus}
+                              className={cn(
+                                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors',
+                                statusMeta.className,
+                                'hover:brightness-95 cursor-pointer'
+                              )}
+                            >
+                              {isSavingStatus
+                                ? <Loader2 size={9} className="animate-spin" />
+                                : <>{statusMeta.emoji} {statusMeta.label}<ChevronDown size={9} className="opacity-50" /></>
+                              }
+                            </button>
+
+                            {isPickingStatus && (
+                              <div className="absolute top-full left-0 mt-1 z-30 bg-card border border-border rounded-xl shadow-lg overflow-hidden min-w-[140px]">
+                                {STATUSES.map(s => (
+                                  <button
+                                    key={s.value}
+                                    onClick={e => handleQuickStatusChange(e, item, s.value)}
+                                    className={cn(
+                                      'w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-accent transition-colors',
+                                      s.value === item.status && 'bg-accent/60 font-bold'
+                                    )}
+                                  >
+                                    <span>{s.emoji}</span>
+                                    <span>{s.label}</span>
+                                    {s.value === item.status && <Check size={11} className="ml-auto text-primary" />}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
                           {progressPct !== null && (
                             <span className="text-[10px] text-primary font-bold">{progressPct}%</span>
                           )}
