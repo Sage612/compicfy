@@ -1,27 +1,27 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Loader2, BookOpen, Plus } from 'lucide-react'
+import { Check, Loader2, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  comicId:      string
-  listId:       string
+  comicId:        string
+  listId:         string
   currentChapter: number | null
   totalChapters:  number | null
-  status:       string
-  onUpdate?:    (chapter: number | null, status: string) => void
-  compact?:     boolean   // true = just the chapter input inline, false = full row
+  status:         string
+  onUpdate?:      (chapter: number | null, status: string) => void
+  compact?:       boolean   // true = just the chapter input inline, false = full row
 }
 
-const STATUS_META: Record<string, { label: string; emoji: string }> = {
-  reading:      { label: 'Reading',      emoji: '📖' },
-  plan_to_read: { label: 'Plan to Read', emoji: '📌' },
-  completed:    { label: 'Completed',    emoji: '✅' },
-  on_hold:      { label: 'On Hold',      emoji: '⏸️' },
-  dropped:      { label: 'Dropped',      emoji: '🗑️' },
-  marinating:   { label: 'Marinating',   emoji: '🫙' },
+const STATUS_META: Record<string, { label: string; dot: string }> = {
+  reading:      { label: 'Reading',      dot: 'bg-blue-500'    },
+  plan_to_read: { label: 'Plan to read', dot: 'bg-violet-500'  },
+  completed:    { label: 'Completed',    dot: 'bg-emerald-500' },
+  on_hold:      { label: 'On hold',      dot: 'bg-yellow-500'  },
+  dropped:      { label: 'Dropped',      dot: 'bg-red-500'     },
+  marinating:   { label: 'Marinating',   dot: 'bg-amber-500'   },
 }
 
 const STATUSES = Object.entries(STATUS_META).map(([value, meta]) => ({ value, ...meta }))
@@ -32,9 +32,12 @@ export function ChapterUpdater({
   const [chapter, setChapter] = useState<string>(currentChapter?.toString() ?? '')
   const [saving,  setSaving]  = useState(false)
   const [dirty,   setDirty]   = useState(false)
-  // Separate saving flag for the +1 button so it doesn't fight with the
-  // manual-input save state (e.g. typing then immediately tapping +1)
   const [incrementing, setIncrementing] = useState(false)
+
+  const atLast = !!(totalChapters && (currentChapter ?? 0) >= totalChapters)
+  const pct = totalChapters && currentChapter
+    ? Math.min(100, Math.round((currentChapter / totalChapters) * 100))
+    : null
 
   const save = async (newChapter?: string, newStatus?: string) => {
     setSaving(true)
@@ -57,12 +60,7 @@ export function ChapterUpdater({
       onUpdate?.(savedChapter, savedStatus)
       setDirty(false)
 
-      if (newStatus) {
-        const meta = STATUS_META[newStatus]
-        toast.success(`${meta.emoji} ${meta.label}`)
-      } else {
-        toast.success('Progress saved!')
-      }
+      toast.success(newStatus ? STATUS_META[newStatus].label : 'Progress saved')
     } catch {
       toast.error('Failed to save')
     } finally {
@@ -70,9 +68,6 @@ export function ChapterUpdater({
     }
   }
 
-  // Quick +1 — bumps from current saved chapter (not the input's live/dirty
-  // value, so it always increments from what's actually persisted) and
-  // saves immediately, no separate confirm step needed for a one-tap action.
   const handleIncrement = async () => {
     const base = currentChapter ?? 0
     const next = base + 1
@@ -87,10 +82,7 @@ export function ChapterUpdater({
       const res = await fetch(`/api/reading-progress/${comicId}`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          list_id:          listId,
-          progress_chapter: next,
-        }),
+        body: JSON.stringify({ list_id: listId, progress_chapter: next }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
@@ -108,44 +100,49 @@ export function ChapterUpdater({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-        <BookOpen size={11} className="text-muted-foreground shrink-0" />
-        <input
-          type="number"
-          min="0"
-          max={totalChapters ?? undefined}
-          value={chapter}
-          onChange={e => { setChapter(e.target.value); setDirty(true) }}
-          onKeyDown={e => e.key === 'Enter' && dirty && save()}
-          placeholder="Ch."
-          className="w-14 h-6 text-xs bg-muted border border-border rounded-md px-1.5 outline-none focus:border-primary text-foreground placeholder:text-muted-foreground text-center"
-        />
-        {totalChapters && (
-          <span className="text-[10px] text-muted-foreground">/ {totalChapters}</span>
-        )}
+      <div className="space-y-1" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] tracking-tight text-muted-foreground/70 tabular-nums">Ch.</span>
+          <input
+            type="number"
+            min="0"
+            max={totalChapters ?? undefined}
+            value={chapter}
+            onChange={e => { setChapter(e.target.value); setDirty(true) }}
+            onKeyDown={e => e.key === 'Enter' && dirty && save()}
+            placeholder="—"
+            className="w-10 h-5 text-xs bg-transparent border-0 border-b border-border/50 px-0 outline-none focus:border-foreground/60 text-foreground tabular-nums transition-colors"
+          />
+          {totalChapters && (
+            <span className="text-[11px] text-muted-foreground/50 tabular-nums">/ {totalChapters}</span>
+          )}
 
-        {/* Quick +1 — always available (unless already at the last chapter),
-            sits right after the input so both paths (type a number, or tap
-            to bump by one) are reachable without the layout jumping around */}
-        {!(totalChapters && (currentChapter ?? 0) >= totalChapters) && (
-          <button
-            onClick={handleIncrement}
-            disabled={incrementing || saving}
-            title="Add 1 chapter"
-            className="h-6 w-6 rounded-md border border-border text-muted-foreground hover:border-primary hover:text-primary flex items-center justify-center transition-colors shrink-0"
-          >
-            {incrementing ? <Loader2 size={10} className="animate-spin" /> : <Plus size={11} />}
-          </button>
-        )}
+          {!atLast && (
+            <button
+              onClick={handleIncrement}
+              disabled={incrementing || saving}
+              title="Add 1 chapter"
+              className="h-5 w-5 rounded-full text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 flex items-center justify-center transition-colors shrink-0"
+            >
+              {incrementing ? <Loader2 size={9} className="animate-spin" /> : <Plus size={11} />}
+            </button>
+          )}
 
-        {dirty && (
-          <button
-            onClick={() => save()}
-            disabled={saving}
-            className="h-6 w-6 rounded-md bg-primary text-primary-foreground flex items-center justify-center hover:opacity-90 transition-opacity shrink-0"
-          >
-            {saving ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
-          </button>
+          {dirty && (
+            <button
+              onClick={() => save()}
+              disabled={saving}
+              className="text-[11px] font-medium text-foreground hover:opacity-60 transition-opacity shrink-0 flex items-center gap-0.5"
+            >
+              {saving ? <Loader2 size={10} className="animate-spin" /> : <Check size={11} />}
+            </button>
+          )}
+        </div>
+
+        {pct !== null && (
+          <div className="h-px w-full bg-border/50 overflow-hidden">
+            <div className="h-full bg-foreground/70 transition-all duration-300" style={{ width: `${pct}%` }} />
+          </div>
         )}
       </div>
     )
@@ -153,11 +150,10 @@ export function ChapterUpdater({
 
   // Full version — chapter input + status selector
   return (
-    <div className="space-y-2" onClick={e => e.stopPropagation()}>
+    <div className="space-y-3" onClick={e => e.stopPropagation()}>
       {/* Chapter row */}
-      <div className="flex items-center gap-2">
-        <BookOpen size={12} className="text-muted-foreground shrink-0" />
-        <span className="text-xs text-muted-foreground">Chapter</span>
+      <div className="flex items-center gap-2.5">
+        <span className="text-xs text-muted-foreground/70">Chapter</span>
         <input
           type="number"
           min="0"
@@ -166,18 +162,18 @@ export function ChapterUpdater({
           onChange={e => { setChapter(e.target.value); setDirty(true) }}
           onKeyDown={e => e.key === 'Enter' && dirty && save()}
           placeholder="—"
-          className="w-16 h-7 text-xs bg-muted border border-border rounded-lg px-2 outline-none focus:border-primary text-foreground text-center"
+          className="w-14 h-7 text-sm bg-transparent border-0 border-b border-border/50 px-0 outline-none focus:border-foreground/60 text-foreground text-center tabular-nums transition-colors"
         />
         {totalChapters && (
-          <span className="text-[10px] text-muted-foreground">of {totalChapters}</span>
+          <span className="text-xs text-muted-foreground/50 tabular-nums">of {totalChapters}</span>
         )}
 
-        {!(totalChapters && (currentChapter ?? 0) >= totalChapters) && (
+        {!atLast && (
           <button
             onClick={handleIncrement}
             disabled={incrementing || saving}
             title="Add 1 chapter"
-            className="h-7 w-7 rounded-lg border border-border text-muted-foreground hover:border-primary hover:text-primary flex items-center justify-center transition-colors shrink-0"
+            className="h-7 w-7 rounded-full border border-border/50 text-muted-foreground hover:border-foreground/40 hover:text-foreground flex items-center justify-center transition-colors shrink-0"
           >
             {incrementing ? <Loader2 size={12} className="animate-spin" /> : <Plus size={13} />}
           </button>
@@ -187,7 +183,7 @@ export function ChapterUpdater({
           <button
             onClick={() => save()}
             disabled={saving}
-            className="h-7 px-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold flex items-center gap-1 hover:opacity-90"
+            className="text-xs font-medium text-foreground border-b border-foreground/60 hover:opacity-60 flex items-center gap-1 transition-opacity"
           >
             {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
             Save
@@ -195,22 +191,28 @@ export function ChapterUpdater({
         )}
       </div>
 
-      {/* Status selector */}
-      <div className="flex flex-wrap gap-1">
+      {pct !== null && (
+        <div className="h-px w-full bg-border/50 overflow-hidden">
+          <div className="h-full bg-foreground/70 transition-all duration-300" style={{ width: `${pct}%` }} />
+        </div>
+      )}
+
+      {/* Status selector — plain typography, dot indicator */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5">
         {STATUSES.map(s => (
           <button
             key={s.value}
             onClick={() => save(chapter, s.value)}
             disabled={saving}
             className={cn(
-              'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all',
+              'flex items-center gap-1.5 text-xs transition-colors',
               status === s.value
-                ? 'bg-primary/10 text-primary border-primary/30'
-                : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                ? 'text-foreground font-medium'
+                : 'text-muted-foreground/60 hover:text-foreground'
             )}
           >
-            <span>{s.emoji}</span>
-            <span>{s.label}</span>
+            <span className={cn('h-1.5 w-1.5 rounded-full', status === s.value ? s.dot : 'bg-border')} />
+            {s.label}
           </button>
         ))}
       </div>
