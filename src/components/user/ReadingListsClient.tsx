@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { BookMarked, Plus, Trash2, Globe, Lock,
   Loader2, BookOpen, Pencil, ArrowRight, Crown,
   Sparkles, Radar, Share2, Star, Check, X,
+  MoreVertical, Search,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
@@ -15,6 +16,7 @@ import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
 import { createClient } from '@/lib/supabase/client'
 import { hasUnlimitedPerks } from '@/lib/access'
 import { FREE_LIMITS } from '@/lib/utils/constants'
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet'
 
 interface ReadingList {
   id:          string
@@ -24,7 +26,6 @@ interface ReadingList {
   is_public:   boolean
   created_at:  string
   star_count:  number
-  // Pre-computed server-side to avoid Supabase aggregate conflict
   _item_count?: number
   _cover_urls?: string[]
 }
@@ -53,7 +54,6 @@ function themeIndex(id: string): number {
 }
 
 function getCoverPreviews(list: ReadingList): string[] {
-  // Use pre-computed covers from server — avoids fetching all items
   if (Array.isArray(list._cover_urls)) return list._cover_urls.slice(0, 4)
   return []
 }
@@ -61,11 +61,6 @@ function getCoverPreviews(list: ReadingList): string[] {
 function itemCount(list: ReadingList): number {
   if (typeof list._item_count === 'number') return list._item_count
   return 0
-}
-
-function getStarLabel(starCount: number, isStarred: boolean): string {
-  if (isStarred) return starCount > 0 ? `${starCount} starred` : 'Starred'
-  return starCount > 0 ? `${starCount}` : 'Star'
 }
 
 function StackedCover({ covers, themeGrad }: { covers: string[]; themeGrad: string }) {
@@ -113,10 +108,14 @@ export function ReadingListsClient({
   const [isPublic,    setIsPublic]    = useState(false)
   const [creating,    setCreating]    = useState(false)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
-  const [editingId,   setEditingId]   = useState<string | null>(null)
-  const [editName,    setEditName]    = useState('')
   const [isProUser,   setIsProUser]   = useState<boolean | null>(null)
   const [userId,      setUserId]      = useState<string | null>(null)
+
+  // ── NEW: rename modal (#22) + action sheet + search (#16 dashboard) ──
+  const [renameModal, setRenameModal] = useState<{ id: string; name: string } | null>(null)
+  const [savingRename, setSavingRename] = useState(false)
+  const [actionSheetList, setActionSheetList] = useState<ReadingList | null>(null)
+  const [listSearch, setListSearch] = useState('')
 
   const supabase = createClient()
 
@@ -139,6 +138,13 @@ export function ReadingListsClient({
   const atLimit   = isProUser === false && lists.length >= FREE_LIMITS.lists
   const nearLimit = isProUser === false && lists.length === FREE_LIMITS.lists - 1
 
+  // ── Filtered lists for dashboard search ──
+  const filteredLists = useMemo(() => {
+    if (!listSearch.trim()) return lists
+    const q = listSearch.toLowerCase()
+    return lists.filter(l => l.name.toLowerCase().includes(q) || (l.description ?? '').toLowerCase().includes(q))
+  }, [lists, listSearch])
+
   const handleCreate = async () => {
     if (!newName.trim()) return
     setCreating(true)
@@ -159,34 +165,36 @@ export function ReadingListsClient({
     finally  { setCreating(false) }
   }
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation()
-    if (!confirm('Delete this list and all its items?')) return
+  const handleDelete = async (id: string) => {
     setDeletingId(id)
     try {
       await fetch(`/api/lists/${id}`, { method: 'DELETE' })
       setLists(prev => prev.filter(l => l.id !== id))
+      setActionSheetList(null)
       toast.success('List deleted')
     } catch { toast.error('Failed to delete') }
     finally  { setDeletingId(null) }
   }
 
-  const handleRename = async (id: string) => {
-    if (!editName.trim()) return
+  const handleRenameSave = async () => {
+    if (!renameModal || !renameModal.name.trim()) return
+    setSavingRename(true)
     try {
-      const res  = await fetch(`/api/lists/${id}`, {
+      const res  = await fetch(`/api/lists/${renameModal.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName }),
+        body: JSON.stringify({ name: renameModal.name }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error()
-      setLists(prev => prev.map(l => l.id === id ? { ...l, name: data.list.name } : l))
-      setEditingId(null); toast.success('List renamed')
+      setLists(prev => prev.map(l => l.id === renameModal.id ? { ...l, name: data.list.name } : l))
+      setRenameModal(null)
+      setActionSheetList(null)
+      toast.success('List renamed')
     } catch { toast.error('Failed to rename') }
+    finally { setSavingRename(false) }
   }
 
-  const handleTogglePublic = async (id: string, current: boolean, e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation()
+  const handleTogglePublic = async (id: string, current: boolean) => {
     if (isLocked(id)) { toast.error('Upgrade to Pro to edit this list'); return }
     try {
       await fetch(`/api/lists/${id}`, {
@@ -198,8 +206,7 @@ export function ReadingListsClient({
     } catch { toast.error('Failed to update') }
   }
 
-  const handleShare = async (id: string, e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation()
+  const handleShare = async (id: string) => {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/lists/${id}`)
       toast.success('Link copied!')
@@ -211,12 +218,58 @@ export function ReadingListsClient({
     setShowCreate(true)
   }
 
+  const buildOwnerActions = (list: ReadingList): ActionSheetAction[] => {
+    const locked = isLocked(list.id)
+    return [
+      { label: 'Rename', icon: <Pencil size={15} />, onClick: () => setRenameModal({ id: list.id, name: list.name }) },
+      { label: 'Share', icon: <Share2 size={15} />, onClick: () => handleShare(list.id) },
+      ...(locked ? [] : [{ label: list.is_public ? 'Make Private' : 'Make Public', icon: list.is_public ? <Lock size={15} /> : <Globe size={15} />, onClick: () => handleTogglePublic(list.id, list.is_public) } as ActionSheetAction]),
+      { label: 'Delete', icon: deletingId === list.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />, onClick: () => { if (confirm('Delete this list and all its items?')) handleDelete(list.id) }, destructive: true },
+    ]
+  }
+
   return (
     <div className="space-y-6">
 
+      {/* ── Action Sheet (centered, not anchored — no left drift) ── */}
+      <ActionSheet
+        open={!!actionSheetList}
+        onClose={() => setActionSheetList(null)}
+        title={actionSheetList?.name}
+        actions={actionSheetList ? buildOwnerActions(actionSheetList) : []}
+      />
+
+      {/* ── Rename Modal (#22 fix) ── */}
+      {renameModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-primary/5">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
+                  <Pencil size={11} className="text-primary-foreground" />
+                </div>
+                <p className="text-xs font-black uppercase tracking-widest text-primary">Rename List</p>
+              </div>
+              <button onClick={() => setRenameModal(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <Input value={renameModal.name} onChange={e => setRenameModal({ ...renameModal, name: e.target.value })} className="h-9 text-sm" autoFocus onKeyDown={e => { if (e.key === 'Enter') handleRenameSave(); if (e.key === 'Escape') setRenameModal(null) }} />
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleRenameSave} disabled={!renameModal.name.trim() || savingRename} className="gap-2 flex-1">
+                  {savingRename ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}Save
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setRenameModal(null)}>Cancel</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Header ── */}
       {!hideHeader && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
               <BookMarked size={16} className="text-primary" />
@@ -233,23 +286,29 @@ export function ReadingListsClient({
               </p>
             </div>
           </div>
-          {!showCreate && (
-            <Button size="sm" onClick={handleNewListClick}
-              className={cn('gap-1.5', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}>
-              {atLimit ? <Crown size={14} /> : <Plus size={14} />}
-              {atLimit ? 'Upgrade for More' : 'New List'}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {lists.length > 3 && (
+              <div className="relative hidden sm:block">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input value={listSearch} onChange={e => setListSearch(e.target.value)} placeholder="Search lists..." className="h-8 w-40 pl-7 text-xs" />
+              </div>
+            )}
+            {!showCreate && (
+              <Button size="sm" onClick={handleNewListClick}
+                className={cn('gap-1.5', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}>
+                {atLimit ? <Crown size={14} /> : <Plus size={14} />}
+                {atLimit ? 'Upgrade for More' : 'New List'}
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
-      {hideHeader && !showCreate && (
-        <div className="flex justify-end">
-          <Button size="sm" onClick={handleNewListClick}
-            className={cn('gap-1.5', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}>
-            {atLimit ? <Crown size={14} /> : <Plus size={14} />}
-            {atLimit ? 'Upgrade for More' : 'New List'}
-          </Button>
+      {/* Mobile search */}
+      {lists.length > 3 && (
+        <div className="sm:hidden relative">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input value={listSearch} onChange={e => setListSearch(e.target.value)} placeholder="Search your lists..." className="h-9 w-full pl-8 text-sm" />
         </div>
       )}
 
@@ -322,7 +381,7 @@ export function ReadingListsClient({
       )}
 
       {/* ── Empty state ── */}
-      {lists.length === 0 && !showCreate ? (
+      {filteredLists.length === 0 && lists.length === 0 && !showCreate ? (
         <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
           <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
@@ -348,144 +407,88 @@ export function ReadingListsClient({
             </Link>
           </div>
         </div>
-      ) : lists.length > 0 && (
+      ) : filteredLists.length === 0 && listSearch ? (
+        <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-3">
+          <Search size={20} className="mx-auto text-muted-foreground/50" />
+          <p className="font-bold text-sm">No lists match &quot;{listSearch}&quot;</p>
+          <Button variant="ghost" size="sm" onClick={() => setListSearch('')}>Clear search</Button>
+        </div>
+      ) : filteredLists.length > 0 && (
         <>
-          {/* ── MOBILE: Pinterest two-column — NO FAB here, FAB only on public /lists page ── */}
+          {/* ── MOBILE: Pinterest two-column — CLEAN, kebab only ── */}
           <div className="sm:hidden grid grid-cols-2 gap-3 items-start">
             <div className="flex flex-col gap-3">
-              {lists.filter((_, i) => i % 2 === 0).map((list, posInCol) => {
+              {filteredLists.filter((_, i) => i % 2 === 0).map((list, posInCol) => {
                 const ti        = themeIndex(list.id)
                 const covers    = getCoverPreviews(list)
                 const count     = itemCount(list)
                 const locked    = isLocked(list.id)
                 const cardH     = ['h-36', 'h-44', 'h-52'][posInCol % 3]
-                const isEditing = editingId === list.id
 
                 return (
                   <div key={list.id} className={cn(
-                    'rounded-2xl border overflow-hidden relative',
-                    isEditing ? 'bg-card' : 'cursor-pointer ' + cardH,
-                    !isEditing && (locked ? 'border-dashed border-amber-500/30 opacity-75' : THEME_BORDER[ti]),
-                    isEditing && THEME_BORDER[ti]
+                    'rounded-2xl border overflow-hidden relative cursor-pointer',
+                    cardH,
+                    locked ? 'border-dashed border-amber-500/30 opacity-75' : THEME_BORDER[ti]
                   )}>
-                    {isEditing ? (
-                      <div className="p-3 space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Rename</p>
-                        <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-8 text-sm" autoFocus
-                          onKeyDown={e => { if (e.key === 'Enter') handleRename(list.id); if (e.key === 'Escape') setEditingId(null) }} />
-                        <div className="flex gap-1.5">
-                          <Button size="sm" className="h-7 text-xs flex-1 gap-1" onClick={() => handleRename(list.id)} disabled={!editName.trim()}>
-                            <Check size={11} /> Save
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setEditingId(null)}>
-                            <X size={11} />
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-                        <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
-                          {list.is_public
-                            ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
-                            : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Private</span>
-                          }
-                          {count > 0 && (
-                            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', THEME_ACCENT[ti])}>
-                              <BookOpen size={7} /> {count}
-                            </span>
-                          )}
-                        </div>
-                        <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
-                        <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
-                          <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
-                          <div className="flex items-center gap-1.5 relative z-30">
-                            <button onClick={e => { e.preventDefault(); e.stopPropagation(); setEditingId(list.id); setEditName(list.name) }} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10" title="Rename">
-                              <Pencil size={9} />
-                            </button>
-                            <button onClick={e => handleShare(list.id, e)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10">
-                              <Share2 size={9} /> Share
-                            </button>
-                            <button onClick={e => handleTogglePublic(list.id, list.is_public, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                              {list.is_public ? <Lock size={10} /> : <Globe size={10} />}
-                            </button>
-                            <button onClick={e => handleDelete(list.id, e)} disabled={deletingId === list.id} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-red-500/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                              {deletingId === list.id ? <Loader2 size={9} className="animate-spin" /> : <Trash2 size={9} />}
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
+                    <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+                    <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
+                      {list.is_public
+                        ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
+                        : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Private</span>
+                      }
+                      {count > 0 && (
+                        <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', THEME_ACCENT[ti])}>
+                          <BookOpen size={7} /> {count}
+                        </span>
+                      )}
+                    </div>
+                    <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
+                    <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 flex items-end justify-between gap-2">
+                      <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md flex-1 min-w-0">{list.name}</p>
+                      <button onClick={e => { e.preventDefault(); e.stopPropagation(); setActionSheetList(list) }} className="shrink-0 ml-auto w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md text-white flex items-center justify-center transition-colors border border-white/20" aria-label="Actions">
+                        <MoreVertical size={12} />
+                      </button>
+                    </div>
                   </div>
                 )
               })}
             </div>
             <div className="flex flex-col gap-3">
-              {lists.filter((_, i) => i % 2 === 1).map((list, posInCol) => {
+              {filteredLists.filter((_, i) => i % 2 === 1).map((list, posInCol) => {
                 const ti        = themeIndex(list.id)
                 const covers    = getCoverPreviews(list)
                 const count     = itemCount(list)
                 const locked    = isLocked(list.id)
                 const cardH     = ['h-44', 'h-52', 'h-36'][posInCol % 3]
-                const isEditing = editingId === list.id
 
                 return (
                   <div key={list.id} className={cn(
-                    'rounded-2xl border overflow-hidden relative',
-                    isEditing ? 'bg-card' : 'cursor-pointer ' + cardH,
-                    !isEditing && (locked ? 'border-dashed border-amber-500/30 opacity-75' : THEME_BORDER[ti]),
-                    isEditing && THEME_BORDER[ti]
+                    'rounded-2xl border overflow-hidden relative cursor-pointer',
+                    cardH,
+                    locked ? 'border-dashed border-amber-500/30 opacity-75' : THEME_BORDER[ti]
                   )}>
-                    {isEditing ? (
-                      <div className="p-3 space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-primary">Rename</p>
-                        <Input value={editName} onChange={e => setEditName(e.target.value)} className="h-8 text-sm" autoFocus
-                          onKeyDown={e => { if (e.key === 'Enter') handleRename(list.id); if (e.key === 'Escape') setEditingId(null) }} />
-                        <div className="flex gap-1.5">
-                          <Button size="sm" className="h-7 text-xs flex-1 gap-1" onClick={() => handleRename(list.id)} disabled={!editName.trim()}>
-                            <Check size={11} /> Save
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-7 text-xs px-2" onClick={() => setEditingId(null)}>
-                            <X size={11} />
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-                        <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
-                          {list.is_public
-                            ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
-                            : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Private</span>
-                          }
-                          {count > 0 && (
-                            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', THEME_ACCENT[ti])}>
-                              <BookOpen size={7} /> {count}
-                            </span>
-                          )}
-                        </div>
-                        <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
-                        <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
-                          <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
-                          <div className="flex items-center gap-1.5 relative z-30">
-                            <button onClick={e => { e.preventDefault(); e.stopPropagation(); setEditingId(list.id); setEditName(list.name) }} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10" title="Rename">
-                              <Pencil size={9} />
-                            </button>
-                            <button onClick={e => handleShare(list.id, e)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10">
-                              <Share2 size={9} /> Share
-                            </button>
-                            <button onClick={e => handleTogglePublic(list.id, list.is_public, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                              {list.is_public ? <Lock size={10} /> : <Globe size={10} />}
-                            </button>
-                            <button onClick={e => handleDelete(list.id, e)} disabled={deletingId === list.id} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-red-500/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                              {deletingId === list.id ? <Loader2 size={9} className="animate-spin" /> : <Trash2 size={9} />}
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    )}
+                    <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+                    <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
+                      {list.is_public
+                        ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
+                        : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Private</span>
+                      }
+                      {count > 0 && (
+                        <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', THEME_ACCENT[ti])}>
+                          <BookOpen size={7} /> {count}
+                        </span>
+                      )}
+                    </div>
+                    <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
+                    <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 flex items-end justify-between gap-2">
+                      <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md flex-1 min-w-0">{list.name}</p>
+                      <button onClick={e => { e.preventDefault(); e.stopPropagation(); setActionSheetList(list) }} className="shrink-0 ml-auto w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md text-white flex items-center justify-center transition-colors border border-white/20" aria-label="Actions">
+                        <MoreVertical size={12} />
+                      </button>
+                    </div>
                   </div>
                 )
               })}
@@ -494,12 +497,11 @@ export function ReadingListsClient({
 
           {/* ── DESKTOP: grid ── */}
           <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {lists.map((list) => {
+            {filteredLists.map((list) => {
               const ti        = themeIndex(list.id)
               const covers    = getCoverPreviews(list)
               const count     = itemCount(list)
               const locked    = isLocked(list.id)
-              const isEditing = editingId === list.id
 
               return (
                 <div key={list.id} className={cn(
@@ -544,20 +546,10 @@ export function ReadingListsClient({
                   </div>
                   <div className="p-4 space-y-3">
                     <div>
-                      {isEditing ? (
-                        <div className="flex gap-2">
-                          <Input value={editName} onChange={e => setEditName(e.target.value)}
-                            className="h-8 text-sm" autoFocus
-                            onKeyDown={e => { if (e.key === 'Enter') handleRename(list.id); if (e.key === 'Escape') setEditingId(null) }} />
-                          <Button size="sm" className="h-8 text-xs px-3 shrink-0" onClick={() => handleRename(list.id)}>Save</Button>
-                          <Button variant="ghost" size="sm" className="h-8 text-xs px-2 shrink-0" onClick={() => setEditingId(null)}>✕</Button>
-                        </div>
-                      ) : (
-                        <Link href={`${basePath}/${list.id}`} className={cn('font-black text-sm hover:text-primary transition-colors line-clamp-1 block', locked && 'hover:text-amber-500')}>
-                          {list.name}
-                        </Link>
-                      )}
-                      {list.description && !isEditing && (
+                      <Link href={`${basePath}/${list.id}`} className={cn('font-black text-sm hover:text-primary transition-colors line-clamp-1 block', locked && 'hover:text-amber-500')}>
+                        {list.name}
+                      </Link>
+                      {list.description && (
                         <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{list.description}</p>
                       )}
                     </div>
@@ -574,28 +566,14 @@ export function ReadingListsClient({
                       <Link href={`${basePath}/${list.id}`} className="flex-1">
                         <Button variant="outline" size="sm" className="w-full h-7 text-xs gap-1.5 hover:border-primary/40 hover:text-primary">View</Button>
                       </Link>
-                      {!locked && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary"
-                          onClick={() => { setEditingId(list.id); setEditName(list.name) }} title="Rename">
-                          <Pencil size={12} />
-                        </Button>
-                      )}
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        onClick={e => handleTogglePublic(list.id, list.is_public, e)} title={list.is_public ? 'Make private' : 'Make public'}>
-                        {list.is_public ? <Lock size={12} /> : <Globe size={12} />}
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        onClick={e => handleShare(list.id, e)} title="Share">
-                        <Share2 size={12} />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={e => handleDelete(list.id, e)} disabled={deletingId === list.id}>
-                        {deletingId === list.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                        onClick={() => setActionSheetList(list)} title="Actions">
+                        <MoreVertical size={14} />
                       </Button>
                     </div>
                   </div>
                   <Link href={`${basePath}/${list.id}`}
-                    className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity" tabIndex={-1}>
+                    className="absolute bottom-4 right-12 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity" tabIndex={-1}>
                     <ArrowRight size={14} className={locked ? 'text-amber-500' : 'text-muted-foreground'} />
                   </Link>
                 </div>
