@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet'
 import { CollectionsSkeleton } from '@/components/collections/CollectionsSkeleton'
 
 interface Collection {
@@ -146,53 +147,6 @@ function StackedCover({
   )
 }
 
-// ── Reusable card action menu — replaces a row of loose icon buttons with
-// a single kebab trigger + dropdown, so cards don't get crowded as more
-// actions (Edit, Share, Publish toggle, Delete) accumulate. ──
-interface MenuAction {
-  label:     string
-  icon:      React.ReactNode
-  onClick:   (e: React.MouseEvent) => void
-  destructive?: boolean
-}
-
-function CardActionMenu({ actions, open, onToggle }: {
-  actions:  MenuAction[]
-  open:     boolean
-  onToggle: (e: React.MouseEvent) => void
-}) {
-  return (
-    <div className="relative">
-      <button
-        onClick={onToggle}
-        className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
-      >
-        <MoreVertical size={11} />
-      </button>
-      {open && (
-        <div
-          onClick={e => e.stopPropagation()}
-          className="absolute bottom-full right-0 mb-1 z-30 bg-card border border-border rounded-xl shadow-xl overflow-hidden min-w-[140px]"
-        >
-          {actions.map(a => (
-            <button
-              key={a.label}
-              onClick={a.onClick}
-              className={cn(
-                'w-full flex items-center gap-2 px-3 py-2.5 text-xs text-left hover:bg-accent transition-colors',
-                a.destructive && 'text-destructive hover:bg-destructive/10'
-              )}
-            >
-              {a.icon}
-              {a.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 interface Props {
   userId: string | null
   isProUser: boolean
@@ -215,7 +169,11 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
   const [savingId,    setSavingId]    = useState<string | null>(null)
   const [savedIds,    setSavedIds]    = useState<Set<string>>(() => new Set(savedCollectionIds))
   const [authPrompt, setAuthPrompt] = useState(false)
-  const [openMenuId,  setOpenMenuId]  = useState<string | null>(null)
+
+  // ── Action sheet — replaces the old anchored kebab dropdown, which could
+  // drift off the card's left edge on mobile. This floats centered in the
+  // viewport instead, tracking which collection it's currently open for. ──
+  const [actionSheetCollection, setActionSheetCollection] = useState<Collection | null>(null)
 
   const [form, setForm] = useState({
     title:        '',
@@ -225,7 +183,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
     is_published: true,
   })
 
-  // ── Edit modal state (per-card, not just detail page) ──
   const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
   const [editForm, setEditForm] = useState({
     title:        '',
@@ -245,14 +202,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
       setShowCreate(true)
     }
   }, [searchParams, userId])
-
-  // Close any open card menu on outside click
-  useEffect(() => {
-    if (!openMenuId) return
-    const close = () => setOpenMenuId(null)
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
-  }, [openMenuId])
 
   const fetchCollections = async () => {
     setLoading(true)
@@ -306,7 +255,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
       theme_color:  col.theme_color,
       is_published: col.is_published,
     })
-    setOpenMenuId(null)
   }
 
   const handleEditSave = async () => {
@@ -336,7 +284,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
 
   const handleTogglePublish = async (id: string, current: boolean, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
-    setOpenMenuId(null)
     try {
       await fetch(`/api/collections/${id}`, {
         method:  'PATCH',
@@ -352,7 +299,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
 
   const handleDelete = async (id: string, title: string, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
-    setOpenMenuId(null)
     if (!confirm(`Delete "${title}"? This cannot be undone.`)) return
     setDeletingId(id)
     try {
@@ -397,7 +343,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
 
   const handleShare = async (id: string, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
-    setOpenMenuId(null)
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/collections/${id}`)
       toast.success('Link copied!')
@@ -405,6 +350,13 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
       toast.error('Failed to copy link')
     }
   }
+
+  const buildOwnerActions = (col: Collection): ActionSheetAction[] => [
+    { label: 'Edit', icon: <Pencil size={15} />, onClick: (e) => openEditModal(e, col) },
+    { label: 'Share', icon: <Share2 size={15} />, onClick: (e) => handleShare(col.id, e) },
+    { label: col.is_published ? 'Unpublish' : 'Publish', icon: col.is_published ? <Lock size={15} /> : <Globe size={15} />, onClick: (e) => handleTogglePublish(col.id, col.is_published, e) },
+    { label: 'Delete', icon: deletingId === col.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />, onClick: (e) => handleDelete(col.id, col.title, e), destructive: true },
+  ]
 
   const renderCard = (col: Collection, cardH: string) => {
     const isOwner     = col.user_id === userId
@@ -417,13 +369,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
     const avatar      = col.profiles?.avatar_url
     const username    = col.profiles?.username
     const saveLabel   = getSaveLabel(col.save_count, isSaved)
-    const menuOpen    = openMenuId === col.id
-
-    const ownerActions: MenuAction[] = [
-      { label: 'Edit', icon: <Pencil size={12} />, onClick: (e) => openEditModal(e, col) },
-      { label: col.is_published ? 'Unpublish' : 'Publish', icon: col.is_published ? <Lock size={12} /> : <Globe size={12} />, onClick: (e) => handleTogglePublish(col.id, col.is_published, e) },
-      { label: 'Delete', icon: deletingId === col.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />, onClick: (e) => handleDelete(col.id, col.title, e), destructive: true },
-    ]
 
     return (
       <div
@@ -469,15 +414,14 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
             </div>
           )}
 
-          {/* Actions — one primary button + kebab menu for the rest, instead
-              of a crowded row of individual icon buttons */}
           <div className="flex items-center gap-1.5 relative z-30" onClick={e => e.stopPropagation()}>
             {isOwner ? (
-              <CardActionMenu
-                actions={ownerActions}
-                open={menuOpen}
-                onToggle={(e) => { e.stopPropagation(); setOpenMenuId(menuOpen ? null : col.id) }}
-              />
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActionSheetCollection(col) }}
+                className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
+              >
+                <MoreVertical size={11} />
+              </button>
             ) : (
               <>
                 <button
@@ -512,6 +456,14 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
 
   return (
     <div className="space-y-6">
+
+      {/* ── Action sheet — floating/centered, replaces anchored dropdown ── */}
+      <ActionSheet
+        open={!!actionSheetCollection}
+        onClose={() => setActionSheetCollection(null)}
+        title={actionSheetCollection?.title}
+        actions={actionSheetCollection ? buildOwnerActions(actionSheetCollection) : []}
+      />
 
       {/* ── Edit modal ── */}
       {editingCollection && (
@@ -733,7 +685,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
             </div>
           </div>
 
-          {/* ── DESKTOP: original grid — kept as-is, kebab menu applied here too ── */}
+          {/* ── DESKTOP: original grid — same ActionSheet, no more anchored dropdown ── */}
           <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {collections.map((col) => {
               const isOwner     = col.user_id === userId
@@ -744,14 +696,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
               const covers      = getCoverPreviews(col)
               const isSaved     = savedIds.has(col.id)
               const saveLabel   = getSaveLabel(col.save_count, isSaved)
-              const menuOpen    = openMenuId === col.id
-
-              const ownerActions: MenuAction[] = [
-                { label: 'Edit', icon: <Pencil size={12} />, onClick: (e) => openEditModal(e, col) },
-                { label: col.is_published ? 'Unpublish' : 'Publish', icon: col.is_published ? <Lock size={12} /> : <Globe size={12} />, onClick: (e) => handleTogglePublish(col.id, col.is_published, e) },
-                { label: 'Share', icon: <Share2 size={12} />, onClick: (e) => handleShare(col.id, e) },
-                { label: 'Delete', icon: deletingId === col.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />, onClick: (e) => handleDelete(col.id, col.title, e), destructive: true },
-              ]
 
               return (
                 <div
@@ -823,34 +767,12 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
                         </Button>
                       </Link>
                       {isOwner ? (
-                        <div className="relative">
-                          <Button
-                            variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={(e) => { e.stopPropagation(); setOpenMenuId(menuOpen ? null : col.id) }}
-                          >
-                            <MoreVertical size={14} />
-                          </Button>
-                          {menuOpen && (
-                            <div
-                              onClick={e => e.stopPropagation()}
-                              className="absolute bottom-full right-0 mb-1 z-30 bg-card border border-border rounded-xl shadow-xl overflow-hidden min-w-[140px]"
-                            >
-                              {ownerActions.map(a => (
-                                <button
-                                  key={a.label}
-                                  onClick={a.onClick}
-                                  className={cn(
-                                    'w-full flex items-center gap-2 px-3 py-2.5 text-xs text-left hover:bg-accent transition-colors',
-                                    a.destructive && 'text-destructive hover:bg-destructive/10'
-                                  )}
-                                >
-                                  {a.icon}
-                                  {a.label}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <Button
+                          variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActionSheetCollection(col) }}
+                        >
+                          <MoreVertical size={14} />
+                        </Button>
                       ) : (
                         <>
                           <Button

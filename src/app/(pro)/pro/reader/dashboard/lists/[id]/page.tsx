@@ -5,6 +5,8 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Reading List | Pro' }
 
+export const dynamic = 'force-dynamic'
+
 export default async function ProReaderListDetailPage({
   params,
 }: {
@@ -38,6 +40,7 @@ export default async function ProReaderListDetailPage({
       status,
       progress_chapter,
       notes,
+      position,
       last_read_at,
       added_at,
       recommendations (
@@ -52,7 +55,7 @@ export default async function ProReaderListDetailPage({
       )
     `)
     .eq('list_id', id)
-    .order('added_at', { ascending: false })
+    .order('position', { ascending: true })
 
   return (
     <ReadingListDetail
