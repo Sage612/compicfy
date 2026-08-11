@@ -414,11 +414,11 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
             </div>
           )}
 
-          <div className="flex items-center gap-1.5 relative z-30" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-end gap-1.5 relative z-30" onClick={e => e.stopPropagation()}>
             {isOwner ? (
               <button
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActionSheetCollection(col) }}
-                className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
+                className="ml-auto w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
               >
                 <MoreVertical size={11} />
               </button>
