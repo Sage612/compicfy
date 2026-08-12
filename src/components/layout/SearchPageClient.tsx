@@ -157,8 +157,10 @@ function ExternalCard({
 }) {
   const typeColor  = TYPE_COLORS[result.type] ?? TYPE_COLORS.other
   const prefillUrl = buildPrefillUrl(result, isPro)
+  const detailUrl  = `/external/${result.source}/${result.id}`
 
   const handleRecommendClick = (e: React.MouseEvent) => {
+    e.stopPropagation() // don't trigger the card's own navigation
     if (!isLoggedIn) {
       e.preventDefault()
       onAuthRequired(prefillUrl, result.title)
@@ -166,7 +168,10 @@ function ExternalCard({
   }
 
   return (
-    <div className="group flex gap-3 p-3.5 rounded-2xl border border-border bg-card/60 hover:border-primary/30 hover:shadow-md transition-all duration-200">
+    <Link
+      href={detailUrl}
+      className="group flex gap-3 p-3.5 rounded-2xl border border-border bg-card/60 hover:border-primary/30 hover:shadow-md transition-all duration-200"
+    >
       <div className="w-12 h-[68px] rounded-xl overflow-hidden bg-muted shrink-0 shadow-sm">
         {result.coverUrl
           ? <img src={result.coverUrl} alt={result.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -174,7 +179,7 @@ function ExternalCard({
         }
       </div>
       <div className="flex-1 min-w-0 space-y-1 py-0.5">
-        <p className="font-black text-sm line-clamp-2 leading-snug">{result.title}</p>
+        <p className="font-black text-sm line-clamp-2 leading-snug group-hover:text-primary transition-colors">{result.title}</p>
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border bg-primary/10 text-primary border-primary/20">
             <Globe size={8} />
@@ -210,7 +215,7 @@ function ExternalCard({
           </Link>
         </div>
       </div>
-    </div>
+    </Link>
   )
 }
 
