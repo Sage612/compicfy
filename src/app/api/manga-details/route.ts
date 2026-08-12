@@ -116,10 +116,13 @@ async function getAniListDetail(anilistId: string): Promise<MangaDetail | null> 
 // ── MangaUpdates ──────────────────────────────────────────────────
 async function getMangaUpdatesDetail(seriesId: string): Promise<MangaDetail | null> {
   try {
-    const detailRes = await fetch(`https://api.mangaupdates.com/v1/series/${seriesId}`, {
-      next: { revalidate: 3600 },
-    })
-    if (!detailRes.ok) return null
+   const detailRes = await fetch(`https://api.mangaupdates.com/v1/series/${seriesId}`, {
+  next: { revalidate: 3600 },
+})
+if (!detailRes.ok) {
+  console.error('[MangaUpdates detail fetch failed]', seriesId, detailRes.status, await detailRes.text())
+  return null
+}
     const detail = await detailRes.json()
     if (!detail) return null
 
