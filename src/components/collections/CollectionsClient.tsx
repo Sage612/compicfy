@@ -15,8 +15,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
-import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet'
 import { CollectionsSkeleton } from '@/components/collections/CollectionsSkeleton'
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet'
 
 interface Collection {
   id:           string
@@ -147,6 +147,20 @@ function StackedCover({
   )
 }
 
+// Kebab trigger only — no anchored dropdown. Opens the shared ActionSheet
+// (imported from @/components/ui/ActionSheet) rendered once at the
+// component root — see bottom of return.
+function CardMenuTrigger({ onOpen }: { onOpen: (e: React.MouseEvent) => void }) {
+  return (
+    <button
+      onClick={onOpen}
+      className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
+    >
+      <MoreVertical size={11} />
+    </button>
+  )
+}
+
 interface Props {
   userId: string | null
   isProUser: boolean
@@ -169,11 +183,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
   const [savingId,    setSavingId]    = useState<string | null>(null)
   const [savedIds,    setSavedIds]    = useState<Set<string>>(() => new Set(savedCollectionIds))
   const [authPrompt, setAuthPrompt] = useState(false)
-
-  // ── Action sheet — replaces the old anchored kebab dropdown, which could
-  // drift off the card's left edge on mobile. This floats centered in the
-  // viewport instead, tracking which collection it's currently open for. ──
-  const [actionSheetCollection, setActionSheetCollection] = useState<Collection | null>(null)
+  const [openMenuId,  setOpenMenuId]  = useState<string | null>(null)
 
   const [form, setForm] = useState({
     title:        '',
@@ -183,6 +193,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
     is_published: true,
   })
 
+  // ── Edit modal state (per-card, not just detail page) ──
   const [editingCollection, setEditingCollection] = useState<Collection | null>(null)
   const [editForm, setEditForm] = useState({
     title:        '',
@@ -255,6 +266,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
       theme_color:  col.theme_color,
       is_published: col.is_published,
     })
+    setOpenMenuId(null)
   }
 
   const handleEditSave = async () => {
@@ -284,6 +296,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
 
   const handleTogglePublish = async (id: string, current: boolean, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
+    setOpenMenuId(null)
     try {
       await fetch(`/api/collections/${id}`, {
         method:  'PATCH',
@@ -299,6 +312,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
 
   const handleDelete = async (id: string, title: string, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
+    setOpenMenuId(null)
     if (!confirm(`Delete "${title}"? This cannot be undone.`)) return
     setDeletingId(id)
     try {
@@ -343,6 +357,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
 
   const handleShare = async (id: string, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
+    setOpenMenuId(null)
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/collections/${id}`)
       toast.success('Link copied!')
@@ -351,12 +366,16 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
     }
   }
 
-  const buildOwnerActions = (col: Collection): ActionSheetAction[] => [
-    { label: 'Edit', icon: <Pencil size={15} />, onClick: (e) => openEditModal(e, col) },
-    { label: 'Share', icon: <Share2 size={15} />, onClick: (e) => handleShare(col.id, e) },
-    { label: col.is_published ? 'Unpublish' : 'Publish', icon: col.is_published ? <Lock size={15} /> : <Globe size={15} />, onClick: (e) => handleTogglePublish(col.id, col.is_published, e) },
-    { label: 'Delete', icon: deletingId === col.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />, onClick: (e) => handleDelete(col.id, col.title, e), destructive: true },
+  // Single source of truth for the owner action list — used by both the
+  // mobile masonry cards and the desktop grid cards, and by the shared sheet.
+  const getOwnerActions = (col: Collection): ActionSheetAction[] => [
+    { label: 'Edit', icon: <Pencil size={14} />, onClick: (e) => openEditModal(e, col) },
+    { label: col.is_published ? 'Unpublish' : 'Publish', icon: col.is_published ? <Lock size={14} /> : <Globe size={14} />, onClick: (e) => handleTogglePublish(col.id, col.is_published, e) },
+    { label: 'Share', icon: <Share2 size={14} />, onClick: (e) => handleShare(col.id, e) },
+    { label: 'Delete', icon: deletingId === col.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />, onClick: (e) => handleDelete(col.id, col.title, e), destructive: true },
   ]
+
+  const menuTarget = collections.find(c => c.id === openMenuId) ?? null
 
   const renderCard = (col: Collection, cardH: string) => {
     const isOwner     = col.user_id === userId
@@ -414,14 +433,12 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-1.5 relative z-30" onClick={e => e.stopPropagation()}>
+          {/* Actions — one primary button + kebab trigger for the rest.
+              The kebab opens the shared bottom sheet (defined once, below),
+              not a locally-anchored dropdown. */}
+          <div className={cn('flex items-center gap-1.5 relative z-30', isOwner && 'justify-end')} onClick={e => e.stopPropagation()}>
             {isOwner ? (
-              <button
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActionSheetCollection(col) }}
-                className="ml-auto w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
-              >
-                <MoreVertical size={11} />
-              </button>
+              <CardMenuTrigger onOpen={(e) => { e.stopPropagation(); setOpenMenuId(col.id) }} />
             ) : (
               <>
                 <button
@@ -456,14 +473,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
 
   return (
     <div className="space-y-6">
-
-      {/* ── Action sheet — floating/centered, replaces anchored dropdown ── */}
-      <ActionSheet
-        open={!!actionSheetCollection}
-        onClose={() => setActionSheetCollection(null)}
-        title={actionSheetCollection?.title}
-        actions={actionSheetCollection ? buildOwnerActions(actionSheetCollection) : []}
-      />
 
       {/* ── Edit modal ── */}
       {editingCollection && (
@@ -685,7 +694,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
             </div>
           </div>
 
-          {/* ── DESKTOP: original grid — same ActionSheet, no more anchored dropdown ── */}
+          {/* ── DESKTOP: original grid — kebab trigger opens the same shared sheet ── */}
           <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {collections.map((col) => {
               const isOwner     = col.user_id === userId
@@ -769,7 +778,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
                       {isOwner ? (
                         <Button
                           variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActionSheetCollection(col) }}
+                          onClick={(e) => { e.stopPropagation(); setOpenMenuId(col.id) }}
                         >
                           <MoreVertical size={14} />
                         </Button>
@@ -798,14 +807,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
                 </div>
               )
             })}
-            <AuthPromptModal
-              open={authPrompt}
-              onClose={() => setAuthPrompt(false)}
-              config={{
-                action: 'save collections',
-                icon:   <Bookmark size={24} className="text-primary" />,
-              }}
-            />
           </div>
         </>
       )}
@@ -818,6 +819,23 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
         </div>
       )}
 
+      {/* ── Shared action sheet — one instance for both mobile & desktop cards ── */}
+      <ActionSheet
+        open={!!menuTarget}
+        onClose={() => setOpenMenuId(null)}
+        title={menuTarget?.title}
+        actions={menuTarget ? getOwnerActions(menuTarget) : []}
+      />
+
+      {/* Moved out of the desktop-only grid — was never reachable on mobile before */}
+      <AuthPromptModal
+        open={authPrompt}
+        onClose={() => setAuthPrompt(false)}
+        config={{
+          action: 'save collections',
+          icon:   <Bookmark size={24} className="text-primary" />,
+        }}
+      />
 
     </div>
   )

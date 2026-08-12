@@ -478,6 +478,33 @@ export type Database = {
         }
       }
 
+      user_comic_sources: {
+        Row: {
+          id:                string
+          user_id:           string
+          recommendation_id: string
+          url:               string
+          label:             string
+          chapter_range:     string | null
+          created_at:        string
+          updated_at:        string
+        }
+        Insert: {
+          id?:                string
+          user_id:            string
+          recommendation_id:  string
+          url:                string
+          label:              string
+          chapter_range?:     string | null
+        }
+        Update: {
+          url?:               string
+          label?:             string
+          chapter_range?:     string | null
+          updated_at?: string
+        }
+      }
+
       reviews: {
         Row: {
           id: string
@@ -933,6 +960,10 @@ export type ReadingList           = Database['public']['Tables']['reading_lists'
 export type ReadingListItem       = Database['public']['Tables']['reading_list_items']['Row']
 export type ReadingListItemInsert = Database['public']['Tables']['reading_list_items']['Insert']
 export type ReadingListItemUpdate = Database['public']['Tables']['reading_list_items']['Update']
+
+export type UserComicSource       = Database['public']['Tables']['user_comic_sources']['Row']
+export type UserComicSourceInsert = Database['public']['Tables']['user_comic_sources']['Insert']
+export type UserComicSourceUpdate = Database['public']['Tables']['user_comic_sources']['Update']
 
 export type DailySubmissionCount       = Database['public']['Tables']['daily_submission_counts']['Row']
 export type DailySubmissionCountInsert = Database['public']['Tables']['daily_submission_counts']['Insert']

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { ReviewSection } from '@/components/recommendations/ReviewSection'
+import { MyReadingSources } from '@/components/recommendations/MyReadingSources'
 import { AddToListButton } from '@/components/recommendations/AddToListButton'
 import { AddToCollectionButton } from '@/components/collections/AddToCollectionButton'
 import { SimilarComics } from '@/components/recommendations/SimilarComics'
@@ -527,6 +528,12 @@ export default async function ComicDetailPage({ params }: Props) {
                   </div>
                 </div>
               )}
+
+              <MyReadingSources
+                comicId={id}
+                isLoggedIn={!!user}
+                isPro={currentUserIsPro}
+              />
 
               {rec.more_info_link && (
                 <MoreInfoSection
