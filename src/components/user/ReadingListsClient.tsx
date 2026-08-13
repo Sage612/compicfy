@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { BookMarked, Plus, Trash2, Globe, Lock,
   Loader2, BookOpen, Pencil, ArrowRight, Crown,
-  Sparkles, Radar, Share2, Star, Check, X,
+  Sparkles, Radar, Share2, Star, Check, X, MoreVertical,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
@@ -15,6 +15,7 @@ import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
 import { createClient } from '@/lib/supabase/client'
 import { hasUnlimitedPerks } from '@/lib/access'
 import { FREE_LIMITS } from '@/lib/utils/constants'
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet'
 
 interface ReadingList {
   id:          string
@@ -118,6 +119,10 @@ export function ReadingListsClient({
   const [renameDesc,   setRenameDesc]   = useState('')
   const [savingRename, setSavingRename] = useState(false)
 
+  // ── Kebab → shared action sheet, replacing the per-card row of
+  // Edit/Share/Toggle/Delete icon buttons. ──
+  const [actionSheetList, setActionSheetList] = useState<ReadingList | null>(null)
+
   const supabase = createClient()
 
   useState(() => {
@@ -159,23 +164,23 @@ export function ReadingListsClient({
     finally  { setCreating(false) }
   }
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation()
+  const handleDelete = async (id: string) => {
     if (!confirm('Delete this list and all its items?')) return
     setDeletingId(id)
     try {
       await fetch(`/api/lists/${id}`, { method: 'DELETE' })
       setLists(prev => prev.filter(l => l.id !== id))
+      setActionSheetList(null)
       toast.success('List deleted')
     } catch { toast.error('Failed to delete') }
     finally  { setDeletingId(null) }
   }
 
-  const openRenameModal = (e: React.MouseEvent, list: ReadingList) => {
-    e.preventDefault(); e.stopPropagation()
+  const openRenameModal = (list: ReadingList) => {
     setRenamingList(list)
     setRenameValue(list.name)
     setRenameDesc(list.description ?? '')
+    setActionSheetList(null)
   }
 
   const handleRenameSave = async () => {
@@ -198,8 +203,7 @@ export function ReadingListsClient({
     finally  { setSavingRename(false) }
   }
 
-  const handleTogglePublic = async (id: string, current: boolean, e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation()
+  const handleTogglePublic = async (id: string, current: boolean) => {
     if (isLocked(id)) { toast.error('Upgrade to Pro to edit this list'); return }
     try {
       await fetch(`/api/lists/${id}`, {
@@ -207,14 +211,15 @@ export function ReadingListsClient({
         body: JSON.stringify({ is_public: !current }),
       })
       setLists(prev => prev.map(l => l.id === id ? { ...l, is_public: !current } : l))
+      setActionSheetList(null)
       toast.success(current ? 'List is now private' : 'List is now public')
     } catch { toast.error('Failed to update') }
   }
 
-  const handleShare = async (id: string, e: React.MouseEvent) => {
-    e.preventDefault(); e.stopPropagation()
+  const handleShare = async (id: string) => {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}/lists/${id}`)
+      setActionSheetList(null)
       toast.success('Link copied!')
     } catch { toast.error('Failed to copy link') }
   }
@@ -224,8 +229,32 @@ export function ReadingListsClient({
     setShowCreate(true)
   }
 
+  const buildOwnerActions = (list: ReadingList): ActionSheetAction[] => [
+    { label: 'Edit', icon: <Pencil size={15} />, onClick: () => openRenameModal(list) },
+    {
+      label: list.is_public ? 'Make Private' : 'Make Public',
+      icon: list.is_public ? <Lock size={15} /> : <Globe size={15} />,
+      onClick: () => handleTogglePublic(list.id, list.is_public),
+    },
+    { label: 'Share', icon: <Share2 size={15} />, onClick: () => handleShare(list.id) },
+    {
+      label: 'Delete',
+      icon: deletingId === list.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />,
+      onClick: () => handleDelete(list.id),
+      destructive: true,
+    },
+  ]
+
   return (
     <div className="space-y-6">
+
+      {/* ── Shared kebab action sheet ── */}
+      <ActionSheet
+        open={!!actionSheetList}
+        onClose={() => setActionSheetList(null)}
+        title={actionSheetList?.name}
+        actions={actionSheetList ? buildOwnerActions(actionSheetList) : []}
+      />
 
       {/* ── Rename modal ── */}
       {renamingList && (
@@ -410,7 +439,7 @@ export function ReadingListsClient({
         </div>
       ) : lists.length > 0 && (
         <>
-          {/* ── MOBILE: Pinterest two-column ── */}
+          {/* ── MOBILE: Pinterest two-column — kebab replaces the icon row ── */}
           <div className="sm:hidden grid grid-cols-2 gap-3 items-start">
             <div className="flex flex-col gap-3">
               {lists.filter((_, i) => i % 2 === 0).map((list, posInCol) => {
@@ -440,22 +469,14 @@ export function ReadingListsClient({
                       )}
                     </div>
                     <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
-                    <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
-                      <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
-                      <div className="flex items-center gap-1.5 relative z-30">
-                        <button onClick={e => openRenameModal(e, list)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10" title="Edit">
-                          <Pencil size={9} />
-                        </button>
-                        <button onClick={e => handleShare(list.id, e)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10">
-                          <Share2 size={9} /> Share
-                        </button>
-                        <button onClick={e => handleTogglePublic(list.id, list.is_public, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                          {list.is_public ? <Lock size={10} /> : <Globe size={10} />}
-                        </button>
-                        <button onClick={e => handleDelete(list.id, e)} disabled={deletingId === list.id} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-red-500/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                          {deletingId === list.id ? <Loader2 size={9} className="animate-spin" /> : <Trash2 size={9} />}
-                        </button>
-                      </div>
+                    <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 flex items-end justify-between gap-2">
+                      <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md flex-1 min-w-0">{list.name}</p>
+                      <button
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); setActionSheetList(list) }}
+                        className="shrink-0 ml-auto w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md text-white flex items-center justify-center transition-colors border border-white/20"
+                      >
+                        <MoreVertical size={12} />
+                      </button>
                     </div>
                   </div>
                 )
@@ -489,22 +510,14 @@ export function ReadingListsClient({
                       )}
                     </div>
                     <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
-                    <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-1.5">
-                      <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">{list.name}</p>
-                      <div className="flex items-center gap-1.5 relative z-30">
-                        <button onClick={e => openRenameModal(e, list)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10" title="Edit">
-                          <Pencil size={9} />
-                        </button>
-                        <button onClick={e => handleShare(list.id, e)} className="flex items-center gap-1 px-2 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-[9px] font-semibold transition-colors border border-white/10">
-                          <Share2 size={9} /> Share
-                        </button>
-                        <button onClick={e => handleTogglePublic(list.id, list.is_public, e)} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                          {list.is_public ? <Lock size={10} /> : <Globe size={10} />}
-                        </button>
-                        <button onClick={e => handleDelete(list.id, e)} disabled={deletingId === list.id} className="w-6 h-6 rounded-lg bg-white/15 hover:bg-red-500/60 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10">
-                          {deletingId === list.id ? <Loader2 size={9} className="animate-spin" /> : <Trash2 size={9} />}
-                        </button>
-                      </div>
+                    <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 flex items-end justify-between gap-2">
+                      <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md flex-1 min-w-0">{list.name}</p>
+                      <button
+                        onClick={e => { e.preventDefault(); e.stopPropagation(); setActionSheetList(list) }}
+                        className="shrink-0 ml-auto w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md text-white flex items-center justify-center transition-colors border border-white/20"
+                      >
+                        <MoreVertical size={12} />
+                      </button>
                     </div>
                   </div>
                 )
@@ -512,7 +525,7 @@ export function ReadingListsClient({
             </div>
           </div>
 
-          {/* ── DESKTOP: grid ── */}
+          {/* ── DESKTOP: grid — kebab replaces the icon row ── */}
           <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {lists.map((list) => {
               const ti     = themeIndex(list.id)
@@ -583,23 +596,11 @@ export function ReadingListsClient({
                       <Link href={`${basePath}/${list.id}`} className="flex-1">
                         <Button variant="outline" size="sm" className="w-full h-7 text-xs gap-1.5 hover:border-primary/40 hover:text-primary">View</Button>
                       </Link>
-                      {!locked && (
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary"
-                          onClick={e => openRenameModal(e, list)} title="Edit">
-                          <Pencil size={12} />
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        onClick={e => handleTogglePublic(list.id, list.is_public, e)} title={list.is_public ? 'Make private' : 'Make public'}>
-                        {list.is_public ? <Lock size={12} /> : <Globe size={12} />}
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        onClick={e => handleShare(list.id, e)} title="Share">
-                        <Share2 size={12} />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        onClick={e => handleDelete(list.id, e)} disabled={deletingId === list.id}>
-                        {deletingId === list.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        onClick={() => setActionSheetList(list)}
+                      >
+                        <MoreVertical size={14} />
                       </Button>
                     </div>
                   </div>
