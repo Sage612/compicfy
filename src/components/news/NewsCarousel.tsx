@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { NewsCard } from './NewsCard'
 import { cn } from '@/lib/utils'
-import type { News } from '@/types/database.types'
+import type { News } from '@/types/app.types'
 
 interface Props {
   news: News[]

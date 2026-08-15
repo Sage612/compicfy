@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { SettingsForm } from '@/components/user/SettingsForm'
 import { isAdmin as isAdminCheck, isProUser } from '@/lib/access'
-import type { Profile } from '@/types/database.types'
+import type { Profile } from '@/types/app.types'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Creator Settings' }

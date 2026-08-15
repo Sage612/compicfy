@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Calendar, Eye, ArrowLeft, ExternalLink } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, formatNumber } from '@/lib/utils/format'
-import type { News } from '@/types/database.types'
+import type { News } from '@/types/app.types'
 import type { Metadata } from 'next'
 import { hasUnlimitedPerks } from '@/lib/access'
 
@@ -86,7 +86,7 @@ export default async function NewsDetailPage({ params }: Props) {
 
   await (supabase as any)
     .from('news')
-    .update({ view_count: news.view_count + 1 })
+    .update({ view_count: (news.view_count ?? 0) + 1 })
     .eq('id', news.id)
 
   const { data: relatedData } = await supabase
@@ -148,11 +148,11 @@ export default async function NewsDetailPage({ params }: Props) {
           <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <Calendar size={14} />
-              {formatDate(news.published_at)}
+              {formatDate(news.published_at ?? news.created_at ?? '')}
             </span>
             <span className="flex items-center gap-1.5">
               <Eye size={14} />
-              {formatNumber(news.view_count)} views
+              {formatNumber(news.view_count ?? 0)} views
             </span>
             {news.author && <span>By {news.author}</span>}
           </div>
@@ -176,7 +176,7 @@ export default async function NewsDetailPage({ params }: Props) {
           <div className="p-5 rounded-xl border border-yellow-500/20 bg-yellow-500/5 space-y-3">
             <AffiliateBadge
               url={news.affiliate_url}
-              disclaimer={news.affiliate_disclaimer}
+              disclaimer={news.affiliate_disclaimer ?? undefined}
             />
           </div>
         )}

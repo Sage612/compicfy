@@ -77,12 +77,11 @@ export async function GET(request: Request) {
     const adult  = searchParams.get('adult')  === 'true'
     const offset = (page - 1) * limit
 
-    // @ts-expect-error - custom RPC
     const { data, error } = await supabase.rpc('search_recommendations', {
-      p_query:  q      || null,
-      p_type:   type   || null,
-      p_genre:  genre  || null,
-      p_status: status || null,
+      p_query:  q      || undefined,
+      p_type:   type   || undefined,
+      p_genre:  genre  || undefined,
+      p_status: status || undefined,
       p_sort:   sort,
       p_adult:  adult,
       p_limit:  limit,

@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import { ComicCard } from './ComicCard'
 import { Loader2 } from 'lucide-react'
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 
 interface Props {
   comicId:       string
-  contentRating: string
+  contentRating: string | null
   showAdult?:    boolean
 }
 

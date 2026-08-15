@@ -6,7 +6,7 @@ import {
   Globe, Users, Pin, ArrowRight, PenLine,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 import { getDashboardRoutes } from '@/lib/utils/routes'
 import type { Metadata } from 'next'
 import { FollowButton } from '@/components/user/FollowButton'

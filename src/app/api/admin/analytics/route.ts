@@ -149,9 +149,9 @@ export async function GET(request: Request) {
       
       // Content distribution queries
       (supabase.rpc as any) ('get_content_by_type'),
-      supabase.rpc('get_content_by_genre'),
-      supabase.rpc('get_content_by_rating'),
-      supabase.rpc('get_content_by_status'),
+      (supabase.rpc as any) ('get_content_by_genre'),
+      (supabase.rpc as any) ('get_content_by_rating'),
+      (supabase.rpc as any) ('get_content_by_status'),
       
       // Engagement
       supabase.from('votes').select('*', { count: 'exact', head: true }).eq('vote_type', 'up'),
@@ -226,8 +226,18 @@ export async function GET(request: Request) {
       rejectedToday: rejectedToday ?? 0,
       avgApprovalTimeHours: null, // Would need more complex calculation
       
-      topVotedComics: topVotedComics ?? [],
-      mostActiveUsers: mostActiveUsers ?? [],
+      topVotedComics: (topVotedComics ?? []).map((c: any) => ({
+        id:     c.id,
+        title:  c.title,
+        score:  c.score ?? 0,
+        author: c.author,
+      })),
+      mostActiveUsers: (mostActiveUsers ?? []).map((u: any) => ({
+        id:              u.id,
+        username:        u.username,
+        recommendations: u.total_recommendations  ?? 0,
+        votes:           u.total_votes_received    ?? 0,
+      })),
     }
 
     return NextResponse.json(data)

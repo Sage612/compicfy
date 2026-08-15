@@ -248,7 +248,11 @@ export default async function ProReaderDashboardPage() {
           <CurrentlyReadingSection initialItems={[]} lists={listsForTracker ?? []} listsHref="/pro/reader/dashboard/lists" />
         </div>
       ) : (
-        <CurrentlyReadingSection initialItems={currentlyReading ?? []} lists={listsForTracker ?? []} listsHref="/pro/reader/dashboard/lists" />
+        <CurrentlyReadingSection
+          initialItems={(currentlyReading ?? []).map((item: any) => ({ ...item, status: item.status ?? 'reading' }))}
+          lists={listsForTracker ?? []}
+          listsHref="/pro/reader/dashboard/lists"
+        />
       )}
 
       {/* Following feed */}

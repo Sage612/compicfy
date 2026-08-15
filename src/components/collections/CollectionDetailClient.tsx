@@ -14,7 +14,7 @@ import { ComicCard } from '@/components/recommendations/ComicCard'
 import { AddToCollectionSearch } from '@/components/collections/AddToCollectionSearch'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { cn } from '@/lib/utils'
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 
 interface CollectionItem {
   id:              string

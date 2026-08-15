@@ -7,7 +7,7 @@ import { ScrollingTitle } from './ScrollingTitle'
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 
 interface Props {
   title: string

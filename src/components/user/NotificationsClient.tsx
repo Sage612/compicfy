@@ -12,19 +12,14 @@ import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import type { Notification as DbNotification } from '@/types/app.types'
 
-interface Notification {
-  id:         string
-  user_id:    string
-  type:       'vote' | 'vote_milestone' | 'review' | 'reply' | 'feature' | 'achievement' | 'system' | 'follow' | 'chapter_update'
-            | 'collection_saved' | 'list_starred' | 'followed_user_posted' | 'admin_new_submission'
-  title:      string
-  content:    string | null
-  data:       any
-  is_read:    boolean
-  read_at:    string | null
-  created_at: string
-}
+// The DB `data` column is typed as Json (a closed union), but each
+// notification type stores a different dynamic payload shape in it
+// (follower_id, recommendation_id, entity_type, etc.) — narrow just
+// that one field to a permissive record rather than losing type
+// safety on every other column.
+export type Notification = Omit<DbNotification, 'data'> & { data: Record<string, any> | null }
 
 const TYPE_META: Record<string, { icon: React.ReactNode; colorClass: string; label: string }> = {
   vote:                 { icon: <ThumbsUp      size={13} className="text-emerald-500"      />, colorClass: 'bg-emerald-500/10 border-emerald-500/20', label: 'Vote'          },
@@ -93,7 +88,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
     )
     if (!followNotifs.length) return
 
-    const ids = [...new Set(followNotifs.map(n => n.data.follower_id as string))]
+    const ids = [...new Set(followNotifs.map(n => n.data?.follower_id as string))]
     const missing = ids.filter(id => !usernameCache[id])
     if (!missing.length) return
 
@@ -364,7 +359,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
                     <span className={cn('inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black border uppercase tracking-wide', meta.colorClass)}>
                       {meta.label}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">{timeAgo(notif.created_at)}</span>
+                    <span className="text-[11px] text-muted-foreground">{notif.created_at ? timeAgo(notif.created_at) : ''}</span>
                     {!notif.is_read && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
                     {isResolvingFollow && (
                       <span className="text-[10px] text-muted-foreground/50 italic">loading profile…</span>

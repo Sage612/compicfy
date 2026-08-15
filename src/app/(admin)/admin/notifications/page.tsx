@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { NotificationsClient } from '@/components/user/NotificationsClient'
 import type { Metadata } from 'next'
-import type { Notification } from '@/types/database.types'
+import type { Notification } from '@/components/user/NotificationsClient'
 
 export const metadata: Metadata = { title: 'Notifications' }
 

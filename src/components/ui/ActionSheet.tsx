@@ -25,7 +25,11 @@ export function ActionSheet({ open, onClose, title, actions }: Props) {
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       <div
         onClick={e => e.stopPropagation()}
-        className="relative w-full sm:max-w-xs bg-card rounded-t-2xl sm:rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[85vh] sm:max-h-none overflow-y-auto"
+        className={cn(
+          'relative w-full sm:max-w-xs bg-card rounded-t-2xl sm:rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[85vh] sm:max-h-none overflow-y-auto',
+        
+          'sm:pb-0 pb-[env(safe-area-inset-bottom)]'
+        )}
       >
         {title && (
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -50,14 +54,11 @@ export function ActionSheet({ open, onClose, title, actions }: Props) {
             </button>
           ))}
         </div>
-        {/* Cancel — mobile-friendly bottom-sheet convention. The sheet docks
-            flush against the true screen bottom (no gap), so its opaque
-            background fully covers whatever sits behind it — including the
-            app's bottom nav bar — instead of floating above it. */}
+       
         <div className="sm:hidden border-t border-border">
           <button
             onClick={onClose}
-            className="w-full px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] text-sm font-semibold text-center text-muted-foreground hover:text-foreground transition-colors"
+            className="w-full px-4 py-3 text-sm font-semibold text-center text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancel
           </button>

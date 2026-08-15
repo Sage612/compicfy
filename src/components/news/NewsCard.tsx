@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Calendar, Eye, ArrowRight } from 'lucide-react'
 import { formatDate, formatNumber } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
-import type { News } from '@/types/database.types'
+import type { News } from '@/types/app.types'
 
 interface Props {
   news:     News
@@ -66,7 +66,7 @@ export function NewsCard({ news, variant = 'default' }: Props) {
           <p className="text-sm font-bold line-clamp-2 leading-tight group-hover:text-primary transition-colors">
             {news.title}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">{formatDate(news.published_at)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{formatDate(news.published_at ?? news.created_at ?? '')}</p>
         </div>
       </Link>
     )
@@ -98,7 +98,7 @@ export function NewsCard({ news, variant = 'default' }: Props) {
               </span>
             )}
             <span className="ml-auto text-xs text-muted-foreground flex items-center gap-1">
-              <Calendar size={11} />{formatDate(news.published_at)}
+              <Calendar size={11} />{formatDate(news.published_at ?? news.created_at ?? '')}
             </span>
           </div>
 
@@ -113,7 +113,7 @@ export function NewsCard({ news, variant = 'default' }: Props) {
 
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
-              <Eye size={11} />{formatNumber(news.view_count)} views
+              <Eye size={11} />{formatNumber(news.view_count ?? 0)} views
             </span>
             <span className="flex items-center gap-1 group-hover:text-primary transition-colors font-semibold">
               Read more <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
@@ -146,8 +146,8 @@ export function NewsCard({ news, variant = 'default' }: Props) {
           <p className="text-sm text-white/60 line-clamp-2">{news.excerpt}</p>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3 text-xs text-white/50">
-              <span className="flex items-center gap-1"><Calendar size={11} />{formatDate(news.published_at)}</span>
-              <span className="flex items-center gap-1"><Eye size={11} />{formatNumber(news.view_count)}</span>
+              <span className="flex items-center gap-1"><Calendar size={11} />{formatDate(news.published_at ?? news.created_at ?? '')}</span>
+              <span className="flex items-center gap-1"><Eye size={11} />{formatNumber(news.view_count ?? 0)}</span>
             </div>
             <span className="flex items-center gap-1 text-xs text-white/50 group-hover:text-white transition-colors">
               Read <ArrowRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
@@ -192,8 +192,8 @@ export function NewsCard({ news, variant = 'default' }: Props) {
           </h3>
           <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">{news.excerpt}</p>
           <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/50">
-            <span className="flex items-center gap-1"><Calendar size={11} />{formatDate(news.published_at)}</span>
-            <span className="flex items-center gap-1"><Eye size={11} />{formatNumber(news.view_count)}</span>
+            <span className="flex items-center gap-1"><Calendar size={11} />{formatDate(news.published_at ?? news.created_at ?? '')}</span>
+            <span className="flex items-center gap-1"><Eye size={11} />{formatNumber(news.view_count ?? 0)}</span>
           </div>
         </div>
       </Link>
@@ -233,8 +233,8 @@ export function NewsCard({ news, variant = 'default' }: Props) {
         </h3>
         <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{news.excerpt}</p>
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/50">
-          <span className="flex items-center gap-1"><Calendar size={11} />{formatDate(news.published_at)}</span>
-          <span className="flex items-center gap-1"><Eye size={11} />{formatNumber(news.view_count)}</span>
+          <span className="flex items-center gap-1"><Calendar size={11} />{formatDate(news.published_at ?? news.created_at ?? '')}</span>
+          <span className="flex items-center gap-1"><Eye size={11} />{formatNumber(news.view_count ?? 0)}</span>
         </div>
       </div>
     </Link>

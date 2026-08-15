@@ -14,8 +14,8 @@ import {
   ThumbsUp, MessageSquare, Bookmark, Trophy,
 } from 'lucide-react'
 import { GENRES, GENRE_MOODS, HOME_MOOD_GENRES, genreSlug } from '@/lib/utils/constants'
-import type { Recommendation } from '@/types/database.types'
-import type { News } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
+import type { News } from '@/types/app.types'
 import type { Metadata } from 'next'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'

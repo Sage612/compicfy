@@ -262,7 +262,7 @@ export default async function ReaderDashboardPage() {
         </div>
       ) : (
         <CurrentlyReadingSection
-          initialItems={currentlyReading ?? []}
+          initialItems={(currentlyReading ?? []).map((item: any) => ({ ...item, status: item.status ?? 'reading' }))}
           lists={listsForTracker ?? []}
           listsHref="/reader/dashboard/lists"
         />

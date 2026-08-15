@@ -4,7 +4,7 @@ import { NewsCarousel } from '@/components/news/NewsCarousel'
 import { NewsCard } from '@/components/news/NewsCard'
 import { NewsFilters } from '@/components/news/NewsFilters'
 import { ScrollText } from 'lucide-react'
-import type { News } from '@/types/database.types'
+import type { News } from '@/types/app.types'
 
 interface Props {
   searchParams: Promise<{

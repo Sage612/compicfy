@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/sheet'
 import { Search, X, SlidersHorizontal, BookOpen, Loader2, Filter } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 import { toast } from 'sonner'
 
 const TYPES = [

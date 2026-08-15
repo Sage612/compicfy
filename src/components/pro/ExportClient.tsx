@@ -11,8 +11,8 @@ interface ReadingList {
   id: string
   name: string
   description: string | null
-  is_public: boolean
-  created_at: string
+  is_public: boolean | null
+  created_at: string | null
   reading_list_items: { count: number }[]
 }
 
@@ -129,7 +129,8 @@ export function ExportClient({ lists }: Props) {
                       <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{list.description}</p>
                     )}
                     <p className="text-[10px] text-muted-foreground mt-1">
-                      {count} comic{count !== 1 ? 's' : ''} · Created {formatDate(list.created_at)}
+                      {count} comic{count !== 1 ? 's' : ''}
+                      {list.created_at ? ` · Created ${formatDate(list.created_at)}` : ''}
                     </p>
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 
 export interface FeedActor {
   user_id:               string

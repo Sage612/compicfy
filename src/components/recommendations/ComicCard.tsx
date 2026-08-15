@@ -5,7 +5,7 @@ import { ThumbsUp, MessageSquare, Bookmark, TrendingUp, Bot } from 'lucide-react
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
 import { TYPE_META, DEFAULT_TYPE_META, resolveStatusMeta } from '@/lib/utils/constants'
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 
 interface ComicCardProps {
   recommendation: Recommendation
@@ -38,7 +38,7 @@ function proxyCover(url: string | null | undefined): string | null {
 export function ComicCard({ recommendation: rec, className, showGenres = true }: ComicCardProps) {
   const accent    = TYPE_META[rec.type as keyof typeof TYPE_META] ?? DEFAULT_TYPE_META
   const status    = resolveStatusMeta(rec.status, (rec as any).translation_status)
-  const score     = rec.score ?? (rec.upvotes - rec.downvotes)
+  const score     = rec.score ?? ((rec.upvotes ?? 0) - (rec.downvotes ?? 0))
   const isNew     = isNewThisWeek(rec.reviewed_at)
   const coverSrc  = proxyCover(rec.cover_url)
 
@@ -144,15 +144,15 @@ export function ComicCard({ recommendation: rec, className, showGenres = true }:
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 @sm/card:gap-x-2.5 text-[9px] text-muted-foreground">
           <span className="flex items-center gap-0.5 shrink-0">
             <ThumbsUp size={8} className="text-emerald-500/70 shrink-0" />
-            {formatNumber(rec.upvotes)}
+            {formatNumber(rec.upvotes ?? 0)}
           </span>
           <span className="flex items-center gap-0.5 shrink-0">
             <MessageSquare size={8} className="text-amber-500/70 shrink-0" />
-            {formatNumber(rec.review_count)}
+            {formatNumber(rec.review_count ?? 0)}
           </span>
           <span className="flex items-center gap-0.5 shrink-0">
             <Bookmark size={8} className="text-blue-500/70 shrink-0" />
-            {formatNumber(rec.save_count)}
+            {formatNumber(rec.save_count ?? 0)}
           </span>
         </div>
 

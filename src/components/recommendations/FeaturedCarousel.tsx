@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight, BookOpen, ThumbsUp, Star, Zap, Users } from 
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
 import { TYPE_META, DEFAULT_TYPE_META, resolveStatusMeta, CAROUSEL_AUTOPLAY_DELAY } from '@/lib/utils/constants'
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 
 interface Props {
   recommendations: Recommendation[]
@@ -222,7 +222,7 @@ export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
             <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted border border-border">
               <span className={cn('text-[10px] font-bold', status.color)}>{status.label}</span>
             </div>
-            {rec.genres?.slice(0, 3).map(g => (
+            {rec.genres?.slice(0, 3).map((g: string) => (
               <span key={g} className="px-2 py-0.5 rounded text-[10px] text-muted-foreground bg-muted border border-border">
                 {g}
               </span>
@@ -247,7 +247,7 @@ export function FeaturedCarousel({ recommendations, adminFeaturedIds }: Props) {
             </Link>
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <ThumbsUp size={12} />
-              {formatNumber(rec.upvotes)}
+              {formatNumber(rec.upvotes ?? 0)}
             </div>
           </div>
         </div>

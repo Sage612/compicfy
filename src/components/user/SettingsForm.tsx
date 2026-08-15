@@ -14,7 +14,7 @@ import { DeleteAccountSection } from '@/components/user/DeleteAccountSection'
 import { toast } from 'sonner'
 import { Loader2, X, User, Heart, Shield, Globe, Sun, Moon, Monitor, Palette, AlertTriangle } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
-import type { Profile } from '@/types/database.types'
+import type { Profile } from '@/types/app.types'
 import { AdultContentToggle } from '@/components/user/AdultContentToggle'
 import { cn } from '@/lib/utils'
 import { useTheme } from 'next-themes'
@@ -62,7 +62,9 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
   const [avatarUrl,        setAvatarUrl]        = useState(profile.avatar_url)
   const [selectedGenres,   setSelectedGenres]   = useState<string[]>(profile.favorite_genres || [])
   const [themePreference,  setThemePreference]  = useState<'dark' | 'light' | 'system'>(
-    profile.theme_preference ?? 'system'
+    profile.theme_preference === 'dark' || profile.theme_preference === 'light'
+      ? profile.theme_preference
+      : 'system'
   )
 
   const { register, handleSubmit, watch, formState: { errors } } = useForm<SettingsFormValues>({

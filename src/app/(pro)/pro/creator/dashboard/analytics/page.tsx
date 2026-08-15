@@ -31,7 +31,16 @@ export default async function ProCreatorAnalyticsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <ProAnalyticsClient
-        recommendations={recommendations ?? []}
+        recommendations={(recommendations ?? []).map(r => ({
+          ...r,
+          upvotes:      r.upvotes      ?? 0,
+          downvotes:    r.downvotes    ?? 0,
+          save_count:   r.save_count   ?? 0,
+          view_count:   r.view_count   ?? 0,
+          review_count: r.review_count ?? 0,
+          score:        r.score        ?? 0,
+          created_at:   r.created_at   ?? '',
+        }))}
         analytics={analytics ?? []}
       />
     </div>

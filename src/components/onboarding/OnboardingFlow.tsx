@@ -8,8 +8,9 @@ import { cn } from '@/lib/utils'
 import {BookOpen, Radar, LayoutList,
   BookMarked, Check, ArrowRight,
   Sparkles, Globe, Bell, Loader2, ThumbsUp, Bookmark, PenLine,
-  User as UserIcon,
+  User as UserIcon, Upload,
 } from 'lucide-react'
+import { ImportListModal } from '@/components/import/ImportListModal'
 import { GENRES } from '@/lib/utils/constants'
 import Image from 'next/image'
 
@@ -135,6 +136,7 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres, n
   const [votingId,       setVotingId]       = useState<string | null>(null)
   const [savingId,       setSavingId]       = useState<string | null>(null)
   const [isMobile,       setIsMobile]       = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
 
   // Detect mobile vs desktop
   useEffect(() => {
@@ -509,6 +511,31 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres, n
               </Button>
             </div>
 
+            {/* NEW: import card, same treatment as the rec-posting card above */}
+            <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 text-left space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Upload size={15} className="text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-black">Already tracking on MAL or AniList?</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Bring your list over in one upload. Takes about a minute, easy to skip if you're not ready.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setShowImportModal(true)}
+                disabled={saving}
+                variant="outline"
+                size="sm"
+                className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10 hover:border-primary/50"
+              >
+                <Upload size={13} />
+                Import my list
+              </Button>
+            </div>
+
             <Button
               onClick={() => handleComplete('/browse')}
               disabled={saving}
@@ -521,6 +548,11 @@ export function OnboardingFlow({ userId, username, displayName, initialGenres, n
             </Button>
           </div>
         )}
+
+        <ImportListModal
+          open={showImportModal}
+          onClose={() => setShowImportModal(false)}
+        />
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import type { Profile } from '@/types/database.types'
+import type { Profile } from '@/types/app.types'
 
 // GET /api/me/status
 // Returns the current user's suspension/ban state.

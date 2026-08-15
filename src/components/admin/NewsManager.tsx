@@ -15,6 +15,26 @@ interface NewsItem {
   id: string
   title: string
   excerpt: string
+  content: string | null
+  source_url: string
+  source_name: string
+  category: string
+  cover_url: string | null
+  is_published: boolean | null
+  is_ai_generated: boolean | null
+  is_affiliate: boolean | null
+  affiliate_url: string | null
+  tags: string[] | null
+  created_at: string | null
+}
+
+interface Props { initialNews: NewsItem[] }
+
+// Form state always holds coalesced, non-null values (see BLANK / startEdit),
+// so it gets its own shape rather than reusing the nullable NewsItem fields.
+interface NewsFormData {
+  title: string
+  excerpt: string
   content: string
   source_url: string
   source_name: string
@@ -25,12 +45,9 @@ interface NewsItem {
   is_affiliate: boolean
   affiliate_url: string
   tags: string[]
-  created_at: string
 }
 
-interface Props { initialNews: NewsItem[] }
-
-const BLANK: Omit<NewsItem, 'id' | 'created_at'> = {
+const BLANK: NewsFormData = {
   title: '', excerpt: '', content: '',
   source_url: '', source_name: '',
   category: 'announcement',
@@ -46,7 +63,7 @@ export function NewsManager({ initialNews }: Props) {
   const [news, setNews]               = useState<NewsItem[]>(initialNews)
   const [expandedId, setExpandedId]   = useState<string | null>(null)
   const [editingId, setEditingId]     = useState<string | 'new' | null>(null)
-  const [editData, setEditData]       = useState<Omit<NewsItem, 'id' | 'created_at'>>(BLANK)
+  const [editData, setEditData]       = useState<NewsFormData>(BLANK)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [aiLoading, setAiLoading]     = useState(false)
 
@@ -69,7 +86,7 @@ export function NewsManager({ initialNews }: Props) {
       source_name:     item.source_name    ?? '',
       category:        item.category       ?? 'announcement',
       cover_url:       item.cover_url      ?? '',
-      is_published:    item.is_published,
+      is_published:    item.is_published    ?? false,
       is_ai_generated: item.is_ai_generated ?? false,
       is_affiliate:    item.is_affiliate   ?? false,
       affiliate_url:   item.affiliate_url  ?? '',
@@ -430,7 +447,7 @@ export function NewsManager({ initialNews }: Props) {
                 {/* Meta */}
                 <p className="text-xs text-muted-foreground">
                   {item.source_name && <span className="font-medium">{item.source_name} · </span>}
-                  {formatDate(item.created_at)}
+                  {item.created_at ? formatDate(item.created_at) : '—'}
                 </p>
 
                 {/* ── Action buttons ──
@@ -467,7 +484,7 @@ export function NewsManager({ initialNews }: Props) {
                         ? 'text-amber-500 border-amber-500/30 hover:bg-amber-500/10'
                         : 'text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10'
                     )}
-                    onClick={() => handleTogglePublish(item.id, item.is_published)}
+                    onClick={() => handleTogglePublish(item.id, !!item.is_published)}
                     disabled={!!actionLoading}
                   >
                     {actionLoading === `${item.id}-publish`

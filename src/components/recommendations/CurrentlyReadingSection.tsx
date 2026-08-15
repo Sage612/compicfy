@@ -20,7 +20,7 @@ interface ReadingItem {
     type:          string
     status:        string
     chapter_count: number | null
-  }
+  } | null
 }
 
 interface ReadingList {

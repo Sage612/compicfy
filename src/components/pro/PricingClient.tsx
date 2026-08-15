@@ -21,13 +21,13 @@ import type { User } from '@supabase/supabase-js'
 interface Props {
   user: User | null
   profile: {
-    is_pro: boolean
+    is_pro: boolean | null
     pro_expires_at: string | null
-    is_patron?: boolean
+    is_patron?: boolean | null
     patron_expires_at?: string | null
-    role: string
-    recommendation_count_this_month: number
-    total_saves: number
+    role: string | null
+    recommendation_count_this_month: number | null
+    total_saves: number | null
     user_type?: string
   } | null
 }

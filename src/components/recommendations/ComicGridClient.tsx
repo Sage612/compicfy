@@ -6,7 +6,7 @@ import { ComicCardSkeleton } from '@/components/recommendations/ComicCardSkeleto
 import { Button } from '@/components/ui/button'
 import { BookOpen, Loader2, Sparkles, LayoutGrid, Lock, Search, Telescope } from 'lucide-react'
 import Link from 'next/link'
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 import { cn } from '@/lib/utils'
 
 interface Props {

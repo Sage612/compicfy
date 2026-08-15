@@ -19,7 +19,7 @@ import { VoteButtons } from '@/components/recommendations/VoteButtons'
 import { SaveButton } from '@/components/recommendations/SaveButton'
 import { ShareButton } from '@/components/recommendations/ShareButton'
 import type { Metadata } from 'next'
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 import { Button } from '@/components/ui/button'
 import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
@@ -174,7 +174,7 @@ function ComicJsonLd({
     bookFormat:   'GraphicNovel',
     inLanguage:   rec.original_language ?? 'ja',
     genre:        rec.genres ?? [],
-    ...(rec.review_count > 0
+    ...((rec.review_count ?? 0) > 0
       ? {
           aggregateRating: {
             '@type':       'AggregateRating',
@@ -353,8 +353,8 @@ export default async function ComicDetailPage({ params }: Props) {
       <div className="grid grid-cols-2 gap-2">
         <VoteButtons
           recommendationId={id}
-          initialUpvotes={rec.upvotes}
-          initialDownvotes={rec.downvotes}
+          initialUpvotes={rec.upvotes ?? 0}
+          initialDownvotes={rec.downvotes ?? 0}
           initialVote={userVote}
           isLoggedIn={!!user}
           comicTitle={rec.title}
@@ -635,7 +635,7 @@ export default async function ComicDetailPage({ params }: Props) {
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
-              <span className="font-[family-name:var(--font-mono)]">{formatDate(rec.created_at)}</span>
+              <span className="font-[family-name:var(--font-mono)]">{rec.created_at ? formatDate(rec.created_at) : ''}</span>
             </div>
           </div>
 

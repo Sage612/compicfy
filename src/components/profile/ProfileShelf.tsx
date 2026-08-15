@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { BookOpen, Crown, ArrowRight } from 'lucide-react'
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 
 interface Props {
   recommendations: Recommendation[]

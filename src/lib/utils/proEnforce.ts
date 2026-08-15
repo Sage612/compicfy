@@ -10,7 +10,7 @@ import { DAILY_LIMITS, FREE_LIMITS, GLOBAL_DAILY_CAP } from './constants'
 import type {
   DailySubmissionCount,
   GlobalDailyStats,
-} from '@/types/database.types'
+} from '@/types/app.types'
 
 interface ProfileRecord {
   total_saves:       number | null

@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button'
 import { GENRES, GENRE_MOODS, genreSlug } from '@/lib/utils/constants'
 import { GenreAnchorFallback } from '@/components/recommendations/GenreAnchorFallback'
 import { ScrollingTitle } from '@/components/recommendations/ScrollingTitle'
-import type { Recommendation } from '@/types/database.types'
+import type { Recommendation } from '@/types/app.types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 interface SearchParams {
