@@ -1,8 +1,9 @@
+// src/components/import/ImportClient.tsx
 'use client'
 
 import { useState, useRef } from 'react'
 import Link from 'next/link'
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileText, ArrowRight, BookMarked } from 'lucide-react'
+import { Upload, Loader2, CheckCircle2, AlertCircle, FileText, ArrowRight, BookMarked, UserPlus, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -11,6 +12,7 @@ type Source = 'myanimelist' | 'anilist'
 interface SkippedTitle {
   title: string
   reason: string
+  coverUrl: string | null
 }
 
 interface JobResult {
@@ -38,6 +40,8 @@ export function ImportClient({ basePath = '/reader/dashboard/lists' }: { basePat
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(null)
   const [result, setResult]   = useState<JobResult | null>(null)
+  const [addingIndex, setAddingIndex] = useState<number | null>(null)
+  const [addedIndexes, setAddedIndexes] = useState<Set<number>>(new Set())
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = (f: File | null) => {
@@ -81,6 +85,28 @@ export function ImportClient({ basePath = '/reader/dashboard/lists' }: { basePat
     setFile(null)
     setError(null)
     setResult(null)
+    setAddedIndexes(new Set())
+  }
+
+  const handleAddCustomEntry = async (skipped: SkippedTitle, index: number) => {
+    if (!result || addingIndex !== null) return
+    setAddingIndex(index)
+    try {
+      const res = await fetch('/api/custom-entries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          list_id: result.list.id,
+          title: skipped.title,
+          cover_url: skipped.coverUrl,
+          source: 'import',
+        }),
+      })
+      if (!res.ok) return
+      setAddedIndexes(prev => new Set([...prev, index]))
+    } finally {
+      setAddingIndex(null)
+    }
   }
 
   return (
@@ -176,7 +202,7 @@ export function ImportClient({ basePath = '/reader/dashboard/lists' }: { basePat
           </div>
 
           <p className="text-xs text-muted-foreground text-center">
-            MangaUpdates and MangaBaka import support is coming soon.
+            MangaUpdates, MangaBaka and more... import support is coming soon.
           </p>
         </>
       )}
@@ -211,13 +237,37 @@ export function ImportClient({ basePath = '/reader/dashboard/lists' }: { basePat
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 {result.job.skipped_titles.length} couldn't be matched
               </p>
-              <div className="max-h-56 overflow-y-auto space-y-1.5">
-                {result.job.skipped_titles.map((s, i) => (
-                  <div key={i} className="text-xs px-3 py-2 rounded-xl bg-muted/40">
-                    <p className="font-medium truncate">{s.title}</p>
-                    <p className="text-muted-foreground text-[10px] mt-0.5">{s.reason}</p>
-                  </div>
-                ))}
+              <div className="max-h-72 overflow-y-auto space-y-1.5">
+                {result.job.skipped_titles.map((s, i) => {
+                  const added  = addedIndexes.has(i)
+                  const adding = addingIndex === i
+                  return (
+                    <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/40">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{s.title}</p>
+                        <p className="text-muted-foreground text-[10px] mt-0.5">{s.reason}</p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant={added ? 'outline' : 'ghost'}
+                        disabled={added || adding}
+                        onClick={() => handleAddCustomEntry(s, i)}
+                        className={cn(
+                          'h-7 px-2.5 text-[11px] gap-1.5 shrink-0',
+                          added && 'border-emerald-500/40 text-emerald-600'
+                        )}
+                      >
+                        {adding
+                          ? <Loader2 size={11} className="animate-spin" />
+                          : added
+                            ? <Check size={11} />
+                            : <UserPlus size={11} />
+                        }
+                        {added ? 'Added' : 'Add'}
+                      </Button>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

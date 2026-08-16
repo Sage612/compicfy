@@ -1,4 +1,3 @@
-
 import { createClient } from '@/lib/supabase/server'
 import { aggregateSearch } from '@/lib/search/mangaAggregator'
 
@@ -8,6 +7,7 @@ export interface MatchResult {
   matchedTitle: string | null
   /** true if the title was found on an external source but not in ComPicfy's own DB */
   foundExternally: boolean
+  externalCoverUrl: string | null
 }
 
 function normalizeTitle(title: string): string {
@@ -44,22 +44,25 @@ export async function matchToComPicfy(
   if (!error) {
     for (const candidate of (candidates ?? []) as RpcCandidate[]) {
       if (isCloseMatch(title, candidate.title)) {
-        return { matched: true, recommendationId: candidate.id, matchedTitle: candidate.title, foundExternally: false }
+        return { matched: true, recommendationId: candidate.id, matchedTitle: candidate.title, foundExternally: false, externalCoverUrl: null }
       }
       if (candidate.alternative_titles_flat && isCloseMatch(title, candidate.alternative_titles_flat)) {
-        return { matched: true, recommendationId: candidate.id, matchedTitle: candidate.title, foundExternally: false }
+        return { matched: true, recommendationId: candidate.id, matchedTitle: candidate.title, foundExternally: false, externalCoverUrl: null }
       }
     }
   }
 
-  // Step 2: nothing in ComPicfy's DB — check externally just to know
-  // whether this is a real title worth surfacing as "not in ComPicfy yet"
-  // vs. likely a typo/garbage entry from the import file.
   try {
     const externalResults = await aggregateSearch(title, 3)
-    const foundExternally = externalResults.some((r) => isCloseMatch(title, r.title))
-    return { matched: false, recommendationId: null, matchedTitle: null, foundExternally }
+    const externalMatch = externalResults.find((r) => isCloseMatch(title, r.title))
+    return {
+      matched: false,
+      recommendationId: null,
+      matchedTitle: null,
+      foundExternally: !!externalMatch,
+      externalCoverUrl: externalMatch?.coverUrl || null,
+    }
   } catch {
-    return { matched: false, recommendationId: null, matchedTitle: null, foundExternally: false }
+    return { matched: false, recommendationId: null, matchedTitle: null, foundExternally: false, externalCoverUrl: null }
   }
 }

@@ -1,15 +1,3 @@
-// src/app/api/import/list/route.ts
-//
-// POST /api/import/list — accepts a multipart file upload (MAL or AniList
-// XML export) + a `source` field, parses it, matches each title against
-// ComPicfy via matchToComPicfy(), creates a new reading list named for the
-// import source, and adds every matched title to it with the imported
-// status/progress carried over.
-//
-// Processing is done inline (not a background job/queue) for now — see the
-// note near MAX_ENTRIES_INLINE below on why, and what would need to change
-// to support larger lists safely.
-
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { parseMalXml } from '@/lib/import/parseMalXml'
@@ -91,7 +79,7 @@ export async function POST(req: Request) {
 
   // Create the job row up front so there's a record even if something
   // fails partway through.
-  const { data: job, error: jobError } = await (supabase as any)
+  const { data: job, error: jobError } = await supabase 
     .from('import_jobs')
     .insert({
       user_id: user.id,
@@ -107,7 +95,7 @@ export async function POST(req: Request) {
   }
 
   // Create the destination reading list.
-  const { data: list, error: listError } = await (supabase as any)
+  const { data: list, error: listError } = await supabase
     .from('reading_lists')
     .insert({
       user_id: user.id,
@@ -119,7 +107,7 @@ export async function POST(req: Request) {
     .single()
 
   if (listError || !list) {
-    await (supabase as any)
+    await supabase
       .from('import_jobs')
       .update({ status: 'failed', error_message: 'Failed to create destination reading list' })
       .eq('id', job.id)
@@ -127,7 +115,7 @@ export async function POST(req: Request) {
   }
 
   let matchedCount = 0
-  const skippedTitles: { title: string; reason: string }[] = []
+  const skippedTitles: { title: string; reason: string; coverUrl: string | null }[] = []
 
   for (const entry of entries) {
     const match = await matchToComPicfy(supabase, entry.title)
@@ -136,13 +124,14 @@ export async function POST(req: Request) {
       skippedTitles.push({
         title: entry.title,
         reason: match.foundExternally
-          ? 'Found externally but not yet in ComPicfy — consider recommending it.'
-          : 'No match found.',
+          ? 'Found externally but not yet in ComPicfy — you can add it as a custom entry.'
+          : 'No match found — you can add it as a custom entry.',
+        coverUrl: match.externalCoverUrl,
       })
       continue
     }
 
-    const { error: itemError } = await (supabase as any)
+    const { error: itemError } = await supabase
       .from('reading_list_items')
       .upsert(
         {
@@ -155,14 +144,18 @@ export async function POST(req: Request) {
       )
 
     if (itemError) {
-      skippedTitles.push({ title: entry.title, reason: 'Matched but failed to add to list.' })
+      skippedTitles.push({
+        title: entry.title,
+        reason: 'Matched but failed to add to list.',
+        coverUrl: null,
+      })
       continue
     }
 
     matchedCount += 1
   }
 
-  const { data: finalJob } = await (supabase as any)
+  const { data: finalJob } = await supabase 
     .from('import_jobs')
     .update({
       status: 'completed',

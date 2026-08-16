@@ -219,15 +219,15 @@ export function ListsClient({
   return (
     <div className="space-y-6">
 
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            {/* ── Header ── */}
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
             <Globe size={16} className="text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
-            <p className="text-muted-foreground text-sm">reading journeys from the community</p>
+            <h1 className="text-2xl font-black tracking-tight leading-none">Reading Lists</h1>
+            <p className="text-muted-foreground text-sm mt-1">Reading journeys from the community</p>
           </div>
         </div>
 

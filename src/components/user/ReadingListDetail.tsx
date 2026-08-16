@@ -41,6 +41,8 @@ interface ListItem {
   notes:            string | null
   added_at:         string
   position?:        number | null
+  recommendation_id: string | null
+  custom_entry_id:   string | null
   recommendations: {
     id:            string
     title:         string
@@ -50,7 +52,13 @@ interface ListItem {
     genres:        string[]
     upvotes:       number
     chapter_count: number | null
-  }
+  } | null
+  custom_entries: {
+    id:        string
+    title:     string
+    cover_url: string | null
+    notes:     string | null
+  } | null
 }
 
 const STATUS_META: Record<string, { label: string; dot: string }> = {
@@ -64,6 +72,30 @@ const STATUS_META: Record<string, { label: string; dot: string }> = {
 
 const STATUSES = Object.entries(STATUS_META).map(([value, meta]) => ({ value, ...meta }))
 const MAX_NOTE_LENGTH = 500
+
+function getItemDisplay(item: ListItem) {
+  if (item.recommendations) {
+    return {
+      id: item.recommendations.id,
+      title: item.recommendations.title,
+      coverUrl: item.recommendations.cover_url,
+      type: item.recommendations.type,
+      chapterCount: item.recommendations.chapter_count,
+      isCustom: false as const,
+      clickHref: `/comic/${item.recommendations.id}`,
+    }
+  }
+
+  return {
+    id: item.custom_entries?.id ?? item.id,
+    title: item.custom_entries?.title ?? 'Untitled',
+    coverUrl: item.custom_entries?.cover_url ?? null,
+    type: null,
+    chapterCount: null,
+    isCustom: true as const,
+    clickHref: null,
+  }
+}
 
 interface Props {
   list:         ReadingList
@@ -102,10 +134,23 @@ export function ReadingListDetail({
 
   const handleRemove = async (e: React.MouseEvent, item: ListItem) => {
     e.stopPropagation()
-    if (!confirm(`Remove "${item.recommendations.title}" from this list?`)) return
+    const display = getItemDisplay(item)
+    if (!confirm(`Remove "${display.title}" from this list?`)) return
+
+    const removeQuery = new URLSearchParams()
+    if (item.custom_entry_id) {
+      removeQuery.set('custom_entry_id', item.custom_entry_id)
+    } else if (item.recommendation_id) {
+      removeQuery.set('rec_id', item.recommendation_id)
+    } else {
+      toast.error('Could not determine item id')
+      return
+    }
+
     setRemovingId(item.id)
     try {
-      await fetch(`/api/lists/${list.id}/items?rec_id=${item.recommendations.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/lists/${list.id}/items?${removeQuery.toString()}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
       setItems(prev => prev.filter(i => i.id !== item.id))
       toast.success('Removed from list')
     } catch {
@@ -140,13 +185,17 @@ export function ReadingListDetail({
   const handleSaveNote = async (e: React.MouseEvent, item: ListItem) => {
     e.stopPropagation()
     const trimmed = noteDraft.trim()
+    const idField = item.custom_entry_id
+      ? { custom_entry_id: item.custom_entry_id }
+      : { recommendation_id: item.recommendation_id }
+
     setSavingNoteId(item.id)
     try {
       const res = await fetch(`/api/lists/${list.id}/items`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recommendation_id: item.recommendations.id,
+          ...idField,
           notes: trimmed === '' ? null : trimmed,
         }),
       })
@@ -171,13 +220,18 @@ export function ReadingListDetail({
       setStatusPickerId(null)
       return
     }
+
+    const idField = item.custom_entry_id
+      ? { custom_entry_id: item.custom_entry_id }
+      : { recommendation_id: item.recommendation_id }
+
     setSavingStatusId(item.id)
     try {
       const res = await fetch(`/api/lists/${list.id}/items`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recommendation_id: item.recommendations.id,
+          ...idField,
           status: newStatus,
         }),
       })
@@ -259,7 +313,10 @@ export function ReadingListDetail({
     let result = filterStatus ? items.filter(i => i.status === filterStatus) : items
     const q = searchQuery.trim().toLowerCase()
     if (q) {
-      result = result.filter(i => i.recommendations.title.toLowerCase().includes(q))
+      result = result.filter(i => {
+        const title = i.recommendations?.title ?? i.custom_entries?.title ?? 'Untitled'
+        return title.toLowerCase().includes(q)
+      })
     }
     return result
   }, [items, filterStatus, searchQuery])
@@ -271,7 +328,10 @@ export function ReadingListDetail({
 
   // Cover collage for the banner — up to 5 covers from the list's own comics
   const bannerCovers = useMemo(
-    () => items.map(i => i.recommendations?.cover_url).filter(Boolean).slice(0, 5) as string[],
+    () => items
+      .map(i => i.recommendations?.cover_url ?? i.custom_entries?.cover_url)
+      .filter(Boolean)
+      .slice(0, 5) as string[],
     [items]
   )
 
@@ -317,7 +377,7 @@ export function ReadingListDetail({
           <div className="space-y-0.5">
             <p className="text-sm font-medium text-amber-600">This list is locked</p>
             <p className="text-xs text-muted-foreground/70 leading-relaxed">
-              You can view and update comics already here, but can't add new ones until you resubscribe.
+              You can view and update comics already here, but cannot add new ones until you resubscribe.
             </p>
           </div>
           <Link href="/pricing" className="shrink-0 self-center">
@@ -445,10 +505,10 @@ export function ReadingListDetail({
       ) : (
         <div className="divide-y divide-border/40">
           {filtered.map(item => {
-            const rec        = item.recommendations
+            const display     = getItemDisplay(item)
             const statusMeta = STATUS_META[item.status] ?? STATUS_META.plan_to_read
-            const progressPct = rec.chapter_count && item.progress_chapter
-              ? Math.min(100, Math.round((item.progress_chapter / rec.chapter_count) * 100))
+            const progressPct = display.chapterCount && item.progress_chapter
+              ? Math.min(100, Math.round((item.progress_chapter / display.chapterCount) * 100))
               : null
             const isEditingNote   = editingNoteId === item.id
             const isSavingNote    = savingNoteId === item.id
@@ -474,8 +534,8 @@ export function ReadingListDetail({
                 )}
               >
                 <div
-                  onClick={() => !blockClick && router.push(`/comic/${rec.id}`)}
-                  className={cn('flex gap-4', !blockClick && 'cursor-pointer')}
+                  onClick={() => !blockClick && display.clickHref && router.push(display.clickHref)}
+                  className={cn('flex gap-4', !blockClick && display.clickHref && 'cursor-pointer')}
                 >
                   {canReorder && (
                     <div
@@ -488,10 +548,10 @@ export function ReadingListDetail({
 
                   {/* Cover */}
                   <div className="w-16 aspect-[2/3] rounded-lg overflow-hidden bg-muted shrink-0 shadow-sm group-hover:shadow-md transition-shadow relative">
-                    {rec.cover_url ? (
+                    {display.coverUrl ? (
                       <img
-                        src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
-                        alt={rec.title}
+                        src={`/api/image-proxy?url=${encodeURIComponent(display.coverUrl)}`}
+                        alt={display.title}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -512,11 +572,11 @@ export function ReadingListDetail({
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 space-y-1 flex-1">
                         <p className="font-serif text-base leading-snug line-clamp-1 text-foreground group-hover:opacity-70 transition-opacity">
-                          {rec.title}
+                          {display.title}
                         </p>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-[11px] italic text-muted-foreground/60 lowercase">
-                            {rec.type}
+                            {display.type ?? 'custom'}
                           </p>
                           {progressPct !== null && (
                             <>
@@ -583,15 +643,17 @@ export function ReadingListDetail({
                       )}
                     </div>
 
-                    <ChapterUpdater
-                      comicId={rec.id}
-                      listId={list.id}
-                      currentChapter={item.progress_chapter}
-                      totalChapters={rec.chapter_count}
-                      status={item.status}
-                      compact
-                      onUpdate={(chapter, status) => handleProgressUpdate(item.id, chapter, status)}
-                    />
+                    {!display.isCustom && (
+                      <ChapterUpdater
+                        comicId={display.id}
+                        listId={list.id}
+                        currentChapter={item.progress_chapter}
+                        totalChapters={display.chapterCount}
+                        status={item.status}
+                        compact
+                        onUpdate={(chapter, status) => handleProgressUpdate(item.id, chapter, status)}
+                      />
+                    )}
 
                     <p className="text-[10px] text-muted-foreground/50">Added {formatDate(item.added_at)}</p>
                   </div>

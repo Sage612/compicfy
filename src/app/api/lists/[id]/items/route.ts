@@ -26,7 +26,6 @@ async function isListLocked(
   listId: string,
   userId: string
 ): Promise<boolean> {
-  // Get profile to check pro status
   const { data: profile } = await (supabase as any)
     .from('profiles')
     .select('is_pro, pro_expires_at, role')
@@ -35,7 +34,6 @@ async function isListLocked(
 
   if (!profile) return false
 
-  // Admin, moderator, or active pro = never locked
   const isPro =
     profile.role === 'admin' ||
     ['admin', 'moderator'].includes(profile.role) ||
@@ -44,7 +42,6 @@ async function isListLocked(
 
   if (isPro) return false
 
-  // Get all user lists ordered by creation date (oldest first = free slots)
   const { data: allLists } = await supabase
     .from('reading_lists')
     .select('id')
@@ -53,9 +50,16 @@ async function isListLocked(
 
   if (!allLists) return false
 
-  // First N are free (per FREE_LIMITS.lists SSOT), rest are locked
   const freeListIds = new Set(allLists.slice(0, FREE_LIMITS.lists).map((l: any) => l.id))
   return !freeListIds.has(listId)
+}
+
+function getTargetIdFromBody(body: any): { column: 'recommendation_id' | 'custom_entry_id'; value: string } | null {
+  const { recommendation_id, custom_entry_id } = body
+  if (recommendation_id && custom_entry_id) return null // ambiguous — reject
+  if (recommendation_id) return { column: 'recommendation_id', value: recommendation_id }
+  if (custom_entry_id) return { column: 'custom_entry_id', value: custom_entry_id }
+  return null
 }
 
 // GET /api/lists/[id]/items
@@ -77,8 +81,12 @@ export async function GET(_req: Request, { params }: RouteContext) {
       .from('reading_list_items')
       .select(`
         id, status, progress_chapter, notes, added_at, position,
+        recommendation_id, custom_entry_id,
         recommendations (
-          id, title, cover_url, type, status, genres, upvotes
+          id, title, cover_url, type, status, genres, upvotes, chapter_count
+        ),
+        custom_entries (
+          id, title, cover_url, notes
         )
       `)
       .eq('list_id', listId)
@@ -93,6 +101,8 @@ export async function GET(_req: Request, { params }: RouteContext) {
 }
 
 // POST /api/lists/[id]/items — upsert item, blocked if list is locked
+// (Still recommendation_id-only for adds via search — custom entries are
+// created via /api/custom-entries, which handles its own list-insert.)
 export async function POST(req: Request, { params }: RouteContext) {
   try {
     const { id: listId } = await params
@@ -106,7 +116,6 @@ export async function POST(req: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Block adds to locked lists for free users
     const locked = await isListLocked(supabase, listId, user.id)
     if (locked) {
       return NextResponse.json(
@@ -154,8 +163,8 @@ export async function POST(req: Request, { params }: RouteContext) {
 }
 
 // PATCH /api/lists/[id]/items — update an existing item (status, progress_chapter, notes)
-// Body: { recommendation_id: string, notes?: string | null, status?: string, progress_chapter?: number | null }
-// At least one of notes/status/progress_chapter must be provided.
+// Body: { recommendation_id?: string, custom_entry_id?: string, notes?: string | null, status?: string, progress_chapter?: number | null }
+// Exactly one of recommendation_id/custom_entry_id must be provided, plus at least one of notes/status/progress_chapter.
 export async function PATCH(req: Request, { params }: RouteContext) {
   try {
     const { id: listId } = await params
@@ -169,16 +178,15 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Locked free-tier lists can still be edited for notes/status — only
-    // NEW adds are blocked (see POST). A user shouldn't lose the ability
-    // to annotate comics they already have just because they're over the
-    // free list cap; that's punitive rather than a real upsell lever.
-
     const body = await req.json()
-    const { recommendation_id, notes, status, progress_chapter } = body
+    const { notes, status, progress_chapter } = body
 
-    if (!recommendation_id) {
-      return NextResponse.json({ error: 'recommendation_id is required' }, { status: 400 })
+    const target = getTargetIdFromBody(body)
+    if (!target) {
+      return NextResponse.json(
+        { error: 'Exactly one of recommendation_id or custom_entry_id is required' },
+        { status: 400 }
+      )
     }
 
     if (notes === undefined && status === undefined && progress_chapter === undefined) {
@@ -200,7 +208,6 @@ export async function PATCH(req: Request, { params }: RouteContext) {
           { status: 400 }
         )
       }
-      // Empty string clears the note, same as null
       updates.notes = notes === '' ? null : notes
     }
 
@@ -213,19 +220,25 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       }
       updates.status = status
     }
-
+    
     if (progress_chapter !== undefined) {
+      if (target.column === 'custom_entry_id') {
+        return NextResponse.json(
+          { error: 'progress_chapter cannot be set on a custom entry' },
+          { status: 400 }
+        )
+      }
       if (progress_chapter !== null && (typeof progress_chapter !== 'number' || progress_chapter < 0)) {
         return NextResponse.json({ error: 'progress_chapter must be a non-negative number or null' }, { status: 400 })
       }
       updates.progress_chapter = progress_chapter
     }
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('reading_list_items')
       .update(updates)
       .eq('list_id', listId)
-      .eq('recommendation_id', recommendation_id)
+      .eq(target.column, target.value)
       .select()
       .single()
 
@@ -244,7 +257,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   }
 }
 
-// DELETE /api/lists/[id]/items?rec_id=<uuid>
+// DELETE /api/lists/[id]/items?rec_id=<uuid>  OR  ?custom_entry_id=<uuid>
 export async function DELETE(req: Request, { params }: RouteContext) {
   try {
     const { id: listId } = await params
@@ -258,18 +271,25 @@ export async function DELETE(req: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Allow removes from locked lists — user should be able to clean up
     const { searchParams } = new URL(req.url)
-    const recId = searchParams.get('rec_id')
-    if (!recId) {
-      return NextResponse.json({ error: 'rec_id query param is required' }, { status: 400 })
+    const recId          = searchParams.get('rec_id')
+    const customEntryId  = searchParams.get('custom_entry_id')
+
+    if (!recId && !customEntryId) {
+      return NextResponse.json({ error: 'rec_id or custom_entry_id query param is required' }, { status: 400 })
+    }
+    if (recId && customEntryId) {
+      return NextResponse.json({ error: 'Provide only one of rec_id or custom_entry_id' }, { status: 400 })
     }
 
-    const { error } = await supabase
+    const query = supabase
       .from('reading_list_items')
       .delete()
       .eq('list_id', listId)
-      .eq('recommendation_id', recId)
+
+    const { error } = recId
+      ? await query.eq('recommendation_id', recId)
+      : await query.eq('custom_entry_id', customEntryId!)
 
     if (error) return NextResponse.json({ error: 'Failed to remove item' }, { status: 500 })
 

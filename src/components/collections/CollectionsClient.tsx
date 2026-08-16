@@ -538,20 +538,20 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
       )}
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
             <Layers size={16} className="text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight">Collections</h1>
-            <p className="text-muted-foreground text-sm">
-              {!isProUser && userId && (
-                <span className="text-muted-foreground/60 ml-1">
+            <h1 className="text-2xl font-black tracking-tight leading-none">Collections</h1>
+            {!isProUser && userId && (
+              <p className="text-muted-foreground text-sm mt-1">
+                <span className="text-muted-foreground/60">
                   · {Math.max(0, FREE_LIMIT - collections.filter(c => c.user_id === userId).length)} free slot{FREE_LIMIT - collections.filter(c => c.user_id === userId).length !== 1 ? 's' : ''} remaining
                 </span>
-              )}
-            </p>
+              </p>
+            )}
           </div>
         </div>
 
@@ -560,7 +560,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
             size="sm"
             onClick={() => atLimit ? toast.error('Upgrade to Pro for unlimited collections') : setShowCreate(true)}
             className={cn(
-              'gap-1.5 shrink-0',
+              'gap-1.5 shrink-0 mt-1',
               showMobileCreate ? 'inline-flex' : 'hidden sm:inline-flex',
               atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90'
                 )}

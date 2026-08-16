@@ -19,9 +19,13 @@ export async function GET(_req: Request, { params }: RouteContext) {
       .select(`
         *,
         reading_list_items (
-          id, status, progress_chapter, notes, added_at,
+          id, status, progress_chapter, notes, added_at, position,
+          recommendation_id, custom_entry_id,
           recommendations (
             id, title, cover_url, type, status, genres, upvotes
+          ),
+          custom_entries (
+            id, title, cover_url, notes
           )
         )
       `)
@@ -59,7 +63,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     if (description !== undefined) updates.description = description
     if (is_public   !== undefined) updates.is_public   = is_public
 
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('reading_lists')
       .update(updates)
       .eq('id', id)

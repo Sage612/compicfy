@@ -404,6 +404,47 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_entries: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          source: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          source?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       daily_featured: {
         Row: {
           created_at: string | null
@@ -1346,41 +1387,51 @@ export type Database = {
       reading_list_items: {
         Row: {
           added_at: string | null
+          custom_entry_id: string | null
           id: string
           last_read_at: string | null
           list_id: string
           notes: string | null
           position: number
           progress_chapter: number | null
-          recommendation_id: string
+          recommendation_id: string | null
           status: string | null
           updated_at: string | null
         }
         Insert: {
           added_at?: string | null
+          custom_entry_id?: string | null
           id?: string
           last_read_at?: string | null
           list_id: string
           notes?: string | null
           position?: number
           progress_chapter?: number | null
-          recommendation_id: string
+          recommendation_id?: string | null
           status?: string | null
           updated_at?: string | null
         }
         Update: {
           added_at?: string | null
+          custom_entry_id?: string | null
           id?: string
           last_read_at?: string | null
           list_id?: string
           notes?: string | null
           position?: number
           progress_chapter?: number | null
-          recommendation_id?: string
+          recommendation_id?: string | null
           status?: string | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reading_list_items_custom_entry_id_fkey"
+            columns: ["custom_entry_id"]
+            isOneToOne: false
+            referencedRelation: "custom_entries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reading_list_items_list_id_fkey"
             columns: ["list_id"]

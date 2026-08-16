@@ -305,32 +305,32 @@ export function ReadingListsClient({
 
       {/* ── Header ── */}
       {!hideHeader && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <BookMarked size={16} className="text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black tracking-tight"> Reading Lists</h1>
-              <p className="text-muted-foreground text-sm">
-                {lists.length} list{lists.length !== 1 ? 's' : ''}
-                {isProUser === false && (
-                  <span className="text-muted-foreground/60 ml-1">
-                    · {Math.max(0, FREE_LIMITS.lists - lists.length)} free slot{FREE_LIMITS.lists - lists.length !== 1 ? 's' : ''} remaining
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-          {!showCreate && (
-            <Button size="sm" onClick={handleNewListClick}
-              className={cn('gap-1.5', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}>
-              {atLimit ? <Crown size={14} /> : <Plus size={14} />}
-              {atLimit ? 'Upgrade for More' : 'New List'}
-            </Button>
+  <div className="flex items-start justify-between">
+    <div className="flex items-start gap-3">
+      <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+        <BookMarked size={16} className="text-primary" />
+      </div>
+      <div>
+        <h1 className="text-2xl font-black tracking-tight leading-none"> Reading Lists</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          {lists.length} list{lists.length !== 1 ? 's' : ''}
+          {isProUser === false && (
+            <span className="text-muted-foreground/60 ml-1">
+              · {Math.max(0, FREE_LIMITS.lists - lists.length)} free slot{FREE_LIMITS.lists - lists.length !== 1 ? 's' : ''} remaining
+            </span>
           )}
-        </div>
-      )}
+        </p>
+      </div>
+    </div>
+    {!showCreate && (
+      <Button size="sm" onClick={handleNewListClick}
+        className={cn('gap-1.5 mt-1', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}>
+        {atLimit ? <Crown size={14} /> : <Plus size={14} />}
+        {atLimit ? 'Upgrade for More' : 'New List'}
+      </Button>
+    )}
+  </div>
+)}
 
       {hideHeader && !showCreate && (
         <div className="flex justify-end">
