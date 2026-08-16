@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, BookOpen, Bookmark, Star, Bell,
   Settings, BookMarked, CreditCard, Crown, Plus,
-  Users, Link as LinkIcon, Palette, Layers,
+  Users, Link as LinkIcon, Palette, Layers, Upload,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -18,6 +18,7 @@ const READER_NAV = [
   { href: '/reader/dashboard/recommendations',          label: 'My Recs',         icon: BookOpen,        exact: false, isSubmit: false, excludePaths: ['/reader/dashboard/recommendations/new'] },
   { href: '/reader/dashboard/saved',                    label: 'Saved Comics',    icon: Bookmark,        exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/reader/dashboard/lists',                    label: 'Reading Lists',   icon: BookMarked,      exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/import',                   label: 'Import List',     icon: Upload,          exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/reader/dashboard/collections',              label: 'Collections',     icon: Layers,          exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/reader/dashboard/reviews',                  label: 'My Reviews',      icon: Star,            exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/reader/dashboard/notifications',            label: 'Notifications',   icon: Bell,            exact: false, isSubmit: false, excludePaths: [] as string[] },

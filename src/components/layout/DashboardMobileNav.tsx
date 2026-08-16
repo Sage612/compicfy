@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, BookOpen, Bookmark, BookMarked,
   Bell, Settings, CreditCard, Star, Plus,
-  Users, Link as LinkIcon, Layers,
+  Users, Link as LinkIcon, Layers, Upload,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -17,6 +17,7 @@ const READER_ITEMS = [
   { href: '/reader/dashboard/recommendations',     label: 'My Recs',    icon: BookOpen,        exact: false, isSubmit: false, excludePaths: ['/reader/dashboard/recommendations/new'] },
   { href: '/reader/dashboard/saved',               label: 'Saved',      icon: Bookmark,        exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/reader/dashboard/lists',               label: 'Lists',      icon: BookMarked,      exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/import',              label: 'Import',     icon: Upload,          exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/reader/dashboard/collections',         label: 'Collections',icon: Layers,          exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/reader/dashboard/notifications',       label: 'Alerts',     icon: Bell,            exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/reader/dashboard/reviews',             label: 'Reviews',    icon: Star,            exact: false, isSubmit: false, excludePaths: [] as string[] },

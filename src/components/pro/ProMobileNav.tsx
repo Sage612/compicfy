@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import {
   BarChart2, BookOpen, Bookmark, Bell,
   Settings, LayoutDashboard, BookMarked, Trophy, Download,
-  CreditCard, Star, Plus, Users, Link as LinkIcon, Layers,
+  CreditCard, Star, Plus, Users, Link as LinkIcon, Layers, Upload,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -17,6 +17,7 @@ const PRO_READER_ITEMS = [
   { href: '/pro/reader/dashboard/recommendations',     label: 'My Recs',     icon: BookOpen,        exact: false, isSubmit: false, excludePaths: ['/pro/reader/dashboard/recommendations/new'] },
   { href: '/pro/reader/dashboard/saved',               label: 'Saved',       icon: Bookmark,        exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/pro/reader/dashboard/lists',               label: 'Lists',       icon: BookMarked,      exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/pro/reader/dashboard/import',              label: 'Import',      icon: Upload,          exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/pro/reader/dashboard/collections',         label: 'Collections', icon: Layers,          exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/pro/reader/dashboard/analytics',           label: 'Analytics',   icon: BarChart2,       exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/pro/reader/dashboard/export',              label: 'Export',      icon: Download,        exact: false, isSubmit: false, excludePaths: [] as string[] },

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Crown, BookOpen, Bookmark, BookMarked, Bell, Plus,
-  Settings, CreditCard, Star, BarChart2, Download, Trophy, Layers,
+  Settings, CreditCard, Star, BarChart2, Download, Trophy, Layers, Upload,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -13,6 +13,7 @@ const NAV = [
   { href: '/pro/reader/dashboard/recommendations',     label: 'My Recs',       icon: BookOpen,   exact: false, isSubmit: false, excludePaths: ['/pro/reader/dashboard/recommendations/new'] },
   { href: '/pro/reader/dashboard/saved',               label: 'Saved',         icon: Bookmark,   exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/pro/reader/dashboard/lists',               label: 'Reading Lists', icon: BookMarked, exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/pro/reader/dashboard/import',              label: 'Import List',   icon: Upload,     exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/pro/reader/dashboard/collections',         label: 'Collections',   icon: Layers,     exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/pro/reader/dashboard/reviews',              label: 'My Reviews',    icon: Star,       exact: false, isSubmit: false, excludePaths: [] as string[] },
   { href: '/pro/reader/dashboard/analytics',             label: 'Analytics',     icon: BarChart2,  exact: false, isSubmit: false, excludePaths: [] as string[] },
