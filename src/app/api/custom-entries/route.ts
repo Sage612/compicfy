@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   }
 
   // Create the custom entry.
-  const { data: entry, error: entryError } = await supabase
+  const { data: entry, error: entryError } = await (supabase as any)
     .from('custom_entries')
     .insert({
       user_id: user.id,
@@ -50,24 +50,21 @@ export async function POST(req: Request) {
     .single()
 
   if (entryError || !entry) {
+    console.error('Failed to create custom entry:', entryError)
     return NextResponse.json({ error: 'Failed to create custom entry' }, { status: 500 })
   }
 
-  // Add it to the list. Uses the partial unique index
-  // (list_id, custom_entry_id) added in migration 14 — upsert here mirrors
-  // the existing recommendation_id upsert pattern in
-  // /api/lists/[id]/items/route.ts.
-  const { data: item, error: itemError } = await supabase
+  const { data: item, error: itemError } = await (supabase as any)
     .from('reading_list_items')
-    .upsert(
-      { list_id, custom_entry_id: entry.id, status: 'plan_to_read' },
-      { onConflict: 'list_id,custom_entry_id', ignoreDuplicates: false }
-    )
+    .insert({ list_id, custom_entry_id: entry.id, status: 'plan_to_read' })
     .select()
     .single()
 
   if (itemError) {
-    await supabase.from('custom_entries').delete().eq('id', entry.id)
+    console.error('Failed to add custom entry to list:', itemError)
+    // Roll back the orphaned custom entry rather than leaving it dangling
+    // with nothing pointing to it.
+    await (supabase as any).from('custom_entries').delete().eq('id', entry.id)
     return NextResponse.json({ error: 'Failed to add entry to list' }, { status: 500 })
   }
 

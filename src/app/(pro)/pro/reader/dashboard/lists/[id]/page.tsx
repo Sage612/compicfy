@@ -43,6 +43,8 @@ export default async function ProReaderListDetailPage({
       position,
       last_read_at,
       added_at,
+      recommendation_id,
+      custom_entry_id,
       recommendations (
         id,
         title,
@@ -52,6 +54,12 @@ export default async function ProReaderListDetailPage({
         genres,
         upvotes,
         chapter_count
+      ),
+      custom_entries (
+        id,
+        title,
+        cover_url,
+        notes
       )
     `)
     .eq('list_id', id)
