@@ -71,6 +71,7 @@ export default async function ProReaderListDetailPage({
       initialItems={(items ?? []) as any}
       allLists={allLists ?? []}
       backHref="/pro/reader/dashboard/lists"
+      isPro={true}
     />
   )
 }

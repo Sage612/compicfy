@@ -25,6 +25,9 @@ import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 import { ChapterUpdater } from '@/components/recommendations/ChapterUpdater'
 import { AddToTrackerSearch } from '@/components/recommendations/AddToTrackerSearch'
+import { CustomEntryFooter } from '@/components/lists/CustomEntryFooter'
+import { CustomEntryEditModal } from '@/components/lists/CustomEntryEditModal'
+import { AddCustomEntryModal } from '@/components/lists/AddCustomEntryModal'
 
 interface ReadingList {
   id:          string
@@ -103,6 +106,7 @@ interface Props {
   isLocked?:    boolean
   allLists?:    { id: string; name: string }[]
   backHref?:    string
+  isPro?:       boolean
 }
 
 export function ReadingListDetail({
@@ -111,6 +115,7 @@ export function ReadingListDetail({
   isLocked  = false,
   allLists  = [],
   backHref  = '/dashboard/lists',
+  isPro     = false,
 }: Props) {
   const router = useRouter()
   const [items,        setItems]        = useState(initialItems)
@@ -131,6 +136,12 @@ export function ReadingListDetail({
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
   const [, setReordering]           = useState(false)
+
+  // Custom entry edit modal state
+  const [editingCustomEntry, setEditingCustomEntry] = useState<{
+    id: string; title: string; cover_url: string | null; notes: string | null
+  } | null>(null)
+  const [showAddCustomModal, setShowAddCustomModal] = useState(false)
 
   const handleRemove = async (e: React.MouseEvent, item: ListItem) => {
     e.stopPropagation()
@@ -164,6 +175,11 @@ export function ReadingListDetail({
     setItems(prev => prev.map(i =>
       i.id === itemId ? { ...i, progress_chapter: chapter, status } : i
     ))
+  }
+
+  const handleCustomEntryConverted = () => {
+    // The converted item needs the full recommendation object, so reload for clean data.
+    window.location.reload()
   }
 
   const handleAdded = (_comicId: string, _title: string, _listId: string, _status: string) => {
@@ -415,6 +431,17 @@ export function ReadingListDetail({
           lists={[{ id: list.id, name: list.name }, ...allLists.filter(l => l.id !== list.id)]}
           onAdded={handleAdded}
         />
+      )}
+
+      {/* Manual custom-entry trigger — for anything not on ComPicfy at all */}
+      {!isLocked && (
+        <button
+          type="button"
+          onClick={() => setShowAddCustomModal(true)}
+          className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors -mt-4"
+        >
+          Can&apos;t find it? Track it anyway →
+        </button>
       )}
 
       {/* Search within this list */}
@@ -716,10 +743,79 @@ export function ReadingListDetail({
                     </button>
                   )}
                 </div>
+
+                {/* Custom entry: conversion check + submit nudge + edit */}
+                {display.isCustom && (
+                  <div className="pl-[80px] pt-1.5 flex items-center gap-3" onClick={e => e.stopPropagation()}>
+                    <CustomEntryFooter
+                      customEntryId={item.custom_entry_id!}
+                      title={display.title}
+                      coverUrl={display.coverUrl}
+                      isPro={isPro}
+                      onConverted={handleCustomEntryConverted}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setEditingCustomEntry({
+                        id: item.custom_entry_id!,
+                        title: display.title,
+                        cover_url: display.coverUrl,
+                        notes: item.notes,
+                      })}
+                      className="text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors shrink-0"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                )}
               </div>
             )
           })}
         </div>
+      )}
+
+      {editingCustomEntry && (
+        <CustomEntryEditModal
+          entry={editingCustomEntry}
+          onClose={() => setEditingCustomEntry(null)}
+          onSaved={(updated) => {
+            setItems(prev => prev.map(i =>
+              i.custom_entry_id === updated.id
+                ? { ...i, custom_entries: { ...i.custom_entries, ...updated } }
+                : i
+            ))
+            setEditingCustomEntry(null)
+          }}
+          onDeleted={() => {
+            setItems(prev => prev.filter(i => i.custom_entry_id !== editingCustomEntry.id))
+            setEditingCustomEntry(null)
+          }}
+        />
+      )}
+
+      {showAddCustomModal && (
+        <AddCustomEntryModal
+          listId={list.id}
+          onClose={() => setShowAddCustomModal(false)}
+          onCreated={(entry, item) => {
+            setItems(prev => [
+              ...prev,
+              {
+                id: item.id,
+                status: item.status,
+                progress_chapter: null,
+                notes: item.notes,
+                added_at: item.added_at,
+                recommendation_id: null,
+                custom_entry_id: entry.id,
+                recommendations: null,
+                custom_entries: entry,
+              },
+            ])
+            setShowAddCustomModal(false)
+            toast.success(`Added "${entry.title}" to your list`)
+          }}
+        />
       )}
     </div>
   )

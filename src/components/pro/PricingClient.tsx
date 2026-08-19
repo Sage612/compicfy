@@ -11,8 +11,7 @@ import {
   Download, Bell, ArrowRight,
   Shield, Users, BadgeCheck, Flame,
   Palette, Lock, Sparkles, Loader2, CheckCircle2,
-  Gem, Layers, Shuffle, Tag, Search, Compass,
-  Calendar, MessageSquare, StickyNote, RefreshCw, Send, HelpCircle
+  Gem, Layers, Shuffle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -32,82 +31,61 @@ interface Props {
   } | null
 }
 
-// --- READER TIERS ---
 const READER_FREE = [
-  { icon: BookOpen,      text: 'Limited recommendations per month' },
-  { icon: Bookmark,      text: 'Limited saved comics & reading lists' },
-  { icon: StickyNote,    text: 'Private notes on tracked comics' },
-  { icon: Tag,           text: 'Trope & mood tag filtering' },
-  { icon: Search,        text: 'Internal & multi-platform user search' },
-  { icon: Compass,       text: 'Browse Trending Shelves & Top Lists' },
-  { icon: BookMarked,    text: 'Multi-platform import (MAL/AniList)' },
-  { icon: RefreshCw,     text: 'Smart Importer for custom entries' },
-  { icon: HelpCircle,    text: '"Where did I leave off" reading synopsis' },
-  { icon: Users,         text: 'Find Readers Like Me (Weekly top 3)' },
-  { icon: Calendar,      text: 'Basic Release Radar calendar' },
-  { icon: MessageSquare, text: 'Community reviews & threaded replies' },
-  { icon: Bell,          text: 'Basic chapter & social notifications' },
+  { icon: BookOpen,   text: 'Limited recommendations per month' },
+  { icon: Bookmark,   text: 'Limited saved comics'             },
+  { icon: BookMarked, text: 'Standard reading lists'           },
+  { icon: Star,       text: 'Reviews & voting'                 },
+  { icon: Users,      text: 'Follow other readers'             },
+  { icon: Bell,       text: 'Basic notifications'              },
+]
+
+const CREATOR_FREE = [
+  { icon: BookOpen,   text: 'Submit your works'            },
+  { icon: Users,      text: 'Build your audience'          },
+  { icon: Bookmark,   text: 'Patreon & Kickstarter links'  },
+  { icon: Star,       text: 'Community reviews'            },
+  { icon: Bell,       text: 'Basic notifications'          },
+]
+
+const PRO_STATUS = [
+  { icon: Crown,      text: 'Exclusive 👑 Pro badge on profile'   },
+  { icon: BadgeCheck, text: 'Eligible for Verified badge'         },
+  { icon: Flame,      text: 'Early access to new features'        },
 ]
 
 const READER_PRO_POWER = [
-  { icon: BookOpen,      text: 'Unlimited recommendations & saves' },
-  { icon: BookMarked,    text: 'Unlimited reading lists & collections' },
-  { icon: Layers,        text: 'Nested folders (Limited)' },
-  { icon: Shuffle,       text: 'Shelf pinning (Top 3 pinned comics)' },
-  { icon: Tag,           text: 'Saved filter presets & compound engine' },
-  { icon: BarChart2,     text: 'Personal reader stats & rec analytics' },
-  { icon: RefreshCw,     text: 'Cross-platform source sync & auto last-read link' },
-  { icon: Download,      text: 'Export reading lists (CSV/PDF)' },
-  { icon: Users,         text: 'Find Readers Like Me (Daily top 10 + filters)' },
-  { icon: Calendar,      text: 'Advanced Release Radar (Multi-week + export)' },
-  { icon: BadgeCheck,    text: 'Contributor badge for synopsis edits' },
-  { icon: Zap,           text: 'Priority support' },
-]
-
-const READER_PATRON_POWER = [
-  { icon: Layers,        text: 'Full nested folders (lists & collections)' },
-  { icon: Shuffle,       text: 'Full Manhwa Shelf reordering & custom grid' },
-  { icon: Flame,         text: 'Profile & shelf visibility boost in discovery' },
-  { icon: BarChart2,     text: 'Everything in Pro Reader' },
-]
-
-// --- CREATOR TIERS ---
-const CREATOR_FREE = [
-  { icon: BookOpen,      text: 'Submit & publish your works' },
-  { icon: Users,         text: 'Build & track your audience' },
-  { icon: Bookmark,      text: 'Patreon & Kickstarter link integration' },
-  { icon: Sparkles,      text: 'Concepts & pitch sandbox (Capped)' },
-  { icon: Star,          text: 'Community reviews & feedback' },
-  { icon: Bell,          text: 'Basic notifications' },
+  { icon: BookOpen,  text: 'Unlimited recommendations'      },
+  { icon: Bookmark,  text: 'Unlimited saves'                },
+  { icon: BarChart2, text: 'Recommendation analytics'       },
+  { icon: Download,  text: 'Export reading lists (CSV/PDF)' },
+  { icon: Zap,       text: 'Priority support'               },
 ]
 
 const CREATOR_PRO_POWER = [
-  { icon: Palette,       text: 'Deep audience analytics & work performance' },
-  { icon: Users,         text: 'Follower growth tracking' },
-  { icon: Send,          text: 'Hiatus-to-tracker pushes (Standard limit)' },
-  { icon: Star,          text: 'Super-fan / pinned review slots' },
-  { icon: Sparkles,      text: 'Pitch sandbox (Higher caps + placement boost)' },
-  { icon: Zap,           text: 'Priority submission review queue' },
-]
-
-const CREATOR_PATRON_POWER = [
-  { icon: Users,         text: 'Audience overlap & drop-off analytics' },
-  { icon: Send,          text: 'Unlimited hiatus & update pushes to trackers' },
-  { icon: Sparkles,      text: 'Maximum pitch sandbox caps & featured spot' },
-  { icon: BarChart2,     text: 'Everything in Pro Creator' },
-]
-
-// --- BADGES & RECOGNITION ---
-const PRO_STATUS = [
-  { icon: Crown,      text: 'Exclusive 👑 Pro badge on profile' },
-  { icon: BadgeCheck, text: 'Eligible for Verified badge' },
-  { icon: Flame,      text: 'Early access to new features & Leaderboard' },
+  { icon: Palette,   text: 'Deep audience analytics'        },
+  { icon: BarChart2, text: 'Per-work performance data'      },
+  { icon: Users,     text: 'Follower growth tracking'       },
+  { icon: Zap,       text: 'Priority review queue'          },
+  { icon: Crown,     text: 'Creator Pro badge'              },
 ]
 
 const PATRON_STATUS = [
   { icon: Gem,        text: 'Exclusive 💎 Patron badge on profile' },
-  { icon: BadgeCheck, text: 'Priority eligibility for Verified badge' },
-  { icon: Sparkles,   text: 'Founding Patron recognition' },
+  { icon: BadgeCheck, text: 'Priority eligibility for Verified'    },
+  { icon: Sparkles,   text: 'Founding Patron recognition'          },
+]
+
+const READER_PATRON_POWER = [
+  { icon: Layers,    text: 'Full nested folders (lists & collections)' },
+  { icon: Shuffle,   text: 'Expanded Manhwa Shelf reordering'         },
+  { icon: BarChart2, text: 'Everything in Pro'                        },
+]
+
+const CREATOR_PATRON_POWER = [
+  { icon: Users,     text: 'Audience overlap & drop-off analytics'    },
+  { icon: Bell,      text: 'Unlimited hiatus/update push to trackers' },
+  { icon: BarChart2, text: 'Everything in Pro Creator'                },
 ]
 
 const PRO_YEARLY_BILLED     = '$29.99'
@@ -169,9 +147,9 @@ export function PricingClient({ user, profile }: Props) {
     }
   }
 
-  const freeFeatures = isCreator ? CREATOR_FREE         : READER_FREE
-  const proPower     = isCreator ? CREATOR_PRO_POWER    : READER_PRO_POWER
-  const patronPower  = isCreator ? CREATOR_PATRON_POWER : READER_PATRON_POWER
+  const freeFeatures      = isCreator ? CREATOR_FREE         : READER_FREE
+  const proPower          = isCreator ? CREATOR_PRO_POWER    : READER_PRO_POWER
+  const patronPower       = isCreator ? CREATOR_PATRON_POWER : READER_PATRON_POWER
 
   const heroTitle = isCreator
     ? <>Grow your <span className="text-teal-500">creator studio</span></>
@@ -203,7 +181,7 @@ export function PricingClient({ user, profile }: Props) {
         <p className="text-muted-foreground text-lg max-w-xl mx-auto leading-relaxed">{heroSub}</p>
       </div>
 
-      {/* Already Pro/Patron/Admin Status Banner */}
+      {/* Already Pro/Patron/Admin */}
       {(isAdmin || isPro || isPatron) && (
         <div className={cn(
           'max-w-md mx-auto p-6 rounded-2xl border text-center space-y-3 shadow-sm',
@@ -280,10 +258,10 @@ export function PricingClient({ user, profile }: Props) {
             )}
           </div>
 
-          {/* Pricing Grid */}
+          {/* Pricing grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto items-start">
 
-            {/* Free Card */}
+            {/* Free card */}
             <div className="p-6 rounded-2xl border border-border bg-card flex flex-col h-full">
               <div className="mb-6">
                 <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
@@ -296,8 +274,8 @@ export function PricingClient({ user, profile }: Props) {
               </div>
               <div className="space-y-3 mb-8 flex-grow">
                 {freeFeatures.map(f => (
-                  <div key={f.text} className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                    <Check size={14} className="text-muted-foreground/50 mt-0.5 shrink-0" />
+                  <div key={f.text} className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                    <Check size={14} className="text-muted-foreground/50 shrink-0" />
                     {f.text}
                   </div>
                 ))}
@@ -309,7 +287,7 @@ export function PricingClient({ user, profile }: Props) {
               </Link>
             </div>
 
-            {/* Pro Card */}
+            {/* Pro card */}
             <div className={cn(
               'relative p-6 rounded-2xl border-2 space-y-6 flex flex-col h-full',
               'border-amber-500/40 bg-gradient-to-b from-amber-500/5 to-card'
@@ -376,7 +354,7 @@ export function PricingClient({ user, profile }: Props) {
               </div>
             </div>
 
-            {/* Patron Card */}
+            {/* Patron card */}
             <div className={cn(
               'relative p-6 rounded-2xl border-2 space-y-6 flex flex-col h-full',
               'border-violet-500/40 bg-gradient-to-b from-violet-500/5 to-card'

@@ -17,6 +17,17 @@ export default async function ReaderListDetailPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_pro, pro_expires_at, role')
+    .eq('id', user.id)
+    .single()
+
+  const isPro =
+    (profile as any)?.role === 'admin' ||
+    !!((profile as any)?.is_pro &&
+      (!(profile as any).pro_expires_at || new Date((profile as any).pro_expires_at) > new Date()))
+
   const { data: list } = await supabase
     .from('reading_lists')
     .select('id, name, description, is_public, created_at')
@@ -71,6 +82,7 @@ export default async function ReaderListDetailPage({
       initialItems={(items ?? []) as any}
       allLists={allLists ?? []}
       backHref="/reader/dashboard/lists"
+      isPro={isPro}
     />
   )
 }
