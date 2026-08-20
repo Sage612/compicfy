@@ -1,49 +1,80 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface ActionSheetAction {
-  label:        string
-  icon:         React.ReactNode
-  onClick:      (e: React.MouseEvent) => void
+  label: string
+  icon: React.ReactNode
+  onClick: (e: React.MouseEvent) => void
   destructive?: boolean
 }
 
 interface Props {
-  open:    boolean
+  open: boolean
   onClose: () => void
-  title?:  string
+  title?: string
   actions: ActionSheetAction[]
 }
 
 export function ActionSheet({ open, onClose, title, actions }: Props) {
-  if (!open) return null
+  const [mounted, setMounted] = useState(false)
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center">
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
+
+  if (!open || !mounted) return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100]">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
       <div
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         className={cn(
-          'relative w-full sm:max-w-xs bg-card rounded-t-2xl sm:rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[85vh] sm:max-h-none overflow-y-auto',
-        
-          'sm:pb-0 pb-[env(safe-area-inset-bottom)]'
+          // Mobile: flush to the viewport bottom. Desktop: centered.
+          'absolute bottom-0 left-0 right-0 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2',
+          'w-full sm:max-w-xs bg-card rounded-t-2xl sm:rounded-2xl',
+          // No bottom border on mobile — a full border + bottom-0 is what leaves the 1px gap
+          'border-t border-x sm:border border-border shadow-2xl',
+          'overflow-hidden max-h-[85vh] sm:max-h-none overflow-y-auto',
+          'pb-[env(safe-area-inset-bottom)] sm:pb-0'
         )}
       >
         {title && (
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">{title}</p>
-            <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+              {title}
+            </p>
+            <button
+              onClick={onClose}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
               <X size={14} />
             </button>
           </div>
         )}
+
         <div className="py-1">
-          {actions.map(a => (
+          {actions.map((a) => (
             <button
               key={a.label}
-              onClick={e => { a.onClick(e); onClose() }}
+              onClick={(e) => {
+                a.onClick(e)
+                onClose()
+              }}
               className={cn(
                 'w-full flex items-center gap-3 px-4 py-3 text-sm text-left hover:bg-accent transition-colors',
                 a.destructive && 'text-destructive hover:bg-destructive/10'
@@ -54,7 +85,7 @@ export function ActionSheet({ open, onClose, title, actions }: Props) {
             </button>
           ))}
         </div>
-       
+
         <div className="sm:hidden border-t border-border">
           <button
             onClick={onClose}
@@ -64,6 +95,7 @@ export function ActionSheet({ open, onClose, title, actions }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
