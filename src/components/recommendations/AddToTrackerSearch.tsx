@@ -21,8 +21,11 @@ interface ReadingList {
 }
 
 interface Props {
-  lists:     ReadingList[]
-  onAdded?:  (comicId: string, title: string, listId: string, status: string) => void
+  lists:          ReadingList[]
+  onAdded?:       (comicId: string, title: string, listId: string, status: string) => void
+  /** Controlled open state — lets the parent know/react to expanded vs collapsed. */
+  open?:          boolean
+  onOpenChange?:  (open: boolean) => void
 }
 
 const QUICK_STATUSES = [
@@ -34,8 +37,17 @@ const QUICK_STATUSES = [
   { value: 'marinating',   label: 'Marinating'   },
 ]
 
-export function AddToTrackerSearch({ lists, onAdded }: Props) {
-  const [open,       setOpen]       = useState(false)
+export function AddToTrackerSearch({ lists, onAdded, open: openProp, onOpenChange }: Props) {
+
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp : internalOpen
+
+  const setOpen = (next: boolean) => {
+    if (!isControlled) setInternalOpen(next)
+    onOpenChange?.(next)
+  }
+
   const [query,      setQuery]      = useState('')
   const [results,    setResults]    = useState<SearchResult[]>([])
   const [loading,    setLoading]    = useState(false)
@@ -99,7 +111,7 @@ export function AddToTrackerSearch({ lists, onAdded }: Props) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 py-2.5 text-sm text-muted-foreground hover:text-foreground border-b border-border/50 hover:border-foreground/40 w-full transition-colors group"
+        className="flex items-center gap-2 py-2.5 text-sm text-muted-foreground hover:text-foreground border-b border-border/50 hover:border-foreground/40 transition-colors group"
       >
         <Plus size={14} className="text-muted-foreground/60 group-hover:text-foreground transition-colors" />
         Add a comic
@@ -108,7 +120,7 @@ export function AddToTrackerSearch({ lists, onAdded }: Props) {
   }
 
   return (
-    <div className="border border-border/50 rounded-lg overflow-hidden">
+    <div className="border border-border/50 rounded-lg overflow-hidden w-full">
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
