@@ -14,6 +14,7 @@ import { formatDate } from '@/lib/utils/format'
 import { AddToTrackerSearch } from '@/components/recommendations/AddToTrackerSearch'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { cn } from '@/lib/utils'
+import { TRACKING_STATUS_META, resolveSubStatusLabel, type TrackingStatusValue } from '@/lib/utils/constants'
 
 interface Props {
   list:           any
@@ -29,15 +30,14 @@ interface Props {
   myListsHref:    string
 }
 
-// Status dot colors — same mapping used across the tracker for a consistent
-// visual language between the private and public list views.
-const STATUS_DOT: Record<string, string> = {
-  reading:      'bg-blue-500',
-  plan_to_read: 'bg-violet-500',
-  marinating:   'bg-amber-500',
-  completed:    'bg-emerald-500',
-  on_hold:      'bg-yellow-500',
-  dropped:      'bg-red-500',
+// Dot color now sourced from TRACKING_STATUS_META (constants.ts) instead of
+// a local duplicate — this was a 5th copy of the same status→color mapping
+// found across the tracker, on top of the 4 already consolidated. Kept as
+// a small local helper (rather than inlining TRACKING_STATUS_META[status].dot
+// everywhere below) so the `?? 'bg-border'` fallback for unrecognized/legacy
+// status values stays in one place.
+function statusDot(status: string): string {
+  return TRACKING_STATUS_META[status as TrackingStatusValue]?.dot ?? 'bg-border'
 }
 
 export function PublicListDetailClient({
@@ -275,7 +275,7 @@ export function PublicListDetailClient({
               if (!meta) return null
               return (
                 <span key={status} className="inline-flex items-center gap-1.5">
-                  <span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT[status] ?? 'bg-border')} />
+                  <span className={cn('h-1.5 w-1.5 rounded-full', statusDot(status))} />
                   {meta.label} · {count as number}
                 </span>
               )
@@ -310,8 +310,9 @@ export function PublicListDetailClient({
           {items.map((item: any) => {
             const rec = item.recommendations
             if (!rec) return null
-            const smeta    = statusMeta[item.status]
-            const coverSrc = proxyCover(rec.cover_url)
+            const smeta          = statusMeta[item.status]
+            const subStatusLabel = resolveSubStatusLabel(item.status, item.sub_status)
+            const coverSrc        = proxyCover(rec.cover_url)
 
             return (
               <Link
@@ -352,8 +353,11 @@ export function PublicListDetailClient({
 
                   {smeta && (
                     <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                      <span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT[item.status] ?? 'bg-border')} />
+                      <span className={cn('h-1.5 w-1.5 rounded-full', statusDot(item.status))} />
                       {smeta.label}
+                      {subStatusLabel && (
+                        <span className="text-muted-foreground/50 italic">· {subStatusLabel}</span>
+                      )}
                     </span>
                   )}
                 </div>

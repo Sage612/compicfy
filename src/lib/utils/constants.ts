@@ -140,6 +140,116 @@ export function resolveStatusMeta(
   }
 }
 
+export const TRACKING_STATUSES = [
+  { value: 'reading',      label: 'Reading'      },
+  { value: 'plan_to_read', label: 'Plan to Read' },
+  { value: 'completed',    label: 'Completed'    },
+  { value: 'on_hold',      label: 'On Hold'      },
+  { value: 'dropped',      label: 'Dropped'      },
+  { value: 'marinating',   label: 'Marinating'   },
+] as const
+
+export type TrackingStatusValue = (typeof TRACKING_STATUSES)[number]['value']
+
+export interface SubStatusPreset {
+  value: string
+  label: string
+}
+
+export const TRACKING_STATUS_META: Record<TrackingStatusValue, {
+  label: string
+  emoji: string
+  dot:   string  // solid dot indicator color, used by ChapterUpdater/ReadingListDetail's plain-text status rows
+  badge: string  // full bg/text/border classes, used by ReadingProgressButton's trigger + PublicListDetailClient pills
+  color: string  // text-only color, for spots that just need a text class
+  subStatusPresets: SubStatusPreset[]
+}> = {
+  reading: {
+    label: 'Reading',
+    emoji: '📖',
+    dot:   'bg-blue-500',
+    badge: 'text-blue-600 bg-blue-500/10 border-blue-500/20',
+    color: 'text-blue-600',
+    subStatusPresets: [
+      { value: 'binging', label: 'Binging it' },
+      { value: 'weekly',  label: 'Weekly, waiting on releases' },
+    ],
+  },
+  plan_to_read: {
+    label: 'Plan to Read',
+    emoji: '📌',
+    dot:   'bg-violet-500',
+    badge: 'text-violet-600 bg-violet-500/10 border-violet-500/20',
+    color: 'text-violet-600',
+    subStatusPresets: [
+      { value: 'hyped',   label: 'Next up / hyped' },
+      { value: 'someday', label: 'Someday, maybe' },
+    ],
+  },
+  completed: {
+    label: 'Completed',
+    emoji: '✅',
+    dot:   'bg-emerald-500',
+    badge: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+    color: 'text-emerald-600',
+    subStatusPresets: [
+      { value: 'would_reread', label: 'Would reread' },
+      { value: 'one_and_done', label: 'One and done' },
+    ],
+  },
+  on_hold: {
+    label: 'On Hold',
+    emoji: '⏸️',
+    dot:   'bg-yellow-500',
+    badge: 'text-yellow-600 bg-yellow-500/10 border-yellow-500/20',
+    color: 'text-yellow-600',
+    subStatusPresets: [
+      { value: 'waiting_releases', label: 'Waiting for new chapters' },
+      { value: 'losing_interest',  label: 'Losing interest, might drop' },
+    ],
+  },
+  dropped: {
+    label: 'Dropped',
+    emoji: '🗑️',
+    dot:   'bg-red-500',
+    badge: 'text-red-600 bg-red-500/10 border-red-500/20',
+    color: 'text-red-600',
+    subStatusPresets: [
+      { value: 'might_retry', label: 'Might retry someday' },
+      { value: 'done',        label: 'Done with it' },
+    ],
+  },
+  marinating: {
+    label: 'Marinating',
+    emoji: '🫙',
+    dot:   'bg-amber-500',
+    badge: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
+    color: 'text-amber-600',
+    subStatusPresets: [
+      { value: 'building_chapters', label: 'Building up chapters first' },
+      { value: 'waiting_reception', label: 'Waiting to see reception' },
+    ],
+  },
+}
+
+export const TRACKING_SUB_STATUS_CUSTOM_MAX_LENGTH = 60
+
+export function resolveSubStatusLabel(
+  status: string,
+  subStatus: string | null | undefined,
+): string | null {
+  if (!subStatus) return null
+  const meta = TRACKING_STATUS_META[status as TrackingStatusValue]
+  const preset = meta?.subStatusPresets.find(p => p.value === subStatus)
+  return preset ? preset.label : subStatus
+}
+
+/** True if the given sub_status value is one of the status's defined presets (vs. custom text). */
+export function isPresetSubStatus(status: string, subStatus: string): boolean {
+  const meta = TRACKING_STATUS_META[status as TrackingStatusValue]
+  return !!meta?.subStatusPresets.some(p => p.value === subStatus)
+}
+
 export const CONTENT_RATINGS = [
   { value: 'all_ages', label: 'All Ages'     },
   { value: 'teen',     label: 'Teen (13+)'   },
@@ -153,7 +263,7 @@ export const MAX_GENRES_PER_COMIC    = 5
 export const MAX_FILE_SIZE_MB        = 5
 export const ACCEPTED_IMAGE_TYPES    = ['image/jpeg', 'image/png', 'image/webp']
 
-// ── Submission limits ────────────────────────────────────────────────────────
+// ── Submission limits ─────────────────────────────────────────────────────
 export const DAILY_LIMITS = {
   free:    2,   // free readers + free creators
   pro:     10,  // pro readers + pro creators (can raise to 15 later)
@@ -198,7 +308,7 @@ export const GENRE_MOODS: Record<(typeof GENRES)[number], { mood: string; emoji:
   'Shounen':        { mood: 'Fuel My Fire',                 emoji: '🔥' },
   'Shoujo':         { mood: 'Sweep Me Off My Feet',         emoji: '💮' },
   'Seinen':         { mood: 'Something With An Edge',       emoji: '🗡️' },
-  'Josei':          { mood: 'Something More Grown-Up',      emoji: '💐' },
+  'Josei':          { mood: 'Something More Grown-Up',      emoji: '🍷' },
   'Yuri':           { mood: 'Girls Falling For Girls',      emoji: '💗' },
   'Yaoi':           { mood: 'Boys Falling For Boys',        emoji: '💜' },
   'Mecha':          { mood: 'Give Me Robots And Stakes',    emoji: '🤖' },

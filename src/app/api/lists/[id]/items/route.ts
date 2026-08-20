@@ -1,13 +1,13 @@
 // src/app/api/lists/[id]/items/route.ts
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { FREE_LIMITS } from '@/lib/utils/constants'
+import { FREE_LIMITS, TRACKING_STATUSES, TRACKING_SUB_STATUS_CUSTOM_MAX_LENGTH } from '@/lib/utils/constants'
 
 interface RouteContext {
   params: Promise<{ id: string }>
 }
 
-const VALID_STATUSES = ['reading', 'plan_to_read', 'marinating', 'completed', 'on_hold', 'dropped']
+const VALID_STATUSES = TRACKING_STATUSES.map(s => s.value)
 const MAX_NOTE_LENGTH = 500
 
 async function verifyOwnership(supabase: Awaited<ReturnType<typeof createClient>>, listId: string, userId: string) {
@@ -62,6 +62,19 @@ function getTargetIdFromBody(body: any): { column: 'recommendation_id' | 'custom
   return null
 }
 
+// Shared guard — sub_status is either null, a preset key, or free custom
+// text capped at TRACKING_SUB_STATUS_CUSTOM_MAX_LENGTH (also enforced by a
+// DB CHECK constraint as a backstop). Returns undefined if the field wasn't
+// sent at all, so callers can tell "not provided" apart from "clear it".
+function validateSubStatus(subStatus: unknown): string | null | undefined {
+  if (subStatus === undefined) return undefined
+  if (subStatus === null) return null
+  if (typeof subStatus !== 'string') return undefined
+  const trimmed = subStatus.trim()
+  if (trimmed.length === 0) return null
+  return trimmed.slice(0, TRACKING_SUB_STATUS_CUSTOM_MAX_LENGTH)
+}
+
 // GET /api/lists/[id]/items
 export async function GET(_req: Request, { params }: RouteContext) {
   try {
@@ -80,7 +93,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
     const { data, error } = await supabase
       .from('reading_list_items')
       .select(`
-        id, status, progress_chapter, notes, added_at, position,
+        id, status, sub_status, progress_chapter, notes, added_at, position,
         recommendation_id, custom_entry_id,
         recommendations (
           id, title, cover_url, type, status, genres, upvotes, chapter_count
@@ -129,7 +142,7 @@ export async function POST(req: Request, { params }: RouteContext) {
     }
 
     const body = await req.json()
-    const { recommendation_id, status = 'plan_to_read' } = body
+    const { recommendation_id, status = 'plan_to_read', sub_status } = body
 
     if (!recommendation_id) {
       return NextResponse.json({ error: 'recommendation_id is required' }, { status: 400 })
@@ -142,10 +155,12 @@ export async function POST(req: Request, { params }: RouteContext) {
       )
     }
 
+    const validatedSubStatus = validateSubStatus(sub_status) ?? null
+
     const { data, error } = await (supabase as any)
       .from('reading_list_items')
       .upsert(
-        { list_id: listId, recommendation_id, status },
+        { list_id: listId, recommendation_id, status, sub_status: validatedSubStatus },
         { onConflict: 'list_id,recommendation_id', ignoreDuplicates: false }
       )
       .select()
@@ -162,9 +177,16 @@ export async function POST(req: Request, { params }: RouteContext) {
   }
 }
 
-// PATCH /api/lists/[id]/items — update an existing item (status, progress_chapter, notes)
-// Body: { recommendation_id?: string, custom_entry_id?: string, notes?: string | null, status?: string, progress_chapter?: number | null }
-// Exactly one of recommendation_id/custom_entry_id must be provided, plus at least one of notes/status/progress_chapter.
+// PATCH /api/lists/[id]/items — update an existing item (status, sub_status, progress_chapter, notes)
+// Body: { recommendation_id?: string, custom_entry_id?: string, notes?: string | null, status?: string, sub_status?: string | null, progress_chapter?: number | null }
+// Exactly one of recommendation_id/custom_entry_id must be provided, plus at least one of notes/status/sub_status/progress_chapter.
+//
+// NOTE: changing `status` without explicitly sending `sub_status` leaves
+// any existing sub_status untouched (e.g. a stale "waiting for new
+// chapters" on_hold reason would carry over onto a completed item). Callers
+// that care about this — see ReadingListDetail's quick status-switcher —
+// should explicitly pass `sub_status: null` alongside a status change,
+// matching the behavior already used by ChapterUpdater/ReadingProgressButton.
 export async function PATCH(req: Request, { params }: RouteContext) {
   try {
     const { id: listId } = await params
@@ -179,7 +201,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     }
 
     const body = await req.json()
-    const { notes, status, progress_chapter } = body
+    const { notes, status, progress_chapter, sub_status } = body
 
     const target = getTargetIdFromBody(body)
     if (!target) {
@@ -189,9 +211,9 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       )
     }
 
-    if (notes === undefined && status === undefined && progress_chapter === undefined) {
+    if (notes === undefined && status === undefined && progress_chapter === undefined && sub_status === undefined) {
       return NextResponse.json(
-        { error: 'At least one of notes, status, or progress_chapter is required' },
+        { error: 'At least one of notes, status, sub_status, or progress_chapter is required' },
         { status: 400 }
       )
     }
@@ -220,7 +242,18 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       }
       updates.status = status
     }
-    
+
+    if (sub_status !== undefined) {
+      const validated = validateSubStatus(sub_status)
+      // validateSubStatus only returns undefined for a wrong type — a real
+      // validation failure, not "field omitted" (sub_status !== undefined
+      // was already checked above), so surface it as a 400.
+      if (validated === undefined) {
+        return NextResponse.json({ error: 'sub_status must be a string or null' }, { status: 400 })
+      }
+      updates.sub_status = validated
+    }
+
     if (progress_chapter !== undefined) {
       if (target.column === 'custom_entry_id') {
         return NextResponse.json(

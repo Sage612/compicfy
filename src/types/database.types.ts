@@ -1396,6 +1396,7 @@ export type Database = {
           progress_chapter: number | null
           recommendation_id: string | null
           status: string | null
+          sub_status: string | null
           updated_at: string | null
         }
         Insert: {
@@ -1409,6 +1410,7 @@ export type Database = {
           progress_chapter?: number | null
           recommendation_id?: string | null
           status?: string | null
+          sub_status?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -1422,6 +1424,7 @@ export type Database = {
           progress_chapter?: number | null
           recommendation_id?: string | null
           status?: string | null
+          sub_status?: string | null
           updated_at?: string | null
         }
         Relationships: [

@@ -28,6 +28,7 @@ import { AddToTrackerSearch } from '@/components/recommendations/AddToTrackerSea
 import { CustomEntryFooter } from '@/components/lists/CustomEntryFooter'
 import { CustomEntryEditModal } from '@/components/lists/CustomEntryEditModal'
 import { AddCustomEntryModal } from '@/components/lists/AddCustomEntryModal'
+import { TRACKING_STATUSES, TRACKING_STATUS_META, resolveSubStatusLabel } from '@/lib/utils/constants'
 
 interface ReadingList {
   id:          string
@@ -40,6 +41,7 @@ interface ReadingList {
 interface ListItem {
   id:               string
   status:           string
+  sub_status?:      string | null
   progress_chapter: number | null
   notes:            string | null
   added_at:         string
@@ -64,16 +66,6 @@ interface ListItem {
   } | null
 }
 
-const STATUS_META: Record<string, { label: string; dot: string }> = {
-  reading:      { label: 'Reading',      dot: 'bg-blue-500'    },
-  plan_to_read: { label: 'Plan to read', dot: 'bg-violet-500'  },
-  marinating:   { label: 'Marinating',   dot: 'bg-amber-500'   },
-  completed:    { label: 'Completed',    dot: 'bg-emerald-500' },
-  on_hold:      { label: 'On hold',      dot: 'bg-yellow-500'  },
-  dropped:      { label: 'Dropped',      dot: 'bg-red-500'     },
-}
-
-const STATUSES = Object.entries(STATUS_META).map(([value, meta]) => ({ value, ...meta }))
 const MAX_NOTE_LENGTH = 500
 
 function getItemDisplay(item: ListItem) {
@@ -171,9 +163,9 @@ export function ReadingListDetail({
     }
   }
 
-  const handleProgressUpdate = (itemId: string, chapter: number | null, status: string) => {
+  const handleProgressUpdate = (itemId: string, chapter: number | null, status: string, subStatus?: string | null) => {
     setItems(prev => prev.map(i =>
-      i.id === itemId ? { ...i, progress_chapter: chapter, status } : i
+      i.id === itemId ? { ...i, progress_chapter: chapter, status, sub_status: subStatus ?? i.sub_status } : i
     ))
   }
 
@@ -230,6 +222,10 @@ export function ReadingListDetail({
   }
 
   // Quick status picker handler
+  // NOTE: still only sets `status`, not `sub_status` — PATCHes
+  // /api/lists/[id]/items, whose accepted fields haven't been reviewed yet.
+  // Sub-status editing for recommendation-backed items already works via
+  // ChapterUpdater below (goes through /api/reading-progress instead).
   const handleQuickStatusChange = async (e: React.MouseEvent, item: ListItem, newStatus: string) => {
     e.stopPropagation()
     if (newStatus === item.status) {
@@ -249,12 +245,15 @@ export function ReadingListDetail({
         body: JSON.stringify({
           ...idField,
           status: newStatus,
+          sub_status: null, // clear any stale sub-status from the previous status —
+                             // the API only touches fields explicitly sent, so this
+                             // has to be explicit here (matches ChapterUpdater's behavior)
         }),
       })
       if (!res.ok) throw new Error()
-      setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: newStatus } : i))
+      setItems(prev => prev.map(i => i.id === item.id ? { ...i, status: newStatus, sub_status: null } : i))
       setStatusPickerId(null)
-      toast.success(STATUS_META[newStatus].label)
+      toast.success(TRACKING_STATUS_META[newStatus as keyof typeof TRACKING_STATUS_META].label)
     } catch {
       toast.error('Failed to update status')
     } finally {
@@ -481,7 +480,7 @@ export function ReadingListDetail({
           >
             All ({items.length})
           </button>
-          {STATUSES.filter(s => statusCounts[s.value]).map(s => (
+          {TRACKING_STATUSES.filter(s => statusCounts[s.value]).map(s => (
             <button
               key={s.value}
               type="button"
@@ -493,7 +492,7 @@ export function ReadingListDetail({
                   : 'border-transparent text-muted-foreground/60 hover:text-foreground'
               )}
             >
-              {s.label} ({statusCounts[s.value]})
+              {TRACKING_STATUS_META[s.value].label} ({statusCounts[s.value]})
             </button>
           ))}
         </div>
@@ -533,7 +532,8 @@ export function ReadingListDetail({
         <div className="divide-y divide-border/40">
           {filtered.map(item => {
             const display     = getItemDisplay(item)
-            const statusMeta = STATUS_META[item.status] ?? STATUS_META.plan_to_read
+            const statusMeta = TRACKING_STATUS_META[item.status as keyof typeof TRACKING_STATUS_META] ?? TRACKING_STATUS_META.plan_to_read
+            const subStatusLabel = resolveSubStatusLabel(item.status, item.sub_status)
             const progressPct = display.chapterCount && item.progress_chapter
               ? Math.min(100, Math.round((item.progress_chapter / display.chapterCount) * 100))
               : null
@@ -644,6 +644,9 @@ export function ReadingListDetail({
                           <>
                             <span className={cn('h-1.5 w-1.5 rounded-full', statusMeta.dot)} />
                             {statusMeta.label}
+                            {subStatusLabel && (
+                              <span className="text-muted-foreground/50 italic">· {subStatusLabel}</span>
+                            )}
                             <ChevronDown size={10} className="opacity-40" />
                           </>
                         )}
@@ -651,21 +654,24 @@ export function ReadingListDetail({
 
                       {isPickingStatus && (
                         <div className="absolute top-full left-0 mt-1.5 z-50 bg-popover border border-border/60 rounded-lg shadow-lg overflow-hidden min-w-[150px] py-1">
-                          {STATUSES.map(s => (
-                            <button
-                              key={s.value}
-                              type="button"
-                              onClick={e => handleQuickStatusChange(e, item, s.value)}
-                              className={cn(
-                                'w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-muted/60 transition-colors',
-                                s.value === item.status ? 'text-foreground font-medium' : 'text-muted-foreground'
-                              )}
-                            >
-                              <span className={cn('h-1.5 w-1.5 rounded-full', s.dot)} />
-                              {s.label}
-                              {s.value === item.status && <Check size={11} className="ml-auto" />}
-                            </button>
-                          ))}
+                          {TRACKING_STATUSES.map(s => {
+                            const meta = TRACKING_STATUS_META[s.value]
+                            return (
+                              <button
+                                key={s.value}
+                                type="button"
+                                onClick={e => handleQuickStatusChange(e, item, s.value)}
+                                className={cn(
+                                  'w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-muted/60 transition-colors',
+                                  s.value === item.status ? 'text-foreground font-medium' : 'text-muted-foreground'
+                                )}
+                              >
+                                <span className={cn('h-1.5 w-1.5 rounded-full', meta.dot)} />
+                                {meta.label}
+                                {s.value === item.status && <Check size={11} className="ml-auto" />}
+                              </button>
+                            )
+                          })}
                         </div>
                       )}
                     </div>
@@ -677,8 +683,9 @@ export function ReadingListDetail({
                         currentChapter={item.progress_chapter}
                         totalChapters={display.chapterCount}
                         status={item.status}
+                        subStatus={item.sub_status}
                         compact
-                        onUpdate={(chapter, status) => handleProgressUpdate(item.id, chapter, status)}
+                        onUpdate={(chapter, status, subStatus) => handleProgressUpdate(item.id, chapter, status, subStatus)}
                       />
                     )}
 

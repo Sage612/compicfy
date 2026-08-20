@@ -9,27 +9,29 @@ import { formatDate } from '@/lib/utils/format'
 import type { Metadata } from 'next'
 import { PublicListDetailClient } from '@/components/lists/PublicListDetailClient'
 import { isProUser } from '@/lib/access'
+import { TRACKING_STATUSES, TRACKING_STATUS_META, TYPE_META } from '@/lib/utils/constants'
 
 interface Props {
   params: Promise<{ id: string }>
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
-  manhwa:  'bg-teal-500/10   text-teal-500   border-teal-500/20',
-  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
-  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
-  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
-}
+// Sourced from TYPE_META (constants.ts) instead of a local duplicate —
+// same bg/text/border shape PublicListDetailClient already expects.
+const TYPE_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(TYPE_META).map(([value, meta]) => [value, meta.badge])
+)
 
-const STATUS_META: Record<string, { label: string; emoji: string }> = {
-  reading:      { label: 'Reading',      emoji: '📖' },
-  plan_to_read: { label: 'Plan to Read', emoji: '📌' },
-  marinating:   { label: 'Marinating',   emoji: '🫙' },
-  completed:    { label: 'Completed',    emoji: '✅' },
-  on_hold:      { label: 'On Hold',      emoji: '⏸️' },
-  dropped:      { label: 'Dropped',      emoji: '🗑️' },
-}
+// Sourced from TRACKING_STATUS_META (constants.ts) instead of a local
+// duplicate — same { label, emoji } shape PublicListDetailClient already
+// expects, so its rendering is unaffected. NOTE: sub_status display isn't
+// wired into PublicListDetailClient yet — that needs its own pass once
+// its current implementation is reviewed.
+const STATUS_META: Record<string, { label: string; emoji: string }> = Object.fromEntries(
+  TRACKING_STATUSES.map(({ value }) => [value, {
+    label: TRACKING_STATUS_META[value].label,
+    emoji: TRACKING_STATUS_META[value].emoji,
+  }])
+)
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
