@@ -359,8 +359,9 @@ export function ReadingListDetail({
   const bannerCovers = useMemo(
     () =>
       items
-        .map((i) => i.recommendations?.cover_url ?? i.custom_entries?.cover_url)
-        .filter(Boolean) as string[],
+        .map((item) => item.recommendations?.cover_url ?? item.custom_entries?.cover_url)
+        .filter((url): url is string => Boolean(url))
+        .slice(0, 4),
     [items]
   )
 
