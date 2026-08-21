@@ -38,6 +38,7 @@ export default async function ProReaderListDetailPage({
       id,
       list_id,
       status,
+      sub_status,
       progress_chapter,
       notes,
       position,
