@@ -121,6 +121,17 @@ export async function GET(req: Request) {
     const muData: MUSearchResponse = await muRes.json()
     const results = muData?.results ?? []
 
+    // TEMPORARY DEBUG: dump the raw shape of the first couple records so
+    // we can see exactly where series_id actually lives (or doesn't).
+    // Remove this block once the real field path is confirmed.
+    if (req.headers.get('x-debug-raw') === '1') {
+      return NextResponse.json({
+        debug: true,
+        total_hits: muData?.total_hits,
+        first_two_raw_results: results.slice(0, 2),
+      })
+    }
+
     if (results.length === 0) {
       return NextResponse.json({ checked_releases: 0, flagged: 0 })
     }
