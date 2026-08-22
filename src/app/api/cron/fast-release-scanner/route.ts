@@ -37,6 +37,9 @@ interface MUSearchResultRecord {
   id: number // release id, NOT series id
   title: string
   chapter: string
+  groups?: {
+    group_id: number
+  }[]
   metadata?: {
     series?: {
       series_id: number
@@ -120,6 +123,76 @@ export async function GET(req: Request) {
 
     const muData: MUSearchResponse = await muRes.json()
     const results = muData?.results ?? []
+
+    // TEMPORARY DEBUG: try a handful of MangaUpdates endpoints directly
+    // to see if any of them expose a series_id (or equivalent) alongside
+    // release data, since /releases/search's documented metadata.series
+    // field turned out not to exist in practice. Remove this whole block
+    // once we've settled on a real matching strategy.
+    if (req.headers.get('x-debug-endpoints') === '1') {
+      const probeResults: Record<string, any> = {}
+
+      // 1. releases/search with a "search" term matching one of the
+      //    titles we just saw, in case adding a search query changes
+      //    what metadata comes back vs. an empty/paginated call.
+      try {
+        const r1 = await fetchWithTimeout('https://api.mangaupdates.com/v1/releases/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${muToken}` },
+          body: JSON.stringify({ search: results[0]?.record?.title ?? 'Naruto', page: 1, perpage: 3 }),
+        })
+        probeResults['releases_search_with_query'] = { status: r1.status, body: await r1.json().catch(() => null) }
+      } catch (e: any) {
+        probeResults['releases_search_with_query'] = { error: e.message }
+      }
+
+      // 2. series/search - a dedicated series lookup by title, distinct
+      //    from releases/search. If this exists and returns series_id,
+      //    we could pair it with the releases feed as a two-step lookup.
+      try {
+        const r2 = await fetchWithTimeout('https://api.mangaupdates.com/v1/series/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${muToken}` },
+          body: JSON.stringify({ search: results[0]?.record?.title ?? 'Naruto', page: 1, perpage: 3 }),
+        })
+        probeResults['series_search'] = { status: r2.status, body: await r2.json().catch(() => null) }
+      } catch (e: any) {
+        probeResults['series_search'] = { error: e.message }
+      }
+
+      // 3. releases/days (the other releases feed) - already suspected to
+      //    lack series_id per docs, but confirm directly rather than trust
+      //    that either.
+      try {
+        const r3 = await fetchWithTimeout('https://api.mangaupdates.com/v1/releases/days', {
+          headers: { 'Authorization': `Bearer ${muToken}` },
+        })
+        const body3 = await r3.json().catch(() => null)
+        probeResults['releases_days'] = {
+          status: r3.status,
+          first_result: Array.isArray(body3) ? body3[0] : (body3?.results?.[0] ?? body3),
+        }
+      } catch (e: any) {
+        probeResults['releases_days'] = { error: e.message }
+      }
+
+      // 4. groups/{id} - since every release record we've seen includes a
+      //    group_id, check whether a group's own release history includes
+      //    series_id even if the flat releases feed doesn't.
+      const firstGroupId = results[0]?.record?.groups?.[0]?.group_id
+      if (firstGroupId) {
+        try {
+          const r4 = await fetchWithTimeout(`https://api.mangaupdates.com/v1/groups/${firstGroupId}`, {
+            headers: { 'Authorization': `Bearer ${muToken}` },
+          })
+          probeResults['groups_by_id'] = { status: r4.status, body: await r4.json().catch(() => null) }
+        } catch (e: any) {
+          probeResults['groups_by_id'] = { error: e.message }
+        }
+      }
+
+      return NextResponse.json({ debug_endpoints: true, probeResults })
+    }
 
     // TEMPORARY DEBUG: dump the raw shape of the first couple records so
     // we can see exactly where series_id actually lives (or doesn't).
