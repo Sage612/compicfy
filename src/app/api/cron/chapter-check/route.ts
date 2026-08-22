@@ -9,6 +9,8 @@ const LOCK_NAME          = 'chapter_checker'
 const LOCK_DURATION_MS   = 55_000 // just under the 1-minute cron interval
 const ID_LOCK_NAME       = 'id_checker'
 const CHAPTER_CATCHUP_TOLERANCE = 1
+const PRIORITY_RETRY_COOLDOWN_MS = 5 * 60 * 1000 // 5 min
+const PRIORITY_MAX_RETRIES = 3
 
 // ── Fetch with timeout ────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
@@ -120,6 +122,7 @@ interface CheckLog {
   reason?:           string
   error?:            string
   format_rejections?: string[]
+  time_in_queue_seconds?: number
   timestamp:         string
 }
 
@@ -448,13 +451,17 @@ export async function GET(req: Request) {
     // ── Priority queue: check for fast-scanner-flagged comics first ──
     const { data: priorityEntries } = await supabase
       .from('checker_priority_queue')
-      .select('id, recommendation_id, retry_count, next_retry_at')
+      .select('id, recommendation_id, retry_count, next_retry_at, detected_at')
       .is('processed_at', null)
       .or(`next_retry_at.is.null,next_retry_at.lt.${new Date().toISOString()}`)
       .order('detected_at', { ascending: true })
       .limit(BATCH_SIZE)
 
     let priorityComics: NonNullable<typeof fastPool> = []
+
+    // Tracks queueId/retryCount/detectedAt per comic so the retry branch
+    // and the queue-time metric can look them back up after the check.
+    const priorityQueueMap = new Map<string, { queueId: number; retryCount: number; detectedAt: string }>()
 
     if (priorityEntries && priorityEntries.length > 0) {
       const priorityIds = priorityEntries.map((entry) => entry.recommendation_id)
@@ -466,6 +473,14 @@ export async function GET(req: Request) {
         .eq('is_approved', true)
 
       priorityComics = fetchedPriorityComics ?? []
+
+      for (const entry of priorityEntries) {
+        priorityQueueMap.set(entry.recommendation_id, {
+          queueId: entry.id,
+          retryCount: entry.retry_count,
+          detectedAt: entry.detected_at,
+        })
+      }
 
       const processedAt = new Date().toISOString()
       await supabase
@@ -524,6 +539,27 @@ export async function GET(req: Request) {
 
     for (const comic of comics) {
       const timestamp = new Date().toISOString()
+      const queueInfo = priorityQueueMap.get(comic.id)
+      const timeInQueueSeconds = queueInfo
+        ? Math.round((Date.now() - new Date(queueInfo.detectedAt).getTime()) / 1000)
+        : undefined
+
+      // Re-queues a priority comic with a short cooldown when its check
+      // didn't confirm a new chapter yet (e.g. MangaUpdates saw it first
+      // and MangaDex/MAL/AniList haven't caught up). Caps at
+      // PRIORITY_MAX_RETRIES so an unconfirmable flag can't loop forever -
+      // after that it just falls back to the normal scheduled sweep like
+      // any other comic.
+      async function requeueIfPriority() {
+        if (!queueInfo) return
+        if (queueInfo.retryCount >= PRIORITY_MAX_RETRIES) return
+        await supabase.from('checker_priority_queue').insert({
+          recommendation_id: comic.id,
+          source: 'mangaupdates',
+          retry_count: queueInfo.retryCount + 1,
+          next_retry_at: new Date(Date.now() + PRIORITY_RETRY_COOLDOWN_MS).toISOString(),
+        })
+      }
 
       if (!comic.mangaupdates_id && !comic.mangadex_id && !comic.anilist_id && !comic.mal_id) {
         await supabase.from('recommendations')
@@ -539,6 +575,7 @@ export async function GET(req: Request) {
           new_chapter_count: null,
           status:            'skipped_no_ids',
           reason:            'Skipped tracking: No valid external platform mappings discovered by ID Checker.',
+          time_in_queue_seconds: timeInQueueSeconds,
           timestamp,
         })
         continue
@@ -569,6 +606,7 @@ export async function GET(req: Request) {
           old_status:        comic.status,
           status:            'no_update',
           format_rejections: formatRejections.length > 0 ? formatRejections : undefined,
+          time_in_queue_seconds: timeInQueueSeconds,
           timestamp,
         }
 
@@ -629,6 +667,8 @@ export async function GET(req: Request) {
               ? `${statusSources.length} sources (${statusSources.join(', ')}) agree original is "${resolvedStatus}", and translation (ch. ${finalChapter}) has caught up to original total (ch. ${originalTotal}).`
               : `${statusSources.length} sources (${statusSources.join(', ')}) agree ORIGINAL is "${resolvedStatus}", but translation is only at ch. ${finalChapter} of ${originalTotal} — marked translation_ongoing, status left as "${comic.status}" pending catch-up.`
             logs.push(logEntry)
+            // A status was successfully resolved this run - no need to
+            // requeue for a retry, this comic is done for this cycle.
             continue
           }
 
@@ -716,6 +756,7 @@ export async function GET(req: Request) {
             source,
             notified: trackers?.length ?? 0,
           })
+          // Confirmed and applied - nothing left to retry.
 
         } else if (newChapterCount !== null && newChapterCount < (comic.chapter_count ?? 0)) {
           // 2. REGRESSION DETECTED: External APIs returned stale or lower counts
@@ -739,6 +780,8 @@ export async function GET(req: Request) {
               timestamp,
             }
           })
+          // A regression isn't "unconfirmed, try again shortly" - it's a
+          // stale-source signal, so this does not get requeued for retry.
 
         } else if (newChapterCount === null) {
           // 3. ZERO RESULTS FOUND (this now also covers "all sources were
@@ -752,8 +795,16 @@ export async function GET(req: Request) {
             ? `Stored ID(s) pointed to non-manga formats (${formatRejections.join(', ')}) cleared for ID Checker re-verification.`
             : 'No valid ID or all APIs returned null'
 
+          // This is exactly the "MangaUpdates saw it first, other sources
+          // haven't caught up yet" case the retry/cooldown exists for -
+          // requeue if this came in through the priority queue.
+          await requeueIfPriority()
+
         } else {
-          // 4. EQUAL COUNTS: Simply complete the tracking check cleanly
+          // 4. EQUAL COUNTS: Simply complete the tracking check cleanly.
+          // For a priority-flagged comic this means the fast scanner's
+          // signal didn't pan out as a real progression (e.g. a duplicate
+          // release entry) - nothing to retry.
           await supabase.from('recommendations')
             .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)
@@ -772,8 +823,12 @@ export async function GET(req: Request) {
           new_chapter_count: null,
           status:            'failed',
           error:             err?.message ?? 'Unknown error',
+          time_in_queue_seconds: timeInQueueSeconds,
           timestamp,
         })
+        // An unexpected error is also an inconclusive result for this
+        // cycle - give a priority comic another shot after the cooldown.
+        await requeueIfPriority()
       }
     }
 
