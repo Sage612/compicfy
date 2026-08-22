@@ -261,6 +261,53 @@ export type Database = {
         }
         Relationships: []
       }
+      checker_priority_queue: {
+        Row: {
+          created_at: string
+          detected_at: string
+          flagged_chapter: string | null
+          id: number
+          next_retry_at: string | null
+          processed_at: string | null
+          recommendation_id: string
+          retry_count: number
+          source: string
+          source_release_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          detected_at?: string
+          flagged_chapter?: string | null
+          id?: never
+          next_retry_at?: string | null
+          processed_at?: string | null
+          recommendation_id: string
+          retry_count?: number
+          source?: string
+          source_release_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          detected_at?: string
+          flagged_chapter?: string | null
+          id?: never
+          next_retry_at?: string | null
+          processed_at?: string | null
+          recommendation_id?: string
+          retry_count?: number
+          source?: string
+          source_release_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checker_priority_queue_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collection_items: {
         Row: {
           added_at: string | null

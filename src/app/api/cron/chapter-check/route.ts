@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendPushForUser } from '@/lib/utils/pushHelper'
 
@@ -445,6 +445,45 @@ export async function GET(req: Request) {
     const fastCutoff = new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString()
     const slowCutoff = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000).toISOString()
 
+    // ── Priority queue: check for fast-scanner-flagged comics first ──
+    const { data: priorityEntries } = await supabase
+      .from('checker_priority_queue')
+      .select('id, recommendation_id, retry_count, next_retry_at')
+      .is('processed_at', null)
+      .or(`next_retry_at.is.null,next_retry_at.lt.${new Date().toISOString()}`)
+      .order('detected_at', { ascending: true })
+      .limit(BATCH_SIZE)
+
+    let priorityComics: NonNullable<typeof fastPool> = []
+
+    if (priorityEntries && priorityEntries.length > 0) {
+      const priorityIds = priorityEntries.map((entry) => entry.recommendation_id)
+
+      const { data: fetchedPriorityComics } = await supabase
+        .from('recommendations')
+        .select('id, title, status, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check, translation_status, original_total_chapters, pending_original_status')
+        .in('id', priorityIds)
+        .eq('is_approved', true)
+
+      priorityComics = fetchedPriorityComics ?? []
+
+      const processedAt = new Date().toISOString()
+      await supabase
+        .from('checker_priority_queue')
+        .update({ processed_at: processedAt })
+        .in('id', priorityEntries.map((entry) => entry.id))
+
+      await supabase
+        .from('checker_priority_queue')
+        .update({ processed_at: processedAt })
+        .in('recommendation_id', priorityIds)
+        .is('processed_at', null)
+    }
+
+    // Remaining capacity after priority comics, filled from the existing pools.
+    const remainingCapacity = Math.max(0, BATCH_SIZE - priorityComics.length)
+    const priorityIdSet = new Set(priorityComics.map((comic) => comic.id))
+
     const [{ data: fastPool, error: fastError }, { data: slowPool, error: slowError }] = await Promise.all([
       supabase
         .from('recommendations')
@@ -453,7 +492,7 @@ export async function GET(req: Request) {
         .in('status', ['ongoing', 'hiatus'])
         .or(`last_chapter_check.is.null,last_chapter_check.lt.${fastCutoff}`)
         .not('last_id_check', 'is', null)
-        .limit(BATCH_SIZE),
+        .limit(remainingCapacity),
       supabase
         .from('recommendations')
         .select('id, title, status, chapter_count, mangaupdates_id, mangadex_id, anilist_id, mal_id, last_id_check, translation_status, original_total_chapters, pending_original_status')
@@ -461,7 +500,7 @@ export async function GET(req: Request) {
         .in('status', ['completed', 'cancelled'])
         .or(`last_chapter_check.is.null,last_chapter_check.lt.${slowCutoff}`)
         .not('last_id_check', 'is', null)
-        .limit(BATCH_SIZE),
+        .limit(remainingCapacity),
     ])
 
     if (fastError || slowError) {
@@ -469,7 +508,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'DB fetch failed' }, { status: 500 })
     }
 
-    const comics = [...(fastPool ?? []), ...(slowPool ?? [])].slice(0, BATCH_SIZE)
+    const comics = [
+      ...priorityComics,
+      ...(fastPool ?? []).filter((comic) => !priorityIdSet.has(comic.id)),
+      ...(slowPool ?? []).filter((comic) => !priorityIdSet.has(comic.id)),
+    ].slice(0, BATCH_SIZE)
 
     if (!comics || comics.length === 0) {
       return NextResponse.json({ checked: 0, updated: 0, logs: [] })
