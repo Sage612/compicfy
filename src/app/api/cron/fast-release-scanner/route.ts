@@ -2,23 +2,39 @@
 //
 // FAST LANE scanner. Runs every 1-2 minutes (set in your cron schedule).
 // Job: poll MangaUpdates' /releases/search endpoint for the most recent
-// releases, match against tracked comics by mangaupdates_id, and if the
-// reported chapter is higher than what we have stored, insert a flag into
-// checker_priority_queue. That's it - this endpoint NEVER writes to
-// recommendations.chapter_count, NEVER sends notifications, and NEVER
-// decides a chapter update is "real". All of that stays the exclusive job
-// of the existing chapter-checker cron, which now checks this queue first.
+// releases, resolve each unique title to a real series_id via a second
+// call to /series/search, match against tracked comics by
+// mangaupdates_id, and if the reported chapter is higher than what we
+// have stored, insert a flag into checker_priority_queue. That's it -
+// this endpoint NEVER writes to recommendations.chapter_count, NEVER
+// sends notifications, and NEVER decides a chapter update is "real". All
+// of that stays the exclusive job of the existing chapter-checker cron,
+// which checks this queue first.
 //
-// Why: /releases/search (POST) is confirmed to return series_id in its
-// metadata (unlike /releases/days, which does not expose series_id at all
-// per a live schema check - see project notes). This endpoint requires
-// bearerAuth per MangaUpdates' OpenAPI spec.
+// Why two calls instead of one: confirmed via a live authenticated call
+// that /releases/search's records do NOT include series_id anywhere
+// (despite older forum reports and the docs' sample schema suggesting
+// otherwise - both turned out to be stale/wrong). /series/search is a
+// separate endpoint that DOES reliably return series_id, ranked by match
+// quality against a title query. So the real pipeline is:
+//   releases/search (get recent titles+chapters, no series_id)
+//     -> series/search per UNIQUE title (resolve title -> series_id)
+//       -> compare resolved series_id against recommendations.mangaupdates_id
+//
+// Rate limiting: confirmed via MangaUpdates' own dev on their forum that
+// read-only GET/search calls are NOT subject to their documented rate
+// limit (that limit is 1-per-5-seconds and only applies to write/update
+// actions). Generic DDoS protection still applies and is undocumented,
+// so this still dedupes by title and adds a small delay between series
+// lookups rather than firing all of them in a burst.
 
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 const REQUEST_TIMEOUT_MS = 8000
 const RELEASES_PER_PAGE = 50 // how many recent releases to check each run
+const SERIES_LOOKUP_DELAY_MS = 150 // small gap between series/search calls, defensive against undocumented DDoS throttling
+const SERIES_MATCH_MIN_HIT_TITLE_EQUALS_QUERY = true // see matchBestSeries() below
 
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
@@ -33,26 +49,101 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQU
   }
 }
 
-interface MUSearchResultRecord {
+interface MUReleaseRecord {
   id: number // release id, NOT series id
   title: string
   chapter: string
-  groups?: {
-    group_id: number
-  }[]
-  metadata?: {
-    series?: {
-      series_id: number
-      title?: string
-    }
-  }
+  volume?: string | null
 }
 
-interface MUSearchResponse {
+interface MUReleasesSearchResponse {
   total_hits: number
   page: number
   per_page: number
-  results: { record: MUSearchResultRecord }[]
+  results: { record: MUReleaseRecord }[]
+}
+
+interface MUSeriesRecord {
+  series_id: number
+  title: string
+  type?: string | null
+}
+
+interface MUSeriesSearchResult {
+  record: MUSeriesRecord
+  hit_title: string // the title MU actually matched against, useful for match confidence
+}
+
+interface MUSeriesSearchResponse {
+  total_hits: number
+  page: number
+  per_page: number
+  results: MUSeriesSearchResult[]
+}
+
+/**
+ * Given a title and MangaUpdates' series/search results for it, pick the
+ * best candidate series_id - or null if nothing looks like a confident
+ * match. This is the one place real ambiguity can creep in (unlike the
+ * old series_id-in-metadata approach, which had none), so it's kept
+ * conservative on purpose: a missed match just means the fast lane skips
+ * a comic this cycle and the normal scheduled sweep catches it later.
+ * A WRONG match would waste a fast-lane check on an unrelated comic -
+ * annoying but not harmful, since the priority queue only ever flags,
+ * never writes chapter data directly. Still, prefer skipping over
+ * guessing.
+ */
+function matchBestSeries(queryTitle: string, seriesResults: MUSeriesSearchResult[]): MUSeriesRecord | null {
+  if (seriesResults.length === 0) return null
+
+  const normalize = (s: string) => s.trim().toLowerCase()
+  const normalizedQuery = normalize(queryTitle)
+
+  // Prefer an exact (case-insensitive) match on hit_title - MU's own
+  // "what did this actually match against" field - over just taking the
+  // first search result, since search results are ranked by relevance
+  // but not guaranteed to be exact.
+  const exactHit = seriesResults.find((r) => normalize(r.hit_title) === normalizedQuery)
+  if (exactHit) return exactHit.record
+
+  if (SERIES_MATCH_MIN_HIT_TITLE_EQUALS_QUERY) {
+    // Conservative mode: only trust exact hit_title matches. A release
+    // titled "Ao no Flag" pulling back a first result of "Ateuma Flag"
+    // (as seen in a live probe) shows the top result isn't always the
+    // right one - so without an exact hit_title match, skip rather than
+    // guess at position 1.
+    return null
+  }
+
+  // Fallback (currently unused while the flag above is true): take the
+  // first result if nothing hit exactly.
+  return seriesResults[0].record
+}
+
+async function resolveSeriesId(
+  title: string,
+  muToken: string
+): Promise<{ seriesId: number | null; error?: string }> {
+  try {
+    const res = await fetchWithTimeout('https://api.mangaupdates.com/v1/series/search', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${muToken}`,
+      },
+      body: JSON.stringify({ search: title, page: 1, perpage: 5 }),
+    })
+
+    if (!res.ok) {
+      return { seriesId: null, error: `series/search returned ${res.status}` }
+    }
+
+    const data: MUSeriesSearchResponse = await res.json()
+    const matched = matchBestSeries(title, data?.results ?? [])
+    return { seriesId: matched?.series_id ?? null }
+  } catch (err: any) {
+    return { seriesId: null, error: err.message ?? 'series/search request failed' }
+  }
 }
 
 export async function GET(req: Request) {
@@ -61,10 +152,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // CONFIRM BEFORE DEPLOYING: MangaUpdates' /releases/search requires
-  // bearerAuth per their OpenAPI spec. This token is NOT the same thing as
-  // a mangaupdates_id on a comic - it's an account-level API credential.
-  // If MANGAUPDATES_API_TOKEN isn't set yet, this call will fail with 401.
   const muToken = process.env.MANGAUPDATES_API_TOKEN
   if (!muToken) {
     console.error('MANGAUPDATES_API_TOKEN is not set - fast scanner cannot authenticate')
@@ -87,10 +174,6 @@ export async function GET(req: Request) {
       body: JSON.stringify({
         page: 1,
         perpage: RELEASES_PER_PAGE,
-        // orderby is not a confirmed field on this endpoint's search body
-        // (unlike releases/days). If MU's default sort isn't newest-first,
-        // this needs adjusting once you can inspect a real authenticated
-        // response - flagging this as something to verify on first run.
       }),
     })
 
@@ -98,12 +181,11 @@ export async function GET(req: Request) {
       const bodyText = await muRes.text().catch(() => '')
 
       // A 401 here specifically means the stored session token is dead -
-      // either it expired or was revoked. This is NOT the same as a
-      // generic upstream failure: without this check, the scanner would
-      // just silently return "flagged: 0" every run forever, which reads
-      // exactly like "no new releases" from the outside. That's a trap -
-      // days could pass with zero flags before anyone notices the fast
-      // lane is actually just dead, not quiet.
+      // either it expired or was revoked. Without this explicit check,
+      // the scanner would just silently return "flagged: 0" every run
+      // forever, which reads exactly like "no new releases" from the
+      // outside - a trap where days could pass before anyone notices the
+      // fast lane is dead, not quiet.
       if (muRes.status === 401) {
         console.error(
           'MANGAUPDATES_API_TOKEN has expired or is invalid (401). ' +
@@ -121,125 +203,73 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Failed to fetch MU releases', status: muRes.status }, { status: 502 })
     }
 
-    const muData: MUSearchResponse = await muRes.json()
+    const muData: MUReleasesSearchResponse = await muRes.json()
     const results = muData?.results ?? []
-
-    // TEMPORARY DEBUG: try a handful of MangaUpdates endpoints directly
-    // to see if any of them expose a series_id (or equivalent) alongside
-    // release data, since /releases/search's documented metadata.series
-    // field turned out not to exist in practice. Remove this whole block
-    // once we've settled on a real matching strategy.
-    if (req.headers.get('x-debug-endpoints') === '1') {
-      const probeResults: Record<string, any> = {}
-
-      // 1. releases/search with a "search" term matching one of the
-      //    titles we just saw, in case adding a search query changes
-      //    what metadata comes back vs. an empty/paginated call.
-      try {
-        const r1 = await fetchWithTimeout('https://api.mangaupdates.com/v1/releases/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${muToken}` },
-          body: JSON.stringify({ search: results[0]?.record?.title ?? 'Naruto', page: 1, perpage: 3 }),
-        })
-        probeResults['releases_search_with_query'] = { status: r1.status, body: await r1.json().catch(() => null) }
-      } catch (e: any) {
-        probeResults['releases_search_with_query'] = { error: e.message }
-      }
-
-      // 2. series/search - a dedicated series lookup by title, distinct
-      //    from releases/search. If this exists and returns series_id,
-      //    we could pair it with the releases feed as a two-step lookup.
-      try {
-        const r2 = await fetchWithTimeout('https://api.mangaupdates.com/v1/series/search', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${muToken}` },
-          body: JSON.stringify({ search: results[0]?.record?.title ?? 'Naruto', page: 1, perpage: 3 }),
-        })
-        probeResults['series_search'] = { status: r2.status, body: await r2.json().catch(() => null) }
-      } catch (e: any) {
-        probeResults['series_search'] = { error: e.message }
-      }
-
-      // 3. releases/days (the other releases feed) - already suspected to
-      //    lack series_id per docs, but confirm directly rather than trust
-      //    that either.
-      try {
-        const r3 = await fetchWithTimeout('https://api.mangaupdates.com/v1/releases/days', {
-          headers: { 'Authorization': `Bearer ${muToken}` },
-        })
-        const body3 = await r3.json().catch(() => null)
-        probeResults['releases_days'] = {
-          status: r3.status,
-          first_result: Array.isArray(body3) ? body3[0] : (body3?.results?.[0] ?? body3),
-        }
-      } catch (e: any) {
-        probeResults['releases_days'] = { error: e.message }
-      }
-
-      // 4. groups/{id} - since every release record we've seen includes a
-      //    group_id, check whether a group's own release history includes
-      //    series_id even if the flat releases feed doesn't.
-      const firstGroupId = results[0]?.record?.groups?.[0]?.group_id
-      if (firstGroupId) {
-        try {
-          const r4 = await fetchWithTimeout(`https://api.mangaupdates.com/v1/groups/${firstGroupId}`, {
-            headers: { 'Authorization': `Bearer ${muToken}` },
-          })
-          probeResults['groups_by_id'] = { status: r4.status, body: await r4.json().catch(() => null) }
-        } catch (e: any) {
-          probeResults['groups_by_id'] = { error: e.message }
-        }
-      }
-
-      return NextResponse.json({ debug_endpoints: true, probeResults })
-    }
-
-    // TEMPORARY DEBUG: dump the raw shape of the first couple records so
-    // we can see exactly where series_id actually lives (or doesn't).
-    // Remove this block once the real field path is confirmed.
-    if (req.headers.get('x-debug-raw') === '1') {
-      return NextResponse.json({
-        debug: true,
-        total_hits: muData?.total_hits,
-        first_two_raw_results: results.slice(0, 2),
-      })
-    }
 
     if (results.length === 0) {
       return NextResponse.json({ checked_releases: 0, flagged: 0 })
     }
 
-    // 2. Extract series_id + reported chapter per release, keep the
-    //    highest chapter number seen per series_id in this batch.
-    //    IMPORTANT: metadata.series.series_id has been confirmed present
-    //    on this endpoint (unlike releases/days), but a live schema report
-    //    from MU's own forum notes their actual response can be thinner
-    //    than the documented sample - defensively check for its presence
-    //    rather than assuming.
-    const latestBySeriesId = new Map<string, { chapter: number; releaseId: number; rawChapter: string }>()
+    // 2. Group releases by title, keeping the highest chapter number per
+    //    title in this batch. This is also the dedup step that keeps
+    //    series/search call volume down - "Ao no Flag" appearing 8 times
+    //    in one page of releases (real example from a live probe) means
+    //    one series/search call for it, not eight.
+    const latestByTitle = new Map<string, { chapter: number; releaseId: number; rawChapter: string }>()
 
     for (const { record } of results) {
-      const seriesId = record.metadata?.series?.series_id
-      if (!seriesId) continue // schema didn't include it for this record - skip rather than guess
-
       const rawCh = parseFloat(record.chapter)
-      if (isNaN(rawCh)) continue
+      if (isNaN(rawCh)) continue // e.g. "54 (end)" or non-numeric chapter labels - skip rather than mis-parse
 
-      const key = String(seriesId)
-      const existing = latestBySeriesId.get(key)
+      const existing = latestByTitle.get(record.title)
       if (!existing || rawCh > existing.chapter) {
-        latestBySeriesId.set(key, { chapter: rawCh, releaseId: record.id, rawChapter: record.chapter })
+        latestByTitle.set(record.title, { chapter: rawCh, releaseId: record.id, rawChapter: record.chapter })
       }
     }
 
-    if (latestBySeriesId.size === 0) {
-      return NextResponse.json({ checked_releases: results.length, flagged: 0, note: 'no usable series_id in this batch' })
+    if (latestByTitle.size === 0) {
+      return NextResponse.json({ checked_releases: results.length, flagged: 0, note: 'no parseable chapter numbers in this batch' })
     }
 
-    const seriesIds = Array.from(latestBySeriesId.keys())
+    // 3. Resolve each unique title to a MangaUpdates series_id via
+    //    series/search, with a small delay between calls (defensive
+    //    against undocumented DDoS-style throttling - read-only calls
+    //    aren't subject to MU's documented rate limit, but that limit
+    //    isn't the only thing that can throttle a client).
+    const titleToSeriesId = new Map<string, number>()
+    const unresolvedTitles: string[] = []
 
-    // 3. Find which of these series_ids are tracked comics, and what
-    //    chapter count we currently have stored for them.
+    const titles = Array.from(latestByTitle.keys())
+    for (let i = 0; i < titles.length; i++) {
+      const title = titles[i]
+      const { seriesId, error } = await resolveSeriesId(title, muToken)
+
+      if (seriesId) {
+        titleToSeriesId.set(title, seriesId)
+      } else {
+        unresolvedTitles.push(title)
+        if (error) console.error(`series/search lookup failed for "${title}": ${error}`)
+      }
+
+      if (i < titles.length - 1) {
+        await new Promise((r) => setTimeout(r, SERIES_LOOKUP_DELAY_MS))
+      }
+    }
+
+    if (titleToSeriesId.size === 0) {
+      return NextResponse.json({
+        checked_releases: results.length,
+        unique_titles: titles.length,
+        flagged: 0,
+        note: 'no titles resolved to a confident series_id match this batch',
+        unresolved_titles: unresolvedTitles,
+      })
+    }
+
+    // 4. Find which of these resolved series_ids are tracked comics, and
+    //    what chapter count we currently have stored for them.
+    const seriesIds = Array.from(titleToSeriesId.values()).map(String)
+
     const { data: matchedComics, error: matchError } = await supabase
       .from('recommendations')
       .select('id, title, chapter_count, mangaupdates_id')
@@ -252,18 +282,30 @@ export async function GET(req: Request) {
     }
 
     if (!matchedComics || matchedComics.length === 0) {
-      return NextResponse.json({ checked_releases: results.length, flagged: 0 })
+      return NextResponse.json({
+        checked_releases: results.length,
+        unique_titles: titles.length,
+        resolved_series_ids: titleToSeriesId.size,
+        flagged: 0,
+      })
     }
 
-    // 4. For each matched comic whose reported chapter is higher than
+    // Reverse-index: series_id -> release info, to look up by the
+    // comic's stored mangaupdates_id.
+    const releaseBySeriesId = new Map<string, { chapter: number; releaseId: number; rawChapter: string }>()
+    for (const [title, seriesId] of titleToSeriesId.entries()) {
+      const releaseInfo = latestByTitle.get(title)
+      if (releaseInfo) releaseBySeriesId.set(String(seriesId), releaseInfo)
+    }
+
+    // 5. For each matched comic whose reported chapter is higher than
     //    what we have stored, flag it in the priority queue - but only if
-    //    it doesn't already have a pending (unprocessed) entry, and only
-    //    if it isn't currently mid-check by the main chapter checker.
+    //    it doesn't already have a pending (unprocessed) entry.
     let flaggedCount = 0
     const flaggedTitles: string[] = []
 
     for (const comic of matchedComics) {
-      const releaseInfo = latestBySeriesId.get(String(comic.mangaupdates_id))
+      const releaseInfo = releaseBySeriesId.get(String(comic.mangaupdates_id))
       if (!releaseInfo) continue
 
       const currentCh = comic.chapter_count ?? 0
@@ -300,9 +342,12 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       checked_releases: results.length,
+      unique_titles: titles.length,
+      resolved_series_ids: titleToSeriesId.size,
       matched_comics: matchedComics.length,
       flagged: flaggedCount,
       flagged_titles: flaggedTitles,
+      unresolved_titles: unresolvedTitles.length > 0 ? unresolvedTitles : undefined,
     })
   } catch (err: any) {
     console.error('Fast scanner error:', err)

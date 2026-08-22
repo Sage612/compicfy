@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, RefreshCw, ChevronDown, ChevronUp, Search, X } from 'lucide-react'
+import { Loader2, RefreshCw, ChevronDown, ChevronUp, Search, X, Zap } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 
@@ -54,6 +54,8 @@ interface LogEntry {
     old_chapters?: number
     new_chapters?: number
     platforms?: string[]
+    time_in_queue_seconds?: number | null
+    via_fast_lane?: boolean
   }
   id_check?: {
     found: Record<string, string>
@@ -79,6 +81,17 @@ const ACTION_LABELS: Record<string, string> = {
   auto_rec_submit:         'Submitted',
   id_check:                'ID Check',
   auto_rec_submit_summary: 'Summary',
+}
+
+// Formats a raw seconds count the way an admin skimming the log would
+// want to read it - "42s" if it resolved almost instantly, "3m 12s" if
+// it sat a while. Kept local to this component since nothing else needs
+// it and it's tightly tied to how time_in_queue_seconds gets displayed.
+function formatQueueTime(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const remainder = seconds % 60
+  return remainder > 0 ? `${minutes}m ${remainder}s` : `${minutes}m`
 }
 
 export function AdminLogs() {
@@ -265,6 +278,18 @@ export function AdminLogs() {
               </div>
             </div>
           </div>
+
+          {log.chapter_check?.via_fast_lane && (
+            <div className="flex items-center gap-1.5 bg-amber-500/10 text-amber-700 px-2 py-1 rounded text-xs w-fit">
+              <Zap size={12} className="shrink-0" />
+              <span className="font-semibold">Fast lane</span>
+              {typeof log.chapter_check.time_in_queue_seconds === 'number' && (
+                <span className="text-amber-600">
+                  · resolved {formatQueueTime(log.chapter_check.time_in_queue_seconds)} after release detected
+                </span>
+              )}
+            </div>
+          )}
 
           {log.chapter_check?.platforms && log.chapter_check.platforms.length > 0 && (
             <div>
@@ -478,6 +503,9 @@ export function AdminLogs() {
                       <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0', style.color, style.bg)}>
                         {ACTION_LABELS[log.action] ?? log.action}
                       </span>
+                      {log.chapter_check?.via_fast_lane && (
+                        <Zap size={11} className="text-amber-500 shrink-0" />
+                      )}
                       <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
                         {timeAgo(log.created_at)}
                       </span>

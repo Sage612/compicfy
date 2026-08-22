@@ -79,12 +79,22 @@ export async function GET(request: Request) {
           mal: details.external_ids?.mal_id,
         },
       } : null,
+      // ── Fast-lane context ──────────────────────────────────────────
+      // time_in_queue_seconds is only ever present on a log entry when
+      // the checked comic came in through checker_priority_queue (see
+      // the chapter checker's CheckLog.time_in_queue_seconds field) - a
+      // normal scheduled-sweep check never sets it. So its mere presence
+      // is what flags this entry as "resolved via the fast lane" for the
+      // admin UI, without needing a separate boolean written at insert
+      // time.
       chapter_check: details.database_success ? {
         database: details.database_success,
         tried: details.database_tried,
         old_chapters: details.old_chapter_count,
         new_chapters: details.new_chapter_count,
         platforms: details.platforms_found,
+        time_in_queue_seconds: details.time_in_queue_seconds ?? null,
+        via_fast_lane: typeof details.time_in_queue_seconds === 'number',
       } : null,
       id_check: details.ids_found ? {
         found: details.ids_found,
