@@ -6,7 +6,7 @@ import { useState, useRef } from 'react'
 import {
   Radar, Layers, ScrollText, ShoppingBag,
   LayoutList, BookMarked, BookOpen, Crown,
-  ChevronRight, House, Globe,
+  ChevronRight, House, Globe, Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -52,7 +52,8 @@ export function NavRail({ isLoggedIn, isPro, isCreator, listsHref, listsLabel }:
   const items: NavItem[] = [
     ...NAV_ITEMS,
     ...(isLoggedIn ? [
-      { href: '/feed',   label: 'Feed',      icon: LayoutList,                         accent: 'text-primary'  },
+      { href: '/feed',    label: 'Feed',    icon: LayoutList, accent: 'text-primary' },
+      { href: '/matches', label: 'Matches', icon: Sparkles,   accent: 'text-primary' },
       // Personal dashboard lists — labelled distinctly from /lists hub
       { href: listsHref, label: isCreator ? listsLabel : 'My Lists', icon: isCreator ? BookOpen : BookMarked, accent: 'text-teal-500' },
     ] : []),

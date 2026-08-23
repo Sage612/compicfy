@@ -84,7 +84,8 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
       { label: 'Lists Hub',   href: '/lists',                icon: <Globe       size={13} strokeWidth={2} /> },
       // Only show News tab when logged in — MobileNav already shows it for logged-out users
       ...(isLoggedIn ? [
-        { label: 'News',      href: '/news',                 icon: <Newspaper   size={13} strokeWidth={2} /> },
+        { label: 'News',    href: '/news',    icon: <Newspaper size={13} strokeWidth={2} /> },
+        { label: 'Matches', href: '/matches', icon: <Sparkles  size={13} strokeWidth={2} /> },
       ] : []),
       { label: 'Trending',    href: '/browse?sort=trending', icon: <Flame       size={13} strokeWidth={2} /> },
       { label: 'New Releases',href: '/browse?sort=recent',   icon: <TrendingUp  size={13} strokeWidth={2} /> },
