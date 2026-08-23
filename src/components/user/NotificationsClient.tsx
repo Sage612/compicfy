@@ -5,7 +5,7 @@ import {
   BellOff, Trash2, ThumbsUp, BookOpen,
   MessageSquare, UserPlus, AlertCircle,
   Star, Zap, CheckCircle2, Check, Trophy,
-  FolderHeart, ShieldAlert,
+  FolderHeart, ShieldAlert, ExternalLink, Loader2,
 } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -74,6 +74,9 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
   const [activeFilter,   setActiveFilter]   = useState<FilterKey>('all')
   // Cache: follower_id → username resolved from profiles table
   const [usernameCache,  setUsernameCache]  = useState<Record<string, string>>({})
+  // item #25: which chapter_update notification is mid-"mark as read"
+  const [markingReadId,  setMarkingReadId]  = useState<string | null>(null)
+  const [markedReadIds,  setMarkedReadIds]  = useState<Set<string>>(new Set())
   const supabase = createClient()
 
   // ── Resolve usernames for follow notifications that only have follower_id ──
@@ -143,7 +146,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
         return null // still loading from cache
       }
 
-      // ── Pass 2 notification types ─────────────────────────────────────
+      // ── Pass 2 notification types ──────────────────────────────────
       case 'collection_saved':
         return data.collection_id ? `/collections/${data.collection_id}` : null
 
@@ -221,6 +224,38 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
       toast.success('All cleared')
     } catch { toast.error('Failed to clear all') }
     finally { setIsClearingAll(false) }
+  }
+
+  // item #25 — one-tap mark-as-read straight from a chapter_update
+  // notification. Preserves the tracked status (reading/plan_to_read),
+  // only touches progress_chapter. Requires list_id in the notification's
+  // data payload, which the chapter-check cron now includes.
+  const handleMarkChapterRead = async (e: React.MouseEvent, notif: Notification) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const { recommendation_id, new_chapter_count, list_id, status } = notif.data ?? {}
+    if (!recommendation_id || !list_id || new_chapter_count == null) return
+
+    setMarkingReadId(notif.id)
+    try {
+      const res = await fetch(`/api/reading-progress/${recommendation_id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          list_id,
+          status:           status ?? 'reading',
+          progress_chapter: new_chapter_count,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      setMarkedReadIds(prev => new Set(prev).add(notif.id))
+      markOneRead(notif.id)
+      toast.success(`Marked as read — ch. ${new_chapter_count}`)
+    } catch {
+      toast.error('Failed to update progress')
+    } finally {
+      setMarkingReadId(null)
+    }
   }
 
   const filtered       = activeFilter === 'all' ? notifications : notifications.filter(n => n.type === activeFilter)
@@ -322,6 +357,19 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
             // Follow notifications that are still resolving username show as non-clickable
             const isResolvingFollow = notif.type === 'follow' && !href
 
+            // item #25 — chapter_update notifications carry list_id/status
+            // (set by the cron job) when the comic is actually tracked,
+            // which is what makes the one-tap mark-as-read possible. Older
+            // chapter_update rows from before this shipped won't have it,
+            // so the button just doesn't render for those — no crash, no
+            // guessing at a list_id that doesn't exist in the payload.
+            const isChapterUpdate  = notif.type === 'chapter_update'
+            const canMarkRead      = isChapterUpdate && !!notif.data?.list_id
+            const isMarkingThis    = markingReadId === notif.id
+            const alreadyMarked    = markedReadIds.has(notif.id)
+            const sourceUrl        = notif.data?.source_url as string | undefined
+            const sourceLabel      = notif.data?.source_label as string | undefined
+
             const inner = (
               <div className={cn(
                 'group relative flex gap-3 p-4 rounded-2xl border transition-all duration-200',
@@ -365,6 +413,41 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
                       <span className="text-[10px] text-muted-foreground/50 italic">loading profile…</span>
                     )}
                   </div>
+
+                  {/* item #25 — source link + one-tap mark-as-read, only for
+                      chapter_update notifications that have the data to
+                      support it */}
+                  {isChapterUpdate && (sourceUrl || canMarkRead) && (
+                    <div className="flex items-center gap-3 pt-1.5" onClick={e => e.stopPropagation()}>
+                      {sourceUrl && (
+                        <a
+                          href={sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:opacity-80 transition-opacity"
+                        >
+                          <ExternalLink size={11} />
+                          Read on {sourceLabel ?? 'source'}
+                        </a>
+                      )}
+                      {canMarkRead && (
+                        alreadyMarked ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                            <Check size={11} /> Marked as read
+                          </span>
+                        ) : (
+                          <button
+                            onClick={e => handleMarkChapterRead(e, notif)}
+                            disabled={isMarkingThis}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {isMarkingThis ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                            Mark as read
+                          </button>
+                        )
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )

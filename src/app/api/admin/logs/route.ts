@@ -87,14 +87,27 @@ export async function GET(request: Request) {
       // is what flags this entry as "resolved via the fast lane" for the
       // admin UI, without needing a separate boolean written at insert
       // time.
-      chapter_check: details.database_success ? {
-        database: details.database_success,
+      //
+      // IMPORTANT: this used to gate purely on details.database_success,
+      // which meant an inconclusive fast-lane check - the retry/cooldown
+      // case, where MangaUpdates flagged a release but no cross-source
+      // confirmed it yet - had database_success === null and fell
+      // through to the raw JSON dump instead of a proper view. That's
+      // exactly the case worth watching to see whether the fast lane is
+      // behaving (repeatedly inconclusive on the same title could mean a
+      // bad title match, a slow-to-update source, etc.), so the gate now
+      // also opens on the presence of time_in_queue_seconds alone, not
+      // just a confirmed database match.
+      chapter_check: (details.database_success || typeof details.time_in_queue_seconds === 'number') ? {
+        database: details.database_success ?? null,
         tried: details.database_tried,
         old_chapters: details.old_chapter_count,
         new_chapters: details.new_chapter_count,
         platforms: details.platforms_found,
         time_in_queue_seconds: details.time_in_queue_seconds ?? null,
         via_fast_lane: typeof details.time_in_queue_seconds === 'number',
+        check_status: details.status ?? null, // e.g. 'failed', 'no_update', 'success' - needed now that this can render without a confirmed database match
+        reason: details.reason ?? null,       // e.g. "no valid ID or all APIs returned null" - explains an inconclusive fast-lane check
       } : null,
       id_check: details.ids_found ? {
         found: details.ids_found,

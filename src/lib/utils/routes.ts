@@ -43,7 +43,7 @@ export function getAdminRoutes() {
 }
 
 export function getProfileRoute(username: string, userType: UserType) {
-  return userType === 'creator' ? `/creator/${username}` : `/reader/${username}`
+  return userType === 'creator' ? `/creator/${username}` : `/profile/${username}`
 }
 
 // Legacy redirect map — old routes → new routes (used in middleware)

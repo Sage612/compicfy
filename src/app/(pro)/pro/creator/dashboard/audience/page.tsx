@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Users, Eye, TrendingUp, ArrowRight } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { formatDate, formatNumber } from '@/lib/utils/format'
+import { getProfileRoute } from '@/lib/utils/routes'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Audience' }
@@ -75,7 +76,7 @@ export default async function ProCreatorAudiencePage() {
               const p = Array.isArray(follow.profiles) ? follow.profiles[0] : follow.profiles
               const initials = (p?.display_name || p?.username || 'U').slice(0, 2).toUpperCase()
               return (
-                <Link key={follow.follower_id} href={`/reader/${p?.username}`}
+                <Link key={follow.follower_id} href={p?.username ? getProfileRoute(p.username, 'reader') : '#'}
                   className="flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-teal-500/30 transition-colors"
                 >
                   <Avatar className="h-9 w-9 shrink-0">

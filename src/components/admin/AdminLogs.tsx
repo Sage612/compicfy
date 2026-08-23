@@ -56,6 +56,8 @@ interface LogEntry {
     platforms?: string[]
     time_in_queue_seconds?: number | null
     via_fast_lane?: boolean
+    check_status?: string | null
+    reason?: string | null
   }
   id_check?: {
     found: Record<string, string>
@@ -256,12 +258,22 @@ export function AdminLogs() {
     }
 
     if (log.action === 'chapter_check') {
+      // An inconclusive fast-lane check (flagged by the scanner, not yet
+      // confirmed by any cross-source) has no database match - distinct
+      // from a confirmed check, and worth showing differently rather
+      // than rendering a blank "Database" value.
+      const isUnconfirmedFastLane = log.chapter_check?.via_fast_lane && !log.chapter_check?.database
+
       return (
         <div className="space-y-2 text-sm">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div>
               <span className="text-muted-foreground text-xs">Database</span>
-              <p className="font-semibold mt-0.5">{log.chapter_check?.database}</p>
+              <p className="font-semibold mt-0.5">
+                {log.chapter_check?.database ?? (
+                  <span className="text-muted-foreground font-normal italic">Not yet confirmed</span>
+                )}
+              </p>
             </div>
             <div>
               <span className="text-muted-foreground text-xs">Old</span>
@@ -280,15 +292,24 @@ export function AdminLogs() {
           </div>
 
           {log.chapter_check?.via_fast_lane && (
-            <div className="flex items-center gap-1.5 bg-amber-500/10 text-amber-700 px-2 py-1 rounded text-xs w-fit">
+            <div className={cn(
+              'flex items-center gap-1.5 px-2 py-1 rounded text-xs w-fit',
+              isUnconfirmedFastLane ? 'bg-amber-500/10 text-amber-700' : 'bg-blue-500/10 text-blue-700'
+            )}>
               <Zap size={12} className="shrink-0" />
-              <span className="font-semibold">Fast lane</span>
+              <span className="font-semibold">
+                {isUnconfirmedFastLane ? 'Fast lane · pending retry' : 'Fast lane'}
+              </span>
               {typeof log.chapter_check.time_in_queue_seconds === 'number' && (
-                <span className="text-amber-600">
-                  · resolved {formatQueueTime(log.chapter_check.time_in_queue_seconds)} after release detected
+                <span className={isUnconfirmedFastLane ? 'text-amber-600' : 'text-blue-600'}>
+                  · {isUnconfirmedFastLane ? 'checked' : 'resolved'} {formatQueueTime(log.chapter_check.time_in_queue_seconds)} after release detected
                 </span>
               )}
             </div>
+          )}
+
+          {isUnconfirmedFastLane && log.chapter_check?.reason && (
+            <p className="text-xs text-muted-foreground italic">{log.chapter_check.reason}</p>
           )}
 
           {log.chapter_check?.platforms && log.chapter_check.platforms.length > 0 && (
@@ -504,7 +525,18 @@ export function AdminLogs() {
                         {ACTION_LABELS[log.action] ?? log.action}
                       </span>
                       {log.chapter_check?.via_fast_lane && (
-                        <Zap size={11} className="text-amber-500 shrink-0" />
+                        <Zap
+                          size={11}
+                          className={cn(
+                            'shrink-0',
+                            // Solid amber for a confirmed fast-lane result, a
+                            // dimmer/outline look for one still pending
+                            // retry - lets the list view hint at status
+                            // without needing to expand every row.
+                            log.chapter_check?.database ? 'text-blue-500' : 'text-amber-400'
+                          )}
+                          fill={log.chapter_check?.database ? 'currentColor' : 'none'}
+                        />
                       )}
                       <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
                         {timeAgo(log.created_at)}

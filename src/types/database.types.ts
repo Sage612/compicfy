@@ -2446,6 +2446,48 @@ export type Database = {
           },
         ]
       }
+      user_compatibility_scores: {
+        Row: {
+          computed_at: string
+          id: string
+          matched_user_id: string
+          shared_genres: string[] | null
+          similarity: number
+          user_id: string
+        }
+        Insert: {
+          computed_at?: string
+          id?: string
+          matched_user_id: string
+          shared_genres?: string[] | null
+          similarity: number
+          user_id: string
+        }
+        Update: {
+          computed_at?: string
+          id?: string
+          matched_user_id?: string
+          shared_genres?: string[] | null
+          similarity?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_compatibility_scores_matched_user_id_fkey"
+            columns: ["matched_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_compatibility_scores_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_follows: {
         Row: {
           created_at: string | null
@@ -3020,6 +3062,13 @@ export type Database = {
           id: string
           title: string
           title_similarity: number
+        }[]
+      }
+      match_taste_neighbors: {
+        Args: { match_limit?: number; target_user_id: string }
+        Returns: {
+          matched_user_id: string
+          similarity: number
         }[]
       }
       purge_old_archived_logs: { Args: never; Returns: number }

@@ -5,6 +5,7 @@ import { Users, UserPlus, Eye, TrendingUp, ArrowRight, Lock } from 'lucide-react
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { formatDate, formatNumber } from '@/lib/utils/format'
+import { getProfileRoute } from '@/lib/utils/routes'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Audience' }
@@ -95,7 +96,7 @@ export default async function CreatorAudiencePage() {
               return (
                 <Link
                   key={follow.follower_id}
-                  href={`/reader/${p?.username}`}
+                  href={p?.username ? getProfileRoute(p.username, 'reader') : '#'}
                   className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors"
                 >
                   <Avatar className="h-8 w-8 shrink-0">

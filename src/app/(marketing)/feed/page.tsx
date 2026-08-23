@@ -5,6 +5,8 @@ import { LayoutList } from 'lucide-react'
 import { FeedTabs } from '@/components/feed/FeedTabs'
 import { FeedList } from '@/components/feed/FeedList'
 import { TrendingSidebar } from '@/components/feed/TrendingSidebar'
+import { SuggestedMatchesWidget } from '@/components/feed/SuggestedMatchesWidget'
+import { getSuggestedMatches } from '@/lib/taste/getSuggestedMatches'
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 
@@ -152,6 +154,9 @@ export default async function FeedPage({ searchParams }: Props) {
   const { data: trendingData } = await (supabase as any).rpc('get_trending_feed', { p_limit: 8 })
   const trending = trendingData ?? []
 
+  // Suggested matches — precomputed nightly, top 5 for the compact sidebar widget
+  const suggestedMatches = await getSuggestedMatches(supabase, user.id, 5)
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex gap-8">
@@ -190,9 +195,10 @@ export default async function FeedPage({ searchParams }: Props) {
           />
         </div>
 
-        {/* ── Trending sidebar — desktop only ── */}
+        {/* ── Sidebar — desktop only ── */}
         <div className="hidden lg:block w-72 shrink-0 self-start sticky top-20">
           <div className="max-h-[calc(100vh-6rem)] overflow-y-auto no-scrollbar space-y-4 pb-4">
+            <SuggestedMatchesWidget matches={suggestedMatches} />
             <TrendingSidebar trending={trending} />
           </div>
         </div>

@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendPushForUser } from '@/lib/utils/pushHelper'
+import { rewriteChapterUrl } from '@/lib/utils/chapterParse'
 
 const BATCH_SIZE         = 10
 const API_DELAY_MS       = 600
@@ -719,23 +720,94 @@ export async function GET(req: Request) {
             .update(updatePayload)
             .eq('id', comic.id)
 
+          // list_id + status pulled together so a per-user notification
+          // can offer a one-tap "mark as read" that PATCHes progress
+          // without the user having to navigate anywhere first.
           const { data: trackers } = await supabase
             .from('reading_list_items')
-            .select('list_id, reading_lists!inner(user_id)')
+            .select('list_id, status, reading_lists!inner(user_id)')
             .eq('recommendation_id', comic.id)
             .in('status', ['reading', 'plan_to_read'])
 
           if (trackers && trackers.length > 0) {
-            const userIds       = [...new Set(trackers.map((t: any) => t.reading_lists?.user_id).filter(Boolean))]
-            const pushTitle     = `📖 ${comic.title} updated`
-            const pushBody      = `New chapters available, now at chapter ${newChapterCount}`
-            const notifications = userIds.map((userId: string) => ({
-              user_id: userId,
-              type:    'system',
-              title:   pushTitle,
-              content: pushBody,
-              data:    { recommendation_id: comic.id, new_chapter_count: newChapterCount, old_chapter_count: comic.chapter_count },
-            }))
+            // One row per user (a user could theoretically track the same
+            // comic on more than one list — first match wins, arbitrary
+            // but consistent, since "mark as read" only needs to update
+            // one place).
+            const trackerByUser = new Map<string, { listId: string; status: string }>()
+            for (const t of trackers as any[]) {
+              const userId = t.reading_lists?.user_id
+              if (userId && !trackerByUser.has(userId)) {
+                trackerByUser.set(userId, { listId: t.list_id, status: t.status })
+              }
+            }
+            const userIds = [...trackerByUser.keys()]
+
+            // ── Item #25: pull each tracking user's saved source link for
+            // this comic (if any) in one bulk query, so the notification
+            // can show "Read on {label}" and, for whitelisted domains,
+            // point at the freshly-released chapter automatically. ──
+            const { data: userSources } = await supabase
+              .from('user_comic_sources')
+              .select('id, user_id, url, label')
+              .eq('recommendation_id', comic.id)
+              .in('user_id', userIds)
+
+            const sourceByUser = new Map<string, { id: string; url: string; label: string }>()
+            for (const s of (userSources ?? []) as any[]) {
+              sourceByUser.set(s.user_id, s)
+            }
+
+            // Rewrite + persist any whitelisted-domain source links before
+            // building notifications, so the link each user sees is
+            // already current.
+            const sourceUpdates: { id: string; url: string }[] = []
+            for (const [userId, src] of sourceByUser.entries()) {
+              const rewritten = rewriteChapterUrl(src.url, newChapterCount)
+              if (rewritten && rewritten !== src.url) {
+                sourceByUser.set(userId, { ...src, url: rewritten })
+                sourceUpdates.push({ id: src.id, url: rewritten })
+              }
+            }
+            if (sourceUpdates.length > 0) {
+              await Promise.allSettled(
+                sourceUpdates.map(u =>
+                  supabase.from('user_comic_sources')
+                    .update({ url: u.url, updated_at: new Date().toISOString() })
+                    .eq('id', u.id)
+                )
+              )
+            }
+
+            const pushTitle = `📖 ${comic.title} updated`
+            const pushBody  = `New chapters available, now at chapter ${newChapterCount}`
+
+            // Personalized per user — was previously one identical batch
+            // insert; now each row can carry that user's own source link
+            // and reading-list context so the notification is directly
+            // actionable (mark-as-read) without navigating away first.
+            const notifications = userIds.map((userId: string) => {
+              const tracker = trackerByUser.get(userId)!
+              const src     = sourceByUser.get(userId)
+              return {
+                user_id: userId,
+                type:    'chapter_update', // was 'system' — TYPE_META/FILTERS in
+                                           // NotificationsClient.tsx already had a
+                                           // dedicated 'chapter_update' entry that
+                                           // nothing was ever using
+                title:   pushTitle,
+                content: pushBody,
+                data: {
+                  recommendation_id: comic.id,
+                  new_chapter_count: newChapterCount,
+                  old_chapter_count: comic.chapter_count,
+                  list_id:           tracker.listId,
+                  status:            tracker.status,
+                  source_url:        src?.url ?? null,
+                  source_label:      src?.label ?? null,
+                },
+              }
+            })
 
             await supabase.from('notifications').insert(notifications)
 
