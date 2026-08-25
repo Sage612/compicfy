@@ -472,7 +472,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-2xl mx-auto px-4 pt-3 pb-8 sm:pt-4 space-y-6">
 
       {/* ── Edit modal ── */}
       {editingCollection && (
@@ -538,20 +538,19 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
       )}
 
       {/* ── Header ── */}
-     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-
-      <div className="space-y-1">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
-            <Layers size={16} className="text-white" />
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-sm shadow-primary/10">
+              <Layers size={16} className="text-primary" />
+            </div>
+            <h1 className="text-2xl font-black tracking-tight">Collections</h1>
           </div>
-          <h1 className="text-2xl font-black tracking-tight">Collections</h1>
-
+          <div className="text-muted-foreground text-sm pl-0.5">
+            <p>Reading collections from the community</p>
             {!isProUser && userId && (
-              <p className="text-muted-foreground text-sm mt-1">
-                <span className="text-muted-foreground/60">
-                  · {Math.max(0, FREE_LIMIT - collections.filter(c => c.user_id === userId).length)} free slot{FREE_LIMIT - collections.filter(c => c.user_id === userId).length !== 1 ? 's' : ''} remaining
-                </span>
+              <p className="text-muted-foreground/60 mt-0.5">
+                · {Math.max(0, FREE_LIMIT - collections.filter(c => c.user_id === userId).length)} free slot{FREE_LIMIT - collections.filter(c => c.user_id === userId).length !== 1 ? 's' : ''} remaining
               </p>
             )}
           </div>

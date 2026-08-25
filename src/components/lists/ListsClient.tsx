@@ -217,22 +217,21 @@ export function ListsClient({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-2xl mx-auto px-4 pt-3 pb-8 sm:pt-4 space-y-6">
 
-            {/* ── Header ── */}
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-
-      <div className="space-y-1">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
-            <Globe size={16} className="text-white" />
+      {/* ── Header ── */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-sm shadow-primary/10">
+              <Globe size={16} className="text-primary" />
+            </div>
+            <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
           </div>
-          <h1 className="text-2xl font-black tracking-tight">Reading Lists</h1>
+          <p className="text-muted-foreground text-sm pl-0.5">
+            Reading journeys from the community
+          </p>
         </div>
-        <p className="text-muted-foreground text-sm pl-0.5">
-          Reading journeys from the community
-        </p>
-      </div>
 
         {/* Desktop create button — only for logged-in users */}
         {userId && !showCreate && (
