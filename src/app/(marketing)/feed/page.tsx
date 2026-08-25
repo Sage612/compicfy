@@ -165,12 +165,16 @@ export default async function FeedPage({ searchParams }: Props) {
         <div className="flex-1 min-w-0 space-y-6">
 
           {/* Header */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
               <LayoutList size={16} className="text-white" />
-            </div>
+              </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight">Feed</h1>
+            </div>
+            </div>
+            <div className="pl-[47px]">
               <p className="text-muted-foreground text-sm">
                 {activeTab === 'following'
                   ? 'Latest from people you follow'
