@@ -487,27 +487,27 @@ export default async function ComicDetailPage({ params }: Props) {
                   </div>
                 </div>
 
-                <div className="md:hidden space-y-1.5">
-                  <div className="flex flex-wrap items-center justify-center gap-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${statusMeta.badge}`}>
-                      {statusMeta.label}
-                    </span>
-                    <span className="px-1.5 py-0.5 rounded border border-dossier-foreground/10 text-dossier-foreground/40 text-[10px] capitalize">
-                      {rec.content_rating?.replace('_', ' ')}
-                    </span>
-                  </div>
-                  <h1 className="font-[family-name:var(--font-display)] text-[28px] font-black italic leading-[0.95] tracking-tight text-center text-dossier-foreground">
-                    {rec.title}
-                  </h1>
-                </div>
-
                 <div className="hidden md:block">
                   {actionDeck}
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 min-w-0 pt-1 md:pt-2 space-y-2 md:space-y-3 order-2">
+            <div className="md:hidden order-2 space-y-1.5 -mt-1">
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${statusMeta.badge}`}>
+                  {statusMeta.label}
+                </span>
+                <span className="px-1.5 py-0.5 rounded border border-dossier-foreground/10 text-dossier-foreground/40 text-[10px] capitalize">
+                  {rec.content_rating?.replace('_', ' ')}
+                </span>
+              </div>
+              <h1 className="font-[family-name:var(--font-display)] text-[28px] font-black italic leading-[0.95] tracking-tight text-center text-dossier-foreground">
+                {rec.title}
+              </h1>
+            </div>
+
+            <div className="flex-1 min-w-0 pt-1 md:pt-2 space-y-2 md:space-y-3 order-3">
 
               <div className="hidden md:block space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
