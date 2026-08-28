@@ -507,7 +507,7 @@ export default async function ComicDetailPage({ params }: Props) {
               </div>
             </div>
 
-            <div className="flex-1 min-w-0 pt-1 md:pt-2 space-y-3 md:space-y-4 order-2">
+            <div className="flex-1 min-w-0 pt-1 md:pt-2 space-y-2 md:space-y-3 order-2">
 
               <div className="hidden md:block space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
