@@ -446,7 +446,7 @@ export default async function ComicDetailPage({ params }: Props) {
           <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
 
             <div className="md:w-48 shrink-0 order-1">
-              <div className="mx-auto md:mx-0 w-40 md:w-48 space-y-4">
+              <div className="mx-auto md:mx-0 w-44 md:w-48 space-y-4">
 
                 <div className="relative flex">
                   <div
@@ -457,7 +457,7 @@ export default async function ComicDetailPage({ params }: Props) {
                     </span>
                   </div>
 
-                  <div className="relative w-40 md:w-[164px] aspect-[3/4] rounded-r-lg md:rounded-l-none rounded-lg overflow-hidden border-y border-r border-dossier-foreground/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] bg-dossier-panel">
+                  <div className="relative w-44 md:w-[164px] aspect-[3/4] rounded-r-lg md:rounded-l-none rounded-lg overflow-hidden border-y border-r border-dossier-foreground/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] bg-dossier-panel">
                     <div className={`absolute -inset-4 rounded-2xl ${typeStyle.detailGlow} blur-2xl opacity-30 -z-10`} />
                     {rec.cover_url ? (
                       <img
