@@ -393,7 +393,7 @@ export default async function ComicDetailPage({ params }: Props) {
         isLoggedIn={!!user}
       />
 
-      <div className="grid grid-cols-2 gap-1.5">
+      <div className="space-y-1.5">
         {user && <AddToListButton recommendationId={id} userId={user.id} />}
         <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
       </div>
@@ -611,7 +611,7 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 md:px-6 mt-4 md:mt-5 pb-24">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 mt-4 md:mt-5 pb-24">
           <div className="flex flex-col md:flex-row gap-6 md:gap-8">
             <div className="hidden md:block md:w-48 shrink-0" aria-hidden="true" />
             <div className="flex-1 min-w-0 max-w-4xl space-y-10">
@@ -701,6 +701,61 @@ export default async function ComicDetailPage({ params }: Props) {
           </section>
 
             </div>
+
+            {!isGhostRec && profile && (
+              <div className="hidden lg:block w-60 shrink-0">
+                <div className="sticky top-6 rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/40 backdrop-blur-sm p-4">
+                  <p className="font-[family-name:var(--font-mono)] text-[9px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
+                    Recommender
+                  </p>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {profile.avatar_url ? (
+                      <img
+                        src={profile.avatar_url}
+                        alt=""
+                        className="h-10 w-10 rounded-full border border-dossier-foreground/10 object-cover shrink-0"
+                      />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full border border-dossier-foreground/10 bg-dossier-panel flex items-center justify-center text-xs font-bold text-dossier-foreground/40 shrink-0">
+                        {recommenderName.slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-medium truncate text-dossier-foreground">{recommenderName}</p>
+                      {profile.username && (
+                        <p className="font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/40 truncate">
+                          @{profile.username}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {(recommenderIsVerified || recommenderIsPro) && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {recommenderIsVerified && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-dossier-foreground/15 text-dossier-foreground/60">
+                          Verified
+                        </span>
+                      )}
+                      {recommenderIsPro && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-amber-500/30 text-amber-400">
+                          Pro
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {profile.username && (
+                    <Link
+                      href={`/${profile.username}`}
+                      className="mt-3 flex items-center justify-center w-full h-8 rounded-[10px] border border-dossier-foreground/10 bg-dossier-panel/60 font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/70 hover:text-dossier-foreground hover:border-dossier-foreground/30 transition-colors"
+                    >
+                      View profile →
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
