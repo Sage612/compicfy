@@ -69,7 +69,7 @@ function isCrawler(userAgent: string): boolean {
     .test(userAgent)
 }
 
-export async function generateMetadata({ params }: Props): Promise {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   const supabase = await createClient()
   const { data } = await supabase
@@ -78,7 +78,7 @@ export async function generateMetadata({ params }: Props): Promise {
     .eq('id', id)
     .single()
 
-  type RecMeta = Pick
+  type RecMeta = Pick<Recommendation, 'title' | 'description' | 'type' | 'genres' | 'author' | 'cover_url' | 'status' | 'chapter_count'>
   const rec = data as RecMeta | null
   if (!rec) return { title: 'Comic' }
 
