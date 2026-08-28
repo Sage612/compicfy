@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -1200,6 +1200,7 @@ export type Database = {
           is_suspended: boolean | null
           kickstarter_url: string | null
           last_seen: string | null
+          matches_last_shown_at: string | null
           member_since: string | null
           notification_prefs: Json
           onboarding_completed: boolean | null
@@ -1256,6 +1257,7 @@ export type Database = {
           is_suspended?: boolean | null
           kickstarter_url?: string | null
           last_seen?: string | null
+          matches_last_shown_at?: string | null
           member_since?: string | null
           notification_prefs?: Json
           onboarding_completed?: boolean | null
@@ -1312,6 +1314,7 @@ export type Database = {
           is_suspended?: boolean | null
           kickstarter_url?: string | null
           last_seen?: string | null
+          matches_last_shown_at?: string | null
           member_since?: string | null
           notification_prefs?: Json
           onboarding_completed?: boolean | null
@@ -2052,18 +2055,21 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
+          pin_position: number | null
           recommendation_id: string
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
+          pin_position?: number | null
           recommendation_id: string
           user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
+          pin_position?: number | null
           recommendation_id?: string
           user_id?: string
         }
@@ -2568,6 +2574,7 @@ export type Database = {
       }
       user_taste_profiles: {
         Row: {
+          confidence: number
           created_at: string | null
           era_weights: Json | null
           favorite_creators: string[] | null
@@ -2581,6 +2588,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          confidence?: number
           created_at?: string | null
           era_weights?: Json | null
           favorite_creators?: string[] | null
@@ -2594,6 +2602,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          confidence?: number
           created_at?: string | null
           era_weights?: Json | null
           favorite_creators?: string[] | null
@@ -3067,6 +3076,7 @@ export type Database = {
       match_taste_neighbors: {
         Args: { match_limit?: number; target_user_id: string }
         Returns: {
+          match_confidence: number
           matched_user_id: string
           similarity: number
         }[]
@@ -3076,6 +3086,25 @@ export type Database = {
       reset_daily_votes: { Args: never; Returns: undefined }
       reset_monthly_profile_views: { Args: never; Returns: undefined }
       reset_monthly_rec_counts: { Args: never; Returns: undefined }
+      search_profiles: {
+        Args: {
+          match_limit?: number
+          search_query: string
+          similarity_threshold?: number
+        }
+        Returns: {
+          avatar_url: string
+          bio: string
+          display_name: string
+          display_name_similarity: number
+          id: string
+          is_patron: boolean
+          is_pro: boolean
+          role: string
+          username: string
+          username_similarity: number
+        }[]
+      }
       search_recommendations: {
         Args: {
           p_adult?: boolean

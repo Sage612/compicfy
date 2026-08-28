@@ -1,7 +1,7 @@
-import { createClient as createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Sparkles, Users } from 'lucide-react'
+import { Sparkles, Users, Crown } from 'lucide-react'
 import { getSuggestedMatches } from '@/lib/taste/getSuggestedMatches'
 import type { Metadata } from 'next'
 
@@ -16,13 +16,23 @@ function proxyCover(url: string | null | undefined): string {
 }
 
 export default async function MatchesPage() {
-  const supabase = await createServerClient()
+  const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Top 10 precomputed matches — matches the cron's TOP_MATCHES_PER_USER cap.
-  // Raise both together if this ever needs to show more.
-  const matches = await getSuggestedMatches(supabase, user.id, 10)
+  const { data: viewerProfile } = await supabase
+    .from('profiles')
+    .select('is_pro, pro_expires_at')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const isPro = !!(
+    (viewerProfile as any)?.is_pro &&
+    (!(viewerProfile as any)?.pro_expires_at || new Date((viewerProfile as any).pro_expires_at) > new Date())
+  )
+
+  // Item #17 — Free: top 3/weekly display freeze. Pro: top 10, always current.
+  const matches = await getSuggestedMatches(supabase, user.id, isPro)
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-6">
@@ -35,10 +45,27 @@ export default async function MatchesPage() {
         <div>
           <h1 className="text-2xl font-black tracking-tight">Readers Like You</h1>
           <p className="text-muted-foreground text-sm">
-            People whose taste in comics lines up with yours
+            {isPro
+              ? 'People whose taste in comics lines up with yours'
+              : 'Your top 3 matches this week'}
           </p>
         </div>
       </div>
+
+      {/* Free-tier upsell — matches item #17's Pro value prop (top 10/daily + filters) */}
+      {!isPro && (
+        <div className="flex items-center gap-3 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
+          <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0">
+            <Crown size={13} className="text-amber-500" />
+          </div>
+          <p className="text-xs text-amber-700 dark:text-amber-400 flex-1">
+            See your top 10 matches updated daily, plus genre and content filters, with <strong>Pro</strong>.
+          </p>
+          <Link href="/pricing">
+            <span className="shrink-0 text-xs font-bold text-amber-600 hover:underline">Upgrade</span>
+          </Link>
+        </div>
+      )}
 
       {/* Matches list */}
       {matches.length === 0 ? (
@@ -48,7 +75,7 @@ export default async function MatchesPage() {
           </div>
           <p className="font-black text-sm">No matches yet</p>
           <p className="text-xs text-muted-foreground max-w-xs">
-            Add comics to your reading lists so we can find readers with similar taste. Matches update daily.
+            Add comics to your reading lists, vote, or review a few titles so we can find readers with similar taste. {isPro ? 'Matches update daily.' : 'Matches update weekly.'}
           </p>
         </div>
       ) : (
@@ -77,14 +104,22 @@ export default async function MatchesPage() {
                   {match.displayName ?? match.username}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">@{match.username}</p>
-                {match.sharedGenres.length > 0 && (
+                {match.confidenceTier === 'medium' ? (
+                  <p className="text-xs text-amber-500/80 mt-1">Still learning their taste</p>
+                ) : match.sharedGenres.length > 0 ? (
                   <p className="text-xs text-muted-foreground/80 mt-1 truncate">
                     Both like {match.sharedGenres.join(', ')}
                   </p>
-                )}
+                ) : null}
               </div>
               <div className="shrink-0 text-right">
-                <span className="text-sm font-black text-emerald-500">{match.similarityPct}%</span>
+                <span className={
+                  match.confidenceTier === 'high'
+                    ? 'text-sm font-black text-emerald-500'
+                    : 'text-sm font-black text-amber-500'
+                }>
+                  {match.confidenceTier === 'high' ? `${match.similarityPct}%` : `~${match.similarityPct}%`}
+                </span>
                 <p className="text-[10px] text-muted-foreground">match</p>
               </div>
             </Link>

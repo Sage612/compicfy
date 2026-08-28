@@ -23,6 +23,19 @@ export default async function FeedPage({ searchParams }: Props) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Needed for tier-gated Suggested Matches (item #17: Free top-3/weekly,
+  // Pro top-10/daily). Same isPro expression used across the profile pages.
+  const { data: viewerProfile } = await supabase
+    .from('profiles')
+    .select('is_pro, pro_expires_at')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const isPro = !!(
+    (viewerProfile as any)?.is_pro &&
+    (!(viewerProfile as any)?.pro_expires_at || new Date((viewerProfile as any).pro_expires_at) > new Date())
+  )
+
   const { tab } = await searchParams
   const activeTab = tab === 'discover' ? 'discover' : 'following'
 
@@ -154,8 +167,9 @@ export default async function FeedPage({ searchParams }: Props) {
   const { data: trendingData } = await (supabase as any).rpc('get_trending_feed', { p_limit: 8 })
   const trending = trendingData ?? []
 
-  // Suggested matches — precomputed nightly, top 5 for the compact sidebar widget
-  const suggestedMatches = await getSuggestedMatches(supabase, user.id, 5)
+  // Suggested matches — precomputed nightly, tier-gated per item #17
+  // (Free: top 3/weekly display freeze; Pro: top 10, always current)
+  const suggestedMatches = await getSuggestedMatches(supabase, user.id, isPro)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -165,16 +179,12 @@ export default async function FeedPage({ searchParams }: Props) {
         <div className="flex-1 min-w-0 space-y-6">
 
           {/* Header */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
               <LayoutList size={16} className="text-white" />
-              </div>
+            </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight">Feed</h1>
-            </div>
-            </div>
-            <div className="pl-[47px]">
               <p className="text-muted-foreground text-sm">
                 {activeTab === 'following'
                   ? 'Latest from people you follow'

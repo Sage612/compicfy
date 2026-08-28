@@ -14,7 +14,11 @@ interface Props {
   matches: SuggestedMatch[]
 }
 
+const SIDEBAR_DISPLAY_CAP = 5
+
 export function SuggestedMatchesWidget({ matches }: Props) {
+  const visibleMatches = matches.slice(0, SIDEBAR_DISPLAY_CAP)
+
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/30">
@@ -22,12 +26,12 @@ export function SuggestedMatchesWidget({ matches }: Props) {
         <h3 className="text-xs font-black uppercase tracking-widest">Readers Like You</h3>
       </div>
       <div className="p-3 space-y-2">
-        {matches.length === 0 ? (
+        {visibleMatches.length === 0 ? (
           <p className="text-xs text-muted-foreground text-center py-4">
             Add comics to your reading lists to find your taste twins
           </p>
         ) : (
-          matches.map(match => (
+          visibleMatches.map(match => (
             <Link
               key={match.userId}
               href={`/profile/${match.username}`}
@@ -51,10 +55,20 @@ export function SuggestedMatchesWidget({ matches }: Props) {
                   {match.displayName ?? match.username}
                 </p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[9px] font-black text-emerald-500">
-                    {match.similarityPct}% match
+                  <span className={
+                    match.confidenceTier === 'high'
+                      ? 'text-[9px] font-black text-emerald-500'
+                      : 'text-[9px] font-black text-amber-500'
+                  }>
+                    {match.confidenceTier === 'high' ? `${match.similarityPct}% match` : `~${match.similarityPct}% match`}
                   </span>
-                  {match.sharedGenres.length > 0 && (
+                  {match.confidenceTier === 'medium' && (
+                    <>
+                      <span className="text-[9px] text-muted-foreground">·</span>
+                      <span className="text-[9px] text-muted-foreground">still learning</span>
+                    </>
+                  )}
+                  {match.confidenceTier === 'high' && match.sharedGenres.length > 0 && (
                     <>
                       <span className="text-[9px] text-muted-foreground">·</span>
                       <span className="text-[9px] text-muted-foreground truncate">
@@ -68,7 +82,7 @@ export function SuggestedMatchesWidget({ matches }: Props) {
           ))
         )}
       </div>
-      {matches.length > 0 && (
+      {visibleMatches.length > 0 && (
         <Link
           href="/matches"
           className="block text-center text-[10px] font-bold text-primary py-2.5 border-t border-border hover:bg-muted/30 transition-colors"

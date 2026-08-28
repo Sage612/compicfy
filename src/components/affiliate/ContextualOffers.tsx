@@ -9,6 +9,7 @@ interface ContextualOffersProps {
   comicTitle: string
   genre:      string
   maxOffers?: number
+  vertical?: boolean
 }
 
 export async function ContextualOffers({ comicId, comicTitle, genre, maxOffers = 3 }: ContextualOffersProps) {
