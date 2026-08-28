@@ -523,47 +523,6 @@ export default async function ComicDetailPage({ params }: Props) {
                 </h1>
               </div>
 
-              {rec.official_platforms && rec.official_platforms.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-dossier-foreground/40 md:hidden">Read On</p>
-                  <div className="flex md:flex-wrap gap-2 overflow-x-auto md:overflow-visible no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-                    {rec.official_platforms.map((platform: string, i: number) => (
-                      <div
-                        key={platform}
-                        className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full border border-dossier-foreground/10 bg-dossier-panel/40 text-[11px] text-dossier-foreground/60 hover:border-dossier-foreground/25 transition-colors shrink-0 whitespace-nowrap"
-                      >
-                        <Globe size={10} className="text-dossier-foreground/40 shrink-0" />
-                        <span className="font-medium">{platform}</span>
-                        {rec.official_links?.[i] && (
-                          <a
-                            href={rec.official_links[i]}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={`Open ${platform} link`}
-                          >
-                            <ExternalLink size={10} className="text-dossier-foreground/40 hover:text-dossier-foreground transition-colors" />
-                          </a>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <MyReadingSources
-                comicId={id}
-                isLoggedIn={!!user}
-                isPro={currentUserIsPro}
-              />
-
-              {rec.more_info_link && (
-                <MoreInfoSection
-                  link={rec.more_info_link}
-                  source={rec.more_info_link_source}
-                  verifiedAt={rec.more_info_link_verified_at}
-                />
-              )}
-
               {metaItems.length > 0 && (
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-1.5 gap-y-1 font-[family-name:var(--font-mono)] text-[11px] md:text-xs text-dossier-foreground/50">
                   {metaItems.map((item, i) => (
@@ -588,6 +547,44 @@ export default async function ComicDetailPage({ params }: Props) {
                     </Link>
                   ))}
                 </div>
+              )}
+
+              {rec.official_platforms && rec.official_platforms.length > 0 && (
+                <div className="flex md:flex-wrap justify-center md:justify-start gap-2 overflow-x-auto md:overflow-visible no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+                  {rec.official_platforms.map((platform: string, i: number) => (
+                    <div
+                      key={platform}
+                      className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full border border-dossier-foreground/10 bg-dossier-panel/40 text-[11px] text-dossier-foreground/60 hover:border-dossier-foreground/25 transition-colors shrink-0 whitespace-nowrap"
+                    >
+                      <Globe size={10} className="text-dossier-foreground/40 shrink-0" />
+                      <span className="font-medium">{platform}</span>
+                      {rec.official_links?.[i] && (
+                        <a
+                          href={rec.official_links[i]}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`Open ${platform} link`}
+                        >
+                          <ExternalLink size={10} className="text-dossier-foreground/40 hover:text-dossier-foreground transition-colors" />
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <MyReadingSources
+                comicId={id}
+                isLoggedIn={!!user}
+                isPro={currentUserIsPro}
+              />
+
+              {rec.more_info_link && (
+                <MoreInfoSection
+                  link={rec.more_info_link}
+                  source={rec.more_info_link_source}
+                  verifiedAt={rec.more_info_link_verified_at}
+                />
               )}
 
               <div className="flex items-stretch rounded-xl border border-dossier-foreground/10 bg-dossier-panel/40 divide-x divide-dossier-foreground/10 overflow-hidden backdrop-blur-sm">
