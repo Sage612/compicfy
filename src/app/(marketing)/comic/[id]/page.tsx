@@ -453,7 +453,7 @@ export default async function ComicDetailPage({ params }: Props) {
                     className={`hidden md:flex items-center justify-center w-7 rounded-l-lg border-y border-l ${typeStyle.border} bg-dossier-panel/60 backdrop-blur-md`}
                   >
                     <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.25em] text-dossier-foreground/60 -rotate-90 whitespace-nowrap">
-                      {rec.type} · {rec.status}
+                      {rec.type} · {rec.status}{rec.year_released ? ` · ${rec.year_released}` : ''}
                     </span>
                   </div>
 
@@ -557,8 +557,8 @@ export default async function ComicDetailPage({ params }: Props) {
                 <div className="flex flex-wrap justify-center md:justify-start gap-1.5">
                   {rec.genres.map((genre: string) => (
                     <Link key={genre} href={`/browse?genre=${genre}`}>
-                      <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 bg-dossier-panel/20 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors font-[family-name:var(--font-mono)]">
-                        #{genre.toLowerCase()}
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors">
+                        {genre}
                       </span>
                     </Link>
                   ))}
@@ -632,14 +632,9 @@ export default async function ComicDetailPage({ params }: Props) {
           <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-3 md:gap-4`}>
             <div className="relative rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/30 backdrop-blur-sm p-5 md:p-6 overflow-hidden">
               <div className={`absolute -top-10 -right-10 w-40 h-40 rounded-full ${typeStyle.detailGlow} blur-3xl opacity-20`} />
-              <div className="relative flex items-center justify-between mb-3">
-                <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
-                  About
-                </h2>
-                <span className="font-[family-name:var(--font-mono)] text-[9px] text-dossier-foreground/30 border border-dossier-foreground/10 px-1.5 py-0.5 rounded">
-                  DOS-01
-                </span>
-              </div>
+              <h2 className="relative font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
+                About
+              </h2>
 
               <p className="relative text-[15px] leading-relaxed text-dossier-foreground/75 max-w-prose">{rec.description}</p>
             </div>
