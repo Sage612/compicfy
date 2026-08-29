@@ -502,7 +502,7 @@ export default async function ComicDetailPage({ params }: Props) {
                   {rec.content_rating?.replace('_', ' ')}
                 </span>
               </div>
-              <h1 className="font-[family-name:var(--font-dossier-display)] text-[28px] font-black italic leading-[0.95] tracking-tight text-center text-dossier-foreground">
+              <h1 className="font-[family-name:var(--font-dossier-display)] text-2xl font-black italic leading-[0.95] tracking-tight text-center text-dossier-foreground">
                 {rec.title}
               </h1>
             </div>
