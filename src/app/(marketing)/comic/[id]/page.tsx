@@ -369,7 +369,7 @@ export default async function ComicDetailPage({ params }: Props) {
   ].filter(Boolean) as { key: string; icon: typeof User; label: string }[]
 
   const actionDeck = (
-    <div className="rounded-xl border border-dossier-foreground/10 bg-dossier-panel/60 backdrop-blur-sm p-2.5 space-y-2">
+    <div className="rounded-xl border border-dossier-foreground/10 bg-dossier-panel/60 p-2.5 space-y-2">
       <div className="grid grid-cols-2 gap-2">
         <VoteButtons
           recommendationId={id}
