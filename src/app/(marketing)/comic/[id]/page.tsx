@@ -711,7 +711,7 @@ export default async function ComicDetailPage({ params }: Props) {
             </div>
 
             {!isGhostRec && profile && (
-              <div className="hidden lg:block w-60 shrink-0">
+              <div className="hidden lg:block w-60 shrink-0 order-4">
                 <div className="sticky top-6 rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/40 backdrop-blur-sm p-4">
                   <p className="font-[family-name:var(--font-mono)] text-[9px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
                     Recommender
