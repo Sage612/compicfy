@@ -441,7 +441,7 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="relative max-w-6xl mx-auto px-4 md:px-6 -mt-4 md:-mt-7 z-20">
+        <div className="relative max-w-7xl mx-auto px-4 md:px-6 -mt-4 md:-mt-7 z-20 pb-24">
 
           <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
 
@@ -620,14 +620,8 @@ export default async function ComicDetailPage({ params }: Props) {
               <div className="md:hidden">
                 {actionDeck}
               </div>
-            </div>
-          </div>
-        </div>
 
-        <div className="max-w-7xl mx-auto px-4 md:px-6 mt-4 md:mt-5 pb-24">
-          <div className="flex flex-col md:flex-row gap-6 md:gap-8">
-            <div className="hidden md:block md:w-52 shrink-0" aria-hidden="true" />
-            <div className="flex-1 min-w-0 max-w-4xl space-y-10">
+              <div className="space-y-10 pt-6 md:pt-8">
 
           <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-3 md:gap-4`}>
             <div className="relative rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/30 backdrop-blur-sm p-5 md:p-6 overflow-hidden">
@@ -713,6 +707,7 @@ export default async function ComicDetailPage({ params }: Props) {
             />
           </section>
 
+              </div>
             </div>
 
             {!isGhostRec && profile && (
