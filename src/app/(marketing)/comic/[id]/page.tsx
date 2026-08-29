@@ -416,7 +416,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
       <div className={`${display.variable} ${mono.variable} min-h-screen bg-dossier text-dossier-foreground`}>
 
-        <div className="relative h-20 md:h-[16vh] md:min-h-[130px] md:max-h-[190px] overflow-hidden">
+        <div className="relative h-20 md:h-[12vh] md:min-h-[92px] md:max-h-[132px] overflow-hidden">
           {rec.cover_url ? (
             <img
               src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
@@ -445,8 +445,13 @@ export default async function ComicDetailPage({ params }: Props) {
 
           <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
 
+<<<<<<< HEAD
             <div className="md:w-48 shrink-0 order-1">
               <div className="mx-auto md:mx-0 w-44 md:w-48 space-y-4">
+=======
+            <div className="md:w-52 shrink-0 order-1">
+              <div className="mx-auto md:mx-0 w-44 md:w-52 space-y-4">
+>>>>>>> c394633 (feat: update comic detail page with dense mobile and desktop layouts)
 
                 <div className="relative flex">
                   <div
@@ -457,7 +462,11 @@ export default async function ComicDetailPage({ params }: Props) {
                     </span>
                   </div>
 
+<<<<<<< HEAD
                   <div className="relative w-44 md:w-[164px] aspect-[3/4] rounded-r-lg md:rounded-l-none rounded-lg overflow-hidden border-y border-r border-dossier-foreground/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] bg-dossier-panel">
+=======
+                  <div className="relative w-44 md:w-[180px] aspect-[3/4] rounded-r-lg md:rounded-l-none rounded-lg overflow-hidden border-y border-r border-dossier-foreground/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] bg-dossier-panel">
+>>>>>>> c394633 (feat: update comic detail page with dense mobile and desktop layouts)
                     <div className={`absolute -inset-4 rounded-2xl ${typeStyle.detailGlow} blur-2xl opacity-30 -z-10`} />
                     {rec.cover_url ? (
                       <img
@@ -517,6 +526,15 @@ export default async function ComicDetailPage({ params }: Props) {
                   <span className="px-1.5 py-0.5 rounded border border-dossier-foreground/10 text-dossier-foreground/40 text-[10px] capitalize">
                     {rec.content_rating?.replace('_', ' ')}
                   </span>
+                  {(recommenderIsVerified || recommenderIsPro) && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-dossier-panel/60 border border-dossier-foreground/10 text-[10px] font-[family-name:var(--font-mono)] text-dossier-foreground/50">
+                      {recommenderIsVerified && recommenderIsPro
+                        ? 'Verified · Pro rec'
+                        : recommenderIsVerified
+                        ? 'Verified'
+                        : 'Pro rec'}
+                    </span>
+                  )}
                 </div>
                 <h1 className="font-[family-name:var(--font-dossier-display)] text-4xl md:text-5xl font-black italic leading-[0.95] tracking-tight text-dossier-foreground">
                   {rec.title}
@@ -524,7 +542,11 @@ export default async function ComicDetailPage({ params }: Props) {
               </div>
 
               {metaItems.length > 0 && (
+<<<<<<< HEAD
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-1.5 gap-y-1 font-[family-name:var(--font-mono)] text-[11px] md:text-xs text-dossier-foreground/50">
+=======
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-1.5 gap-y-1 font-[family-name:var(--font-mono)] text-[11px] md:text-xs text-dossier-foreground/50 md:border-y md:border-dossier-foreground/10 md:py-2.5">
+>>>>>>> c394633 (feat: update comic detail page with dense mobile and desktop layouts)
                   {metaItems.map((item, i) => (
                     <span key={item.key} className="flex items-center gap-x-1.5">
                       {i > 0 && <span className="text-dossier-foreground/20 mx-0.5">•</span>}
@@ -534,6 +556,16 @@ export default async function ComicDetailPage({ params }: Props) {
                       </span>
                     </span>
                   ))}
+<<<<<<< HEAD
+=======
+                  {rec.type && (
+                    <span className="hidden md:flex items-center gap-1.5">
+                      <span className="text-dossier-foreground/20 mx-0.5">•</span>
+                      <Globe size={12} className="text-dossier-foreground/30" />
+                      {rec.type}
+                    </span>
+                  )}
+>>>>>>> c394633 (feat: update comic detail page with dense mobile and desktop layouts)
                 </div>
               )}
 
@@ -541,8 +573,13 @@ export default async function ComicDetailPage({ params }: Props) {
                 <div className="flex flex-wrap justify-center md:justify-start gap-1.5">
                   {rec.genres.map((genre: string) => (
                     <Link key={genre} href={`/browse?genre=${genre}`}>
+<<<<<<< HEAD
                       <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors">
                         {genre}
+=======
+                      <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 bg-dossier-panel/20 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors font-[family-name:var(--font-mono)]">
+                        #{genre.toLowerCase()}
+>>>>>>> c394633 (feat: update comic detail page with dense mobile and desktop layouts)
                       </span>
                     </Link>
                   ))}
@@ -610,17 +647,22 @@ export default async function ComicDetailPage({ params }: Props) {
 
         <div className="max-w-7xl mx-auto px-4 md:px-6 mt-4 md:mt-5 pb-24">
           <div className="flex flex-col md:flex-row gap-6 md:gap-8">
-            <div className="hidden md:block md:w-48 shrink-0" aria-hidden="true" />
+            <div className="hidden md:block md:w-52 shrink-0" aria-hidden="true" />
             <div className="flex-1 min-w-0 max-w-4xl space-y-10">
 
-          <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-4 md:gap-5`}>
+          <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-3 md:gap-4`}>
             <div className="relative rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/30 backdrop-blur-sm p-5 md:p-6 overflow-hidden">
               <div className={`absolute -top-10 -right-10 w-40 h-40 rounded-full ${typeStyle.detailGlow} blur-3xl opacity-20`} />
-              <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
-                About
-              </h2>
+              <div className="relative flex items-center justify-between mb-3">
+                <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
+                  About
+                </h2>
+                <span className="font-[family-name:var(--font-mono)] text-[9px] text-dossier-foreground/30 border border-dossier-foreground/10 px-1.5 py-0.5 rounded">
+                  DOS-01
+                </span>
+              </div>
 
-              <p className="text-[15px] leading-relaxed text-dossier-foreground/75 max-w-prose">{rec.description}</p>
+              <p className="relative text-[15px] leading-relaxed text-dossier-foreground/75 max-w-prose">{rec.description}</p>
             </div>
 
             {rec.why_recommend && (
