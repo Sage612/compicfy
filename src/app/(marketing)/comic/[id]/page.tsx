@@ -35,7 +35,7 @@ const display = Fraunces({
   subsets: ['latin'],
   weight: ['400', '500', '600', '900'],
   style: ['normal', 'italic'],
-  variable: '--font-display',
+  variable: '--font-dossier-display',
 })
 const mono = JetBrains_Mono({
   subsets: ['latin'],
@@ -502,7 +502,7 @@ export default async function ComicDetailPage({ params }: Props) {
                   {rec.content_rating?.replace('_', ' ')}
                 </span>
               </div>
-              <h1 className="font-[family-name:var(--font-display)] text-[28px] font-black italic leading-[0.95] tracking-tight text-center text-dossier-foreground">
+              <h1 className="font-[family-name:var(--font-dossier-display)] text-[28px] font-black italic leading-[0.95] tracking-tight text-center text-dossier-foreground">
                 {rec.title}
               </h1>
             </div>
@@ -518,7 +518,7 @@ export default async function ComicDetailPage({ params }: Props) {
                     {rec.content_rating?.replace('_', ' ')}
                   </span>
                 </div>
-                <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl font-black italic leading-[0.95] tracking-tight text-dossier-foreground">
+                <h1 className="font-[family-name:var(--font-dossier-display)] text-4xl md:text-5xl font-black italic leading-[0.95] tracking-tight text-dossier-foreground">
                   {rec.title}
                 </h1>
               </div>
@@ -628,7 +628,7 @@ export default async function ComicDetailPage({ params }: Props) {
                 <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
                   Why Read This
                 </h2>
-                <p className="font-[family-name:var(--font-display)] italic text-lg leading-snug text-dossier-foreground/85 flex-1">
+                <p className="font-[family-name:var(--font-dossier-display)] italic text-lg leading-snug text-dossier-foreground/85 flex-1">
                   &ldquo;{rec.why_recommend}&rdquo;
                 </p>
               </div>
