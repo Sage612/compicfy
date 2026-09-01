@@ -429,20 +429,28 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             </a>
           )}
 
-          {/* ── Unified stat strip (replaces scattered inline stats) ── */}
+          {/* ── Unified stat strip (replaces scattered inline stats) ──
+              Fixed 5-column grid, not scrollable — a stat strip is meant
+              to be read at a glance, not swiped through. Fit fixed by:
+              tighter gap-1, no uppercase/tracking-wide (letter-spacing
+              was pushing "FOLLOWERS" past its column at narrow widths),
+              and min-w-0 + truncate as a safety net so a label never
+              forces the grid wider than the card. */}
           {!isGhost && (
             <div className="mb-4 p-3 rounded-xl bg-muted/40 border border-border space-y-2">
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-5 gap-1">
                 {[
-                  { label: 'Followers',  value: followersCount ?? 0 },
-                  { label: 'Following',  value: followingCount ?? 0 },
-                  { label: 'Recs',       value: totalRecs },
-                  { label: 'Completed',  value: completedSeriesCount },
-                  { label: 'Reviews',    value: profile.total_reviews ?? 0 },
+                  { label: 'Followers', value: followersCount ?? 0 },
+                  { label: 'Following', value: followingCount ?? 0 },
+                  { label: 'Recs',      value: totalRecs },
+                  { label: 'Completed', value: completedSeriesCount },
+                  { label: 'Reviews',   value: profile.total_reviews ?? 0 },
                 ].map(stat => (
-                  <div key={stat.label} className="text-center">
-                    <p className="text-base font-black tabular-nums">{stat.value}</p>
-                    <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wide">{stat.label}</p>
+                  <div key={stat.label} className="min-w-0 text-center">
+                    <p className="text-sm sm:text-base font-black tabular-nums">{stat.value}</p>
+                    <p className="text-[8px] sm:text-[9px] text-muted-foreground font-medium leading-tight truncate px-0.5">
+                      {stat.label}
+                    </p>
                   </div>
                 ))}
               </div>
