@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -260,6 +260,56 @@ export type Database = {
           platform?: string
         }
         Relationships: []
+      }
+      bake_requests: {
+        Row: {
+          chapter_count_at_bake_start: number
+          cleared_at: string | null
+          counting_mode: string
+          created_at: string
+          fulfilled_at: string | null
+          id: number
+          predicted_ready_at: string | null
+          recommendation_id: string
+          status: string
+          target_chapter_count: number
+          user_id: string
+        }
+        Insert: {
+          chapter_count_at_bake_start: number
+          cleared_at?: string | null
+          counting_mode: string
+          created_at?: string
+          fulfilled_at?: string | null
+          id?: never
+          predicted_ready_at?: string | null
+          recommendation_id: string
+          status?: string
+          target_chapter_count: number
+          user_id: string
+        }
+        Update: {
+          chapter_count_at_bake_start?: number
+          cleared_at?: string | null
+          counting_mode?: string
+          created_at?: string
+          fulfilled_at?: string | null
+          id?: never
+          predicted_ready_at?: string | null
+          recommendation_id?: string
+          status?: string
+          target_chapter_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bake_requests_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       checker_priority_queue: {
         Row: {
@@ -1206,6 +1256,7 @@ export type Database = {
           onboarding_completed: boolean | null
           patreon_url: string | null
           patron_expires_at: string | null
+          pinned_favorite_ids: string[] | null
           pinned_recommendation_id: string | null
           pro_digest_enabled: boolean | null
           pro_digest_last_sent: string | null
@@ -1263,6 +1314,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           patreon_url?: string | null
           patron_expires_at?: string | null
+          pinned_favorite_ids?: string[] | null
           pinned_recommendation_id?: string | null
           pro_digest_enabled?: boolean | null
           pro_digest_last_sent?: string | null
@@ -1320,6 +1372,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           patreon_url?: string | null
           patron_expires_at?: string | null
+          pinned_favorite_ids?: string[] | null
           pinned_recommendation_id?: string | null
           pro_digest_enabled?: boolean | null
           pro_digest_last_sent?: string | null
@@ -2055,21 +2108,18 @@ export type Database = {
         Row: {
           created_at: string | null
           id: string
-          pin_position: number | null
           recommendation_id: string
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
-          pin_position?: number | null
           recommendation_id: string
           user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
-          pin_position?: number | null
           recommendation_id?: string
           user_id?: string
         }
@@ -3207,6 +3257,17 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      search_recommendations_fuzzy: {
+        Args: { query: string; result_limit?: number; result_offset?: number }
+        Returns: {
+          alternative_titles: string[]
+          cover_url: string
+          id: string
+          score: number
+          title: string
+          type: string
+        }[]
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }

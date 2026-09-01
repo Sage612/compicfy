@@ -14,9 +14,12 @@ import { ComicCard } from '@/components/recommendations/ComicCard'
 import { ProAvatar } from '@/components/pro/ProAvatar'
 import { ProBadge } from '@/components/pro/ProBadge'
 import { Button } from '@/components/ui/button'
+import { CreatorProfileTabs } from '@/components/profile/CreatorProfileTabs'
+import { Suspense } from 'react'
 
 interface Props {
-  params: Promise<{ username: string }>
+  params:       Promise<{ username: string }>
+  searchParams: Promise<{ tab?: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -24,9 +27,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return { title: `${username} – Creator` }
 }
 
-export default async function CreatorProfilePage({ params }: Props) {
+export default async function CreatorProfilePage({ params, searchParams }: Props) {
   const { username } = await params
-  const supabase     = await createClient()
+  const { tab: tabParam } = await searchParams
+  const activeTab = tabParam === 'about' ? 'about' : 'works'
+
+  const supabase = await createClient()
 
   const { data: { user: viewer } } = await supabase.auth.getUser()
 
@@ -82,7 +88,7 @@ export default async function CreatorProfilePage({ params }: Props) {
   const hasLinks = profile.comic_url || profile.patreon_url || profile.kickstarter_url || profile.website
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
+    <div className="max-w-4xl mx-auto px-4 py-10 space-y-6">
 
       {/* Hero */}
       <div className="relative rounded-2xl overflow-hidden border border-teal-500/30 bg-card shadow-sm">
@@ -132,26 +138,30 @@ export default async function CreatorProfilePage({ params }: Props) {
 
           {profile.bio && <p className="text-sm leading-relaxed text-muted-foreground mb-4 max-w-xl">{profile.bio}</p>}
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-4 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><Users size={11} className="text-teal-500/70" /><strong className="text-foreground font-black">{followersCount ?? 0}</strong> followers</span>
-            <span className="text-border">·</span>
-            <span className="flex items-center gap-1"><BookOpen size={11} className="text-teal-500/70" /><strong className="text-foreground font-black">{totalWorks}</strong> works</span>
-            <span className="text-border">·</span>
-            <span className="flex items-center gap-1"><ThumbsUp size={11} className="text-emerald-500/70" /><strong className="text-foreground font-black">{totalUpvotes}</strong> upvotes</span>
-            {totalReviews > 0 && (<><span className="text-border">·</span><span className="flex items-center gap-1"><Star size={11} className="text-amber-500/70" /><strong className="text-foreground font-black">{totalReviews}</strong> reviews</span></>)}
-            <span className="text-border">·</span>
-            <span className="flex items-center gap-1"><CalendarDays size={11} className="text-teal-500/60" />Joined {formatDate(profile.member_since)}</span>
-          </div>
-
-          {creatorGenres.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              {creatorGenres.map(g => (
-                <Link key={g} href={`/browse?genre=${encodeURIComponent(g)}`}>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-teal-500/20 bg-teal-500/8 text-teal-600 dark:text-teal-400 hover:bg-teal-500/15 transition-colors cursor-pointer">{g}</span>
-                </Link>
+          {/* ── Unified stat strip (matches reader profile page's pattern) ──
+              4 columns, not 5 — creators don't have a "Following" count or
+              a reading-behavior stat like "Completed Series" worth padding
+              in just to hit a round number. Join date moved to a caption
+              below, same treatment as the reader page. */}
+          <div className="mb-4 p-3 rounded-xl bg-teal-500/5 border border-teal-500/20 space-y-2">
+            <div className="grid grid-cols-4 gap-2">
+              {[
+                { label: 'Followers', value: followersCount ?? 0 },
+                { label: 'Works',     value: totalWorks },
+                { label: 'Upvotes',   value: totalUpvotes },
+                { label: 'Reviews',   value: totalReviews },
+              ].map(stat => (
+                <div key={stat.label} className="text-center">
+                  <p className="text-base font-black tabular-nums">{stat.value}</p>
+                  <p className="text-[9px] text-muted-foreground font-medium uppercase tracking-wide">{stat.label}</p>
+                </div>
               ))}
             </div>
-          )}
+            <p className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground pt-1 border-t border-teal-500/10">
+              <CalendarDays size={10} className="text-teal-500/60" />
+              Joined {formatDate(profile.member_since)}
+            </p>
+          </div>
 
           {hasLinks && (
             <div className="flex flex-wrap gap-2">
@@ -180,57 +190,74 @@ export default async function CreatorProfilePage({ params }: Props) {
         </div>
       </div>
 
-      {/* Works */}
-      {allWorks.length > 0 ? (
-        <section className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 flex-1">
-              <h2 className="text-lg font-black">Works</h2>
-              <div className="h-0.5 flex-1 bg-gradient-to-r from-teal-500/40 to-transparent" />
+      {/* ── Tabbed content ── */}
+      <Suspense>
+        <CreatorProfileTabs username={profile.username} />
+      </Suspense>
+
+      {activeTab === 'works' && (
+        allWorks.length > 0 ? (
+          <section className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 flex-1">
+                <h2 className="text-lg font-black">Works</h2>
+                <div className="h-0.5 flex-1 bg-gradient-to-r from-teal-500/40 to-transparent" />
+              </div>
+              <span className="text-xs text-muted-foreground">{totalWorks} published</span>
             </div>
-            <span className="text-xs text-muted-foreground">{totalWorks} published</span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {allWorks.map(work => <ComicCard key={work.id} recommendation={work} />)}
+            </div>
+          </section>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-teal-500/20 bg-teal-500/5 space-y-3 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-teal-500/10 flex items-center justify-center">
+              <Palette size={24} className="text-teal-500 opacity-60" />
+            </div>
+            <p className="font-black text-sm">No works published yet</p>
+            <p className="text-xs text-muted-foreground max-w-xs">
+              {isOwner ? 'Submit your first comic to let the community discover your work.' : `@${profile.username} hasn't published any works yet.`}
+            </p>
+            {isOwner && (
+              <Link href={ownerRoutes.newRec}>
+                <Button size="sm" className="gap-1.5 bg-teal-500 hover:bg-teal-600 border-0 text-white">
+                  <BookOpen size={13} />Submit Your First Work
+                </Button>
+              </Link>
+            )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {allWorks.map(work => <ComicCard key={work.id} recommendation={work} />)}
-          </div>
-        </section>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-teal-500/20 bg-teal-500/5 space-y-3 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-teal-500/10 flex items-center justify-center">
-            <Palette size={24} className="text-teal-500 opacity-60" />
-          </div>
-          <p className="font-black text-sm">No works published yet</p>
-          <p className="text-xs text-muted-foreground max-w-xs">
-            {isOwner ? 'Submit your first comic to let the community discover your work.' : `@${profile.username} hasn't published any works yet.`}
-          </p>
-          {isOwner && (
-            <Link href={ownerRoutes.newRec}>
-              <Button size="sm" className="gap-1.5 bg-teal-500 hover:bg-teal-600 border-0 text-white">
-                <BookOpen size={13} />Submit Your First Work
-              </Button>
-            </Link>
-          )}
-        </div>
+        )
       )}
 
-      {/* About */}
-      {(profile.bio || creatorGenres.length > 0) && (
-        <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
-          <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">About</h2>
-          {profile.bio && <p className="text-sm leading-relaxed text-foreground/80">{profile.bio}</p>}
-          {creatorGenres.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                <Heart size={11} className="text-teal-500" />Genres they create in
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {creatorGenres.map(g => (
-                  <span key={g} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-teal-500/20 bg-teal-500/8 text-teal-600 dark:text-teal-400">{g}</span>
-                ))}
+      {activeTab === 'about' && (
+        (profile.bio || creatorGenres.length > 0) ? (
+          <section className="rounded-2xl border border-border bg-card p-5 space-y-4">
+            <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">About</h2>
+            {profile.bio && <p className="text-sm leading-relaxed text-foreground/80">{profile.bio}</p>}
+            {creatorGenres.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Heart size={11} className="text-teal-500" />Genres they create in
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {creatorGenres.map(g => (
+                    <Link key={g} href={`/browse?genre=${encodeURIComponent(g)}`}>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border border-teal-500/20 bg-teal-500/8 text-teal-600 dark:text-teal-400 hover:bg-teal-500/15 transition-colors cursor-pointer">{g}</span>
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </section>
+            )}
+          </section>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-border text-center space-y-2">
+            <Heart size={24} className="text-muted-foreground opacity-40" />
+            <p className="font-black text-sm">Nothing here yet</p>
+            <p className="text-xs text-muted-foreground">
+              {isOwner ? 'Add a bio in settings to tell readers about yourself.' : `@${profile.username} hasn't added a bio yet.`}
+            </p>
+          </div>
+        )
       )}
     </div>
   )
