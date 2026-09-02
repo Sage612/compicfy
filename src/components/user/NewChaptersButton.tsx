@@ -22,15 +22,6 @@ interface ComicUpdate {
   source_label:      string | null
 }
 
-/**
- * Persistent "new chapters available" indicator, sitting next to
- * NotificationBell rather than replacing it. Deliberately NOT
- * notification-driven — the count comes from /api/reading-progress/updates,
- * which compares chapter_count against progress_chapter directly. That
- * means swiping away or dismissing a notification has no effect on this
- * count; it only goes down when a comic is actually marked as read, here
- * or anywhere else in the app.
- */
 export function NewChaptersButton({ userId }: { userId: string }) {
   const [updates, setUpdates]     = useState<ComicUpdate[]>([])
   const [loading, setLoading]     = useState(true)
@@ -54,6 +45,9 @@ export function NewChaptersButton({ userId }: { userId: string }) {
     fetchUpdates()
   }, [fetchUpdates])
 
+  // Refetch when a chapter_update notification comes in — piggybacks on
+  // the same realtime event NotificationBell listens for, so this stays
+  // current without its own separate cron-adjacent plumbing.
   useEffect(() => {
     const channel = supabase.channel(`new_chapters_${userId}_${Date.now()}`)
     channel
@@ -70,6 +64,9 @@ export function NewChaptersButton({ userId }: { userId: string }) {
     return () => { supabase.removeChannel(channel) }
   }, [userId, fetchUpdates, supabase])
 
+  // Refetch on open too, in case progress changed elsewhere (comic page,
+  // list detail) since the last fetch and the realtime event didn't fire
+  // for it (e.g. marked as read via ReadingProgressButton directly).
   const handleOpenChange = (next: boolean) => {
     setOpen(next)
     if (next) fetchUpdates()
@@ -103,7 +100,7 @@ export function NewChaptersButton({ userId }: { userId: string }) {
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
-          className="relative h-8 w-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors outline-none"
+          className="relative h-8 w-8 flex items-center justify-center rounded-lg active:bg-accent md:hover:bg-accent transition-colors outline-none focus:outline-none focus-visible:outline-none"
           aria-label="Comics with new chapters"
         >
           <BookMarked size={16} />
@@ -115,7 +112,12 @@ export function NewChaptersButton({ userId }: { userId: string }) {
         </button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-80 rounded-xl p-2 max-h-[70vh] overflow-y-auto">
+      <DropdownMenuContent
+        align="end"
+        collisionPadding={12}
+        sideOffset={8}
+        className="w-[calc(100vw-1.5rem)] max-w-80 rounded-xl p-2 max-h-[70vh] overflow-y-auto"
+      >
         <p className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
           {count > 0 ? `${count} comic${count !== 1 ? 's' : ''} with new chapters` : 'New chapters'}
         </p>

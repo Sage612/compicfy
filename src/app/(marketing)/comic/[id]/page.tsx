@@ -755,7 +755,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
                   {profile.username && (
                     <Link
-                      href={`profile/${profile.username}`}
+                      href={`/${profile.username}`}
                       className="mt-3 flex items-center justify-center w-full h-8 rounded-[10px] border border-dossier-foreground/10 bg-dossier-panel/60 font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/70 hover:text-dossier-foreground hover:border-dossier-foreground/30 transition-colors"
                     >
                       View profile →

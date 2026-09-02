@@ -33,11 +33,6 @@ export function NotificationBell({ userId }: { userId: string }) {
         .single()
       if (!profile || !isMounted) return
 
-      // FIX: this previously derived the bell's destination purely from
-      // user_type (reader/creator), with no admin/moderator case at all.
-      // An admin's bell silently sent them to their personal reader or
-      // creator dashboard's notifications page — nowhere near the report
-      // queue their notifications were actually about.
       if (['admin', 'moderator'].includes(profile.role)) {
         if (isMounted) setNotifHref(getAdminRoutes().notifications)
         return
@@ -113,7 +108,7 @@ export function NotificationBell({ userId }: { userId: string }) {
     <button
       onClick={() => { if (notifHref) router.push(notifHref) }}
       disabled={!notifHref}
-      className="relative h-8 w-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors outline-none disabled:opacity-60 disabled:cursor-wait"
+      className="relative h-8 w-8 flex items-center justify-center rounded-lg active:bg-accent md:hover:bg-accent transition-colors outline-none focus:outline-none focus-visible:outline-none disabled:opacity-60 disabled:cursor-wait"
       aria-label="Go to notifications"
     >
       <Bell size={16} />
