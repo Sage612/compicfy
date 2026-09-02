@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { GlobalSearch } from '@/components/layout/GlobalSearch'
 import { NotificationBell } from '@/components/user/NotificationBell'
+import { NewChaptersButton } from '@/components/user/NewChaptersButton'
 import { MobileTabBar } from '@/components/layout/MobileTabBar'
 import { NotificationSoftPrompt } from '@/components/user/NotificationSoftPrompt'
 import { getDashboardRoutes, getProfileRoute, type UserType } from '@/lib/utils/routes'
@@ -259,7 +260,10 @@ export function Header() {
                 </Link>
               </div>
             ) : (
-              <NotificationBell userId={user.id} />
+              <>
+                <NewChaptersButton userId={user.id} />
+                <NotificationBell userId={user.id} />
+              </>
             )}
           </div>
         </div>
@@ -351,6 +355,7 @@ export function Header() {
                   </Button>
                 </Link>
 
+                <NewChaptersButton userId={user.id} />
                 <NotificationBell userId={user.id} />
 
                 <DropdownMenu>

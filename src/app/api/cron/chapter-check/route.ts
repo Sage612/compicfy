@@ -355,7 +355,6 @@ async function resolveChapterCount(comic: any): Promise<{
     }
   }
 
-  // ── Chapter count resolution — unchanged logic from before ──
   if (muChapter !== null && mdChapter !== null && Math.abs(muChapter - mdChapter) <= 1) {
     return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried, resolvedStatus, statusSources, formatRejections }
   }
@@ -392,22 +391,24 @@ async function resolveChapterCount(comic: any): Promise<{
 }
 
 // ── Lock helpers ────────────────────────────────────────────────
+// FIXED: previously a separate SELECT-then-UPSERT, which had a real
+// check-then-act race condition — two near-simultaneous requests could
+// both see "no active lock" before either finished writing one, letting
+// both proceed to run the full check simultaneously. This was the
+// confirmed cause of duplicate chapter-update notifications firing twice
+// for the same release. Now a single atomic RPC call
+// (acquire_cron_lock, see migration 18_acquire_cron_lock.sql) that
+// Postgres guarantees only one concurrent caller can win.
 async function acquireLock(supabase: any): Promise<boolean> {
-  const { data: existing } = await supabase
-    .from('cron_locks')
-    .select('locked_until')
-    .eq('job_name', LOCK_NAME)
-    .maybeSingle()
-
-  if (existing && new Date(existing.locked_until) > new Date()) {
-    return false
+  const { data, error } = await supabase.rpc('acquire_cron_lock', {
+    p_job_name: LOCK_NAME,
+    p_lock_duration_ms: LOCK_DURATION_MS,
+  })
+  if (error) {
+    console.error('acquireLock RPC error:', error)
+    return false // fail closed — if the lock check itself errors, don't proceed
   }
-
-  await supabase
-    .from('cron_locks')
-    .upsert({ job_name: LOCK_NAME, locked_until: new Date(Date.now() + LOCK_DURATION_MS).toISOString() })
-
-  return true
+  return data === true
 }
 
 async function isIdCheckerActive(supabase: any): Promise<boolean> {
@@ -449,7 +450,6 @@ export async function GET(req: Request) {
     const fastCutoff = new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString()
     const slowCutoff = new Date(Date.now() - 7  * 24 * 60 * 60 * 1000).toISOString()
 
-    // ── Priority queue: check for fast-scanner-flagged comics first ──
     const { data: priorityEntries } = await supabase
       .from('checker_priority_queue')
       .select('id, recommendation_id, retry_count, next_retry_at, detected_at')
@@ -460,8 +460,6 @@ export async function GET(req: Request) {
 
     let priorityComics: NonNullable<typeof fastPool> = []
 
-    // Tracks queueId/retryCount/detectedAt per comic so the retry branch
-    // and the queue-time metric can look them back up after the check.
     const priorityQueueMap = new Map<string, { queueId: number; retryCount: number; detectedAt: string }>()
 
     if (priorityEntries && priorityEntries.length > 0) {
@@ -496,7 +494,6 @@ export async function GET(req: Request) {
         .is('processed_at', null)
     }
 
-    // Remaining capacity after priority comics, filled from the existing pools.
     const remainingCapacity = Math.max(0, BATCH_SIZE - priorityComics.length)
     const priorityIdSet = new Set(priorityComics.map((comic) => comic.id))
 
@@ -545,12 +542,6 @@ export async function GET(req: Request) {
         ? Math.round((Date.now() - new Date(queueInfo.detectedAt).getTime()) / 1000)
         : undefined
 
-      // Re-queues a priority comic with a short cooldown when its check
-      // didn't confirm a new chapter yet (e.g. MangaUpdates saw it first
-      // and MangaDex/MAL/AniList haven't caught up). Caps at
-      // PRIORITY_MAX_RETRIES so an unconfirmable flag can't loop forever -
-      // after that it just falls back to the normal scheduled sweep like
-      // any other comic.
       async function requeueIfPriority() {
         if (!queueInfo) return
         if (queueInfo.retryCount >= PRIORITY_MAX_RETRIES) return
@@ -592,7 +583,7 @@ export async function GET(req: Request) {
           if (formatRejections.includes('MAL'))          clearPayload.mal_id          = null
           if (formatRejections.includes('AniList'))      clearPayload.anilist_id      = null
           if (Object.keys(clearPayload).length > 0) {
-            clearPayload.last_id_check = null // force ID checker to re-verify on its next pass
+            clearPayload.last_id_check = null
             await supabase.from('recommendations').update(clearPayload).eq('id', comic.id)
           }
         }
@@ -614,18 +605,6 @@ export async function GET(req: Request) {
         if (resolvedStatus && resolvedStatus !== comic.status) {
           const finalChapter = newChapterCount ?? comic.chapter_count ?? 0
 
-          // ── Original vs. translation completion ──────────────────────
-          // When 2+ external sources agree the ORIGINAL release just
-          // became completed or cancelled, that does NOT mean the
-          // translation tracked on this platform is actually done — the
-          // translation's chapter_count may still be behind the
-          // original's real chapter total. Only flip the user-facing
-          // `status` to a terminal state once the tracked chapter count
-          // has caught up (within a small tolerance for off-by-one
-          // numbering differences between sources). Until then, we park
-          // the detected terminal status in `pending_original_status` so
-          // the later chapter-progression branch knows what to apply once
-          // the gap closes.
           const isTerminalOriginalStatus = resolvedStatus === 'completed' || resolvedStatus === 'cancelled'
 
           if (isTerminalOriginalStatus) {
@@ -640,19 +619,10 @@ export async function GET(req: Request) {
             }
 
             if (hasCaughtUp) {
-              // Translation has genuinely caught up — safe to apply the
-              // original's terminal status immediately.
               updatePayload.status                   = resolvedStatus
               updatePayload.translation_status       = 'translation_completed'
               updatePayload.pending_original_status  = null
             } else {
-              // Original is done, but our tracked translation chapter
-              // count hasn't caught up yet. Leave `status` as-is (still
-              // 'ongoing'/'hiatus' from the reader's perspective), park
-              // the terminal status for later, and record that the
-              // translation is the thing still catching up — so the UI
-              // can show both facts distinctly instead of a misleading
-              // single "Completed" badge.
               updatePayload.translation_status      = 'translation_ongoing'
               updatePayload.pending_original_status = resolvedStatus
             }
@@ -668,14 +638,9 @@ export async function GET(req: Request) {
               ? `${statusSources.length} sources (${statusSources.join(', ')}) agree original is "${resolvedStatus}", and translation (ch. ${finalChapter}) has caught up to original total (ch. ${originalTotal}).`
               : `${statusSources.length} sources (${statusSources.join(', ')}) agree ORIGINAL is "${resolvedStatus}", but translation is only at ch. ${finalChapter} of ${originalTotal} — marked translation_ongoing, status left as "${comic.status}" pending catch-up.`
             logs.push(logEntry)
-            // A status was successfully resolved this run - no need to
-            // requeue for a retry, this comic is done for this cycle.
             continue
           }
 
-          // Non-terminal status change (e.g. resumed from hiatus back to
-          // ongoing) — behaves exactly as before, no original/translation
-          // distinction needed since there's no completion ambiguity.
           const updatePayload: Record<string, any> = {
             status:                 resolvedStatus,
             chapter_count:          finalChapter,
@@ -694,17 +659,12 @@ export async function GET(req: Request) {
           continue
         }
 
-        // ── Conditional Routing Path ──────────────────────────────
         if (newChapterCount && newChapterCount > (comic.chapter_count ?? 0)) {
-          // 1. SUCCESS: Chapter progression found
           const updatePayload: Record<string, any> = {
             chapter_count:      newChapterCount,
             last_chapter_check: timestamp,
           }
 
-          // If the translation was catching up to an already-finished
-          // original (pending_original_status set on a previous run),
-          // check whether this new chapter count finally closes the gap.
           if (
             comic.translation_status === 'translation_ongoing' &&
             comic.pending_original_status &&
@@ -720,9 +680,6 @@ export async function GET(req: Request) {
             .update(updatePayload)
             .eq('id', comic.id)
 
-          // list_id + status pulled together so a per-user notification
-          // can offer a one-tap "mark as read" that PATCHes progress
-          // without the user having to navigate anywhere first.
           const { data: trackers } = await supabase
             .from('reading_list_items')
             .select('list_id, status, reading_lists!inner(user_id)')
@@ -730,10 +687,6 @@ export async function GET(req: Request) {
             .in('status', ['reading', 'plan_to_read'])
 
           if (trackers && trackers.length > 0) {
-            // One row per user (a user could theoretically track the same
-            // comic on more than one list — first match wins, arbitrary
-            // but consistent, since "mark as read" only needs to update
-            // one place).
             const trackerByUser = new Map<string, { listId: string; status: string }>()
             for (const t of trackers as any[]) {
               const userId = t.reading_lists?.user_id
@@ -743,10 +696,6 @@ export async function GET(req: Request) {
             }
             const userIds = [...trackerByUser.keys()]
 
-            // ── Item #25: pull each tracking user's saved source link for
-            // this comic (if any) in one bulk query, so the notification
-            // can show "Read on {label}" and, for whitelisted domains,
-            // point at the freshly-released chapter automatically. ──
             const { data: userSources } = await supabase
               .from('user_comic_sources')
               .select('id, user_id, url, label')
@@ -758,9 +707,6 @@ export async function GET(req: Request) {
               sourceByUser.set(s.user_id, s)
             }
 
-            // Rewrite + persist any whitelisted-domain source links before
-            // building notifications, so the link each user sees is
-            // already current.
             const sourceUpdates: { id: string; url: string }[] = []
             for (const [userId, src] of sourceByUser.entries()) {
               const rewritten = rewriteChapterUrl(src.url, newChapterCount)
@@ -782,19 +728,12 @@ export async function GET(req: Request) {
             const pushTitle = `📖 ${comic.title} updated`
             const pushBody  = `New chapters available, now at chapter ${newChapterCount}`
 
-            // Personalized per user — was previously one identical batch
-            // insert; now each row can carry that user's own source link
-            // and reading-list context so the notification is directly
-            // actionable (mark-as-read) without navigating away first.
             const notifications = userIds.map((userId: string) => {
               const tracker = trackerByUser.get(userId)!
               const src     = sourceByUser.get(userId)
               return {
                 user_id: userId,
-                type:    'chapter_update', // was 'system' — TYPE_META/FILTERS in
-                                           // NotificationsClient.tsx already had a
-                                           // dedicated 'chapter_update' entry that
-                                           // nothing was ever using
+                type:    'chapter_update',
                 title:   pushTitle,
                 content: pushBody,
                 data: {
@@ -809,7 +748,17 @@ export async function GET(req: Request) {
               }
             })
 
-            await supabase.from('notifications').insert(notifications)
+            // FIXED: this insert previously had no error check at all —
+            // notifications.type didn't actually permit 'chapter_update'
+            // in the DB's CHECK constraint (fixed separately via
+            // migration), so every single insert here was silently
+            // rejected by Postgres for as long as this type has existed.
+            // Logging the error now means this class of bug can never
+            // hide silently again.
+            const { error: notifError } = await supabase.from('notifications').insert(notifications)
+            if (notifError) {
+              console.error(`Failed to insert notifications for comic ${comic.id} (${comic.title}):`, notifError)
+            }
 
             Promise.allSettled(
               userIds.map((userId: string) =>
@@ -828,10 +777,8 @@ export async function GET(req: Request) {
             source,
             notified: trackers?.length ?? 0,
           })
-          // Confirmed and applied - nothing left to retry.
 
         } else if (newChapterCount !== null && newChapterCount < (comic.chapter_count ?? 0)) {
-          // 2. REGRESSION DETECTED: External APIs returned stale or lower counts
           logEntry.status = 'failed'
           logEntry.reason = `Stale API Data: External source returned ${newChapterCount}, but database is already ahead at ${comic.chapter_count}.`
 
@@ -852,12 +799,8 @@ export async function GET(req: Request) {
               timestamp,
             }
           })
-          // A regression isn't "unconfirmed, try again shortly" - it's a
-          // stale-source signal, so this does not get requeued for retry.
 
         } else if (newChapterCount === null) {
-          // 3. ZERO RESULTS FOUND (this now also covers "all sources were
-          // format-rejected" — the bad IDs were already cleared above)
           await supabase.from('recommendations')
             .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)
@@ -867,16 +810,9 @@ export async function GET(req: Request) {
             ? `Stored ID(s) pointed to non-manga formats (${formatRejections.join(', ')}) cleared for ID Checker re-verification.`
             : 'No valid ID or all APIs returned null'
 
-          // This is exactly the "MangaUpdates saw it first, other sources
-          // haven't caught up yet" case the retry/cooldown exists for -
-          // requeue if this came in through the priority queue.
           await requeueIfPriority()
 
         } else {
-          // 4. EQUAL COUNTS: Simply complete the tracking check cleanly.
-          // For a priority-flagged comic this means the fast scanner's
-          // signal didn't pan out as a real progression (e.g. a duplicate
-          // release entry) - nothing to retry.
           await supabase.from('recommendations')
             .update({ last_chapter_check: timestamp })
             .eq('id', comic.id)
@@ -898,8 +834,6 @@ export async function GET(req: Request) {
           time_in_queue_seconds: timeInQueueSeconds,
           timestamp,
         })
-        // An unexpected error is also an inconclusive result for this
-        // cycle - give a priority comic another shot after the cooldown.
         await requeueIfPriority()
       }
     }
