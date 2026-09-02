@@ -164,19 +164,28 @@ export function MyReadingSources({ comicId, isLoggedIn, isPro }: Props) {
                   <span className="text-dossier-foreground/40 shrink-0">· {s.chapter_range}</span>
                 )}
               </a>
-              <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+              {/* Was opacity-0 group-hover:opacity-100 — hover never fires
+                  on touch devices, so these buttons were completely
+                  invisible on mobile, not just harder to reach. Now always
+                  visible; group-hover still nudges opacity up slightly on
+                  devices that DO support hover, as a subtle emphasis, but
+                  the buttons are usable everywhere regardless. Also bumped
+                  icon size 11→13 and padding 1→1.5 for a bigger touch target. */}
+              <div className="flex items-center gap-1 shrink-0 opacity-70 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => startEdit(s)}
-                  className="p-1 text-dossier-foreground/40 hover:text-dossier-foreground transition-colors"
+                  className="p-1.5 text-dossier-foreground/40 hover:text-dossier-foreground transition-colors"
+                  aria-label="Edit source"
                 >
-                  <Pencil size={11} />
+                  <Pencil size={13} />
                 </button>
                 <button
                   onClick={() => handleDelete(s.id)}
                   disabled={deletingId === s.id}
-                  className="p-1 text-dossier-foreground/40 hover:text-destructive transition-colors"
+                  className="p-1.5 text-dossier-foreground/40 hover:text-destructive transition-colors"
+                  aria-label="Delete source"
                 >
-                  {deletingId === s.id ? <Loader2 size={11} className="animate-spin" /> : <Trash2 size={11} />}
+                  {deletingId === s.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                 </button>
               </div>
             </div>
