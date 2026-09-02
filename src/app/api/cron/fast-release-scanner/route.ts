@@ -1,33 +1,3 @@
-// app/api/cron/fast-release-scanner/route.ts
-//
-// FAST LANE scanner. Runs every 1-2 minutes (set in your cron schedule).
-// Job: poll MangaUpdates' /releases/search endpoint for the most recent
-// releases, resolve each unique title to a real series_id via a second
-// call to /series/search, match against tracked comics by
-// mangaupdates_id, and if the reported chapter is higher than what we
-// have stored, insert a flag into checker_priority_queue. That's it -
-// this endpoint NEVER writes to recommendations.chapter_count, NEVER
-// sends notifications, and NEVER decides a chapter update is "real". All
-// of that stays the exclusive job of the existing chapter-checker cron,
-// which checks this queue first.
-//
-// Why two calls instead of one: confirmed via a live authenticated call
-// that /releases/search's records do NOT include series_id anywhere
-// (despite older forum reports and the docs' sample schema suggesting
-// otherwise - both turned out to be stale/wrong). /series/search is a
-// separate endpoint that DOES reliably return series_id, ranked by match
-// quality against a title query. So the real pipeline is:
-//   releases/search (get recent titles+chapters, no series_id)
-//     -> series/search per UNIQUE title (resolve title -> series_id)
-//       -> compare resolved series_id against recommendations.mangaupdates_id
-//
-// Rate limiting: confirmed via MangaUpdates' own dev on their forum that
-// read-only GET/search calls are NOT subject to their documented rate
-// limit (that limit is 1-per-5-seconds and only applies to write/update
-// actions). Generic DDoS protection still applies and is undocumented,
-// so this still dedupes by title and adds a small delay between series
-// lookups rather than firing all of them in a burst.
-
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
@@ -232,26 +202,43 @@ export async function GET(req: Request) {
     }
 
     // 3. Resolve each unique title to a MangaUpdates series_id via
-    //    series/search, with a small delay between calls (defensive
-    //    against undocumented DDoS-style throttling - read-only calls
-    //    aren't subject to MU's documented rate limit, but that limit
-    //    isn't the only thing that can throttle a client).
+    //    series/search - run in small concurrent batches instead of one
+    //    call at a time.
+    //
+    //    Why this changed: the original sequential loop (one call, wait
+    //    150ms, next call...) could take 15-20+ seconds in the worst case
+    //    with ~50 unique titles even at a generous per-call response
+    //    time, and real timeouts were observed in production against a
+    //    30s cron limit. Each title's lookup is fully independent of the
+    //    others, so there's no correctness reason to serialize them - the
+    //    150ms delay's actual purpose (staying well clear of undocumented
+    //    DDoS-style throttling, since MU's documented rate limit doesn't
+    //    apply to read calls anyway - see file header) is preserved by
+    //    spacing out BATCHES rather than every individual call.
+    const SERIES_LOOKUP_BATCH_SIZE = 5
+
     const titleToSeriesId = new Map<string, number>()
     const unresolvedTitles: string[] = []
 
     const titles = Array.from(latestByTitle.keys())
-    for (let i = 0; i < titles.length; i++) {
-      const title = titles[i]
-      const { seriesId, error } = await resolveSeriesId(title, muToken)
+    for (let i = 0; i < titles.length; i += SERIES_LOOKUP_BATCH_SIZE) {
+      const batch = titles.slice(i, i + SERIES_LOOKUP_BATCH_SIZE)
 
-      if (seriesId) {
-        titleToSeriesId.set(title, seriesId)
-      } else {
-        unresolvedTitles.push(title)
-        if (error) console.error(`series/search lookup failed for "${title}": ${error}`)
+      const batchResults = await Promise.all(
+        batch.map(async (title) => ({ title, ...(await resolveSeriesId(title, muToken)) }))
+      )
+
+      for (const { title, seriesId, error } of batchResults) {
+        if (seriesId) {
+          titleToSeriesId.set(title, seriesId)
+        } else {
+          unresolvedTitles.push(title)
+          if (error) console.error(`series/search lookup failed for "${title}": ${error}`)
+        }
       }
 
-      if (i < titles.length - 1) {
+      const isLastBatch = i + SERIES_LOOKUP_BATCH_SIZE >= titles.length
+      if (!isLastBatch) {
         await new Promise((r) => setTimeout(r, SERIES_LOOKUP_DELAY_MS))
       }
     }

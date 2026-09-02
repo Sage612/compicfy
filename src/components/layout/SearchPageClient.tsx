@@ -6,6 +6,7 @@ import Link from 'next/link'
 import {
   Search, Loader2, BookOpen, X, ArrowRight,
   Database, Globe, Plus, TrendingUp, Star, Radar,
+  Users, Crown, ShieldCheck, UserCircle2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -52,6 +53,17 @@ interface ExternalResult {
   alternativeTitles: string[]
 }
 
+interface UserResult {
+  id:          string
+  username:    string
+  displayName: string | null
+  avatarUrl:   string | null
+  bio:         string | null
+  isPro:       boolean
+  isPatron:    boolean
+  isAdmin:     boolean
+}
+
 // ── Constants ─────────────────────────────────────────────────────
 
 const QUICK_LINKS = [
@@ -78,6 +90,8 @@ const TYPE_COLORS: Record<string, string> = {
 
 const TYPE_FILTERS = ['all', 'manhwa', 'manga', 'manhua', 'webtoon', 'comic'] as const
 type TypeFilter = typeof TYPE_FILTERS[number]
+
+type SearchMode = 'comics' | 'users'
 
 // ── Pre-fill URL builder ───────────────────────────────────────────
 
@@ -219,6 +233,39 @@ function ExternalCard({
   )
 }
 
+// ── User result card ──────────────────────────────────────────────
+
+function UserCard({ result }: { result: UserResult }) {
+  return (
+    <Link
+      href={`/profile/${result.username}`}
+      className="group flex items-center gap-3 p-3.5 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-md transition-all duration-200"
+    >
+      <div className="w-11 h-11 rounded-full overflow-hidden bg-muted shrink-0 shadow-sm">
+        {result.avatarUrl
+          ? <img src={proxyCover(result.avatarUrl)} alt={result.username} className="w-full h-full object-cover" />
+          : <div className="w-full h-full flex items-center justify-center"><UserCircle2 size={20} className="text-muted-foreground opacity-40" /></div>
+        }
+      </div>
+      <div className="flex-1 min-w-0 space-y-0.5">
+        <div className="flex items-center gap-1.5">
+          <p className="font-black text-sm truncate group-hover:text-primary transition-colors">
+            {result.displayName || result.username}
+          </p>
+          {result.isAdmin && <ShieldCheck size={12} className="text-primary shrink-0" />}
+          {result.isPatron && <Crown size={12} className="text-violet-500 shrink-0" />}
+          {!result.isPatron && result.isPro && <Crown size={12} className="text-amber-500 shrink-0" />}
+        </div>
+        <p className="text-xs text-muted-foreground truncate">@{result.username}</p>
+        {result.bio && (
+          <p className="text-[11px] text-muted-foreground/70 line-clamp-1 leading-relaxed">{result.bio}</p>
+        )}
+      </div>
+      <ArrowRight size={12} className="text-muted-foreground/30 group-hover:text-primary shrink-0 transition-colors" />
+    </Link>
+  )
+}
+
 // ── Main Component ────────────────────────────────────────────────
 
 interface Props {
@@ -230,12 +277,15 @@ interface Props {
 export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
   const router = useRouter()
 
+  const [mode,             setMode]            = useState<SearchMode>('comics')
   const [query,           setQuery]           = useState(initialQuery)
   const [inputValue,      setInputValue]      = useState(initialQuery)
   const [dbResults,       setDbResults]       = useState<DBResult[]>([])
   const [externalResults, setExternalResults] = useState<ExternalResult[]>([])
+  const [userResults,     setUserResults]     = useState<UserResult[]>([])
   const [loadingDB,       setLoadingDB]       = useState(false)
   const [loadingExternal, setLoadingExternal] = useState(false)
+  const [loadingUsers,    setLoadingUsers]    = useState(false)
   const [hasSearched,     setHasSearched]     = useState(!!initialQuery)
   const [suggestions,     setSuggestions]     = useState<DBResult[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -253,7 +303,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
   const suggDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const containerRef    = useRef<HTMLDivElement>(null)
 
-  const isLoading = loadingDB || loadingExternal
+  const isLoading = mode === 'comics' ? (loadingDB || loadingExternal) : loadingUsers
 
   const filteredExternal = externalResults.filter(r =>
     !dbResults.some(d => d.title.toLowerCase() === r.title.toLowerCase())
@@ -268,8 +318,12 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
     ? filteredExternal
     : filteredExternal.filter(r => r.type === typeFilter)
 
-  const totalResults = dbResults.length + filteredExternal.length
-  const visibleTotal = visibleDB.length + visibleExternal.length
+  const totalResults = mode === 'comics'
+    ? dbResults.length + filteredExternal.length
+    : userResults.length
+  const visibleTotal = mode === 'comics'
+    ? visibleDB.length + visibleExternal.length
+    : userResults.length
 
   // Close suggestions on outside click
   useEffect(() => {
@@ -283,10 +337,11 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
   }, [])
 
   useEffect(() => {
-    if (initialQuery.trim().length >= 2) runSearch(initialQuery)
+    if (initialQuery.trim().length >= 2) runSearch(initialQuery, mode)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSuggestions = useCallback(async (q: string) => {
+    if (mode !== 'comics') return // no live-suggestion dropdown for user search
     if (q.trim().length < 2) { setSuggestions([]); setShowSuggestions(false); return }
     try {
       const res  = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=5`)
@@ -296,9 +351,9 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
     } catch {
       setSuggestions([])
     }
-  }, [])
+  }, [mode])
 
-  const runSearch = useCallback(async (q: string) => {
+  const runSearch = useCallback(async (q: string, searchMode: SearchMode) => {
     const trimmed = q.trim()
     if (trimmed.length < 2) return
 
@@ -311,6 +366,16 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
     const url = new URL(window.location.href)
     url.searchParams.set('q', trimmed)
     window.history.replaceState({}, '', url.toString())
+
+    if (searchMode === 'users') {
+      setLoadingUsers(true)
+      fetch(`/api/search/users?q=${encodeURIComponent(trimmed)}&limit=20`)
+        .then(r => r.json())
+        .then(d => setUserResults(d.results ?? []))
+        .catch(() => setUserResults([]))
+        .finally(() => setLoadingUsers(false))
+      return
+    }
 
     setLoadingDB(true)
     fetch(`/api/search?q=${encodeURIComponent(trimmed)}&limit=20`)
@@ -327,6 +392,16 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
       .finally(() => setLoadingExternal(false))
   }, [])
 
+  const handleModeChange = (next: SearchMode) => {
+    if (next === mode) return
+    setMode(next)
+    setShowSuggestions(false)
+    // Re-run the current query against the new mode, if there is one —
+    // switching modes mid-search should show that same query's results
+    // in the new mode, not silently clear the search.
+    if (query.trim().length >= 2) runSearch(query, next)
+  }
+
   const handleInputChange = (value: string) => {
     setInputValue(value)
     if (suggDebounceRef.current) clearTimeout(suggDebounceRef.current)
@@ -335,13 +410,14 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
 
   const handleSearch = () => {
     if (inputValue.trim().length < 2) return
-    runSearch(inputValue)
+    runSearch(inputValue, mode)
   }
 
   const handleClear = () => {
     setInputValue('')
     setDbResults([])
     setExternalResults([])
+    setUserResults([])
     setHasSearched(false)
     setShowSuggestions(false)
     setQuery('')
@@ -408,6 +484,36 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
             </div>
           )}
 
+          {/* Comics / Users mode toggle */}
+          <div className={cn('flex justify-center mb-3', hasSearched && 'justify-start')}>
+            <div className="inline-flex p-0.5 rounded-full bg-muted/70 border border-border">
+              <button
+                onClick={() => handleModeChange('comics')}
+                className={cn(
+                  'flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all',
+                  mode === 'comics'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <BookOpen size={12} />
+                Comics
+              </button>
+              <button
+                onClick={() => handleModeChange('users')}
+                className={cn(
+                  'flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all',
+                  mode === 'users'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Users size={12} />
+                Users
+              </button>
+            </div>
+          </div>
+
           {/* Search input */}
           <div className="relative w-full" ref={containerRef}>
             <div className={cn(
@@ -423,7 +529,7 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
                 onChange={e => handleInputChange(e.target.value)}
                 onKeyDown={handleKeyDown}
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-                placeholder="Search manga, manhwa…"
+                placeholder={mode === 'comics' ? 'Search manga, manhwa…' : 'Search by username or name…'}
                 className={cn(
                   'flex-1 bg-transparent outline-none focus:outline-none focus:ring-0 border-none placeholder:text-muted-foreground text-foreground min-w-0 w-0',
                   hasSearched ? 'text-sm' : 'text-base'
@@ -446,8 +552,8 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
               </Button>
             </div>
 
-            {/* Live suggestions dropdown */}
-            {showSuggestions && suggestions.length > 0 && (
+            {/* Live suggestions dropdown — comics mode only */}
+            {mode === 'comics' && showSuggestions && suggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-2 rounded-2xl border border-border bg-card shadow-2xl shadow-black/20 overflow-hidden z-50">
                 <div className="py-1.5">
                   {suggestions.map((s) => (
@@ -486,8 +592,8 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
             )}
           </div>
 
-          {/* Quick browse — hero only */}
-          {!hasSearched && (
+          {/* Quick browse — hero only, comics mode only */}
+          {!hasSearched && mode === 'comics' && (
             <div className="mt-6 space-y-3">
               <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center">
                 Quick browse
@@ -512,169 +618,210 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
       {hasSearched && (
         <div className="max-w-3xl mx-auto px-4 py-5 space-y-4">
 
-          {/* Source tabs + type filter row */}
-          {!isLoading && totalResults > 0 && (
-            <div className="space-y-3">
-
-              {/* Top row: count + source tabs */}
-              <div className="flex items-center justify-between flex-wrap gap-2">
+          {/* USERS MODE — simple flat list, no source tabs, no type filters */}
+          {mode === 'users' && (
+            <>
+              {!isLoading && userResults.length > 0 && (
                 <p className="text-sm text-muted-foreground">
-                  <span className="font-black text-foreground">{visibleTotal}</span>
-                  {visibleTotal !== totalResults && (
-                    <span className="text-muted-foreground"> of {totalResults}</span>
-                  )}{' '}
-                  results for <span className="font-semibold">"{query}"</span>
+                  <span className="font-black text-foreground">{userResults.length}</span>{' '}
+                  {userResults.length === 1 ? 'person' : 'people'} for <span className="font-semibold">"{query}"</span>
                 </p>
-                <div className="flex gap-1">
-                  {sourceTabs.map(tab => (
-                    <button
-                      key={tab.key}
-                      onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                      className={cn(
-                        'px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
-                        activeTab === tab.key
-                          ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                          : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
-                      )}
-                    >
-                      {tab.label}{tab.count > 0 && ` (${tab.count})`}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              )}
 
-              {/* Type filter pills — only shown when >1 type available */}
-              {availableTypes.length > 2 && (
-                <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-                  {availableTypes.map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setTypeFilter(t)}
-                      className={cn(
-                        'px-3 py-1 rounded-full text-xs font-semibold border transition-all whitespace-nowrap shrink-0',
-                        typeFilter === t
-                          ? t === 'all'
-                            ? 'bg-foreground text-background border-foreground'
-                            : cn(TYPE_COLORS[t], 'border-current opacity-100')
-                          : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
-                      )}
-                    >
-                      {t === 'all' ? 'All types' : t.charAt(0).toUpperCase() + t.slice(1)}
-                    </button>
+              {isLoading && (
+                <div className="space-y-2.5">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="h-[68px] rounded-2xl bg-muted/40 animate-pulse" />
                   ))}
                 </div>
               )}
-            </div>
-          )}
 
-          {/* Loading skeleton */}
-          {isLoading && (
-            <div className="space-y-2.5">
-              {[1,2,3,4,5].map(i => (
-                <div key={i} className="h-24 rounded-2xl bg-muted/40 animate-pulse" />
-              ))}
-            </div>
-          )}
-
-          {/* DB results */}
-          {!isLoading && (activeTab === 'all' || activeTab === 'ComPicfy') && visibleDB.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
-                  <Database size={10} className="text-primary" />
+              {!isLoading && userResults.length > 0 && (
+                <div className="space-y-2">
+                  {userResults.map(u => <UserCard key={u.id} result={u} />)}
                 </div>
-                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">In ComPicfy</p>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-              {visibleDB.map(r => <DBCard key={r.id} result={r} />)}
-            </div>
-          )}
+              )}
 
-          {/* External results */}
-          {!isLoading && (activeTab === 'all' || activeTab === 'web') && visibleExternal.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
-                  <Globe size={10} className="text-primary" />
+              {!isLoading && userResults.length === 0 && (
+                <div className="text-center py-20 space-y-4">
+                  <Users size={40} className="text-muted-foreground/30 mx-auto" />
+                  <div>
+                    <p className="font-black text-lg">No one found for "{query}"</p>
+                    <p className="text-sm text-muted-foreground mt-1">Try a username or display name spelling</p>
+                  </div>
                 </div>
-                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-                  From External Databases
-                </p>
-                <div className="flex-1 h-px bg-border" />
-                {loadingExternal && <Loader2 size={11} className="animate-spin text-muted-foreground" />}
-              </div>
-              {visibleExternal.map(r => (
-                <ExternalCard
-                  key={r.id}
-                  result={r}
-                  isPro={isPro}
-                  isLoggedIn={isLoggedIn}
-                  onAuthRequired={handleAuthRequired}
-                />
-              ))}
-            </div>
+              )}
+            </>
           )}
 
-          {/* ComPicfy tab empty */}
-          {!isLoading && activeTab === 'ComPicfy' && visibleDB.length === 0 && (
-            <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
-              <Database size={24} className="text-muted-foreground/30 mx-auto" />
-              <p className="text-sm font-semibold">Not in ComPicfy yet</p>
-              <p className="text-xs text-muted-foreground">Check the External tab to find it and add it</p>
-            </div>
-          )}
+          {/* COMICS MODE — original DB/External split, unchanged */}
+          {mode === 'comics' && (
+            <>
+              {/* Source tabs + type filter row */}
+              {!isLoading && totalResults > 0 && (
+                <div className="space-y-3">
 
-          {/* External tab empty */}
-          {!isLoading && activeTab === 'web' && visibleExternal.length === 0 && (
-            <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
-              <Globe size={24} className="text-muted-foreground/30 mx-auto" />
-              <p className="text-sm font-semibold">Nothing found in external databases</p>
-              <p className="text-xs text-muted-foreground">Try a different title or spelling</p>
-            </div>
-          )}
+                  {/* Top row: count + source tabs */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-black text-foreground">{visibleTotal}</span>
+                      {visibleTotal !== totalResults && (
+                        <span className="text-muted-foreground"> of {totalResults}</span>
+                      )}{' '}
+                      results for <span className="font-semibold">"{query}"</span>
+                    </p>
+                    <div className="flex gap-1">
+                      {sourceTabs.map(tab => (
+                        <button
+                          key={tab.key}
+                          onClick={() => setActiveTab(tab.key as typeof activeTab)}
+                          className={cn(
+                            'px-3 py-1.5 rounded-full text-xs font-bold border transition-all',
+                            activeTab === tab.key
+                              ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                              : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                          )}
+                        >
+                          {tab.label}{tab.count > 0 && ` (${tab.count})`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-          {/* Type filter empty state */}
-          {!isLoading && totalResults > 0 && visibleTotal === 0 && typeFilter !== 'all' && (
-            <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
-              <p className="text-sm font-semibold">No {typeFilter} results for "{query}"</p>
-              <button
-                onClick={() => setTypeFilter('all')}
-                className="text-xs text-primary font-semibold hover:underline"
-              >
-                Show all types →
-              </button>
-            </div>
-          )}
-
-          {/* Zero results */}
-          {!isLoading && totalResults === 0 && (
-            <div className="text-center py-20 space-y-4">
-              <div className="relative w-28 h-28 mx-auto mb-2">
-                <div className="absolute top-0 left-2 w-16 h-[88px] rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
-                <div className="absolute top-2 left-5 w-16 h-[88px] rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
-                <div className="absolute top-4 left-8 w-16 h-[88px] rounded-xl border-2 border-primary/20 bg-card flex items-center justify-center shadow-lg">
-                  <Search size={18} className="text-muted-foreground opacity-40" />
+                  {/* Type filter pills — only shown when >1 type available */}
+                  {availableTypes.length > 2 && (
+                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                      {availableTypes.map(t => (
+                        <button
+                          key={t}
+                          onClick={() => setTypeFilter(t)}
+                          className={cn(
+                            'px-3 py-1 rounded-full text-xs font-semibold border transition-all whitespace-nowrap shrink-0',
+                            typeFilter === t
+                              ? t === 'all'
+                                ? 'bg-foreground text-background border-foreground'
+                                : cn(TYPE_COLORS[t], 'border-current opacity-100')
+                              : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground'
+                          )}
+                        >
+                          {t === 'all' ? 'All types' : t.charAt(0).toUpperCase() + t.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div>
-                <p className="font-black text-lg">Nothing found for "{query}"</p>
-                <p className="text-sm text-muted-foreground mt-1">Try a different spelling, or check the original title</p>
-              </div>
-              <div className="flex gap-3 justify-center flex-wrap pt-2">
-                <Link href="/browse">
-                  <Button variant="outline" size="sm" className="gap-1.5">
-                    <Radar size={13} />
-                    Browse all comics
-                  </Button>
-                </Link>
-                <Link href={isPro ? '/pro/reader/dashboard/recommendations/new' : '/reader/dashboard/recommendations/new'}>
-                  <Button size="sm" className="gap-1.5">
-                    <BookOpen size={13} />
-                    Add it yourself
-                  </Button>
-                </Link>
-              </div>
-            </div>
+              )}
+
+              {/* Loading skeleton */}
+              {isLoading && (
+                <div className="space-y-2.5">
+                  {[1,2,3,4,5].map(i => (
+                    <div key={i} className="h-24 rounded-2xl bg-muted/40 animate-pulse" />
+                  ))}
+                </div>
+              )}
+
+              {/* DB results */}
+              {!isLoading && (activeTab === 'all' || activeTab === 'ComPicfy') && visibleDB.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
+                      <Database size={10} className="text-primary" />
+                    </div>
+                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">In ComPicfy</p>
+                    <div className="flex-1 h-px bg-border" />
+                  </div>
+                  {visibleDB.map(r => <DBCard key={r.id} result={r} />)}
+                </div>
+              )}
+
+              {/* External results */}
+              {!isLoading && (activeTab === 'all' || activeTab === 'web') && visibleExternal.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
+                      <Globe size={10} className="text-primary" />
+                    </div>
+                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                      From External Databases
+                    </p>
+                    <div className="flex-1 h-px bg-border" />
+                    {loadingExternal && <Loader2 size={11} className="animate-spin text-muted-foreground" />}
+                  </div>
+                  {visibleExternal.map(r => (
+                    <ExternalCard
+                      key={r.id}
+                      result={r}
+                      isPro={isPro}
+                      isLoggedIn={isLoggedIn}
+                      onAuthRequired={handleAuthRequired}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* ComPicfy tab empty */}
+              {!isLoading && activeTab === 'ComPicfy' && visibleDB.length === 0 && (
+                <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
+                  <Database size={24} className="text-muted-foreground/30 mx-auto" />
+                  <p className="text-sm font-semibold">Not in ComPicfy yet</p>
+                  <p className="text-xs text-muted-foreground">Check the External tab to find it and add it</p>
+                </div>
+              )}
+
+              {/* External tab empty */}
+              {!isLoading && activeTab === 'web' && visibleExternal.length === 0 && (
+                <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
+                  <Globe size={24} className="text-muted-foreground/30 mx-auto" />
+                  <p className="text-sm font-semibold">Nothing found in external databases</p>
+                  <p className="text-xs text-muted-foreground">Try a different title or spelling</p>
+                </div>
+              )}
+
+              {/* Type filter empty state */}
+              {!isLoading && totalResults > 0 && visibleTotal === 0 && typeFilter !== 'all' && (
+                <div className="text-center py-10 rounded-2xl border border-dashed border-border space-y-2">
+                  <p className="text-sm font-semibold">No {typeFilter} results for "{query}"</p>
+                  <button
+                    onClick={() => setTypeFilter('all')}
+                    className="text-xs text-primary font-semibold hover:underline"
+                  >
+                    Show all types →
+                  </button>
+                </div>
+              )}
+
+              {/* Zero results */}
+              {!isLoading && totalResults === 0 && (
+                <div className="text-center py-20 space-y-4">
+                  <div className="relative w-28 h-28 mx-auto mb-2">
+                    <div className="absolute top-0 left-2 w-16 h-[88px] rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
+                    <div className="absolute top-2 left-5 w-16 h-[88px] rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
+                    <div className="absolute top-4 left-8 w-16 h-[88px] rounded-xl border-2 border-primary/20 bg-card flex items-center justify-center shadow-lg">
+                      <Search size={18} className="text-muted-foreground opacity-40" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className="font-black text-lg">Nothing found for "{query}"</p>
+                    <p className="text-sm text-muted-foreground mt-1">Try a different spelling, or check the original title</p>
+                  </div>
+                  <div className="flex gap-3 justify-center flex-wrap pt-2">
+                    <Link href="/browse">
+                      <Button variant="outline" size="sm" className="gap-1.5">
+                        <Radar size={13} />
+                        Browse all comics
+                      </Button>
+                    </Link>
+                    <Link href={isPro ? '/pro/reader/dashboard/recommendations/new' : '/reader/dashboard/recommendations/new'}>
+                      <Button size="sm" className="gap-1.5">
+                        <BookOpen size={13} />
+                        Add it yourself
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

@@ -3258,17 +3258,39 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      search_recommendations_fuzzy: {
-        Args: { query: string; result_limit?: number; result_offset?: number }
-        Returns: {
-          alternative_titles: string[]
-          cover_url: string
-          id: string
-          score: number
-          title: string
-          type: string
-        }[]
-      }
+      search_recommendations_fuzzy:
+        | {
+            Args: {
+              p_limit?: number
+              p_offset?: number
+              p_query: string
+              p_threshold?: number
+            }
+            Returns: {
+              alternative_titles: string[]
+              cover_url: string
+              id: string
+              match_type: string
+              similarity: number
+              title: string
+              type: string
+            }[]
+          }
+        | {
+            Args: {
+              query: string
+              result_limit?: number
+              result_offset?: number
+            }
+            Returns: {
+              alternative_titles: string[]
+              cover_url: string
+              id: string
+              score: number
+              title: string
+              type: string
+            }[]
+          }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       track_profile_view: {
