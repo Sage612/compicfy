@@ -210,15 +210,26 @@ export async function GET(req: Request) {
     const res = await fetchWithTimeout('https://api.mangaupdates.com/v1/releases/search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${muToken}` },
-      body: JSON.stringify({ page: 1, perpage: 10 }),
+      body: JSON.stringify({ page: 1, perpage: RELEASES_PER_PAGE }), // matches production exactly now, was hardcoded to 10 before
     })
-    const data = await res.json().catch(() => null)
+    const rawBody = await res.text()
+    let data: any = null
+    try { data = JSON.parse(rawBody) } catch {}
     const timestamps = (data?.results ?? []).map((r: any) => ({
       title: r.record?.title,
       as_rfc3339: r.record?.time_added?.as_rfc3339,
       timestamp: r.record?.time_added?.timestamp,
     }))
-    return NextResponse.json({ debug_sort_order: true, now_utc: new Date().toISOString(), timestamps })
+    return NextResponse.json({
+      debug_sort_order: true,
+      now_utc: new Date().toISOString(),
+      cutoff_seconds: Math.floor((Date.now() - LOOKBACK_WINDOW_MS) / 1000),
+      status: res.status,
+      result_count: data?.results?.length ?? 0,
+      total_hits: data?.total_hits,
+      first_5: timestamps.slice(0, 5),
+      last_5: timestamps.slice(-5),
+    })
   }
 
   const supabase = createClient(
