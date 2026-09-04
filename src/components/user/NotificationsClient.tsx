@@ -6,6 +6,7 @@ import {
   MessageSquare, UserPlus, AlertCircle,
   Star, Zap, CheckCircle2, Check, Trophy,
   FolderHeart, ShieldAlert, ExternalLink, Loader2,
+  Croissant,
 } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
@@ -14,11 +15,6 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import type { Notification as DbNotification } from '@/types/app.types'
 
-// The DB `data` column is typed as Json (a closed union), but each
-// notification type stores a different dynamic payload shape in it
-// (follower_id, recommendation_id, entity_type, etc.) — narrow just
-// that one field to a permissive record rather than losing type
-// safety on every other column.
 export type Notification = Omit<DbNotification, 'data'> & { data: Record<string, any> | null }
 
 const TYPE_META: Record<string, { icon: React.ReactNode; colorClass: string; label: string }> = {
@@ -30,6 +26,11 @@ const TYPE_META: Record<string, { icon: React.ReactNode; colorClass: string; lab
   feature:              { icon: <Zap           size={13} className="text-amber-500"        />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Featured'      },
   achievement:          { icon: <CheckCircle2  size={13} className="text-teal-500"         />, colorClass: 'bg-teal-500/10 border-teal-500/20',       label: 'Achievement'   },
   chapter_update:       { icon: <BookOpen      size={13} className="text-primary"          />, colorClass: 'bg-primary/10 border-primary/20',         label: 'New Chapter'   },
+  // item #29 "Let It Bake" - fires once when a bake's target chapter
+  // count is reached (see chapter-check cron's bake_requests check).
+  // Distinct from chapter_update: this fires once per fulfilled bake,
+  // not per new chapter, and only for comics the user explicitly baked.
+  bake_ready:           { icon: <Croissant     size={13} className="text-orange-500"       />, colorClass: 'bg-orange-500/10 border-orange-500/20',   label: 'Ready to Binge' },
   collection_saved:     { icon: <FolderHeart   size={13} className="text-rose-500"         />, colorClass: 'bg-rose-500/10 border-rose-500/20',       label: 'Collection Saved' },
   list_starred:         { icon: <Star          size={13} className="text-amber-500"        />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'List Starred'  },
   followed_user_posted: { icon: <BookOpen      size={13} className="text-violet-500"       />, colorClass: 'bg-violet-500/10 border-violet-500/20',   label: 'New Post'      },
@@ -45,6 +46,7 @@ const FILTERS = [
   { key: 'review',                label: 'Reviews'      },
   { key: 'feature',                label: 'Featured'     },
   { key: 'chapter_update',        label: 'Chapters'     },
+  { key: 'bake_ready',            label: 'Baked'        },
   { key: 'collection_saved',      label: 'Collections'  },
   { key: 'list_starred',          label: 'Lists'        },
   { key: 'followed_user_posted',  label: 'Following'    },
@@ -58,12 +60,6 @@ type FilterKey = typeof FILTERS[number]['key']
 interface Props {
   initialNotifications: Notification[]
   profileBase?: string
-  /**
-   * True when this is being rendered inside the admin notifications page.
-   * Report notifications (type: 'system' with entity_type/entity_id in
-   * data) link to /admin/reports for admins instead of to the reported
-   * content itself, since that's where they can actually act on it.
-   */
   isAdminView?: boolean
 }
 
@@ -72,18 +68,11 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
   const [isClearingAll,  setIsClearingAll]  = useState(false)
   const [isMarkingAll,   setIsMarkingAll]   = useState(false)
   const [activeFilter,   setActiveFilter]   = useState<FilterKey>('all')
-  // Cache: follower_id → username resolved from profiles table
   const [usernameCache,  setUsernameCache]  = useState<Record<string, string>>({})
-  // item #25: which chapter_update notification is mid-"mark as read"
   const [markingReadId,  setMarkingReadId]  = useState<string | null>(null)
   const [markedReadIds,  setMarkedReadIds]  = useState<Set<string>>(new Set())
   const supabase = createClient()
 
-  // ── Resolve usernames for follow notifications that only have follower_id ──
-  // Handles 3 data shapes:
-  //   1. New:  { follower_id, follower_username, follower_type }  → use directly
-  //   2. Mid:  { follower_id, username }                          → remap to follower_username
-  //   3. Old:  { follower_id }                                    → fetch from profiles
   useEffect(() => {
     const followNotifs = notifications.filter(
       n => n.type === 'follow' && n.data?.follower_id &&
@@ -104,7 +93,6 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
       if (!data) return
       const newEntries: Record<string, string> = {}
       for (const row of data) {
-        // Store as "username|user_type" so we can build the correct route
         newEntries[row.id] = `${row.username}|${row.user_type ?? 'reader'}`
       }
       setUsernameCache(prev => ({ ...prev, ...newEntries }))
@@ -114,7 +102,6 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
 
   const getMeta = (type: string) => TYPE_META[type] ?? TYPE_META.system
 
-  // Build href for a notification — handles both old (follower_id only) and new (follower_username) data
   const getHref = (notif: Notification): string | null => {
     const data = notif.data ?? {}
 
@@ -127,26 +114,29 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
       case 'chapter_update':
         return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
 
+      // item #29 - tapping a bake_ready notification takes the user
+      // straight to the comic, same as chapter_update. There's no
+      // dedicated "bake detail" page, so this is deliberately the same
+      // destination rather than a new route.
+      case 'bake_ready':
+        return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
+
       case 'follow': {
-        // Shape 1 — new: has follower_username + follower_type
         if (data.follower_username) {
-          const base = data.follower_type === 'creator' ? '/creator' : '/reader'
+          const base = data.follower_type === 'creator' ? '/creator' : '/profile'
           return `${base}/${data.follower_username}`
         }
-        // Shape 2 — mid: has username (old field name, stored as data.username)
         if (data.username) {
           return `${profileBase}/${data.username}`
         }
-        // Shape 3 — old: only follower_id, resolve from profiles cache
         if (data.follower_id && usernameCache[data.follower_id]) {
           const [username, userType] = usernameCache[data.follower_id].split('|')
           const base = userType === 'creator' ? '/creator' : '/reader'
           return `${base}/${username}`
         }
-        return null // still loading from cache
+        return null
       }
 
-      // ── Pass 2 notification types ──────────────────────────────────
       case 'collection_saved':
         return data.collection_id ? `/collections/${data.collection_id}` : null
 
@@ -226,10 +216,6 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
     finally { setIsClearingAll(false) }
   }
 
-  // item #25 — one-tap mark-as-read straight from a chapter_update
-  // notification. Preserves the tracked status (reading/plan_to_read),
-  // only touches progress_chapter. Requires list_id in the notification's
-  // data payload, which the chapter-check cron now includes.
   const handleMarkChapterRead = async (e: React.MouseEvent, notif: Notification) => {
     e.preventDefault()
     e.stopPropagation()
@@ -250,7 +236,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
       if (!res.ok) throw new Error()
       setMarkedReadIds(prev => new Set(prev).add(notif.id))
       markOneRead(notif.id)
-      toast.success(`Marked as read — ch. ${new_chapter_count}`)
+      toast.success(`Marked as read â€” ch. ${new_chapter_count}`)
     } catch {
       toast.error('Failed to update progress')
     } finally {
@@ -280,7 +266,6 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
   return (
     <div className="space-y-4">
 
-      {/* ── Horizontal scrollable filter pills ── */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
         {visibleFilters.map(f => (
           <button
@@ -311,12 +296,11 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
         ))}
       </div>
 
-      {/* ── Control bar ── */}
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground shrink-0">
           <span className="font-black text-foreground">{unreadCount}</span> unread
           {activeFilter !== 'all' && (
-            <span className="ml-1 text-muted-foreground/60">· {filtered.length} {activeFilter}</span>
+            <span className="ml-1 text-muted-foreground/60">Â· {filtered.length} {activeFilter}</span>
           )}
         </span>
         <div className="flex items-center gap-1">
@@ -327,7 +311,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
               className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary disabled:opacity-50 transition-colors px-2 py-1 rounded-lg hover:bg-primary/5 whitespace-nowrap"
             >
               <Check size={11} className={isMarkingAll ? 'animate-pulse' : ''} />
-              {isMarkingAll ? 'Marking…' : 'Mark all read'}
+              {isMarkingAll ? 'Marking¦' : 'Mark all read'}
             </button>
           )}
           <button
@@ -336,12 +320,11 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors px-2 py-1 rounded-lg hover:bg-destructive/5 whitespace-nowrap"
           >
             <Trash2 size={11} className={isClearingAll ? 'animate-pulse' : ''} />
-            {isClearingAll ? 'Clearing…' : 'Clear all'}
+            {isClearingAll ? 'Clearingâ€¦' : 'Clear all'}
           </button>
         </div>
       </div>
 
-      {/* ── List ── */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-border/60 space-y-2 text-center">
           <BellOff size={18} className="text-muted-foreground/40" />
@@ -354,15 +337,8 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
             const meta = getMeta(notif.type)
             const href = getHref(notif)
 
-            // Follow notifications that are still resolving username show as non-clickable
             const isResolvingFollow = notif.type === 'follow' && !href
 
-            // item #25 — chapter_update notifications carry list_id/status
-            // (set by the cron job) when the comic is actually tracked,
-            // which is what makes the one-tap mark-as-read possible. Older
-            // chapter_update rows from before this shipped won't have it,
-            // so the button just doesn't render for those — no crash, no
-            // guessing at a list_id that doesn't exist in the payload.
             const isChapterUpdate  = notif.type === 'chapter_update'
             const canMarkRead      = isChapterUpdate && !!notif.data?.list_id
             const isMarkingThis    = markingReadId === notif.id
@@ -400,7 +376,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
                       onClick={e => dismiss(e, notif.id)}
                       className="text-muted-foreground/40 hover:text-destructive shrink-0 p-1 rounded-lg hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
                       aria-label="Dismiss"
-                    >✕</button>
+                    >âœ•</button>
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
@@ -410,13 +386,10 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
                     <span className="text-[11px] text-muted-foreground">{notif.created_at ? timeAgo(notif.created_at) : ''}</span>
                     {!notif.is_read && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
                     {isResolvingFollow && (
-                      <span className="text-[10px] text-muted-foreground/50 italic">loading profile…</span>
+                      <span className="text-[10px] text-muted-foreground/50 italic">loading profileâ€¦</span>
                     )}
                   </div>
 
-                  {/* item #25 — source link + one-tap mark-as-read, only for
-                      chapter_update notifications that have the data to
-                      support it */}
                   {isChapterUpdate && (sourceUrl || canMarkRead) && (
                     <div className="flex items-center gap-3 pt-1.5" onClick={e => e.stopPropagation()}>
                       {sourceUrl && (

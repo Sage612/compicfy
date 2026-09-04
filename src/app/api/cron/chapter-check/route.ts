@@ -818,6 +818,73 @@ export async function GET(req: Request) {
             ).catch(() => {})
           }
 
+          // ── Item #29 "Let It Bake": check for fulfilled bakes ──────
+          // Runs after chapter_count has already been updated to
+          // newChapterCount above, so the comparison below is against
+          // the CURRENT confirmed count, not stale data. This does NOT
+          // add a new cron job or a new polling loop - it rides this
+          // exact same "chapter update confirmed" event the tracker
+          // notification block above already uses. Deliberately a
+          // separate query against bake_requests rather than folded
+          // into the trackers query above, since a bake's audience
+          // (anyone with an active bake row) is a different set of
+          // people than reading-list trackers - a user can bake a comic
+          // without tracking it on any list at all.
+          const { data: activeBakes } = await supabase
+            .from('bake_requests')
+            .select('id, user_id, target_chapter_count, chapter_count_at_bake_start')
+            .eq('recommendation_id', comic.id)
+            .eq('status', 'active')
+
+          if (activeBakes && activeBakes.length > 0) {
+            const fulfilledBakeIds: number[] = []
+            const bakeNotificationsToSend: Array<{ user_id: string; bakeId: number; chaptersReady: number }> = []
+
+            for (const bake of activeBakes) {
+              const chaptersAccumulated = newChapterCount - bake.chapter_count_at_bake_start
+              if (chaptersAccumulated >= bake.target_chapter_count) {
+                fulfilledBakeIds.push(bake.id)
+                bakeNotificationsToSend.push({
+                  user_id: bake.user_id,
+                  bakeId: bake.id,
+                  chaptersReady: chaptersAccumulated,
+                })
+              }
+            }
+
+            if (fulfilledBakeIds.length > 0) {
+              // Mark fulfilled BEFORE sending notifications - same
+              // ordering as the priority-queue collision guard, so a
+              // near-simultaneous second chapter update on this comic
+              // can't fire the same bake's notification twice.
+              await supabase
+                .from('bake_requests')
+                .update({ status: 'fulfilled', fulfilled_at: timestamp })
+                .in('id', fulfilledBakeIds)
+
+              const bakeNotifications = bakeNotificationsToSend.map((n) => ({
+                user_id: n.user_id,
+                type: 'bake_ready', // NOT 'system' - see the item #25 chapter_update fix above for why
+                title: `🍞 ${comic.title} is ready to binge`,
+                content: `Your batch of ${n.chaptersReady} chapters is ready.`,
+                data: { recommendation_id: comic.id, bake_id: n.bakeId, chapters_ready: n.chaptersReady },
+              }))
+
+              await supabase.from('notifications').insert(bakeNotifications)
+
+              Promise.allSettled(
+                bakeNotificationsToSend.map((n) =>
+                  sendPushForUser(
+                    n.user_id,
+                    `🍞 ${comic.title} is ready to binge`,
+                    `Your batch of ${n.chaptersReady} chapters is ready.`,
+                    `/comic/${comic.id}`
+                  )
+                )
+              ).catch(() => {})
+            }
+          }
+
           updated++
           logEntry.status = 'success'
           results.push({

@@ -195,6 +195,24 @@ const REWRITE_WHITELIST: RewriteRule[] = [
 ]
 
 /**
+ * Domain-only check — is this URL's host on the verified rewrite
+ * whitelist at all? Used by the add/edit-source UI to warn the user
+ * up front ("this site won't auto-update") before they save, without
+ * needing a fake chapter number just to probe rewriteChapterUrl().
+ * Returns false for an unparseable URL, same as the other functions
+ * treating an invalid URL as "nothing we can do here."
+ */
+export function isRewriteWhitelisted(url: string): boolean {
+  let hostname: string
+  try {
+    hostname = new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return false
+  }
+  return REWRITE_WHITELIST.some(r => hostname === r.domain || hostname.endsWith(`.${r.domain}`))
+}
+
+/**
  * Attempts to rewrite `url` so it points at `newChapter` instead of
  * whatever chapter it currently encodes. Returns the rewritten URL, or
  * null if the domain isn't on the verified whitelist (or the URL doesn't

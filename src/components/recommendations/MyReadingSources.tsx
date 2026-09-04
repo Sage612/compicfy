@@ -6,9 +6,10 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  Link2, Plus, X, Check, Loader2, Trash2, Pencil, Crown, ExternalLink,
+  Link2, Plus, X, Check, Loader2, Trash2, Pencil, Crown, ExternalLink, AlertTriangle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { isRewriteWhitelisted } from '@/lib/utils/chapterParse'
 
 interface Source {
   id:            string
@@ -163,6 +164,19 @@ export function MyReadingSources({ comicId, isLoggedIn, isPro }: Props) {
                 {s.chapter_range && (
                   <span className="text-dossier-foreground/40 shrink-0">· {s.chapter_range}</span>
                 )}
+                {/* Persistent, quiet reminder — not an error state. Someone
+                    may have deliberately chosen to save an unsupported
+                    site's link anyway (still useful as a bookmark), they
+                    just shouldn't be surprised months later that it never
+                    auto-updates. */}
+                {!isRewriteWhitelisted(s.url) && (
+                  <span
+                    title="This site won't auto-update when a new chapter releases"
+                    className="shrink-0 inline-flex items-center gap-0.5 text-[9px] text-amber-500/70"
+                  >
+                    <AlertTriangle size={9} />
+                  </span>
+                )}
               </a>
               {/* Was opacity-0 group-hover:opacity-100 — hover never fires
                   on touch devices, so these buttons were completely
@@ -216,6 +230,18 @@ export function MyReadingSources({ comicId, isLoggedIn, isPro }: Props) {
             placeholder="https://..."
             className="h-8 text-xs"
           />
+          {/* Live warning — only fires once there's a real, parseable URL
+              entered, so it doesn't nag while the field is still empty or
+              mid-paste. Doesn't block saving — an unsupported site is
+              still a valid link to keep, just without auto-updates. */}
+          {form.url.trim().length > 0 && !isRewriteWhitelisted(form.url) && (
+            <div className="flex items-start gap-1.5 px-2.5 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <AlertTriangle size={12} className="text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-relaxed">
+                This site isn't on our verified list — this link won't auto-update when a new chapter comes out. You'll need to update it yourself, or we'll extract the chapter number for notifications only.
+              </p>
+            </div>
+          )}
           <div className="flex items-center gap-2 pt-0.5">
             <Button
               size="sm"
