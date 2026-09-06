@@ -220,9 +220,18 @@ export async function DELETE(req: Request) {
   }
 
   const { searchParams } = new URL(req.url)
-  const bakeId = searchParams.get('id')
-  if (!bakeId) {
+  const bakeIdParam = searchParams.get('id')
+  if (!bakeIdParam) {
     return NextResponse.json({ error: 'id query param is required' }, { status: 400 })
+  }
+
+  // bake_requests.id is bigint, but URL search params are always strings -
+  // confirmed via a real build failure (TS2345: string not assignable to
+  // number) that .eq('id', bakeId) needs an actual parsed number to match
+  // the generated Supabase types, not the raw string from the query param.
+  const bakeId = Number(bakeIdParam)
+  if (!Number.isInteger(bakeId)) {
+    return NextResponse.json({ error: 'id must be a valid integer' }, { status: 400 })
   }
 
   const { error } = await supabase
