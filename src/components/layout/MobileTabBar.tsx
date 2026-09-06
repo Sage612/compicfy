@@ -46,6 +46,7 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
   const pathname     = usePathname()
   const searchParams = useSearchParams()
   const scrollRef    = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // headerVisible mirrors the header's own visibility state
   const [headerVisible, setHeaderVisible] = useState(true)
@@ -68,6 +69,37 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
     document.addEventListener('scroll', handleScroll, { passive: true, capture: true })
     return () => document.removeEventListener('scroll', handleScroll, true)
   }, [])
+
+  // Measure and publish the real bottom edge of MobileTabBar as --header-h.
+  // Re-measures on resize, content-size change (ResizeObserver), and at the
+  // end of the slide-up/down transition (transitionend) so it stays correct
+  // through the header-hide animation, not just at rest.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const update = () => {
+      // Desktop uses NavRail + a static lg:pt-20 offset in MarketingLayout,
+      // not this bar at all — don't touch the var above the lg breakpoint.
+      if (window.innerWidth >= 1024) return
+      document.documentElement.style.setProperty(
+        '--header-h',
+        `${el.getBoundingClientRect().bottom}px`
+      )
+    }
+
+    update()
+    el.addEventListener('transitionend', update)
+    window.addEventListener('resize', update)
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+
+    return () => {
+      el.removeEventListener('transitionend', update)
+      window.removeEventListener('resize', update)
+      ro.disconnect()
+    }
+  }, [headerVisible])
 
   const isOnDashboard = DASHBOARD_PREFIXES.some(p => pathname.startsWith(p))
   const showHome      = isOnDashboard
@@ -119,6 +151,7 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
 
   return (
     <div
+      ref={containerRef}
       className="fixed left-0 right-0 z-40 lg:hidden"
       style={{
         top:        topValue,

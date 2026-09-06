@@ -234,14 +234,15 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: 'id must be a valid integer' }, { status: 400 })
   }
 
+ 
   const { error } = await supabase
     .from('bake_requests')
-    .update({ status: 'cleared', cleared_at: new Date().toISOString() })
+    .delete()
     .eq('id', bakeId)
-    .eq('user_id', user.id) // ensures a user can only clear their own bake
+    .eq('user_id', user.id) // ensures a user can only delete their own bake
 
   if (error) {
-    console.error('Clear bake failed:', error)
+    console.error('Delete bake failed:', error)
     return NextResponse.json({ error: 'Failed to clear bake' }, { status: 500 })
   }
 

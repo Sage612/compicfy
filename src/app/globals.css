@@ -9,6 +9,17 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── Header Height ── */
+:root {
+  --header-h: 108px; /* matches MarketingLayout's pt-[108px] assumption until JS measures the real value */
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --header-h: 80px; /* matches MarketingLayout's lg:pt-20 */
+  }
+}
+
 /* ── LIGHT MODE ── */
 :root {
   /* Backgrounds — stronger sage/teal tint so light mode reads as dark mode's sibling */

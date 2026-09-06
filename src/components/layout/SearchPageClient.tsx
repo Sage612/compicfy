@@ -464,12 +464,15 @@ export function SearchPageClient({ initialQuery, isPro, isLoggedIn }: Props) {
       {/* ── Sticky search bar ── */}
       {/* Uses position:sticky + top-[var(--header-h)] so it always sits just below the header.
           When not yet searched it renders as a centred hero instead. */}
-      <div className={cn(
-        'z-30 transition-all duration-300',
-        hasSearched
-          ? 'sticky top-14 bg-background/95 backdrop-blur-lg border-b border-border py-3 px-4 shadow-sm'
-          : 'py-16 px-4'
-      )}>
+      <div
+        className={cn(
+          'z-30 transition-all duration-300',
+          hasSearched
+            ? 'sticky bg-background/95 backdrop-blur-lg border-b border-border py-3 px-4 shadow-sm'
+            : 'py-16 px-4'
+        )}
+        style={hasSearched ? { top: 'var(--header-h)' } : undefined}
+      >
         <div className={cn('mx-auto', hasSearched ? 'max-w-3xl' : 'max-w-xl text-center')}>
 
           {!hasSearched && (
