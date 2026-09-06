@@ -50,6 +50,7 @@ const SERIES_LOOKUP_DELAY_MS = 150
 const SERIES_LOOKUP_BATCH_SIZE = 5
 const SERIES_MATCH_MIN_HIT_TITLE_EQUALS_QUERY = true
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000 // 6 hours - a title's series_id essentially never changes, but re-validating periodically guards against a cached wrong-match sticking forever
+const PRIORITY_DEDUP_COOLDOWN_MS = 10 * 60 * 1000 // 10 min — see dedup guard below
 
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController()
@@ -395,11 +396,13 @@ export async function GET(req: Request) {
       const currentCh = comic.chapter_count ?? 0
       if (releaseInfo.chapter <= currentCh) continue
 
+      const dedupWindowStart = new Date(Date.now() - PRIORITY_DEDUP_COOLDOWN_MS).toISOString()
+
       const { data: existingPending } = await supabase
         .from('checker_priority_queue')
         .select('id')
         .eq('recommendation_id', comic.id)
-        .is('processed_at', null)
+        .or(`processed_at.is.null,processed_at.gt.${dedupWindowStart}`)
         .limit(1)
         .maybeSingle()
 

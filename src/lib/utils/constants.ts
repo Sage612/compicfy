@@ -250,6 +250,17 @@ export function isPresetSubStatus(status: string, subStatus: string): boolean {
   return !!meta?.subStatusPresets.some(p => p.value === subStatus)
 }
 
+// ── Item #29 "Let It Bake" ─────────────────────────────────────────────────
+export const BAKE_MIN_TARGET_CHAPTERS = 1
+export const BAKE_MAX_TARGET_CHAPTERS = 500
+
+export const BAKE_COUNTING_MODES = [
+  { value: 'from_now',  label: 'Only new chapters',   description: 'Wait for fresh releases from now on' },
+  { value: 'from_read', label: 'Include my backlog',  description: 'Count from where I last read' },
+] as const
+
+export type BakeCountingMode = (typeof BAKE_COUNTING_MODES)[number]['value']
+
 export const CONTENT_RATINGS = [
   { value: 'all_ages', label: 'All Ages'     },
   { value: 'teen',     label: 'Teen (13+)'   },
@@ -284,6 +295,7 @@ export const FREE_LIMITS = {
   lists:                     5,
   collections:               3,
   follows:                   50,
+  bakes:                     3,   // item #29 "Let It Bake" — max active bakes at once, Free tier
 } as const
 
 export const GENRE_MOODS: Record<(typeof GENRES)[number], { mood: string; emoji: string }> = {

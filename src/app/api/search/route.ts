@@ -1,3 +1,4 @@
+// src/app/api/search/route.ts
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -23,53 +24,26 @@ export async function GET(request: Request) {
   try {
     const supabase = await createClient()
 
-    // Split query into words so "solo leveling" matches title containing both words
-    const words = q.split(/\s+/).filter(Boolean)
-
-    // Build a filter: every word must appear somewhere in the title
-    // Falls back to single ilike for single-word queries
-    let query = supabase
-      .from('recommendations')
-      .select('id, title, type, cover_url, author, genres, status')
-      .eq('is_approved', true)
-      .not('content_rating', 'in', '("adult","mature")')
-
-    if (words.length === 1) {
-      // Single word — match title, author, or artist
-      query = query.or(
-        `title.ilike.%${words[0]}%,author.ilike.%${words[0]}%,artist.ilike.%${words[0]}%`
-      )
-    } else {
-      // Multiple words — each word must appear in the title
-      // This correctly handles "solo leveling", "tower of god", etc.
-      for (const word of words) {
-        query = query.ilike('title', `%${word}%`)
-      }
-    }
-
-    const { data, error } = await query
-      .order('score', { ascending: false })
-      .limit(limit)
+    const { data, error } = await (supabase as any).rpc('search_recommendations_fuzzy', {
+      p_query:     q,
+      p_threshold: 0.2,
+      p_limit:     limit,
+      p_offset:    0,
+    })
 
     if (error) throw error
 
-    // Client-side re-rank: exact/prefix matches bubble to top
-    const lower = q.toLowerCase()
-    const ranked = ((data as SearchResult[]) ?? []).sort((a, b) => {
-      const aTitle = a.title.toLowerCase()
-      const bTitle = b.title.toLowerCase()
-      // Exact match wins
-      if (aTitle === lower && bTitle !== lower) return -1
-      if (bTitle === lower && aTitle !== lower) return 1
-      // Starts-with wins over contains
-      const aStarts = aTitle.startsWith(lower)
-      const bStarts = bTitle.startsWith(lower)
-      if (aStarts && !bStarts) return -1
-      if (bStarts && !aStarts) return 1
-      return 0
-    })
+    const results: SearchResult[] = ((data ?? []) as any[]).map(r => ({
+      id:        r.id,
+      title:     r.title,
+      type:      r.type,
+      cover_url: r.cover_url,
+      author:    r.author,
+      genres:    r.genres ?? [],
+      status:    r.status,
+    }))
 
-    return NextResponse.json({ results: ranked })
+    return NextResponse.json({ results })
   } catch (err) {
     console.error('[/api/search]', err)
     return NextResponse.json({ results: [] }, { status: 500 })

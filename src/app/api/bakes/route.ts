@@ -15,10 +15,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server' // confirmed real path/signature against the actual file - async function, matches usage here
 import { hasUnlimitedPerks } from '@/lib/access'
-
-const FREE_MAX_ACTIVE_BAKES = 3
-const MIN_TARGET_CHAPTERS = 1
-const MAX_TARGET_CHAPTERS = 500
+import { FREE_LIMITS, BAKE_MIN_TARGET_CHAPTERS, BAKE_MAX_TARGET_CHAPTERS } from '@/lib/utils/constants'
 
 export async function POST(req: Request) {
   const supabase = await createClient()
@@ -35,8 +32,8 @@ export async function POST(req: Request) {
   if (!recommendationId || typeof recommendationId !== 'string') {
     return NextResponse.json({ error: 'recommendation_id is required' }, { status: 400 })
   }
-  if (!Number.isInteger(targetChapterCount) || targetChapterCount < MIN_TARGET_CHAPTERS || targetChapterCount > MAX_TARGET_CHAPTERS) {
-    return NextResponse.json({ error: `target_chapter_count must be an integer between ${MIN_TARGET_CHAPTERS} and ${MAX_TARGET_CHAPTERS}` }, { status: 400 })
+  if (!Number.isInteger(targetChapterCount) || targetChapterCount < BAKE_MIN_TARGET_CHAPTERS || targetChapterCount > BAKE_MAX_TARGET_CHAPTERS) {
+    return NextResponse.json({ error: `target_chapter_count must be an integer between ${BAKE_MIN_TARGET_CHAPTERS} and ${BAKE_MAX_TARGET_CHAPTERS}` }, { status: 400 })
   }
   if (countingMode !== 'from_now' && countingMode !== 'from_read') {
     return NextResponse.json({ error: "counting_mode must be 'from_now' or 'from_read'" }, { status: 400 })
@@ -83,9 +80,9 @@ export async function POST(req: Request) {
       .eq('status', 'active')
       .maybeSingle()
 
-    if (!existingBake && (count ?? 0) >= FREE_MAX_ACTIVE_BAKES) {
+    if (!existingBake && (count ?? 0) >= FREE_LIMITS.bakes) {
       return NextResponse.json({
-        error: `Free tier allows up to ${FREE_MAX_ACTIVE_BAKES} active bakes at a time. Upgrade to Pro for unlimited bakes.`,
+        error: `Free tier allows up to ${FREE_LIMITS.bakes} active bakes at a time. Upgrade to Pro for unlimited bakes.`,
         code: 'BAKE_LIMIT_REACHED',
       }, { status: 403 })
     }
@@ -207,20 +204,17 @@ export async function DELETE(req: Request) {
   }
 
   const { searchParams } = new URL(req.url)
-  const bakeId = searchParams.get('id')
-  if (!bakeId) {
-    return NextResponse.json({ error: 'id query param is required' }, { status: 400 })
-  }
+  const rawBakeId = searchParams.get('id')
+  const bakeId = Number(rawBakeId)
 
-  const bakeIdNumber = Number(bakeId)
-  if (!Number.isInteger(bakeIdNumber)) {
-    return NextResponse.json({ error: 'id must be a valid integer' }, { status: 400 })
+  if (!rawBakeId || !Number.isInteger(bakeId) || bakeId <= 0) {
+    return NextResponse.json({ error: 'id query param must be a positive integer' }, { status: 400 })
   }
 
   const { error } = await supabase
     .from('bake_requests')
     .update({ status: 'cleared', cleared_at: new Date().toISOString() })
-    .eq('id', bakeIdNumber)
+    .eq('id', bakeId)
     .eq('user_id', user.id) // ensures a user can only clear their own bake
 
   if (error) {
