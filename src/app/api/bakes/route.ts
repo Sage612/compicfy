@@ -1,17 +1,3 @@
-// app/api/bakes/route.ts
-//
-// Item #29 "Let It Bake". POST creates a new active bake (or updates the
-// existing active one for the same comic, rather than erroring - re-baking
-// a comic you're already baking should just adjust the target). GET lists
-// the current user's active bakes. DELETE clears one.
-//
-// Tier gating: uses hasUnlimitedPerks() from src/lib/access.ts per the
-// Pro-gating warning in the roadmap doc - NOT the has_feature_access RPC
-// (11 of 12 branches there have zero real callers) and NOT
-// useFeatureAccess/ProGate (confirmed zero real callers anywhere). Adding
-// a case to either of those would just grow the exact fragmentation
-// already flagged as a blocking prerequisite for new Pro-gated work.
-
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server' // confirmed real path/signature against the actual file - async function, matches usage here
 import { hasUnlimitedPerks } from '@/lib/access'
@@ -54,6 +40,21 @@ export async function POST(req: Request) {
 
   const isPro = !!profile && hasUnlimitedPerks(profile as any)
 
+  // Fetched ONCE, unconditionally - needed both for the free-tier cap
+  // check below (Free users only) AND for the update-vs-insert decision
+  // later (all users, Pro included). A prior version of this fetch was
+  // scoped inside the `if (!isPro)` block below, which meant Pro users
+  // re-baking an already-baked comic would never see existingBake at all
+  // and would always hit the INSERT path - crashing into the exact same
+  // partial-unique-index conflict this whole restructure exists to fix.
+  const { data: existingBake } = await supabase
+    .from('bake_requests')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('recommendation_id', recommendationId)
+    .eq('status', 'active')
+    .maybeSingle()
+
   // Free-tier cap: 3 active bakes, enforced here rather than relying on a
   // client-side check alone. Skip this query entirely for Pro users -
   // no need to count what isn't capped.
@@ -70,16 +71,8 @@ export async function POST(req: Request) {
     }
 
     // If this request is updating an already-active bake on the same
-    // comic (see upsert logic below), it doesn't count against the cap -
-    // only check the cap when this would be a genuinely NEW active bake.
-    const { data: existingBake } = await supabase
-      .from('bake_requests')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('recommendation_id', recommendationId)
-      .eq('status', 'active')
-      .maybeSingle()
-
+    // comic, it doesn't count against the cap - only check the cap when
+    // this would be a genuinely NEW active bake.
     if (!existingBake && (count ?? 0) >= FREE_LIMITS.bakes) {
       return NextResponse.json({
         error: `Free tier allows up to ${FREE_LIMITS.bakes} active bakes at a time. Upgrade to Pro for unlimited bakes.`,
@@ -141,29 +134,52 @@ export async function POST(req: Request) {
     chapterCountAtBakeStart = progressChapter ?? 0
   }
 
-  // Upsert: if the user already has an active bake on this comic, update
-  // its target/mode rather than creating a duplicate (the partial unique
-  // index on (user_id, recommendation_id) WHERE status = 'active' would
-  // reject a duplicate insert anyway, but doing this explicitly gives a
-  // cleaner response than surfacing a raw constraint violation).
-  const { data: bake, error: upsertError } = await supabase
-    .from('bake_requests')
-    .upsert(
-      {
+  // Explicit update-if-exists / insert-if-not, NOT .upsert() with
+  // onConflict. Confirmed via a real production error (Postgres 42P10 -
+  // "no unique or exclusion constraint matching the ON CONFLICT
+  // specification") that onConflict can't reliably target the partial
+  // unique index on (user_id, recommendation_id) WHERE status = 'active'
+  // - a partial index isn't a plain constraint Postgres will match
+  // against an ON CONFLICT clause the way a full unique constraint would.
+  // existingBake was already fetched above for the free-tier cap check,
+  // so it's reused here instead of querying again - same pattern
+  // src/app/api/reading-progress/[comicId]/route.ts already uses for
+  // exactly this "row might already exist" problem.
+  let bake: any
+  let dbError: any
+
+  if (existingBake) {
+    const { data, error } = await supabase
+      .from('bake_requests')
+      .update({
+        target_chapter_count: targetChapterCount,
+        counting_mode: countingMode,
+        chapter_count_at_bake_start: chapterCountAtBakeStart,
+      })
+      .eq('id', existingBake.id)
+      .select()
+      .single()
+    bake = data
+    dbError = error
+  } else {
+    const { data, error } = await supabase
+      .from('bake_requests')
+      .insert({
         user_id: user.id,
         recommendation_id: recommendationId,
         target_chapter_count: targetChapterCount,
         counting_mode: countingMode,
         chapter_count_at_bake_start: chapterCountAtBakeStart,
         status: 'active',
-      },
-      { onConflict: 'user_id,recommendation_id', ignoreDuplicates: false }
-    )
-    .select()
-    .single()
+      })
+      .select()
+      .single()
+    bake = data
+    dbError = error
+  }
 
-  if (upsertError) {
-    console.error('Bake upsert failed:', upsertError)
+  if (dbError) {
+    console.error('Bake create/update failed:', dbError)
     return NextResponse.json({ error: 'Failed to create bake' }, { status: 500 })
   }
 
@@ -204,11 +220,9 @@ export async function DELETE(req: Request) {
   }
 
   const { searchParams } = new URL(req.url)
-  const rawBakeId = searchParams.get('id')
-  const bakeId = Number(rawBakeId)
-
-  if (!rawBakeId || !Number.isInteger(bakeId) || bakeId <= 0) {
-    return NextResponse.json({ error: 'id query param must be a positive integer' }, { status: 400 })
+  const bakeId = searchParams.get('id')
+  if (!bakeId) {
+    return NextResponse.json({ error: 'id query param is required' }, { status: 400 })
   }
 
   const { error } = await supabase
