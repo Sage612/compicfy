@@ -20,6 +20,7 @@ export function getDashboardRoutes(userType: UserType, isPro: boolean) {
   const base = isPro ? '/pro/reader/dashboard' : '/reader/dashboard'
   return {
     dashboard:       base,
+    updates:         `${base}/updates`,
     saved:           `${base}/saved`,
     lists:           `${base}/lists`,
     recommendations: `${base}/recommendations`,
