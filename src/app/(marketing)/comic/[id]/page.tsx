@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
 import { ReadingProgressButton } from '@/components/recommendations/ReadingProgressButton'
+import { BakeButton } from '@/components/recommendations/BakeButton'
 import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnButton'
 import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { MoreInfoSection } from '@/components/comic-detail/MoreInfoSection'
@@ -391,6 +392,18 @@ export default async function ComicDetailPage({ params }: Props) {
         comicId={id}
         chapterCount={rec.chapter_count}
         isLoggedIn={!!user}
+      />
+
+      {/* item #29 "Let It Bake" - same actionDeck placement as
+          ReadingProgressButton since they're the same category of
+          per-comic action (a small dropdown-driven setup flow).
+          currentUserIsPro is already computed above in this file for
+          MyReadingSources - reused here rather than recomputed. */}
+      <BakeButton
+        comicId={id}
+        chapterCount={rec.chapter_count}
+        isLoggedIn={!!user}
+        isPro={currentUserIsPro}
       />
 
       <div className="space-y-1.5">
