@@ -70,32 +70,32 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
     return () => document.removeEventListener('scroll', handleScroll, true)
   }, [])
 
-  // Measure and publish the real bottom edge of MobileTabBar as --header-h.
-  // Re-measures on resize, content-size change (ResizeObserver), and at the
-  // end of the slide-up/down transition (transitionend) so it stays correct
-  // through the header-hide animation, not just at rest.
+  // Publish --header-h from known state (headerVisible) + a stable height
+  // measurement, instead of reading getBoundingClientRect() mid-animation.
+  // The bar's height doesn't change during the slide transition - only its
+  // top position does - so measuring height is safe at any point, while
+  // computing the offset from headerVisible directly avoids ever reading
+  // a stale in-flight position (the earlier version read the element's
+  // live position right as the transition started, which could capture
+  // a stale value that never corrected on rapid scroll-direction changes).
   useEffect(() => {
+    if (window.innerWidth >= 1024) return
     const el = containerRef.current
     if (!el) return
 
     const update = () => {
-      // Desktop uses NavRail + a static lg:pt-20 offset in MarketingLayout,
-      // not this bar at all — don't touch the var above the lg breakpoint.
       if (window.innerWidth >= 1024) return
-      document.documentElement.style.setProperty(
-        '--header-h',
-        `${el.getBoundingClientRect().bottom}px`
-      )
+      const barHeight = el.getBoundingClientRect().height
+      const topOffset = headerVisible ? HEADER_H : 0
+      document.documentElement.style.setProperty('--header-h', `${topOffset + barHeight}px`)
     }
 
     update()
-    el.addEventListener('transitionend', update)
     window.addEventListener('resize', update)
     const ro = new ResizeObserver(update)
     ro.observe(el)
 
     return () => {
-      el.removeEventListener('transitionend', update)
       window.removeEventListener('resize', update)
       ro.disconnect()
     }
@@ -114,7 +114,7 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
     ...(!isOnDashboard ? [
       { label: 'Collections', href: '/collections',          icon: <Layers      size={13} strokeWidth={2} /> },
       { label: 'Lists Hub',   href: '/lists',                icon: <Globe       size={13} strokeWidth={2} /> },
-      // Only show News tab when logged in — MobileNav already shows it for logged-out users
+      // Only show News tab when logged in - MobileNav already shows it for logged-out users
       ...(isLoggedIn ? [
         { label: 'News',    href: '/news',    icon: <Newspaper size={13} strokeWidth={2} /> },
         { label: 'Matches', href: '/matches', icon: <Sparkles  size={13} strokeWidth={2} /> },
