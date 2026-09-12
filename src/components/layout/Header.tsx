@@ -30,7 +30,7 @@ import { NavRail } from '@/components/layout/NavRail'
 import {
   getCachedProfile, setCachedProfile, clearCachedProfile, deriveIsPro,
 } from '@/lib/utils/profile-cache'
-import { shouldHideProUpsell, isProUser } from '@/lib/access'
+import { shouldHideProUpsell } from '@/lib/access'
 
 function LogoMark({ className }: { className?: string }) {
   return (
@@ -59,7 +59,13 @@ export function Header() {
   const cachedProfile = getCachedProfile()
 
   const [mounted, setMounted] = useState(false)
-  const [user, setUser] = useState<User | null>(null)
+  // Synchronously initialize user if profile cache exists
+  const [user, setUser] = useState<User | null>(() => {
+    if (cachedProfile) {
+      return { id: 'cached-user', email: '' } as User
+    }
+    return null
+  })
   const [avatarUrl, setAvatarUrl] = useState<string | null>(cachedProfile?.avatar_url ?? null)
   const [displayName, setDisplayName] = useState<string | null>(cachedProfile?.display_name || cachedProfile?.username || null)
   const [username, setUsername] = useState<string | null>(cachedProfile?.username ?? null)
@@ -67,7 +73,8 @@ export function Header() {
   const [isPro, setIsPro] = useState<boolean>(cachedProfile ? deriveIsPro(cachedProfile) : false)
   const [role, setRole] = useState<string>(cachedProfile?.role ?? 'user')
   const [userType, setUserType] = useState<UserType>((cachedProfile?.user_type as UserType) ?? 'reader')
-  const [authReady, setAuthReady] = useState<boolean>(!!cachedProfile)
+  // authReady is true immediately if cached profile exists
+  const [authReady, setAuthReady] = useState<boolean>(() => !!cachedProfile)
   const [showPro, setShowPro] = useState<null | boolean>(cachedProfile ? !shouldHideProUpsell(cachedProfile) : null)
   const lastScrollY = useRef(0)
   const supabase = createClient()
@@ -124,13 +131,12 @@ export function Header() {
     const getUser = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       const currentUser = session?.user ?? null
-      setUser(currentUser)
-
+      
       if (currentUser) {
+        setUser(currentUser)
         const cached = getCachedProfile()
         if (cached) {
           applyProfile(cached)
-          setAuthReady(true)
         }
 
         const { data: profile } = await (supabase as any)
@@ -145,11 +151,11 @@ export function Header() {
         } else {
           setShowPro(true)
         }
-        setAuthReady(true)
       } else {
+        setUser(null)
         setShowPro(true)
-        setAuthReady(true)
       }
+      setAuthReady(true)
     }
     getUser()
 
@@ -200,6 +206,12 @@ export function Header() {
   const routes = getDashboardRoutes(userType, isPro)
   const profileRoute = username ? getProfileRoute(username, userType) : null
   const isCreator = userType === 'creator'
+
+  const notifHref = ['admin', 'moderator'].includes(role)
+    ? getAdminRoutes().notifications
+    : routes.notifications
+
+  const updatesHref = routes.updates
 
   const dashboardLabel = isPro
     ? isCreator ? 'Pro Studio' : 'Pro Dashboard'

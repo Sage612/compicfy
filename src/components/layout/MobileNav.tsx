@@ -22,23 +22,32 @@ import {
 import { shouldHideProUpsell } from '@/lib/access'
 
 export function MobileNav() {
-  const pathname                            = usePathname()
-  const router                              = useRouter()
-  const [user,           setUser]           = useState<User | null>(null)
-  const [isPro,          setIsPro]          = useState(false)
-  const [userType,       setUserType]       = useState<UserType>('reader')
-  const [authReady,      setAuthReady]      = useState(false)
-  const [visible,        setVisible]        = useState(true)
-  const [showAuthPrompt, setShowAuthPrompt] = useState(false)
-  const [profileOpen,    setProfileOpen]    = useState(false)
-  const [avatarUrl,      setAvatarUrl]      = useState<string | null>(null)
-  const [displayName,    setDisplayName]    = useState<string | null>(null)
-  const [username,       setUsername]       = useState<string | null>(null)
-  const [showPro,        setShowPro]        = useState<null | boolean>(null)
-  const lastScrollY                         = useRef(0)
-  const supabase                            = createClient()
+  const pathname = usePathname()
+  const router = useRouter()
+  
+  // Synchronously initialize profile cache on mount to prevent render flashing
+  const cachedProfile = getCachedProfile()
 
-  // ── Helper: apply a profile object to all state setters ──────────────
+  const [user, setUser] = useState<User | null>(() => {
+    if (cachedProfile) {
+      return { id: 'cached-user', email: '' } as User
+    }
+    return null
+  })
+  const [isPro, setIsPro] = useState<boolean>(cachedProfile ? deriveIsPro(cachedProfile) : false)
+  const [userType, setUserType] = useState<UserType>((cachedProfile?.user_type as UserType) ?? 'reader')
+  const [authReady, setAuthReady] = useState<boolean>(() => !!cachedProfile)
+  const [visible, setVisible] = useState(true)
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(cachedProfile?.avatar_url ?? null)
+  const [displayName, setDisplayName] = useState<string | null>(cachedProfile?.display_name || cachedProfile?.username || null)
+  const [username, setUsername] = useState<string | null>(cachedProfile?.username ?? null)
+  const [showPro, setShowPro] = useState<null | boolean>(cachedProfile ? !shouldHideProUpsell(cachedProfile) : null)
+  const lastScrollY = useRef(0)
+  const supabase = createClient()
+
+  // Helper: apply a profile object to all state setters
   const applyProfile = (profile: {
     avatar_url: string | null
     display_name: string | null
@@ -54,26 +63,24 @@ export function MobileNav() {
     setUsername(profile.username)
     setUserType((profile.user_type as UserType) ?? 'reader')
     setIsPro(proActive)
-    // Hide the "Upgrade to Pro" CTA only for genuinely Pro users (or admin).
-    // Moderators are NOT Pro — they still see the upsell, they just also
-    // get separate unlimited perks (recs/lists/saves) elsewhere.
-    setShowPro(shouldHideProUpsell(profile) ? false : true)
+    setShowPro(!shouldHideProUpsell(profile))
   }
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      setUser(currentUser)
+      const { data: { session } } = await supabase.auth.getSession()
+      const currentUser = session?.user ?? null
 
       if (currentUser) {
-        // ── 1. Paint instantly from cache if available ──────────────
+        setUser(currentUser)
+        
+        // 1. Paint instantly from cache if available
         const cached = getCachedProfile()
         if (cached) {
           applyProfile(cached)
-          setAuthReady(true)   // nav interactive immediately with correct routes
         }
 
-        // ── 2. Always fetch fresh in background ──────────────────────
+        // 2. Fetch fresh in background
         const { data: profile } = await (supabase as any)
           .from('profiles')
           .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role, avatar_url, display_name, username, user_type')
@@ -81,31 +88,31 @@ export function MobileNav() {
           .single()
 
         if (profile) {
-          setCachedProfile(profile)   // refresh cache
+          setCachedProfile(profile)
           applyProfile(profile)
         } else {
           setShowPro(true)
         }
-
-        // If no cache existed, mark ready after fetch
-        if (!cached) setAuthReady(true)
       } else {
+        setUser(null)
         setShowPro(true)
-        setAuthReady(true)
       }
+      setAuthReady(true)
     }
     checkAuth()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session?.user) {
-        // Logout — clear cache immediately
         clearCachedProfile()
-        setUser(null); setIsPro(false); setAvatarUrl(null)
-        setDisplayName(null); setUsername(null); setShowPro(true)
+        setUser(null)
+        setIsPro(false)
+        setAvatarUrl(null)
+        setDisplayName(null)
+        setUsername(null)
+        setShowPro(true)
         setUserType('reader')
         setAuthReady(true)
       } else {
-        // Auth state changed — re-fetch profile so routes stay correct
         const fetchProfile = async () => {
           const { data: profile } = await (supabase as any)
             .from('profiles')
@@ -131,7 +138,7 @@ export function MobileNav() {
   useEffect(() => {
     const handleScroll = () => {
       const currentY = window.scrollY
-      if (currentY < 60)                           setVisible(true)
+      if (currentY < 60) setVisible(true)
       else if (currentY > lastScrollY.current + 4) setVisible(false)
       else if (currentY < lastScrollY.current - 4) setVisible(true)
       lastScrollY.current = currentY
@@ -149,34 +156,18 @@ export function MobileNav() {
     router.refresh()
   }
 
-  const routes       = getDashboardRoutes(userType, isPro)
+  const routes = getDashboardRoutes(userType, isPro)
   const profileRoute = username ? getProfileRoute(username, userType) : null
-  const isCreator    = userType === 'creator'
+  const isCreator = userType === 'creator'
 
   const initials = displayName
     ? displayName.slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() ?? 'U'
 
   const dashboardLabel = isPro
-    ? isCreator ? 'Pro Studio'   : 'Pro Dashboard'
-    : isCreator ? 'Studio'       : 'Dashboard'
-  const billingLabel   = isPro ? 'Pro Billing' : 'Billing'
-
-  if (!authReady) {
-    return (
-      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden px-4 pb-4">
-        <div className="flex items-center justify-around h-14 bg-background/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg px-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="flex flex-col items-center gap-1 px-2 py-2">
-              <div className="w-5 h-5 rounded bg-muted/50 animate-pulse" />
-              <div className="w-7 h-2 rounded bg-muted/40 animate-pulse" />
-            </div>
-          ))}
-        </div>
-        <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
-      </nav>
-    )
-  }
+    ? isCreator ? 'Pro Studio' : 'Pro Dashboard'
+    : isCreator ? 'Studio' : 'Dashboard'
+  const billingLabel = isPro ? 'Pro Billing' : 'Billing'
 
   return (
     <>
@@ -237,16 +228,16 @@ export function MobileNav() {
             {/* Nav items */}
             {[
               profileRoute ?
-               { href: profileRoute,        label: 'View Profile',  icon: UserIcon,                              accent: false } : null,
-              {               href: routes.dashboard,     label: dashboardLabel,  icon: isCreator ? Palette : LayoutDashboard, accent: isPro  },
-              {               href: routes.notifications, label: 'Notifications', icon: Bell,                                  accent: false },
-              {               href: routes.settings,      label: 'Settings',      icon: Settings,                              accent: false },
-              {               href: routes.billing,       label: billingLabel,    icon: isPro ? Crown : CreditCard,            accent: isPro },
+                { href: profileRoute, label: 'View Profile', icon: UserIcon, accent: false } : null,
+              { href: routes.dashboard, label: dashboardLabel, icon: isCreator ? Palette : LayoutDashboard, accent: isPro },
+              { href: routes.notifications, label: 'Notifications', icon: Bell, accent: false },
+              { href: routes.settings, label: 'Settings', icon: Settings, accent: false },
+              { href: routes.billing, label: billingLabel, icon: isPro ? Crown : CreditCard, accent: isPro },
             ].filter(Boolean).map((item) => {
               if (!item) return null
               const { href, label, icon: Icon, accent } = item
               const accentColor = isCreator ? 'text-teal-600' : 'text-amber-600'
-              const accentIcon  = isCreator ? 'text-teal-500' : 'text-amber-500'
+              const accentIcon = isCreator ? 'text-teal-500' : 'text-amber-500'
               return (
                 <Link key={href} href={href} onClick={() => setProfileOpen(false)}
                   className={cn('flex items-center gap-3 px-3 py-3 rounded-xl transition-colors hover:bg-muted/60 active:bg-muted', accent && accentColor)}
@@ -305,15 +296,21 @@ export function MobileNav() {
         )}
       </div>
 
-      {/* ── FLOATING PILL NAV ── */}
+      {/* FLOATING PILL NAV */}
       <nav className={cn(
         'fixed bottom-0 left-0 right-0 z-50 lg:hidden px-4 pb-4',
         'transition-transform duration-300 ease-in-out',
         !visible && 'translate-y-full'
       )}>
         <div className="flex items-center justify-around h-14 bg-background/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg shadow-black/10 px-2">
-
-          {user ? (
+          {!authReady ? (
+            Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex flex-col items-center gap-1 px-2 py-2">
+                <div className="w-5 h-5 rounded bg-muted/50 animate-pulse" />
+                <div className="w-7 h-2 rounded bg-muted/40 animate-pulse" />
+              </div>
+            ))
+          ) : user ? (
             <>
               <Link href="/" className="flex flex-col items-center gap-1 px-3 py-2 active:scale-95 transition-transform">
                 <House size={19} strokeWidth={pathname === '/' ? 2.5 : 1.75}
