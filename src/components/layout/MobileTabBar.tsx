@@ -1,14 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
-  House, Layers, Newspaper, ShoppingBag, Crown,
+  House, Layers, Newspaper, ShoppingBag,
   Users, HelpCircle, TrendingUp, Sparkles, Flame, BookOpen, Mail,
-  Globe, BookMarked,
+  Globe,
 } from 'lucide-react'
 
 function DiscordIcon({ size = 14 }: { size?: number }) {
@@ -20,15 +19,15 @@ function DiscordIcon({ size = 14 }: { size?: number }) {
 }
 
 interface TabItem {
-  label:    string
-  href:     string
-  icon:     React.ReactNode
+  label: string
+  href: string
+  icon: React.ReactNode
   external?: boolean
-  accent?:  string
+  accent?: string
 }
 
 interface MobileTabBarProps {
-  isPro?:     boolean
+  isPro?: boolean
   isLoggedIn?: boolean
 }
 
@@ -43,41 +42,36 @@ const DASHBOARD_PREFIXES = [
 const HEADER_H = 64
 
 export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBarProps) {
-  const pathname     = usePathname()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
-  const scrollRef    = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const activeTabRef = useRef<HTMLAnchorElement>(null)
 
-  // headerVisible mirrors the header's own visibility state
   const [headerVisible, setHeaderVisible] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const lastScrollY = useRef(0)
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
     const handleScroll = (e: Event) => {
-      const target   = e.target as Document | HTMLElement
+      const target = e.target as Document | HTMLElement
       const currentY = target === document
         ? window.scrollY
         : (target as HTMLElement).scrollTop ?? window.scrollY
 
-      if (currentY < 60)                           setHeaderVisible(true)
+      if (currentY < 60) setHeaderVisible(true)
       else if (currentY > lastScrollY.current + 4) setHeaderVisible(false)
       else if (currentY < lastScrollY.current - 4) setHeaderVisible(true)
       lastScrollY.current = currentY
     }
-    // Capture phase so this also receives scroll events from scrollable
-    // descendants (DashboardShell's main/aside), not just window scroll.
     document.addEventListener('scroll', handleScroll, { passive: true, capture: true })
     return () => document.removeEventListener('scroll', handleScroll, true)
   }, [])
 
-  // Publish --header-h from known state (headerVisible) + a stable height
-  // measurement, instead of reading getBoundingClientRect() mid-animation.
-  // The bar's height doesn't change during the slide transition - only its
-  // top position does - so measuring height is safe at any point, while
-  // computing the offset from headerVisible directly avoids ever reading
-  // a stale in-flight position (the earlier version read the element's
-  // live position right as the transition started, which could capture
-  // a stale value that never corrected on rapid scroll-direction changes).
   useEffect(() => {
     if (window.innerWidth >= 1024) return
     const el = containerRef.current
@@ -101,47 +95,57 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
     }
   }, [headerVisible])
 
+  // Smooth scroll active tab into view when route/params change
+  useEffect(() => {
+    if (activeTabRef.current && scrollRef.current) {
+      activeTabRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      })
+    }
+  }, [pathname, searchParams])
+
   const isOnDashboard = DASHBOARD_PREFIXES.some(p => pathname.startsWith(p))
-  const showHome      = isOnDashboard
+  const showHome = isOnDashboard
 
   const tabs: TabItem[] = [
     ...(showHome ? [{
       label: 'Home',
-      href:  '/',
-      icon:  <House size={13} strokeWidth={2} />,
+      href: '/',
+      icon: <House size={13} strokeWidth={2} />,
     }] : []),
 
     ...(!isOnDashboard ? [
-      { label: 'Collections', href: '/collections',          icon: <Layers      size={13} strokeWidth={2} /> },
-      { label: 'Lists Hub',   href: '/lists',                icon: <Globe       size={13} strokeWidth={2} /> },
-      // Only show News tab when logged in - MobileNav already shows it for logged-out users
+      { label: 'Collections', href: '/collections', icon: <Layers size={13} strokeWidth={2} /> },
+      { label: 'Lists Hub', href: '/lists', icon: <Globe size={13} strokeWidth={2} /> },
       ...(isLoggedIn ? [
-        { label: 'News',    href: '/news',    icon: <Newspaper size={13} strokeWidth={2} /> },
-        { label: 'Matches', href: '/matches', icon: <Sparkles  size={13} strokeWidth={2} /> },
+        { label: 'News', href: '/news', icon: <Newspaper size={13} strokeWidth={2} /> },
+        { label: 'Matches', href: '/matches', icon: <Sparkles size={13} strokeWidth={2} /> },
       ] : []),
-      { label: 'Trending',    href: '/browse?sort=trending', icon: <Flame       size={13} strokeWidth={2} /> },
-      { label: 'New Releases',href: '/browse?sort=recent',   icon: <TrendingUp  size={13} strokeWidth={2} /> },
-      { label: 'Shop & Merch',href: '/affiliate',            icon: <ShoppingBag size={13} strokeWidth={2} /> },
+      { label: 'Trending', href: '/browse?sort=trending', icon: <Flame size={13} strokeWidth={2} /> },
+      { label: 'New Releases', href: '/browse?sort=recent', icon: <TrendingUp size={13} strokeWidth={2} /> },
+      { label: 'Shop & Merch', href: '/affiliate', icon: <ShoppingBag size={13} strokeWidth={2} /> },
       {
-        label:    'Discord',
-        href:     'https://discord.gg/7WPGMb696N',
-        icon:     <DiscordIcon size={13} />,
+        label: 'Discord',
+        href: 'https://discord.gg/7WPGMb696N',
+        icon: <DiscordIcon size={13} />,
         external: true,
-        accent:   'text-[#5865F2]',
+        accent: 'text-[#5865F2]',
       },
-      { label: 'About',      href: '/about',      icon: <Users      size={13} strokeWidth={2} /> },
-      { label: 'Guidelines', href: '/guidelines', icon: <BookOpen   size={13} strokeWidth={2} /> },
-      { label: 'FAQ',        href: '/faq',        icon: <HelpCircle size={13} strokeWidth={2} /> },
+      { label: 'About', href: '/about', icon: <Users size={13} strokeWidth={2} /> },
+      { label: 'Guidelines', href: '/guidelines', icon: <BookOpen size={13} strokeWidth={2} /> },
+      { label: 'FAQ', href: '/faq', icon: <HelpCircle size={13} strokeWidth={2} /> },
       {
-        label:    'Support',
-        href:     'mailto:support@compicfy.com',
-        icon:     <Mail size={13} strokeWidth={2} />,
+        label: 'Support',
+        href: 'mailto:support@compicfy.com',
+        icon: <Mail size={13} strokeWidth={2} />,
         external: true,
       },
       ...(!isPro ? [{
-        label:  'Go Pro',
-        href:   '/pricing',
-        icon:   <Sparkles size={13} strokeWidth={2} />,
+        label: 'Go Pro',
+        href: '/pricing',
+        icon: <Sparkles size={13} strokeWidth={2} />,
         accent: 'text-amber-500',
       }] : []),
     ] : []),
@@ -154,7 +158,7 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
       ref={containerRef}
       className="fixed left-0 right-0 z-40 lg:hidden"
       style={{
-        top:        topValue,
+        top: topValue,
         transition: 'top 300ms cubic-bezier(0.4, 0, 0.2, 1)',
       }}
     >
@@ -168,7 +172,7 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
               if (tab.href === '/') return pathname === '/'
               const [tabPath, tabQuery] = tab.href.split('?')
               if (tabPath !== pathname) return false
-              if (tabQuery) {
+              if (tabQuery && mounted) {
                 const tabParams = new URLSearchParams(tabQuery)
                 for (const [key, val] of tabParams.entries()) {
                   if (searchParams.get(key) !== val) return false
@@ -181,6 +185,7 @@ export function MobileTabBar({ isPro = false, isLoggedIn = false }: MobileTabBar
             return (
               <Link
                 key={tab.href + tab.label}
+                ref={isActive ? activeTabRef : undefined}
                 href={tab.href}
                 target={tab.external ? '_blank' : undefined}
                 rel={tab.external ? 'noopener noreferrer' : undefined}

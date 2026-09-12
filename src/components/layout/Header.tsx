@@ -25,12 +25,12 @@ import { NotificationBell } from '@/components/user/NotificationBell'
 import { NewChaptersButton } from '@/components/user/NewChaptersButton'
 import { MobileTabBar } from '@/components/layout/MobileTabBar'
 import { NotificationSoftPrompt } from '@/components/user/NotificationSoftPrompt'
-import { getDashboardRoutes, getProfileRoute, type UserType } from '@/lib/utils/routes'
+import { getDashboardRoutes, getAdminRoutes, getProfileRoute, type UserType } from '@/lib/utils/routes'
 import { NavRail } from '@/components/layout/NavRail'
 import {
   getCachedProfile, setCachedProfile, clearCachedProfile, deriveIsPro,
 } from '@/lib/utils/profile-cache'
-import { shouldHideProUpsell } from '@/lib/access'
+import { shouldHideProUpsell, isProUser } from '@/lib/access'
 
 function LogoMark({ className }: { className?: string }) {
   return (
@@ -53,34 +53,35 @@ function LogoMark({ className }: { className?: string }) {
 }
 
 export function Header() {
-  const pathname            = usePathname()
-  const router              = useRouter()
+  const router = useRouter()
   const { theme, setTheme } = useTheme()
 
-  const [mounted,       setMounted]       = useState(false)
-  const [user,          setUser]          = useState<User | null>(null)
-  const [avatarUrl,     setAvatarUrl]     = useState<string | null>(null)
-  const [displayName,   setDisplayName]   = useState<string | null>(null)
-  const [username,      setUsername]      = useState<string | null>(null)
+  const cachedProfile = getCachedProfile()
+
+  const [mounted, setMounted] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(cachedProfile?.avatar_url ?? null)
+  const [displayName, setDisplayName] = useState<string | null>(cachedProfile?.display_name || cachedProfile?.username || null)
+  const [username, setUsername] = useState<string | null>(cachedProfile?.username ?? null)
   const [mobileVisible, setMobileVisible] = useState(true)
-  const [isPro,         setIsPro]         = useState(false)
-  const [role,          setRole]          = useState<string>('user')
-  const [userType,      setUserType]      = useState<UserType>('reader')
-  const [authReady,     setAuthReady]     = useState(false)
-  const [showPro,       setShowPro]       = useState<null | boolean>(null)
-  const lastScrollY                       = useRef(0)
-  const supabase                          = createClient()
+  const [isPro, setIsPro] = useState<boolean>(cachedProfile ? deriveIsPro(cachedProfile) : false)
+  const [role, setRole] = useState<string>(cachedProfile?.role ?? 'user')
+  const [userType, setUserType] = useState<UserType>((cachedProfile?.user_type as UserType) ?? 'reader')
+  const [authReady, setAuthReady] = useState<boolean>(!!cachedProfile)
+  const [showPro, setShowPro] = useState<null | boolean>(cachedProfile ? !shouldHideProUpsell(cachedProfile) : null)
+  const lastScrollY = useRef(0)
+  const supabase = createClient()
 
   useEffect(() => setMounted(true), [])
 
   useEffect(() => {
     const handleScroll = (e: Event) => {
-      const target   = e.target as Document | HTMLElement
+      const target = e.target as Document | HTMLElement
       const currentY = target === document
         ? window.scrollY
         : (target as HTMLElement).scrollTop ?? window.scrollY
 
-      if (currentY < 60)                           setMobileVisible(true)
+      if (currentY < 60) setMobileVisible(true)
       else if (currentY > lastScrollY.current + 4) setMobileVisible(false)
       else if (currentY < lastScrollY.current - 4) setMobileVisible(true)
       lastScrollY.current = currentY
@@ -116,7 +117,7 @@ export function Header() {
     setRole(profile.role)
     setUserType((profile.user_type as UserType) ?? 'reader')
     setIsPro(proActive)
-    setShowPro(shouldHideProUpsell(profile) ? false : true)
+    setShowPro(!shouldHideProUpsell(profile))
   }
 
   useEffect(() => {
@@ -144,8 +145,7 @@ export function Header() {
         } else {
           setShowPro(true)
         }
-
-        if (!cached) setAuthReady(true)
+        setAuthReady(true)
       } else {
         setShowPro(true)
         setAuthReady(true)
@@ -197,20 +197,20 @@ export function Header() {
     router.refresh()
   }
 
-  const routes        = getDashboardRoutes(userType, isPro)
-  const profileRoute  = username ? getProfileRoute(username, userType) : null
-  const isCreator     = userType === 'creator'
+  const routes = getDashboardRoutes(userType, isPro)
+  const profileRoute = username ? getProfileRoute(username, userType) : null
+  const isCreator = userType === 'creator'
 
   const dashboardLabel = isPro
-    ? isCreator ? 'Pro Studio'  : 'Pro Dashboard'
-    : isCreator ? 'Studio'      : 'Dashboard'
-  const billingLabel   = isPro ? 'Pro Billing' : 'Billing'
-  const listsLabel     = isCreator ? 'My Works' : 'Lists'
-  const listsHref      = isCreator ? routes.works : (routes as any).lists
+    ? isCreator ? 'Pro Studio' : 'Pro Dashboard'
+    : isCreator ? 'Studio' : 'Dashboard'
+  const billingLabel = isPro ? 'Pro Billing' : 'Billing'
+  const listsLabel = isCreator ? 'My Works' : 'Lists'
+  const listsHref = isCreator ? routes.works : (routes as any).lists
 
   const themeOptions = [
-    { value: 'light',  label: 'Light',  icon: Sun     },
-    { value: 'dark',   label: 'Dark',   icon: Moon    },
+    { value: 'light', label: 'Light', icon: Sun },
+    { value: 'dark', label: 'Dark', icon: Moon },
     { value: 'system', label: 'System', icon: Monitor },
   ] as const
 
@@ -337,7 +337,6 @@ export function Header() {
               </div>
             ) : (
               <div className="flex items-center gap-1 ml-1">
-
                 <Link href={routes.newRec}>
                   <Button
                     size="sm"
@@ -501,7 +500,6 @@ export function Header() {
         />
       )}
 
-      {/* Pass isLoggedIn so MobileTabBar can conditionally show/hide News tab */}
       <MobileTabBar isPro={isPro} isLoggedIn={!!user} />
 
       {authReady && user && <NotificationSoftPrompt />}
