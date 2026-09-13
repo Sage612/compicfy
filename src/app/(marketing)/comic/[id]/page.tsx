@@ -25,9 +25,11 @@ import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
 import { ReadingProgressButton } from '@/components/recommendations/ReadingProgressButton'
 import { BakeButton } from '@/components/recommendations/BakeButton'
+import { MobileActionBar } from '@/components/recommendations/MobileActionBar'
 import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnButton'
 import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { MoreInfoSection } from '@/components/comic-detail/MoreInfoSection'
+import { resolvePlatformIcon } from '@/lib/utils/platformIcons'
 import { headers } from 'next/headers'
 import { Fraunces, JetBrains_Mono } from 'next/font/google'
 import { TYPE_META, DEFAULT_TYPE_META, resolveStatusMeta } from '@/lib/utils/constants'
@@ -369,7 +371,13 @@ export default async function ComicDetailPage({ params }: Props) {
     rec.author && { key: 'author', icon: User, label: rec.author },
     rec.artist && rec.artist !== rec.author && { key: 'artist', icon: Palette, label: rec.artist },
     rec.year_released && { key: 'year', icon: Calendar, label: String(rec.year_released) },
-    rec.chapter_count && { key: 'chapters', icon: Hash, label: `${rec.chapter_count} ch.` },
+    rec.chapter_count && {
+      key: 'chapters',
+      icon: Hash,
+      label: rec.last_chapter_released_at
+        ? `${rec.chapter_count} ch. · updated ${formatDate(rec.last_chapter_released_at)}`
+        : `${rec.chapter_count} ch.`,
+    },
   ].filter(Boolean) as { key: string; icon: typeof User; label: string }[]
 
   const actionDeck = (
@@ -457,7 +465,7 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 md:px-6 -mt-4 md:-mt-7 z-20 pb-24">
+        <div className="relative max-w-7xl mx-auto px-4 md:px-6 -mt-4 md:-mt-7 z-20 pb-6">
 
           <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
 
@@ -588,7 +596,28 @@ export default async function ComicDetailPage({ params }: Props) {
                       key={platform}
                       className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full border border-dossier-foreground/10 bg-dossier-panel/40 text-[11px] text-dossier-foreground/60 hover:border-dossier-foreground/25 transition-colors shrink-0 whitespace-nowrap"
                     >
-                      <Globe size={10} className="text-dossier-foreground/40 shrink-0" />
+                      {(() => {
+                        const icon = resolvePlatformIcon(platform)
+                        if (icon.kind === 'svg') {
+                          return (
+                            <svg viewBox="0 0 24 24" width={10} height={10} className="shrink-0" aria-hidden="true">
+                              <path d={icon.path} fill={icon.hex} />
+                            </svg>
+                          )
+                        }
+                        if (icon.kind === 'monogram') {
+                          return (
+                            <span
+                              className="w-3.5 h-3.5 rounded-[3px] flex items-center justify-center text-[8px] font-bold shrink-0"
+                              style={{ background: icon.bg, color: icon.fg }}
+                              aria-hidden="true"
+                            >
+                              {icon.letter}
+                            </span>
+                          )
+                        }
+                        return <Globe size={10} className="text-dossier-foreground/40 shrink-0" />
+                      })()}
                       <span className="font-medium">{platform}</span>
                       {rec.official_links?.[i] && (
                         <a
@@ -633,11 +662,21 @@ export default async function ComicDetailPage({ params }: Props) {
                 ))}
               </div>
 
-              <div className="md:hidden">
-                {actionDeck}
-              </div>
+              <MobileActionBar
+                recommendationId={id}
+                comicTitle={rec.title}
+                shareUrl={`${SITE_URL}/comic/${id}`}
+                initialUpvotes={rec.upvotes ?? 0}
+                initialDownvotes={rec.downvotes ?? 0}
+                initialVote={userVote}
+                initialSaved={isSaved}
+                isLoggedIn={!!user}
+                userId={user?.id}
+                chapterCount={rec.chapter_count}
+                isPro={currentUserIsPro}
+              />
 
-              <div className="space-y-10 pt-6 md:pt-8">
+              <div className="space-y-6 pt-4 md:pt-8">
 
           <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-3 md:gap-4`}>
             <div className="relative rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/30 backdrop-blur-sm p-5 md:p-6 overflow-hidden">

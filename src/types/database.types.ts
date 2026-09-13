@@ -3077,6 +3077,7 @@ export type Database = {
           username: string
         }[]
       }
+      get_reports_entity_types: { Args: never; Returns: string[] }
       get_similar_comics:
         | {
             Args: {

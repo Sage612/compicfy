@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import {
   BookOpen, Croissant, Check, X, Loader2, ExternalLink,
-  Sparkles, ArrowRight,
+  Sparkles, ArrowRight, Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet'
@@ -72,6 +73,13 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
   const [actionSheetUpdate, setActionSheetUpdate] = useState<ChapterUpdate | null>(null)
   const [actionSheetBake,   setActionSheetBake]   = useState<BakeItem | null>(null)
   const [busyBakeId, setBusyBakeId] = useState<number | null>(null)
+
+  // ── Tabs + search — added after a real usability issue was flagged:
+  // with hundreds of chapter updates, bakes could sit buried at the
+  // bottom of the page with no way to jump to them directly, and no way
+  // to find one specific title without scrolling through everything. ──
+  const [activeTab, setActiveTab] = useState<'all' | 'chapters' | 'bakes'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
 
   const openPicker = (update: ChapterUpdate) => {
     setPickerOpenFor(update.recommendation_id)
@@ -148,9 +156,35 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
     },
   ]
 
-  const readyBakes  = bakes.filter(b => b.status === 'fulfilled')
-  const activeBakes = bakes.filter(b => b.status === 'active')
+  // Search filters by title, case-insensitive, across whichever tab is
+  // active. Tab filtering happens first (which lists to even consider),
+  // then search narrows within that - so switching to "Bakes" + typing a
+  // title searches only bakes, not chapter updates that happen to match.
+  const searchLower = searchQuery.trim().toLowerCase()
+
+  const filteredUpdates = useMemo(() => {
+    if (activeTab === 'bakes') return []
+    if (!searchLower) return updates
+    return updates.filter(u => u.title.toLowerCase().includes(searchLower))
+  }, [updates, activeTab, searchLower])
+
+  const filteredBakes = useMemo(() => {
+    if (activeTab === 'chapters') return []
+    if (!searchLower) return bakes
+    return bakes.filter(b => (b.recommendations?.title ?? '').toLowerCase().includes(searchLower))
+  }, [bakes, activeTab, searchLower])
+
+  const readyBakes  = filteredBakes.filter(b => b.status === 'fulfilled')
+  const activeBakes = filteredBakes.filter(b => b.status === 'active')
+  const updates_    = filteredUpdates
   const hasNothing  = updates.length === 0 && bakes.length === 0
+  const hasNoFilteredResults = !hasNothing && filteredUpdates.length === 0 && filteredBakes.length === 0
+
+  // Real counts (unfiltered) for the tab badges, so switching tabs shows
+  // stable numbers rather than numbers that shift based on the current
+  // search query.
+  const totalUpdatesCount = updates.length
+  const totalBakesCount   = bakes.filter(b => b.status === 'fulfilled' || b.status === 'active').length
 
   return (
     <div className="space-y-6">
@@ -175,12 +209,70 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
         <div>
           <h1 className="text-2xl font-black tracking-tight leading-none">Updates</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {updates.length + readyBakes.length === 0
+            {totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length === 0
               ? "You're all caught up"
-              : `${updates.length + readyBakes.length} thing${updates.length + readyBakes.length !== 1 ? 's' : ''} need your attention`}
+              : `${totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length} thing${totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length !== 1 ? 's' : ''} need your attention`}
           </p>
         </div>
       </div>
+
+      {/* ── Tabs + search — real fix for the "500 comics, bakes buried at
+          the bottom" problem. Tab badges show true unfiltered counts so
+          switching tabs doesn't feel like numbers are moving around. ── */}
+      {!hasNothing && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            {([
+              { key: 'all',      label: 'All',      count: totalUpdatesCount + totalBakesCount },
+              { key: 'chapters', label: 'Chapters',  count: totalUpdatesCount },
+              { key: 'bakes',    label: 'Bakes',     count: totalBakesCount },
+            ] as const).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 whitespace-nowrap',
+                  activeTab === tab.key
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
+                    : 'bg-background/80 border-border/60 text-muted-foreground hover:text-foreground hover:border-border'
+                )}
+              >
+                {tab.label}
+                <span className={cn(
+                  'inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[9px] font-black',
+                  activeTab === tab.key ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
+                )}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search by title…"
+              className="h-9 pl-8 text-sm rounded-xl"
+            />
+          </div>
+        </div>
+      )}
+
+      {hasNoFilteredResults && (
+        <div className="text-center py-12 text-muted-foreground">
+          <p className="text-sm">
+            No {activeTab === 'all' ? 'results' : activeTab} matching
+            {searchLower && <span className="font-semibold text-foreground"> "{searchQuery}"</span>}
+          </p>
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="text-xs text-primary hover:underline mt-1">
+              Clear search
+            </button>
+          )}
+        </div>
+      )}
 
       {hasNothing && (
         <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
@@ -254,13 +346,13 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
         </section>
       )}
 
-      {updates.length > 0 && (
+      {updates_.length > 0 && (
         <section className="space-y-3">
           <p className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">
             New chapters
           </p>
           <div className="space-y-2">
-            {updates.map(update => {
+            {updates_.map(update => {
               const isPickerOpen = pickerOpenFor === update.recommendation_id
               const isSaving     = savingId === update.recommendation_id
               const currentProgress = update.progress_chapter ?? 0

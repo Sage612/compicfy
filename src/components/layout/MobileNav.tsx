@@ -24,6 +24,7 @@ import { shouldHideProUpsell } from '@/lib/access'
 export function MobileNav() {
   const pathname = usePathname()
   const router = useRouter()
+  const hideOnThisRoute = /^\/comic\/[^/]+/.test(pathname)
   
   // Synchronously initialize profile cache on mount to prevent render flashing
   const cachedProfile = getCachedProfile()
@@ -177,17 +178,19 @@ export function MobileNav() {
         config={{ action: 'share a recommendation', icon: <BookOpen size={24} className="text-primary" /> }}
       />
 
-      {/* Backdrop */}
-      {profileOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => setProfileOpen(false)} />
-      )}
+      {!hideOnThisRoute && (
+        <>
+          {/* Backdrop */}
+          {profileOpen && (
+            <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => setProfileOpen(false)} />
+          )}
 
-      {/* Profile sheet */}
-      <div className={cn(
-        'fixed bottom-0 left-0 right-0 z-[60] lg:hidden bg-background border-t border-border rounded-t-2xl overflow-y-auto max-h-[85vh]',
-        'transition-transform duration-300 ease-in-out',
-        profileOpen ? 'translate-y-0' : 'translate-y-full'
-      )}>
+          {/* Profile sheet */}
+          <div className={cn(
+            'fixed bottom-0 left-0 right-0 z-[60] lg:hidden bg-background border-t border-border rounded-t-2xl overflow-y-auto max-h-[85vh]',
+            'transition-transform duration-300 ease-in-out',
+            profileOpen ? 'translate-y-0' : 'translate-y-full'
+          )}>
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-8 h-1 rounded-full bg-muted-foreground/20" />
         </div>
@@ -294,14 +297,14 @@ export function MobileNav() {
             </Link>
           </div>
         )}
-      </div>
+          </div>
 
-      {/* FLOATING PILL NAV */}
-      <nav className={cn(
-        'fixed bottom-0 left-0 right-0 z-50 lg:hidden px-4 pb-4',
-        'transition-transform duration-300 ease-in-out',
-        !visible && 'translate-y-full'
-      )}>
+          {/* FLOATING PILL NAV */}
+          <nav className={cn(
+            'fixed bottom-0 left-0 right-0 z-50 lg:hidden px-4 pb-4',
+            'transition-transform duration-300 ease-in-out',
+            !visible && 'translate-y-full'
+          )}>
         <div className="flex items-center justify-around h-14 bg-background/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg shadow-black/10 px-2">
           {!authReady ? (
             Array.from({ length: 5 }).map((_, i) => (
@@ -405,7 +408,9 @@ export function MobileNav() {
           )}
         </div>
         <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
-      </nav>
+          </nav>
+        </>
+      )}
     </>
   )
 }
