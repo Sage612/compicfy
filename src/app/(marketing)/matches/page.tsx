@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Sparkles, Users, Crown } from 'lucide-react'
 import { getSuggestedMatches } from '@/lib/taste/getSuggestedMatches'
+import { isProUser } from '@/lib/access'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Suggested Matches' }
@@ -20,16 +21,19 @@ export default async function MatchesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Fixed: this was hand-rolled `is_pro && not-expired` with NO admin or
+  // patron fallback at all — an admin viewing this page could never
+  // register as Pro, which is exactly the bug being reported. isProUser()
+  // from @/lib/access is the real SSOT (isAdmin || isPatronUser ||
+  // is_pro-and-not-expired) and is what every other fixed file in this
+  // app now uses.
   const { data: viewerProfile } = await supabase
     .from('profiles')
-    .select('is_pro, pro_expires_at')
+    .select('role, is_pro, pro_expires_at, is_patron, patron_expires_at')
     .eq('id', user.id)
     .maybeSingle()
 
-  const isPro = !!(
-    (viewerProfile as any)?.is_pro &&
-    (!(viewerProfile as any)?.pro_expires_at || new Date((viewerProfile as any).pro_expires_at) > new Date())
-  )
+  const isPro = viewerProfile ? isProUser(viewerProfile as any) : false
 
   // Item #17 — Free: top 3/weekly display freeze. Pro: top 10, always current.
   const matches = await getSuggestedMatches(supabase, user.id, isPro)
