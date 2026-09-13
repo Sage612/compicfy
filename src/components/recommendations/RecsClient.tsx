@@ -23,11 +23,11 @@ import { LimitReachedModal } from '@/components/recommendations/LimitReachedModa
 type FilterKey = 'all' | 'approved' | 'pending' | 'rejected' | 'drafts'
 
 const TYPE_COLORS: Record<string, string> = {
-  manga:   'bg-rose-500/10   text-rose-500   border-rose-500/20',
-  manhwa:  'bg-teal-500/10   text-teal-500   border-teal-500/20',
-  manhua:  'bg-amber-500/10  text-amber-500  border-amber-500/20',
-  webtoon: 'bg-teal-500/10   text-teal-500   border-teal-500/20',
-  comic:   'bg-blue-500/10   text-blue-500   border-blue-500/20',
+  manga:   'bg-rose-500/10  text-rose-500  border-rose-500/20',
+  manhwa:  'bg-teal-500/10  text-teal-500  border-teal-500/20',
+  manhua:  'bg-amber-500/10 text-amber-500 border-amber-500/20',
+  webtoon: 'bg-teal-500/10  text-teal-500  border-teal-500/20',
+  comic:   'bg-blue-500/10  text-blue-500  border-blue-500/20',
 }
 
 function proxyCover(url: string | null | undefined): string | null {
@@ -83,6 +83,8 @@ export function RecsClient({
   const [pinnedId,      setPinnedId]      = useState<string | null>(null)
   const [submittingId,  setSubmittingId]  = useState<string | null>(null)
 
+  // Which draft is currently blocked, so retrying after a limit resets
+  // or promoting once traffic eases can target the right one.
   const [blockedDraft, setBlockedDraft] = useState<{ id: string; title: string } | null>(null)
   const [peakHourModal, setPeakHourModal] = useState<{
     open:        boolean
@@ -94,17 +96,18 @@ export function RecsClient({
   }>({ open: false, limitType: 'daily' })
 
   useEffect(() => {
-    if (!userId) return
     const fetchPinned = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
       const { data } = await supabase
         .from('profiles')
         .select('pinned_recommendation_id')
-        .eq('id', userId)
+        .eq('id', user.id)
         .single() as { data: any }
       setPinnedId(data?.pinned_recommendation_id ?? null)
     }
     fetchPinned()
-  }, [userId, supabase])
+  }, [])
 
   const getStatus = (rec: Rec): FilterKey => {
     if (rec.is_draft)         return 'drafts'
@@ -165,6 +168,8 @@ export function RecsClient({
       })
       const json = await res.json()
 
+      // Site-wide peak hour — same modal already used on the main submit form.
+      // The draft itself is untouched either way, so nothing to lose here.
       if (res.status === 202 && json.peak_hour) {
         setBlockedDraft({ id, title })
         setPeakHourModal({
@@ -174,6 +179,14 @@ export function RecsClient({
         return
       }
 
+      // FIX: promoting a draft used to skip the user's own monthly/daily
+      // limit entirely — only the site-wide peak-hour cap was checked. That
+      // let someone hit their personal limit, get routed here by the
+      // limit-reached modal to save a draft, then immediately resubmit that
+      // same draft and bypass the very limit they'd just been blocked by.
+      // The API route now enforces the same checks a fresh submission
+      // would, so this handles the resulting 403 (monthly) / 429 (daily)
+      // the same way the main form does.
       if (res.status === 403) {
         setBlockedDraft({ id, title })
         setLimitModal({ open: true, limitType: 'monthly' })
@@ -185,15 +198,16 @@ export function RecsClient({
         return
       }
 
-      if (!res.ok) throw new Error(json?.error || 'Failed to submit draft')
+      if (!res.ok) throw new Error(json.error)
 
+      // Promote in local state
       setRecs(prev => prev.map(r =>
         r.id === id ? { ...r, is_draft: false, draft_saved_at: null } : r
       ))
       toast.success(`"${title}" submitted successfully!`)
       setFilter('pending')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to submit draft')
+    } catch {
+      toast.error('Failed to submit draft')
     } finally {
       setSubmittingId(null)
     }
@@ -245,6 +259,7 @@ export function RecsClient({
 
   return (
     <div className="space-y-5">
+
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -323,9 +338,7 @@ export function RecsClient({
               <button
                 onClick={() => setSearch('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-xs"
-              >
-                ✕
-              </button>
+              >✕</button>
             )}
           </div>
 
@@ -423,6 +436,7 @@ export function RecsClient({
                             <BookOpen size={16} className="text-muted-foreground opacity-40" />
                           </div>
                         )}
+                        {/* Status dot — only for non-drafts */}
                         {!isDraft && (
                           <div className={cn(
                             'absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center',
@@ -582,6 +596,7 @@ export function RecsClient({
         onClose={() => setPeakHourModal(p => ({ ...p, open: false }))}
         messageType={peakHourModal.messageType}
         onSaveDraft={async () => {
+          // The draft this came from is already saved — nothing further to do.
           setPeakHourModal(p => ({ ...p, open: false }))
         }}
       />
@@ -591,10 +606,9 @@ export function RecsClient({
         onClose={() => setLimitModal(m => ({ ...m, open: false }))}
         limitType={limitModal.limitType}
         alreadyDraft
-        onSaveDraft={async () => {}}
+        onSaveDraft={async () => {
+        }}
       />
     </div>
   )
 }
-
-export default RecsClient

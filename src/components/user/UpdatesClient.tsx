@@ -2,16 +2,14 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { BookOpen, Check, ExternalLink, Loader2, Croissant, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { cn } from '@/lib/utils'
-
-// Combined "Updates" page - chapter updates (comics you're behind on) and
-// ready bakes (item #29), together, since both answer the same question:
-// "what needs my attention right now." Built as a real page instead of a
-// header dropdown/sheet per explicit direction - this content needs room
-// (progress bars, a chapter-range picker) that a DropdownMenuContent
-// popover can't comfortably give it.
+import {
+  BookOpen, Croissant, Check, X, Loader2, ExternalLink,
+  Sparkles, ArrowRight,
+} from 'lucide-react'
+import { cn } from '@/lib/utils/cn'
+import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet'
 
 interface ChapterUpdate {
   list_id:           string
@@ -40,26 +38,45 @@ interface Props {
   initialBakes:   BakeItem[]
 }
 
+const THEME_GRAD: Record<number, string> = {
+  0: 'from-primary/60 via-primary/20 to-primary/5',
+  1: 'from-violet-500/60 via-violet-500/20 to-violet-500/5',
+  2: 'from-rose-500/60 via-rose-500/20 to-rose-500/5',
+  3: 'from-amber-500/60 via-amber-500/20 to-amber-500/5',
+  4: 'from-emerald-500/60 via-emerald-500/20 to-emerald-500/5',
+  5: 'from-indigo-500/60 via-indigo-500/20 to-indigo-500/5',
+}
+const THEME_BORDER: Record<number, string> = {
+  0: 'border-primary/30',     1: 'border-violet-500/30',
+  2: 'border-rose-500/30',    3: 'border-amber-500/30',
+  4: 'border-emerald-500/30', 5: 'border-indigo-500/30',
+}
+const THEME_ACCENT: Record<number, string> = {
+  0: 'text-primary',      1: 'text-violet-400',
+  2: 'text-rose-400',     3: 'text-amber-400',
+  4: 'text-emerald-400',  5: 'text-indigo-400',
+}
+
+function themeIndex(id: string): number {
+  return id.slice(-6).split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 6
+}
+
 export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
   const [updates, setUpdates] = useState<ChapterUpdate[]>(initialUpdates)
   const [bakes,   setBakes]   = useState<BakeItem[]>(initialBakes)
 
-  // Which update card has its range-picker open, and the pending value -
-  // this is the actual fix for the "20->10 silently claims you read
-  // everything in between" bug: no card writes progress on a single tap
-  // anymore, it opens a picker defaulting to the comic's CURRENT tracked
-  // progress (not the latest chapter) and requires an explicit confirm.
   const [pickerOpenFor, setPickerOpenFor] = useState<string | null>(null)
   const [pendingChapter, setPendingChapter] = useState<number>(0)
   const [savingId, setSavingId] = useState<string | null>(null)
-  const [clearingBakeId, setClearingBakeId] = useState<number | null>(null)
+
+  const [actionSheetUpdate, setActionSheetUpdate] = useState<ChapterUpdate | null>(null)
+  const [actionSheetBake,   setActionSheetBake]   = useState<BakeItem | null>(null)
+  const [busyBakeId, setBusyBakeId] = useState<number | null>(null)
 
   const openPicker = (update: ChapterUpdate) => {
     setPickerOpenFor(update.recommendation_id)
-    // Default to their current progress, NOT chapter_count - the whole
-    // point is the user picks how far they've actually read, the range
-    // just bounds the picker between where they were and what's out now.
     setPendingChapter(update.progress_chapter ?? 0)
+    setActionSheetUpdate(null)
   }
 
   const confirmChapter = async (update: ChapterUpdate) => {
@@ -75,12 +92,6 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
         }),
       })
       if (!res.ok) throw new Error()
-      // If they picked the full latest chapter, this update is fully
-      // resolved and drops off the list. If they picked something in
-      // between (genuinely read partway through the gap), it STAYS in
-      // the list with its progress_chapter updated, since they're still
-      // behind chapter_count - correct behavior, not a bug, since the
-      // whole point of the picker is to allow a partial catch-up.
       if (pendingChapter >= update.chapter_count) {
         setUpdates(prev => prev.filter(u => u.recommendation_id !== update.recommendation_id))
       } else {
@@ -100,109 +111,163 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
   }
 
   const clearBake = async (bake: BakeItem) => {
-    setClearingBakeId(bake.id)
+    setBusyBakeId(bake.id)
     try {
       const res = await fetch(`/api/bakes?id=${bake.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       setBakes(prev => prev.filter(b => b.id !== bake.id))
+      setActionSheetBake(null)
       toast.success('Bake cleared')
     } catch {
       toast.error('Failed to clear bake')
     } finally {
-      setClearingBakeId(null)
+      setBusyBakeId(null)
     }
   }
+
+  const buildUpdateActions = (update: ChapterUpdate): ActionSheetAction[] => [
+    { label: 'Update progress', icon: <Check size={15} />, onClick: () => openPicker(update) },
+    ...(update.source_url ? [{
+      label: `Read on ${update.source_label ?? 'source'}`,
+      icon: <ExternalLink size={15} />,
+      onClick: () => window.open(update.source_url!, '_blank', 'noopener,noreferrer'),
+    }] : []),
+  ]
+
+  const buildBakeActions = (bake: BakeItem): ActionSheetAction[] => [
+    ...(bake.status === 'fulfilled' ? [{
+      label: 'Read now',
+      icon: <BookOpen size={15} />,
+      onClick: () => { window.location.href = `/comic/${bake.recommendation_id}` },
+    }] : []),
+    {
+      label: 'Stop baking',
+      icon: busyBakeId === bake.id ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />,
+      onClick: () => clearBake(bake),
+      destructive: true,
+    },
+  ]
 
   const readyBakes  = bakes.filter(b => b.status === 'fulfilled')
   const activeBakes = bakes.filter(b => b.status === 'active')
   const hasNothing  = updates.length === 0 && bakes.length === 0
 
-  if (hasNothing) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border/60 space-y-3 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-          <BookOpen size={22} className="text-muted-foreground/50" />
+  return (
+    <div className="space-y-6">
+
+      <ActionSheet
+        open={!!actionSheetUpdate}
+        onClose={() => setActionSheetUpdate(null)}
+        title={actionSheetUpdate?.title}
+        actions={actionSheetUpdate ? buildUpdateActions(actionSheetUpdate) : []}
+      />
+      <ActionSheet
+        open={!!actionSheetBake}
+        onClose={() => setActionSheetBake(null)}
+        title={actionSheetBake?.recommendations?.title}
+        actions={actionSheetBake ? buildBakeActions(actionSheetBake) : []}
+      />
+
+      <div className="flex items-start gap-3">
+        <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+          <BookOpen size={16} className="text-primary" />
         </div>
         <div>
-          <p className="font-black text-sm">All caught up</p>
-          <p className="text-xs text-muted-foreground mt-1">New chapters and ready bakes will show up here.</p>
+          <h1 className="text-2xl font-black tracking-tight leading-none">Updates</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {updates.length + readyBakes.length === 0
+              ? "You're all caught up"
+              : `${updates.length + readyBakes.length} thing${updates.length + readyBakes.length !== 1 ? 's' : ''} need your attention`}
+          </p>
         </div>
       </div>
-    )
-  }
 
-  return (
-    <div className="space-y-8">
+      {hasNothing && (
+        <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
+          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
+          <div className="relative w-28 h-28 mx-auto mb-6">
+            <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
+            <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
+            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-primary/30 bg-card flex items-center justify-center shadow-lg">
+              <BookOpen size={20} className="text-primary/50" />
+            </div>
+          </div>
+          <h3 className="font-black text-xl mb-2">All caught up</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto leading-relaxed">
+            New chapters and ready bakes will show up here as they come in.
+          </p>
+          <Link href="/browse">
+            <Button variant="outline" size="sm" className="gap-2 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all duration-200">
+              <Sparkles size={14} />Browse Comics
+            </Button>
+          </Link>
+        </div>
+      )}
 
-      {/* ── Ready bakes — surfaced first, since these are explicitly
-          waited-for and time-sensitive in a different way than a
-          routine chapter update ── */}
       {readyBakes.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">
+          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">
             Ready to binge
-          </h2>
-          <div className="space-y-2">
-            {readyBakes.map(bake => (
-              <div
-                key={bake.id}
-                className="flex items-center gap-3 p-3 rounded-2xl border border-orange-500/20 bg-orange-500/5"
-              >
-                <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
-                  {bake.recommendations?.cover_url ? (
-                    <img
-                      src={`/api/image-proxy?url=${encodeURIComponent(bake.recommendations.cover_url)}`}
-                      alt={bake.recommendations.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Croissant size={14} className="text-muted-foreground/40" />
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {readyBakes.map(bake => {
+              const ti = themeIndex(String(bake.id))
+              return (
+                <div key={bake.id} className="group relative rounded-2xl border border-orange-500/30 bg-card overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
+                  <div className={cn('h-16 relative overflow-hidden bg-gradient-to-br to-transparent', THEME_GRAD[ti])}>
+                    {bake.recommendations?.cover_url && (
+                      <img
+                        src={`/api/image-proxy?url=${encodeURIComponent(bake.recommendations.cover_url)}`}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover opacity-60"
+                      />
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-card to-transparent" />
+                    <div className="absolute top-2 left-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500/20 text-orange-600 border border-orange-500/20 backdrop-blur-sm">
+                        <Croissant size={8} /> Ready
+                      </span>
                     </div>
-                  )}
+                  </div>
+                  <div className="p-3 space-y-2">
+                    <p className="font-black text-sm line-clamp-1">{bake.recommendations?.title}</p>
+                    <p className="text-xs text-muted-foreground">{bake.target_chapter_count} chapters waiting</p>
+                    <div className="flex items-center gap-1.5">
+                      <Link href={`/comic/${bake.recommendation_id}`} className="flex-1">
+                        <Button size="sm" className="w-full h-7 text-xs gap-1.5">
+                          <BookOpen size={11} />Read now
+                        </Button>
+                      </Link>
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        onClick={() => setActionSheetBake(bake)}
+                      >
+                        <X size={13} />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold truncate">{bake.recommendations?.title}</p>
-                  <p className="text-xs text-muted-foreground">{bake.target_chapter_count} chapters ready</p>
-                </div>
-                <Link
-                  href={`/comic/${bake.recommendation_id}`}
-                  className="shrink-0 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
-                >
-                  <BookOpen size={12} />
-                  Read now
-                </Link>
-                <button
-                  onClick={() => clearBake(bake)}
-                  disabled={clearingBakeId === bake.id}
-                  className="shrink-0 h-8 w-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
-                  aria-label="Dismiss"
-                >
-                  {clearingBakeId === bake.id ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </section>
       )}
 
-      {/* ── Chapter updates ── */}
       {updates.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">
+          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">
             New chapters
-          </h2>
+          </p>
           <div className="space-y-2">
             {updates.map(update => {
               const isPickerOpen = pickerOpenFor === update.recommendation_id
               const isSaving     = savingId === update.recommendation_id
               const currentProgress = update.progress_chapter ?? 0
+              const ti = themeIndex(update.recommendation_id)
 
               return (
-                <div
-                  key={update.recommendation_id}
-                  className="rounded-2xl border border-border bg-card overflow-hidden"
-                >
+                <div key={update.recommendation_id} className={cn('rounded-2xl border bg-card overflow-hidden transition-all duration-200', THEME_BORDER[ti])}>
                   <div className="flex items-center gap-3 p-3">
                     <Link href={`/comic/${update.recommendation_id}`} className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                       {update.cover_url ? (
@@ -218,46 +283,33 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
                       )}
                     </Link>
                     <div className="min-w-0 flex-1">
-                      <Link href={`/comic/${update.recommendation_id}`} className="text-sm font-semibold truncate hover:text-primary transition-colors block">
+                      <Link href={`/comic/${update.recommendation_id}`} className="font-black text-sm hover:text-primary transition-colors line-clamp-1 block">
                         {update.title}
                       </Link>
-                      <p className="text-xs text-muted-foreground">
-                        You're at ch. {currentProgress} · {update.chapter_count} available
+                      <p className={cn('text-xs mt-0.5', THEME_ACCENT[ti])}>
+                        Ch. {currentProgress} → {update.chapter_count} available
                       </p>
-                      {update.source_url && (
-                        <a
-                          href={update.source_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:opacity-80 transition-opacity mt-0.5"
-                        >
-                          <ExternalLink size={10} />
-                          {update.source_label ?? 'Read'}
-                        </a>
-                      )}
                     </div>
-                    {!isPickerOpen && (
-                      <button
-                        onClick={() => openPicker(update)}
-                        className="shrink-0 h-8 px-3 rounded-lg border border-border/60 text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors flex items-center gap-1.5"
+                    <div className="flex items-center gap-1">
+                      {!isPickerOpen && (
+                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 hover:border-primary/40 hover:text-primary" onClick={() => openPicker(update)}>
+                          <Check size={11} />Update
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        onClick={() => setActionSheetUpdate(update)}
                       >
-                        <Check size={12} />
-                        Update progress
-                      </button>
-                    )}
+                        <ArrowRight size={13} />
+                      </Button>
+                    </div>
                   </div>
 
-                  {/* ── Range picker — the actual fix. Bounded between the
-                      comic's current progress and its latest available
-                      chapter, so the user explicitly confirms where they
-                      really are instead of a single tap silently jumping
-                      to the latest chapter and claiming everything in
-                      between was read. ── */}
                   {isPickerOpen && (
                     <div className="px-3 pb-3 pt-1 border-t border-border/50 space-y-2">
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>Ch. {currentProgress}</span>
-                        <span className="font-semibold text-foreground">Reading up to ch. {pendingChapter}</span>
+                        <span className={cn('font-semibold', THEME_ACCENT[ti])}>Reading up to ch. {pendingChapter}</span>
                         <span>Ch. {update.chapter_count}</span>
                       </div>
                       <input
@@ -269,20 +321,13 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
                         className="w-full accent-primary"
                       />
                       <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setPickerOpenFor(null)}
-                          className="flex-1 h-8 rounded-lg border border-border/60 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-                        >
+                        <Button variant="ghost" size="sm" className="flex-1 h-8 text-xs" onClick={() => setPickerOpenFor(null)}>
                           Cancel
-                        </button>
-                        <button
-                          onClick={() => confirmChapter(update)}
-                          disabled={isSaving}
-                          className="flex-1 h-8 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-opacity flex items-center justify-center gap-1.5"
-                        >
+                        </Button>
+                        <Button size="sm" className="flex-1 h-8 text-xs gap-1.5" disabled={isSaving} onClick={() => confirmChapter(update)}>
                           {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
                           Confirm
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -293,24 +338,20 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
         </section>
       )}
 
-      {/* ── Active bakes — shown for visibility/management, not because
-          they need action right now ── */}
       {activeBakes.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">
+          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">
             Still baking
-          </h2>
+          </p>
           <div className="space-y-2">
             {activeBakes.map(bake => {
               const currentCount = bake.recommendations?.chapter_count ?? bake.chapter_count_at_bake_start
               const chaptersSoFar = Math.max(0, currentCount - bake.chapter_count_at_bake_start)
               const progressPct = Math.min(100, Math.round((chaptersSoFar / bake.target_chapter_count) * 100))
+              const ti = themeIndex(String(bake.id))
 
               return (
-                <div
-                  key={bake.id}
-                  className="flex items-center gap-3 p-3 rounded-2xl border border-border bg-card"
-                >
+                <div key={bake.id} className={cn('flex items-center gap-3 p-3 rounded-2xl border bg-card', THEME_BORDER[ti])}>
                   <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                     {bake.recommendations?.cover_url ? (
                       <img
@@ -324,23 +365,21 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
                       </div>
                     )}
                   </div>
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <p className="text-sm font-semibold truncate">{bake.recommendations?.title}</p>
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <p className="font-black text-sm line-clamp-1">{bake.recommendations?.title}</p>
                     <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${progressPct}%` }} />
+                      <div className={cn('h-full rounded-full transition-all bg-gradient-to-r', THEME_GRAD[ti])} style={{ width: `${progressPct}%` }} />
                     </div>
                     <p className="text-[11px] text-muted-foreground">
                       {chaptersSoFar}/{bake.target_chapter_count} chapters
                     </p>
                   </div>
-                  <button
-                    onClick={() => clearBake(bake)}
-                    disabled={clearingBakeId === bake.id}
-                    className="shrink-0 h-8 w-8 rounded-lg border border-border/60 flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
-                    aria-label="Stop baking"
+                  <Button
+                    variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                    onClick={() => setActionSheetBake(bake)}
                   >
-                    {clearingBakeId === bake.id ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
-                  </button>
+                    <X size={13} />
+                  </Button>
                 </div>
               )
             })}
