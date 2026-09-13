@@ -13,29 +13,29 @@ import { useEffect, useState } from 'react'
 import { isAdmin as isAdminCheck, isProUser } from '@/lib/access'
 
 const READER_NAV = [
-  { href: '/reader/dashboard',                          label: 'Overview',        icon: LayoutDashboard, exact: true,  isSubmit: false, excludePaths: [] as string[] },
-  { href: '/reader/dashboard/recommendations/new',      label: 'Submit a Rec',    icon: Plus,            exact: true,  isSubmit: true,  excludePaths: [] as string[] },
-  { href: '/reader/dashboard/recommendations',          label: 'My Recs',         icon: BookOpen,        exact: false, isSubmit: false, excludePaths: ['/reader/dashboard/recommendations/new'] },
-  { href: '/reader/dashboard/saved',                    label: 'Saved Comics',    icon: Bookmark,        exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/reader/dashboard/lists',                    label: 'Reading Lists',   icon: BookMarked,      exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/reader/dashboard/release-radar',            label: 'Release Radar',   icon: Radar,           exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/reader/dashboard/import',                   label: 'Import List',     icon: Upload,          exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/reader/dashboard/collections',              label: 'Collections',     icon: Layers,          exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/reader/dashboard/reviews',                  label: 'My Reviews',      icon: Star,            exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/reader/dashboard/notifications',            label: 'Notifications',   icon: Bell,            exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/reader/dashboard/settings',                 label: 'Settings',        icon: Settings,        exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/reader/dashboard/billing',                  label: 'Billing',         icon: CreditCard,      exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard',                        label: 'Overview',      icon: LayoutDashboard, exact: true,  isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/recommendations/new',    label: 'Submit a Rec',  icon: Plus,            exact: true,  isSubmit: true,  excludePaths: [] as string[] },
+  { href: '/reader/dashboard/recommendations',        label: 'My Recs',       icon: BookOpen,        exact: false, isSubmit: false, excludePaths: ['/reader/dashboard/recommendations/new'] },
+  { href: '/reader/dashboard/saved',                  label: 'Saved Comics',  icon: Bookmark,        exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/lists',                  label: 'Reading Lists', icon: BookMarked,      exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/release-radar',          label: 'Release Radar', icon: Radar,           exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/import',                 label: 'Import List',   icon: Upload,          exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/collections',            label: 'Collections',   icon: Layers,          exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/reviews',                label: 'My Reviews',    icon: Star,            exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/notifications',          label: 'Notifications', icon: Bell,            exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/settings',               label: 'Settings',      icon: Settings,        exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/reader/dashboard/billing',                label: 'Billing',       icon: CreditCard,      exact: false, isSubmit: false, excludePaths: [] as string[] },
 ]
 
 const CREATOR_NAV = [
-  { href: '/creator/dashboard',                         label: 'Studio',          icon: LayoutDashboard, exact: true,  isSubmit: false, excludePaths: [] as string[] },
-  { href: '/creator/dashboard/works/new',               label: 'Add Work',        icon: Plus,            exact: true,  isSubmit: true,  excludePaths: [] as string[] },
-  { href: '/creator/dashboard/works',                   label: 'My Works',        icon: BookOpen,        exact: false, isSubmit: false, excludePaths: ['/creator/dashboard/works/new'] },
-  { href: '/creator/dashboard/audience',                label: 'Audience',        icon: Users,           exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/creator/dashboard/links',                   label: 'My Links',        icon: LinkIcon,        exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/creator/dashboard/notifications',           label: 'Notifications',   icon: Bell,            exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/creator/dashboard/settings',                label: 'Settings',        icon: Settings,        exact: false, isSubmit: false, excludePaths: [] as string[] },
-  { href: '/creator/dashboard/billing',                 label: 'Billing',         icon: CreditCard,      exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/creator/dashboard',                     label: 'Studio',        icon: LayoutDashboard, exact: true,  isSubmit: false, excludePaths: [] as string[] },
+  { href: '/creator/dashboard/works/new',           label: 'Add Work',      icon: Plus,            exact: true,  isSubmit: true,  excludePaths: [] as string[] },
+  { href: '/creator/dashboard/works',               label: 'My Works',      icon: BookOpen,        exact: false, isSubmit: false, excludePaths: ['/creator/dashboard/works/new'] },
+  { href: '/creator/dashboard/audience',            label: 'Audience',      icon: Users,           exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/creator/dashboard/links',               label: 'My Links',      icon: LinkIcon,        exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/creator/dashboard/notifications',       label: 'Notifications', icon: Bell,            exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/creator/dashboard/settings',            label: 'Settings',      icon: Settings,        exact: false, isSubmit: false, excludePaths: [] as string[] },
+  { href: '/creator/dashboard/billing',             label: 'Billing',       icon: CreditCard,      exact: false, isSubmit: false, excludePaths: [] as string[] },
 ]
 
 function isNavItemActive(
@@ -49,12 +49,12 @@ function isNavItemActive(
 }
 
 export function DashboardNav() {
-  const pathname                        = usePathname()
-  const [isPro,      setIsPro]          = useState(false)
-  const [isAdmin,    setIsAdmin]        = useState(false)
-  const [userType,   setUserType]       = useState<'reader' | 'creator'>('reader')
-  const [loaded,     setLoaded]         = useState(false)
-  const supabase                        = createClient()
+  const pathname        = usePathname()
+  const [isPro,      setIsPro]      = useState(false)
+  const [isAdmin,    setIsAdmin]    = useState(false)
+  const [userType,   setUserType]   = useState<'reader' | 'creator'>('reader')
+  const [loaded,     setLoaded]     = useState(false)
+  const supabase        = createClient()
 
   useEffect(() => {
     const getProfile = async () => {
@@ -79,21 +79,22 @@ export function DashboardNav() {
     getProfile()
   }, [])
 
-  const navItems    = userType === 'creator' ? CREATOR_NAV : READER_NAV
+  const navItems = userType === 'creator' ? CREATOR_NAV : READER_NAV
+  const isCreator = userType === 'creator'
 
   return (
-    <nav className="flex flex-col gap-0.5">
+    <nav className="flex flex-col gap-1.5 p-4">
       {/* User type pill */}
       {loaded && (
         <div className={cn(
-          'flex items-center gap-2 px-3 py-2 mb-2 rounded-xl border text-xs font-black',
-          userType === 'creator'
+          'flex items-center gap-2 px-3 py-2.5 mb-4 rounded-xl border text-xs font-black uppercase tracking-wider',
+          isCreator
             ? 'bg-teal-500/10 border-teal-500/20 text-teal-600 dark:text-teal-400'
-            : 'bg-primary/10 border-primary/20 text-primary'
+            : 'bg-primary/10 border-primary/20 text-primary dark:text-primary/90'
         )}>
-          {userType === 'creator'
-            ? <><Palette size={12} />Creator Studio</>
-            : <><BookOpen size={12} />Reader Dashboard</>
+          {isCreator
+            ? <><Palette size={14} className="opacity-80" />Creator Studio</>
+            : <><BookOpen size={14} className="opacity-80" />Reader Dashboard</>
           }
         </div>
       )}
@@ -107,42 +108,44 @@ export function DashboardNav() {
             key={href}
             href={href}
             className={cn(
-              'group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
+              'group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-200 relative overflow-hidden',
               isSubmit && !isActive
-                ? userType === 'creator' ? 'text-teal-500 hover:bg-teal-500/10' : 'text-primary hover:bg-primary/10'
+                ? isCreator ? 'text-teal-500 hover:bg-teal-500/10' : 'text-primary hover:bg-primary/10'
                 : isActive
-                ? userType === 'creator' ? 'bg-teal-500/10 text-teal-600 dark:text-teal-400' : 'bg-primary/10 text-primary'
+                ? isCreator ? 'bg-teal-500/10 text-teal-600 dark:text-teal-400' : 'bg-primary/10 text-primary'
                 : 'text-muted-foreground hover:text-foreground hover:bg-accent/60'
             )}
           >
-            <div className={cn(
-              'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all',
-              isActive
-                ? userType === 'creator'
-                  ? 'bg-teal-500 text-white shadow-sm shadow-teal-500/30'
-                  : 'bg-primary text-primary-foreground shadow-sm shadow-primary/30'
-                : isSubmit
-                ? userType === 'creator'
-                  ? 'bg-teal-500/10 text-teal-500 group-hover:bg-teal-500/20'
-                  : 'bg-primary/10 text-primary group-hover:bg-primary/20'
-                : 'bg-muted group-hover:bg-accent'
-            )}>
-              <Icon size={14} />
-            </div>
-            <span className="truncate flex-1">{label}</span>
-
-            {isBilling && loaded && !isPro && !isAdmin && (
-              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 text-[9px] font-black border border-amber-500/20 shrink-0">
-                <Crown size={8} className="fill-amber-500" />
-                Pro
-              </span>
+            {/* Glowing Active Line Indicator */}
+            {isActive && (
+              <div className={cn(
+                "absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full shadow-md",
+                isCreator ? 'bg-teal-500 shadow-teal-500/50' : 'bg-primary shadow-primary/50'
+              )} />
             )}
 
-            {isActive && !isSubmit && (
-              <div className={cn(
-                'ml-auto w-1.5 h-1.5 rounded-full shrink-0',
-                userType === 'creator' ? 'bg-teal-500' : 'bg-primary'
-              )} />
+            <div className={cn(
+              'w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110',
+              isActive
+                ? isCreator
+                  ? 'bg-teal-500 text-white shadow-md shadow-teal-500/30'
+                  : 'bg-primary text-primary-foreground shadow-md shadow-primary/30'
+                : isSubmit
+                ? isCreator
+                  ? 'bg-teal-500/10 text-teal-500 group-hover:bg-teal-500/20 border border-teal-500/20'
+                  : 'bg-primary/10 text-primary group-hover:bg-primary/20 border border-primary/20'
+                : 'bg-transparent group-hover:bg-muted-foreground/10'
+            )}>
+              <Icon size={16} />
+            </div>
+            
+            <span className="truncate flex-1 tracking-tight">{label}</span>
+
+            {isBilling && loaded && !isPro && !isAdmin && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-500 text-[10px] font-black uppercase tracking-wider border border-amber-500/20 shrink-0">
+                <Crown size={10} className="fill-amber-500/40 animate-pulse" />
+                Pro
+              </span>
             )}
           </Link>
         )
