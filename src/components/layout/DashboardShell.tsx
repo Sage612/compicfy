@@ -4,13 +4,20 @@ import { cn } from '@/lib/utils'
 import type { CSSProperties, ReactNode } from 'react'
 
 interface DashboardShellProps {
+ 
   sidebar: ReactNode
-  children: ReactNode
+
+    children: ReactNode
+ 
   topOffset: string
+  
   topOffsetLg?: string
+  
   sidebarWidth?: string
-  sidebarClassName?: string
-  mainClassName?: string
+
+    sidebarClassName?: string
+
+    mainClassName?: string
 }
 
 export function DashboardShell({
@@ -30,11 +37,11 @@ export function DashboardShell({
   }
 
   return (
-    <div className="flex flex-1 min-h-0 dashboard-shell-row bg-background" style={shellStyle}>
+    <div className="flex flex-1 min-h-0 dashboard-shell-row" style={shellStyle}>
+     
       <aside
         className={cn(
-          'dashboard-sidebar flex-col shrink-0 overflow-y-auto scrollbar-none dashboard-shell-aside',
-          'bg-background/80 backdrop-blur-xl border-r border-border/40',
+          'dashboard-sidebar flex-col shrink-0 overflow-y-auto no-scrollbar dashboard-shell-aside',
           sidebarWidth,
           sidebarClassName,
         )}
@@ -44,14 +51,11 @@ export function DashboardShell({
 
       <main
         className={cn(
-          'dashboard-main flex-1 min-w-0 overflow-y-auto scrollbar-none pb-24 md:pb-0 dashboard-shell-main',
-          'bg-muted/10', // Slight contrast from the sidebar
+          'dashboard-main flex-1 min-w-0 overflow-y-auto no-scrollbar pb-24 md:pb-0 dashboard-shell-main',
           mainClassName,
         )}
       >
-        <div className="h-full w-full max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
-          {children}
-        </div>
+        {children}
       </main>
 
       <style jsx>{`

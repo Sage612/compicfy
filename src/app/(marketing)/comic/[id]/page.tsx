@@ -323,16 +323,19 @@ export default async function ComicDetailPage({ params }: Props) {
     role:                 string
     is_pro:               boolean
     pro_expires_at:       string | null
+    is_patron?:           boolean | null
+    patron_expires_at?:   string | null
     verified_recommender: boolean
     user_type:            string | null
   } | null
 
   const isGhostRec = rec.user_id === GHOST_ID
 
-  const recommenderIsPro = profile
-    ? profile.role === 'admin' ||
-      (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-    : false
+  // Fixed: was hand-rolled `role === 'admin' || (is_pro && not-expired)`
+  // with no patron awareness — isProUser() from @/lib/access is the SSOT
+  // and already covers admin/patron/pro correctly, same as
+  // currentUserIsPro above in this same file.
+  const recommenderIsPro = profile ? isProUser(profile as any) : false
 
   const recommenderIsVerified = profile?.verified_recommender ?? false
   const recommenderName       = isGhostRec

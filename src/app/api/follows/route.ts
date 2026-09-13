@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { sendFollowNotificationEmail } from '@/lib/email/send'
 import { FREE_LIMITS } from '@/lib/utils/constants'
+import { isProUser } from '@/lib/access'
 
 export async function POST(request: Request) {
   try {
@@ -21,9 +22,9 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .single() as { data: any }
 
-    const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
-    const isPro   = isAdmin || (profile?.is_pro &&
-      (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+    // Fixed: was hand-rolled `isAdmin || (is_pro && not-expired)` with no
+    // patron awareness. isProUser() from @/lib/access is the SSOT.
+    const isPro = profile ? isProUser(profile) : false
 
     if (!isPro) {
       const { count } = await supabase

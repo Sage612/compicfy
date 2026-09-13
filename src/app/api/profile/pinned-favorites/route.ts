@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { isProUser, isPatronUser } from '@/lib/access'
 
 const MAX_PINNED = 3
 
@@ -33,11 +34,11 @@ export async function PUT(request: Request) {
       .eq('id', user.id)
       .single() as { data: any }
 
-    const isAdmin = ['admin', 'moderator'].includes(profile?.role ?? '')
-    const isPro   = isAdmin || (profile?.is_pro &&
-      (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-    const isPatron = isAdmin || (profile?.is_patron &&
-      (!profile?.patron_expires_at || new Date(profile.patron_expires_at) > new Date()))
+    // Fixed: was two separate hand-rolled `isAdmin || (...)` computations
+    // for isPro and isPatron, duplicating logic that already exists once
+    // in @/lib/access. isProUser/isPatronUser both already fold in admin.
+    const isPro    = profile ? isProUser(profile) : false
+    const isPatron = profile ? isPatronUser(profile) : false
 
     if (recommendationIds.length > 0 && !isPro && !isPatron) {
       return NextResponse.json({

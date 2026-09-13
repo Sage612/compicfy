@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { recommendationSchema } from '@/lib/utils/validators'
 import { resolveMoreInfoLink } from '@/lib/utils/moreInfoLink'
 import { notifyFollowersOfNewPost } from '@/lib/utils/followerNotify'
+import { isProUser } from '@/lib/access'
 import {
   enforceRecLimit,
   enforceDailyRecLimit,
@@ -140,6 +141,8 @@ export async function POST(request: Request) {
       is_banned:      boolean
       is_pro:         boolean
       pro_expires_at: string | null
+      is_patron?:     boolean | null
+      patron_expires_at?: string | null
     } | null
 
     if (profile?.is_banned) {
@@ -147,6 +150,14 @@ export async function POST(request: Request) {
     }
 
     const isAdminOrMod = ['admin', 'moderator'].includes(profile?.role ?? '')
+
+    // Fixed: both is_pro_submission writes below were hand-rolled
+    // `is_pro && not-expired` with no patron awareness. Computed once
+    // here via isProUser() from @/lib/access and reused in both the
+    // peak-hour draft path and the main insert path, instead of two
+    // separate ad-hoc computations that could drift out of sync with
+    // each other (and already had, missing patrons in both spots).
+    const isProSubmitter = profile ? isProUser(profile as any) : false
 
     // ── Read save_as_draft BEFORE enforcing limits ──
     // FIX: limit checks used to run unconditionally, before we even knew
@@ -238,7 +249,7 @@ export async function POST(request: Request) {
           is_approved:        false,
           is_draft:           true,
           draft_saved_at:     new Date().toISOString(),
-          is_pro_submission:  !!(profile?.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())),
+          is_pro_submission:  isProSubmitter,
           mangaupdates_id:    body.mangaupdates_id || null,
           anilist_id:         body.anilist_id      || null,
           mal_id:             body.mal_id          || null,
@@ -271,10 +282,7 @@ export async function POST(request: Request) {
     }
 
     const isAutoApproved  = isAdminOrMod
-    const isProSubmission = isAdminOrMod || !!(
-      profile?.is_pro &&
-      (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
-    )
+    const isProSubmission = isAdminOrMod || isProSubmitter
 
     
     const insertData = {

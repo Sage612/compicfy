@@ -8,6 +8,7 @@ import { ProAvatar } from '@/components/pro/ProAvatar'
 import { ProBadge } from '@/components/pro/ProBadge'
 import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
 import { ProfileRecsClient } from '@/components/profile/ProfileRecsClient'
+import { isProUser, isAdmin as isAdminCheck } from '@/lib/access'
 
 interface Props {
   params: Promise<{ username: string }>
@@ -36,8 +37,10 @@ export default async function ProfileRecsPage({ params }: Props) {
   if (!profileData) notFound()
 
   const profile     = profileData as any
-  const isPro       = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  const isAdmin     = profile.role === 'admin'
+  // Fixed: was hand-rolled `is_pro && not-expired` with no admin/patron
+  // fallback. isProUser()/isAdminCheck() from @/lib/access are the SSOT.
+  const isPro       = isProUser(profile)
+  const isAdmin     = isAdminCheck(profile)
   const displayName = profile.display_name || profile.username
   const initials    = displayName.slice(0, 2).toUpperCase()
 

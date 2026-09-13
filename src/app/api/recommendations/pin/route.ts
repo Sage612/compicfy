@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isProUser } from '@/lib/access'
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,8 +19,10 @@ export async function POST(req: NextRequest) {
 
     if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
 
-    const isPro = profile.role === 'admin' ||
-      (profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
+    // Fixed: was hand-rolled `role === 'admin' || (is_pro && not-expired)`
+    // with no patron awareness. isProUser() from @/lib/access is the SSOT
+    // (isAdmin || isPatronUser || is_pro-and-not-expired).
+    const isPro = isProUser(profile)
 
     // Unpinning — always allowed
     if (!recommendation_id) {

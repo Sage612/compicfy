@@ -8,6 +8,7 @@ import {
 import { formatDate } from '@/lib/utils/format'
 import type { Recommendation } from '@/types/app.types'
 import { getDashboardRoutes } from '@/lib/utils/routes'
+import { isProUser, isAdmin as isAdminCheck } from '@/lib/access'
 import type { Metadata } from 'next'
 import { FollowButton } from '@/components/user/FollowButton'
 import { ComicCard } from '@/components/recommendations/ComicCard'
@@ -49,8 +50,12 @@ export default async function CreatorProfilePage({ params, searchParams }: Props
 
   const profile  = profileData as any
   const isOwner  = viewer?.id === profile.id
-  const isPro    = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  const isAdmin  = profile.role === 'admin'
+  // Fixed: was hand-rolled `is_pro && not-expired` with no admin/patron
+  // fallback - meant an admin viewing their own creator profile would
+  // never register as Pro. isProUser()/isAdminCheck() from @/lib/access
+  // are the real SSOT (isAdmin || isPatronUser || is_pro-and-not-expired).
+  const isPro    = isProUser(profile)
+  const isAdmin  = isAdminCheck(profile)
   const initials = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
 
   // ── Owner dashboard routes — aware of creator type and pro status ────────────

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { AdminSidebar, AdminMobileNav } from '@/components/admin/AdminSidebar'
 import { DashboardShell } from '@/components/layout/DashboardShell'
+import { isProUser } from '@/lib/access'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -16,12 +17,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .single()
 
   if (!profile || !['admin', 'moderator'].includes(profile.role)) {
-    // Redirect to the right dashboard based on pro status and user_type
-    const isPro = profile?.is_pro &&
-      (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date())
+    // Redirect to the right dashboard based on pro status and user_type.
+    // Fixed: was hand-rolled `is_pro && not-expired` with no patron
+    // awareness — a patron who isn't admin/mod would have been sent to
+    // the free dashboard instead of the pro one. isProUser() from
+    // @/lib/access already covers admin/patron/pro correctly (though
+    // admin/mod never reach this branch at all, since it's gated above).
+    const isPro = profile ? isProUser(profile) : false
     const isCreator = profile?.user_type === 'creator'
 
-    if (isPro || profile?.role === 'admin') {
+    if (isPro) {
       redirect(isCreator ? '/pro/creator/dashboard' : '/pro/reader/dashboard')
     } else {
       redirect(isCreator ? '/creator/dashboard' : '/reader/dashboard')

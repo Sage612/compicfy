@@ -3,6 +3,30 @@ import { createClient } from '@/lib/supabase/server'
 
 const REPORT_THRESHOLD = 5  // reports before escalation timer starts
 
+// FIX: previously a hardcoded array that had to be kept manually in sync
+// with the DB's reports_entity_type_check CHECK constraint — the exact
+// same "value exists in one place but not the other" fragility that
+// silently broke chapter-update notifications earlier this session
+// (notifications.type). Rather than just adding 'recommendation_tag' to
+// another hardcoded list and leaving the underlying problem in place,
+// this now reads the actual permitted values directly from the live
+// constraint via a small RPC, so there is exactly one source of truth
+// (the DB) instead of two that can drift apart. See
+// get_reports_entity_types() migration.
+async function getAllowedEntityTypes(supabase: any): Promise<string[]> {
+  const { data, error } = await supabase.rpc('get_reports_entity_types')
+  if (error || !data) {
+    // Fail safe rather than fail open — if we can't confirm what's
+    // actually allowed, don't guess at a fallback list that could itself
+    // drift out of sync again. An empty array means every report is
+    // rejected until this resolves, which is loud and visible rather
+    // than silently wrong.
+    console.error('Failed to fetch allowed report entity types:', error)
+    return []
+  }
+  return data as string[]
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -24,7 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const allowedTypes = ['recommendation', 'review', 'user', 'comment']
+  const allowedTypes = await getAllowedEntityTypes(supabase)
   if (!allowedTypes.includes(entity_type)) {
     return NextResponse.json({ error: 'Invalid entity_type' }, { status: 400 })
   }
@@ -76,7 +100,7 @@ export async function POST(request: Request) {
         })
         .eq('id', entity_id)
 
-      // ── Notify the submitter ──────────────────────────────────────────────
+      // ── Notify the submitter ──────────────────────────────────────
       if (rec.user_id) {
         await (supabase as any)
           .from('notifications')
@@ -89,7 +113,7 @@ export async function POST(request: Request) {
           })
       }
 
-      // ── Notify all admins ─────────────────────────────────────────────────
+      // ── Notify all admins ──────────────────────────────────────────────
       const { data: admins } = await supabase
         .from('profiles')
         .select('id')
@@ -111,7 +135,7 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── If reporting a review, notify review author + admins ──────────────────
+  // ── If reporting a review, notify review author + admins ──────────────
   if (entity_type === 'review') {
     const { data: review } = await (supabase as any)
       .from('reviews')
@@ -120,13 +144,6 @@ export async function POST(request: Request) {
       .single()
 
     if (review) {
-      // FIX: this previously did
-      //   .update({ report_count: supabase.rpc as any })
-      // which assigns the `rpc` *function reference* itself as the column
-      // value — not a number, not an increment, just a broken no-op that
-      // also happened to type-check away the real bug behind `as any`.
-      // Replaced with the same read-then-increment pattern used above for
-      // recommendations.
       await (supabase as any)
         .from('reviews')
         .update({ report_count: (review.report_count ?? 0) + 1 })
@@ -158,6 +175,58 @@ export async function POST(request: Request) {
               type:    'system',
               title:   'Review reported',
               content: `A review was reported for: ${reason}.`,
+              data:    { entity_type, entity_id, reason },
+            }))
+          )
+      }
+    }
+  }
+
+  // ── If reporting a tag assignment, notify whoever added that tag + admins ──
+  // Distinct from 'recommendation' reports: the person being notified is
+  // whoever attached this specific tag to this specific comic (via
+  // recommendation_tags.added_by), not the comic's original submitter —
+  // they may have had nothing to do with this particular tag.
+  if (entity_type === 'recommendation_tag') {
+    const { data: tagRelation } = await (supabase as any)
+      .from('recommendation_tags')
+      .select('added_by, recommendation_id, tags(name), recommendations(title)')
+      .eq('id', entity_id)
+      .single()
+
+    if (tagRelation) {
+      const tagName    = tagRelation.tags?.name ?? 'a tag'
+      const comicTitle = tagRelation.recommendations?.title ?? 'a comic'
+
+      // Notify whoever added the tag, if it wasn't removed/anonymized
+      // (added_by is nullable via ON DELETE SET NULL).
+      if (tagRelation.added_by) {
+        await (supabase as any)
+          .from('notifications')
+          .insert({
+            user_id: tagRelation.added_by,
+            type:    'system',
+            title:   'A tag you added was reported',
+            content: `The "${tagName}" tag you added to "${comicTitle}" was reported for: ${reason}.`,
+            data:    { entity_type, entity_id, reason },
+          })
+      }
+
+      // Notify admins
+      const { data: admins } = await supabase
+        .from('profiles')
+        .select('id')
+        .in('role', ['admin', 'moderator'])
+
+      if (admins && admins.length > 0) {
+        await (supabase as any)
+          .from('notifications')
+          .insert(
+            admins.map((a: any) => ({
+              user_id: a.id,
+              type:    'system',
+              title:   'Tag assignment reported',
+              content: `The "${tagName}" tag on "${comicTitle}" was reported for: ${reason}.`,
               data:    { entity_type, entity_id, reason },
             }))
           )

@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { GENRES, GENRE_MOODS, genreSlug } from '@/lib/utils/constants'
 import { GenreAnchorFallback } from '@/components/recommendations/GenreAnchorFallback'
 import { ScrollingTitle } from '@/components/recommendations/ScrollingTitle'
+import { isProUser } from '@/lib/access'
 import type { Recommendation } from '@/types/app.types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -34,7 +35,7 @@ interface Props {
 const PAGE_SIZE    = 24
 const SAFE_RATINGS = '("adult","mature")'
 
-// ── Genre section config ─────────────────────────────────────────
+// ── Genre section config ─────────────────────────────────────────────
 const GENRE_PAGE_SIZE     = 12  // fetch 12; mobile shows 9 via CSS, desktop shows all 12
 const GENRE_MIN_ITEMS     = 6   // don't render a genre section unless it has at least 6 comics
 const GENRE_SECTION_COUNT = 12  // show top N genres by comic count
@@ -235,7 +236,7 @@ function hasActiveFilters(p: SearchParams) {
   return !!(p.q || p.type || p.genre || p.status || p.sort)
 }
 
-// ── Independently-streaming sections ─────────────────────────────
+// ── Independently-streaming sections ─────────────────────────────────
 // Each one takes the already-created supabase client (no redundant
 // createClient() calls — see server.ts, it's not cache()-wrapped)
 // and is awaited inside its own Suspense boundary in the page below.
@@ -353,11 +354,11 @@ export default async function BrowsePage({ searchParams }: Props) {
     adultEnabled     = (profileRes.data as any)?.adult_content_enabled === true
     interactionCount = interactions
 
-    const profile = profileRes.data as any
-    isPro = profile?.role === 'admin' ||
-            profile?.role === 'moderator' ||
-            (profile?.is_pro && (!profile?.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-
+    // Fixed: was hand-rolled `role === 'admin' || role === 'moderator' ||
+    // (is_pro && not-expired)` — functionally close, but a patron who
+    // wasn't also flagged is_pro would have been missed, and it
+    // duplicated logic that already exists once in isProUser().
+    isPro = profileRes.data ? isProUser(profileRes.data as any) : false
   }
 
   // Only the grid blocks the page shell — it's the primary content and

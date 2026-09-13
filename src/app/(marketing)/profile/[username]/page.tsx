@@ -21,6 +21,7 @@ import { ProfileBadges } from '@/components/profile/ProfileBadges'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
 import { PinnedFavoritesEditor } from '@/components/profile/PinnedFavoritesEditor'
 import { getSuggestedMatches } from '@/lib/taste/getSuggestedMatches'
+import { isProUser, isPatronUser, isAdmin as isAdminCheck } from '@/lib/access'
 import { Suspense } from 'react'
 
 const GHOST_ID = '00000000-0000-0000-0000-000000000000'
@@ -141,9 +142,14 @@ export default async function ProfilePage({ params, searchParams }: Props) {
 
   const isGhost  = profile.id === GHOST_ID
   const isOwner  = viewer?.id === profile.id && !isGhost
-  const isPro    = !!(profile.is_pro && (!profile.pro_expires_at || new Date(profile.pro_expires_at) > new Date()))
-  const isPatron = !!(profile.is_patron && (!profile.patron_expires_at || new Date(profile.patron_expires_at) > new Date()))
-  const isAdmin  = profile.role === 'admin'
+  // Fixed: was hand-rolled `is_pro && not-expired`/`role === 'admin'` with
+  // no patron awareness in isPro, and isPatron computed separately with
+  // its own hand-rolled expiry check. isProUser()/isPatronUser()/
+  // isAdminCheck() from @/lib/access are the real SSOT and already handle
+  // admin-implies-everything + patron-implies-pro correctly.
+  const isPro    = isProUser(profile)
+  const isPatron = isPatronUser(profile)
+  const isAdmin  = isAdminCheck(profile)
   const showGold = isPro && !isAdmin
 
   // ── Owner dashboard routes — aware of user_type and pro status ──────────────
@@ -172,7 +178,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
     pinnedRec = (pinned as Recommendation) ?? null
   }
 
-  // ── Item #5: pinned favorites grid data ──────────────────────────────
+  // ── Item #5: pinned favorites grid data ─────────────────────────────
   // Resolve the actual pinned comics (for display) and, if this is the
   // owner's own profile, the full candidate pool (saves + own recs) for
   // the editor to pick new pins from.
@@ -285,23 +291,20 @@ export default async function ProfilePage({ params, searchParams }: Props) {
 
   // ── Taste compatibility — now sourced from the confidence-scored vector
   // pipeline (user_compatibility_scores) instead of the old client-side
-  // Jaccard/engagement widget. Fixes a real inconsistency: the old widget
-  // and the new /matches page were showing different percentages (e.g.
-  // 92% vs 35%) for the same pair, since they were two unrelated formulas.
-  // Only meaningful between two distinct logged-in users viewing each
-  // other, same guard conditions as before.
+  // Jaccard/engagement widget. Only meaningful between two distinct
+  // logged-in users viewing each other, same guard conditions as before.
   let viewerMatch: Awaited<ReturnType<typeof getSuggestedMatches>>[number] | null = null
   if (viewer && viewer.id !== profile.id && !isGhost) {
     const { data: viewerProfileForPro } = await supabase
       .from('profiles')
-      .select('is_pro, pro_expires_at')
+      .select('role, is_pro, pro_expires_at, is_patron, patron_expires_at')
       .eq('id', viewer.id)
       .maybeSingle()
 
-    const viewerIsPro = !!(
-      (viewerProfileForPro as any)?.is_pro &&
-      (!(viewerProfileForPro as any)?.pro_expires_at || new Date((viewerProfileForPro as any).pro_expires_at) > new Date())
-    )
+    // Fixed: was hand-rolled `is_pro && not-expired` with no admin/patron
+    // fallback — an admin viewing someone else's profile would never see
+    // Pro-tier match behavior. Uses the SSOT now.
+    const viewerIsPro = viewerProfileForPro ? isProUser(viewerProfileForPro as any) : false
 
     // Pull the viewer's full match list and find this specific profile in
     // it, rather than a dedicated one-off query — reuses the same
@@ -471,7 +474,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           )}
 
           {/* ── Item #5: Top-3 pinned favorites grid ──
-              Owner sees the editable picker (Pro/Patron only — enforced
+              Owner sees the editable picker (Pro/Patron/Admin — enforced
               server-side by the API route; free owners see the grid with
               locked/empty slots and an upgrade nudge instead of the picker).
               Visitors just see whatever's pinned, or nothing at all. */}
@@ -548,10 +551,9 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             </div>
           )}
 
-          {/* Taste Compatibility — now the confidence-scored match, not the
-              old Jaccard/engagement widget. Same soft/high display logic
-              as /matches and the feed sidebar widget, so this number always
-              agrees with those surfaces. */}
+          {/* Taste Compatibility — confidence-scored match, same
+              soft/high display logic as /matches and the feed sidebar
+              widget, so this number always agrees with those surfaces. */}
           {viewerMatch && (
             <div className="mb-3">
               <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/50 border border-border text-xs">

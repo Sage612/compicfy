@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button'
 import { GENRES, GENRE_MOODS, genreSlug } from '@/lib/utils/constants'
 import { GenreAnchorFallback } from '@/components/recommendations/GenreAnchorFallback'
 import { ScrollingTitle } from '@/components/recommendations/ScrollingTitle'
+import { isProUser } from '@/lib/access'
 import type { Recommendation } from '@/types/app.types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Metadata } from 'next'
@@ -37,7 +38,7 @@ interface Props {
 const PAGE_SIZE     = 24
 const ADULT_RATINGS = ['adult', 'mature'] as const
 
-// ── Genre section config — same rules as the main browse page ──────
+// ── Genre section config — same rules as the main browse page ────────
 const GENRE_PAGE_SIZE     = 12  // fetch 12; mobile shows 9 via CSS, desktop shows all 12
 const GENRE_MIN_ITEMS     = 6   // don't render a genre section unless it has at least 6 comics
 const GENRE_SECTION_COUNT = 12  // show top N genres by comic count
@@ -234,7 +235,7 @@ function AccessGate({ title, description, actions }: {
   )
 }
 
-// ── Independently-streaming sections ─────────────────────────────
+// ── Independently-streaming sections ─────────────────────────────────
 // Same pattern as the main browse page — takes the already-created
 // supabase client (server.ts's createClient() isn't cache()-wrapped,
 // so we pass the single instance down instead of calling it again).
@@ -365,13 +366,10 @@ export default async function AdultBrowsePage({ searchParams }: Props) {
     .eq('id', user.id)
     .single()
 
-  const isPro =
-    (profile as any)?.role === 'admin' ||
-    (profile as any)?.role === 'moderator' ||
-    ((profile as any)?.is_pro && (
-      !(profile as any)?.pro_expires_at ||
-      new Date((profile as any).pro_expires_at) > new Date()
-    ))
+  // Fixed: was hand-rolled `role === 'admin' || role === 'moderator' ||
+  // (is_pro && not-expired)` — close, but missed patrons who weren't also
+  // flagged is_pro, and duplicated logic that isProUser() already covers.
+  const isPro = profile ? isProUser(profile as any) : false
 
   const settingsUrl = isPro ? '/pro/settings' : '/dashboard/settings'
 
