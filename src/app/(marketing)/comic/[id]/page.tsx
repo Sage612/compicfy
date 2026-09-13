@@ -465,7 +465,7 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 md:px-6 -mt-4 md:-mt-7 z-20 pb-6">
+        <div className="relative max-w-7xl mx-auto px-4 md:px-6 -mt-4 md:-mt-7 z-20 pb-6 pb-[calc(72px+env(safe-area-inset-bottom,0px))] md:pb-6">
 
           <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
 

@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
-  ThumbsUp, Bookmark, MoreHorizontal, ChevronDown, X, Croissant,
+  Bookmark, MoreHorizontal, ChevronDown, X, Croissant,
   BookOpen,
   Layers,
 } from 'lucide-react'
@@ -84,14 +85,22 @@ export function MobileActionBar({
 }: MobileActionBarProps) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [openRow, setOpenRow] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
   const normalizedChapterCount = chapterCount ?? null
+
+  // Portals need a browser document — guard for SSR.
+  useEffect(() => setMounted(true), [])
 
   const toggleRow = (key: string) =>
     setOpenRow((current) => (current === key ? null : key))
 
-  return (
+  const bar = (
     <>
-      {/* Sticky bar — mobile only. Desktop keeps the existing sidebar actionDeck untouched. */}
+      {/* Sticky bar — mobile only. Desktop keeps the existing sidebar
+          actionDeck untouched. Portaled to <body> below so that no
+          ancestor with transform/filter/will-change (e.g. a page-transition
+          wrapper) can hijack this `fixed` positioning — that was the cause
+          of the bar not sitting flush. */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-dossier/95 backdrop-blur-md border-t border-dossier-foreground/10 px-4 py-2.5 flex items-center gap-2">
         <div className="flex-1">
           <VoteButtons
@@ -121,9 +130,6 @@ export function MobileActionBar({
         </button>
       </div>
 
-      {/* Spacer so page content isn't hidden behind the fixed bar */}
-      <div className="md:hidden h-16" aria-hidden />
-
       {sheetOpen && (
         <div className="md:hidden fixed inset-0 z-40 flex items-end">
           <div
@@ -143,21 +149,9 @@ export function MobileActionBar({
               </button>
             </div>
 
-            <SheetRow
-              icon={<ThumbsUp size={16} className="text-dossier-foreground/50 rotate-180" />}
-              label="Downvote"
-              isOpen={openRow === 'vote'}
-              onToggle={() => toggleRow('vote')}
-            >
-              <VoteButtons
-                recommendationId={recommendationId}
-                initialUpvotes={initialUpvotes}
-                initialDownvotes={initialDownvotes}
-                initialVote={initialVote}
-                isLoggedIn={isLoggedIn}
-                comicTitle={comicTitle}
-              />
-            </SheetRow>
+            {/* Downvote row removed — VoteButtons in the sticky bar above
+                already renders both vote directions, so this was a
+                duplicate. */}
 
             <SheetRow
               icon={<BookOpen size={16} className="text-dossier-foreground/50" />}
@@ -220,4 +214,6 @@ export function MobileActionBar({
       )}
     </>
   )
+
+  return mounted ? createPortal(bar, document.body) : null
 }

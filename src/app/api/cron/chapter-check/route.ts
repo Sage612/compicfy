@@ -632,11 +632,13 @@ export async function GET(req: Request) {
             const originalTotal = comic.original_total_chapters ?? newChapterCount ?? comic.chapter_count ?? null
             const hasCaughtUp = originalTotal !== null &&
               finalChapter >= originalTotal - CHAPTER_CATCHUP_TOLERANCE
+            const chapterIncreased = finalChapter > (comic.chapter_count ?? 0)
 
             const updatePayload: Record<string, any> = {
               chapter_count:            finalChapter,
               last_chapter_check:       timestamp,
               original_total_chapters:  originalTotal,
+              ...(chapterIncreased ? { last_chapter_released_at: timestamp } : {}),
             }
 
             if (hasCaughtUp) {
@@ -676,12 +678,15 @@ export async function GET(req: Request) {
           // Non-terminal status change (e.g. resumed from hiatus back to
           // ongoing) — behaves exactly as before, no original/translation
           // distinction needed since there's no completion ambiguity.
+          const chapterIncreased = finalChapter > (comic.chapter_count ?? 0)
+
           const updatePayload: Record<string, any> = {
             status:                 resolvedStatus,
             chapter_count:          finalChapter,
             last_chapter_check:     timestamp,
             translation_status:     'following_original',
             pending_original_status: null,
+            ...(chapterIncreased ? { last_chapter_released_at: timestamp } : {}),
           }
 
           await supabase.from('recommendations').update(updatePayload).eq('id', comic.id)
@@ -700,6 +705,7 @@ export async function GET(req: Request) {
           const updatePayload: Record<string, any> = {
             chapter_count:      newChapterCount,
             last_chapter_check: timestamp,
+            last_chapter_released_at: timestamp,
           }
 
           // If the translation was catching up to an already-finished
