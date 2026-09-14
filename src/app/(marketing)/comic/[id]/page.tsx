@@ -14,7 +14,7 @@ import {
   Star, ThumbsUp, Bookmark, MessageSquare,
 } from 'lucide-react'
 import Link from 'next/link'
-import { formatDate } from '@/lib/utils/format'
+import { formatDate, timeAgo } from '@/lib/utils/format'
 import { VoteButtons } from '@/components/recommendations/VoteButtons'
 import { SaveButton } from '@/components/recommendations/SaveButton'
 import { ShareButton } from '@/components/recommendations/ShareButton'
@@ -375,7 +375,7 @@ export default async function ComicDetailPage({ params }: Props) {
       key: 'chapters',
       icon: Hash,
       label: rec.last_chapter_released_at
-        ? `${rec.chapter_count} ch. · updated ${formatDate(rec.last_chapter_released_at)}`
+        ? `${rec.chapter_count} ch. ·  ${timeAgo(rec.last_chapter_released_at)}`
         : `${rec.chapter_count} ch.`,
     },
   ].filter(Boolean) as { key: string; icon: typeof User; label: string }[]
