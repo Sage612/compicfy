@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { CoverUpload } from './CoverUpload'
 import { GenreSelector } from './GenreSelector'
+import { TagPicker } from './TagPicker'
 import { PlatformSelector } from './PlatformSelector'
 import { SubmissionGuidelineBanner } from '@/components/recommendations/SubmissionGuidelineBanner'
 import { toast } from 'sonner'
@@ -143,6 +144,7 @@ export function RecommendationForm({ userId }: Props) {
     mal_id?:          string
     mangadex_id?:     string
   }>({})
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
 
   const [monthlyCount,        setMonthlyCount]        = useState<number | null>(null)
   const [isPro,               setIsPro]               = useState<boolean | null>(null)
@@ -302,6 +304,20 @@ export function RecommendationForm({ userId }: Props) {
       }
 
       if (!response.ok) { toast.error(result.error || 'Failed to submit'); return }
+
+      // Attach tags after the recommendation has a real id. A failed tag
+      // attach should not block an otherwise successful submission.
+      if (selectedTagIds.length > 0 && result.recommendation?.id) {
+        await Promise.allSettled(
+          selectedTagIds.map(tag_id =>
+            fetch('/api/recommendation-tags', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ recommendation_id: result.recommendation.id, tag_id }),
+            })
+          )
+        )
+      }
 
       toast.success(
         result.recommendation.is_approved
@@ -644,6 +660,11 @@ export function RecommendationForm({ userId }: Props) {
             <GenreSelector value={field.value} onChange={field.onChange} error={errors.genres?.message} />
           )}
         />
+      </FormSection>
+
+      {/* Tags */}
+      <FormSection icon={Tag} title="Trope & Mood Tags" accent="bg-violet-500">
+        <TagPicker value={selectedTagIds} onChange={setSelectedTagIds} />
       </FormSection>
 
       {/* Description */}

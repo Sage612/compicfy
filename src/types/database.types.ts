@@ -1263,10 +1263,12 @@ export type Database = {
           favorite_platforms: string[] | null
           id: string
           is_banned: boolean | null
+          is_curator: boolean
           is_patron: boolean
           is_pro: boolean | null
           is_suspended: boolean | null
           kickstarter_url: string | null
+          last_match_refresh_at: string | null
           last_seen: string | null
           matches_last_shown_at: string | null
           member_since: string | null
@@ -1321,10 +1323,12 @@ export type Database = {
           favorite_platforms?: string[] | null
           id: string
           is_banned?: boolean | null
+          is_curator?: boolean
           is_patron?: boolean
           is_pro?: boolean | null
           is_suspended?: boolean | null
           kickstarter_url?: string | null
+          last_match_refresh_at?: string | null
           last_seen?: string | null
           matches_last_shown_at?: string | null
           member_since?: string | null
@@ -1379,10 +1383,12 @@ export type Database = {
           favorite_platforms?: string[] | null
           id?: string
           is_banned?: boolean | null
+          is_curator?: boolean
           is_patron?: boolean
           is_pro?: boolean | null
           is_suspended?: boolean | null
           kickstarter_url?: string | null
+          last_match_refresh_at?: string | null
           last_seen?: string | null
           matches_last_shown_at?: string | null
           member_since?: string | null
@@ -1755,6 +1761,7 @@ export type Database = {
           is_draft: boolean | null
           is_featured: boolean | null
           is_official_only: boolean | null
+          is_own_work: boolean
           is_pro_submission: boolean | null
           kitsu_id: string | null
           last_chapter_check: string | null
@@ -1841,6 +1848,7 @@ export type Database = {
           is_draft?: boolean | null
           is_featured?: boolean | null
           is_official_only?: boolean | null
+          is_own_work?: boolean
           is_pro_submission?: boolean | null
           kitsu_id?: string | null
           last_chapter_check?: string | null
@@ -1927,6 +1935,7 @@ export type Database = {
           is_draft?: boolean | null
           is_featured?: boolean | null
           is_official_only?: boolean | null
+          is_own_work?: boolean
           is_pro_submission?: boolean | null
           kitsu_id?: string | null
           last_chapter_check?: string | null
@@ -2745,6 +2754,7 @@ export type Database = {
           favorite_creators: string[] | null
           following_users: string[] | null
           genre_weights: Json | null
+          last_vector_refresh_at: string | null
           preferred_ratings: string[] | null
           status_weights: Json | null
           taste_vector: string | null
@@ -2759,6 +2769,7 @@ export type Database = {
           favorite_creators?: string[] | null
           following_users?: string[] | null
           genre_weights?: Json | null
+          last_vector_refresh_at?: string | null
           preferred_ratings?: string[] | null
           status_weights?: Json | null
           taste_vector?: string | null
@@ -2773,6 +2784,7 @@ export type Database = {
           favorite_creators?: string[] | null
           following_users?: string[] | null
           genre_weights?: Json | null
+          last_vector_refresh_at?: string | null
           preferred_ratings?: string[] | null
           status_weights?: Json | null
           taste_vector?: string | null
@@ -2860,6 +2872,20 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      browse_by_tags: {
+        Args: { p_limit?: number; p_offset?: number; p_tag_ids: string[] }
+        Returns: {
+          author: string
+          cover_url: string
+          genres: string[]
+          id: string
+          score: number
+          status: string
+          title: string
+          type: string
+          upvotes: number
+        }[]
       }
       can_submit_recommendation: {
         Args: { p_user_id: string }
@@ -2960,6 +2986,7 @@ export type Database = {
           is_draft: boolean | null
           is_featured: boolean | null
           is_official_only: boolean | null
+          is_own_work: boolean
           is_pro_submission: boolean | null
           kitsu_id: string | null
           last_chapter_check: string | null
@@ -3321,6 +3348,7 @@ export type Database = {
           is_draft: boolean | null
           is_featured: boolean | null
           is_official_only: boolean | null
+          is_own_work: boolean
           is_pro_submission: boolean | null
           kitsu_id: string | null
           last_chapter_check: string | null
@@ -3376,41 +3404,26 @@ export type Database = {
           isSetofReturn: true
         }
       }
-      search_recommendations_fuzzy:
-        | {
-            Args: {
-              p_limit?: number
-              p_offset?: number
-              p_query: string
-              p_threshold?: number
-            }
-            Returns: {
-              author: string
-              cover_url: string
-              genres: string[]
-              id: string
-              match_type: string
-              similarity: number
-              status: string
-              title: string
-              type: string
-            }[]
-          }
-        | {
-            Args: {
-              query: string
-              result_limit?: number
-              result_offset?: number
-            }
-            Returns: {
-              alternative_titles: string[]
-              cover_url: string
-              id: string
-              score: number
-              title: string
-              type: string
-            }[]
-          }
+      search_recommendations_fuzzy: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_query: string
+          p_tag_ids?: string[]
+          p_threshold?: number
+        }
+        Returns: {
+          author: string
+          cover_url: string
+          genres: string[]
+          id: string
+          match_type: string
+          similarity: number
+          status: string
+          title: string
+          type: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       track_profile_view: {
