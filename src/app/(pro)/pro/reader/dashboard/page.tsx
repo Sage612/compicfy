@@ -5,6 +5,11 @@ import { ProAvatar } from '@/components/pro/ProAvatar'
 import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
 import { ProBadge } from '@/components/pro/ProBadge'
 import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
+import { DashboardViewTabs } from '@/components/dashboard/DashboardViewTabs'
+import { CuratorPanel } from '@/components/dashboard/CuratorPanel'
+import { ReadingStreakWidget } from '@/components/dashboard/ReadingStreakWidget'
+import { ActiveBakesSection } from '@/components/dashboard/ActiveBakesSection'
+import { NotificationsFeedSection } from '@/components/dashboard/NotificationsFeedSection'
 import { CurrentlyReadingSection } from '@/components/recommendations/CurrentlyReadingSection'
 import { Button } from '@/components/ui/button'
 import {
@@ -49,25 +54,32 @@ export default async function ProReaderDashboardPage() {
     .from('follows').select('following_id').eq('follower_id', user.id)
   const followingIds = (followData ?? []).map((f: any) => f.following_id)
 
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1)
+  startOfMonth.setHours(0, 0, 0, 0)
+
   const [
     { count: totalRecs },
     { count: savedCount },
     { count: listsCount },
     { count: followingCount },
     { count: reviewCount },
-    { data: topRecs },
     { data: leaderboardData },
     { count: viewsThisMonth },
     { data: currentlyReading },
     { data: rawFeedItems },
     { data: listsForTracker },
+    { data: curatorSubmissions },
+    { data: monthlyActivity },
+    { data: bakes },
+    { data: notifications },
+    { count: unreadCount },
   ] = await Promise.all([
     supabase.from('recommendations').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_approved', true),
     supabase.from('saves').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     supabase.from('reading_lists').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
     supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-    supabase.from('recommendations').select('id, title, cover_url, upvotes, save_count, view_count, type').eq('user_id', user.id).eq('is_approved', true).order('score', { ascending: false }).limit(3),
     (supabase as any).from('pro_leaderboard').select('rank, score').eq('user_id', user.id).order('month', { ascending: false }).limit(1).maybeSingle(),
     (supabase as any).from('profile_views').select('*', { count: 'exact', head: true }).eq('profile_id', user.id).gte('viewed_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
     supabase.from('reading_list_items')
@@ -82,6 +94,30 @@ export default async function ProReaderDashboardPage() {
           .order('created_at', { ascending: false }).limit(4)
       : Promise.resolve({ data: [] }),
     supabase.from('reading_lists').select('id, name').eq('user_id', user.id).order('created_at', { ascending: false }),
+    supabase.from('recommendations')
+      .select('id, title, cover_url, is_approved, is_draft, rejection_reason, upvotes, save_count, view_count, review_count')
+      .eq('user_id', user.id)
+      .eq('is_own_work', false)
+      .order('created_at', { ascending: false }),
+    (supabase as any).from('reading_activity')
+      .select('chapters_read')
+      .eq('user_id', user.id)
+      .gte('activity_date', startOfMonth.toISOString().slice(0, 10)),
+    supabase.from('bake_requests')
+      .select('id, recommendation_id, target_chapter_count, counting_mode, chapter_count_at_bake_start, predicted_ready_at, status, recommendations(id, title, cover_url, chapter_count)')
+      .eq('user_id', user.id)
+      .in('status', ['active', 'fulfilled'])
+      .order('created_at', { ascending: false })
+      .limit(5),
+    supabase.from('notifications')
+      .select('id, type, title, content, data, is_read, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(6),
+    supabase.from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false),
   ])
 
   const feedItems = (rawFeedItems ?? []).map((r: any) => {
@@ -89,10 +125,41 @@ export default async function ProReaderDashboardPage() {
     return { ...r, profiles: p ?? null }
   })
 
+  const fromReadRecIds = (bakes ?? [])
+    .filter((b: any) => b.counting_mode === 'from_read')
+    .map((b: any) => b.recommendation_id)
+  const progressByRec = new Map<string, number>()
+  if (fromReadRecIds.length > 0) {
+    const { data: myLists } = await supabase
+      .from('reading_lists').select('id').eq('user_id', user.id)
+    const myListIds = (myLists ?? []).map((l: any) => l.id)
+    if (myListIds.length > 0) {
+      const { data: progressItems } = await supabase
+        .from('reading_list_items')
+        .select('recommendation_id, progress_chapter')
+        .in('list_id', myListIds)
+        .in('recommendation_id', fromReadRecIds)
+      for (const item of (progressItems ?? []) as any[]) {
+        if (item.progress_chapter != null) {
+          const existing = progressByRec.get(item.recommendation_id) ?? 0
+          progressByRec.set(item.recommendation_id, Math.max(existing, item.progress_chapter))
+        }
+      }
+    }
+  }
+  const bakesWithProgress = (bakes ?? []).map((b: any) => ({
+    ...b,
+    recommendation: Array.isArray(b.recommendations) ? b.recommendations[0] : b.recommendations,
+    progress_chapter: b.counting_mode === 'from_read'
+      ? (progressByRec.get(b.recommendation_id) ?? null)
+      : null,
+  }))
+
   const leaderboardEntry  = leaderboardData as { rank: number; score: number } | null
   const initials          = (profile.display_name || profile.username || 'U').slice(0, 2).toUpperCase()
   const isFollowingNobody = (followingCount ?? 0) === 0
   const hasReadingItems   = (currentlyReading ?? []).length > 0
+  const monthlyChapters   = (monthlyActivity ?? []).reduce((sum: number, item: any) => sum + (item.chapters_read ?? 0), 0)
 
   const proTools = [
     { href: '/pro/reader/dashboard/analytics',   icon: BarChart2, label: 'Analytics',     desc: 'See your rec performance',           color: 'bg-violet-500/10', text: 'text-violet-500' },
@@ -108,9 +175,8 @@ export default async function ProReaderDashboardPage() {
     { label: 'Reviews Written', value: reviewCount ?? 0,    icon: Star,       color: 'text-amber-500',  bg: 'bg-amber-500/10',  href: '/pro/reader/dashboard/reviews'         },
   ]
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-
+  const readerView = (
+    <div className="space-y-8">
       {/* Gold welcome banner */}
       <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent p-6 md:p-8">
         <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-amber-500/10 blur-2xl pointer-events-none" />
@@ -148,6 +214,12 @@ export default async function ProReaderDashboardPage() {
       </div>
 
       <ProfileCompletionBanner hasAvatar={!!profile.avatar_url} hasBio={!!profile.bio} hasWebsite={!!profile.website} />
+
+      <ReadingStreakWidget
+        currentStreak={profile.current_streak ?? 0}
+        longestStreak={profile.longest_streak ?? 0}
+        monthlyChapters={monthlyChapters}
+      />
 
       {/* Stats */}
       <div>
@@ -188,44 +260,6 @@ export default async function ProReaderDashboardPage() {
         </div>
       </div>
 
-      {/* Top recs */}
-      {topRecs && topRecs.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Top Recommendations</h2>
-            <Link href="/pro/reader/dashboard/analytics" className="text-xs text-amber-500 hover:underline flex items-center gap-1">
-              Full analytics <ChevronRight size={12} />
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {(topRecs as any[]).map((rec: any, i: number) => (
-              <Link key={rec.id} href={`/comic/${rec.id}`}
-                className="group flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-amber-500/30 transition-colors"
-              >
-                <span className="text-lg font-black text-muted-foreground/30 w-6 shrink-0">#{i + 1}</span>
-                <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
-                  {rec.cover_url
-                    ? <img src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`} alt={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    : <div className="w-full h-full flex items-center justify-center"><BookOpen size={12} className="text-muted-foreground opacity-40" /></div>
-                  }
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-black line-clamp-1 group-hover:text-amber-600 transition-colors">{rec.title}</p>
-                  <span className={cn('inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold border capitalize mt-1', TYPE_COLORS[rec.type] ?? 'bg-muted text-muted-foreground border-border')}>
-                    {rec.type}
-                  </span>
-                </div>
-                <div className="flex gap-3 text-xs text-muted-foreground shrink-0">
-                  <span className="flex items-center gap-1"><Users size={10} className="text-emerald-500" />{rec.upvotes}</span>
-                  <span className="flex items-center gap-1"><Bookmark size={10} className="text-blue-500" />{rec.save_count}</span>
-                  <span className="flex items-center gap-1"><Eye size={10} className="text-violet-500" />{formatNumber(rec.view_count)}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* Reading tracker */}
       {!hasReadingItems ? (
         <div className="space-y-3">
@@ -254,6 +288,14 @@ export default async function ProReaderDashboardPage() {
           listsHref="/pro/reader/dashboard/lists"
         />
       )}
+
+      <ActiveBakesSection bakes={bakesWithProgress} />
+
+      <NotificationsFeedSection
+        notifications={notifications ?? []}
+        unreadCount={unreadCount ?? 0}
+        notificationsHref="/pro/reader/dashboard/notifications"
+      />
 
       {/* Following feed */}
       <div>
@@ -323,6 +365,40 @@ export default async function ProReaderDashboardPage() {
           </div>
         </div>
       </div>
+    </div>
+  )
+
+  const normalizedCuratorSubmissions = (curatorSubmissions ?? []).map((submission: any) => ({
+    id: submission.id,
+    title: submission.title ?? 'Untitled',
+    cover_url: submission.cover_url ?? null,
+    is_approved: Boolean(submission.is_approved),
+    is_draft: Boolean(submission.is_draft),
+    rejection_reason: submission.rejection_reason ?? null,
+    upvotes: Number(submission.upvotes ?? 0),
+    save_count: Number(submission.save_count ?? 0),
+    view_count: Number(submission.view_count ?? 0),
+    review_count: Number(submission.review_count ?? 0),
+  }))
+
+  const curatorView = (
+    <CuratorPanel
+      submissions={normalizedCuratorSubmissions}
+      monthlyCount={totalRecs ?? 0}
+      isPro={true}
+      dashboardPrefix="/pro"
+      leaderboardRank={leaderboardEntry?.rank ?? null}
+      viewsThisMonth={viewsThisMonth ?? 0}
+    />
+  )
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <DashboardViewTabs
+        showCurator={!!profile.is_curator}
+        readerView={readerView}
+        curatorView={curatorView}
+      />
     </div>
   )
 }

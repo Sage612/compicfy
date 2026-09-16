@@ -2,6 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
+import { DashboardViewTabs } from '@/components/dashboard/DashboardViewTabs'
+import { CuratorPanel } from '@/components/dashboard/CuratorPanel'
+import { ProUpsellCard } from '@/components/dashboard/ProUpsellCard'
+import { ReadingStreakWidget } from '@/components/dashboard/ReadingStreakWidget'
+import { ActiveBakesSection } from '@/components/dashboard/ActiveBakesSection'
+import { NotificationsFeedSection } from '@/components/dashboard/NotificationsFeedSection'
 import { CurrentlyReadingSection } from '@/components/recommendations/CurrentlyReadingSection'
 import { Button } from '@/components/ui/button'
 import {
@@ -61,6 +67,11 @@ export default async function ReaderDashboardPage() {
     { data: currentlyReading },
     { data: rawFeedItems },
     { data: listsForTracker },
+    { data: curatorSubmissions },
+    { data: monthlyActivity },
+    { data: bakes },
+    { data: notifications },
+    { count: unreadCount },
   ] = await Promise.all([
     supabase.from('reading_lists').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     supabase.from('saves').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
@@ -87,6 +98,30 @@ export default async function ReaderDashboardPage() {
           .limit(4)
       : Promise.resolve({ data: [] }),
     supabase.from('reading_lists').select('id, name').eq('user_id', user.id).order('created_at', { ascending: false }),
+    supabase.from('recommendations')
+      .select('id, title, cover_url, is_approved, is_draft, rejection_reason, upvotes, save_count, view_count, review_count')
+      .eq('user_id', user.id)
+      .eq('is_own_work', false)
+      .order('created_at', { ascending: false }),
+    (supabase as any).from('reading_activity')
+      .select('chapters_read')
+      .eq('user_id', user.id)
+      .gte('activity_date', startOfMonth.toISOString().slice(0, 10)),
+    supabase.from('bake_requests')
+      .select('id, recommendation_id, target_chapter_count, counting_mode, chapter_count_at_bake_start, predicted_ready_at, status, recommendations(id, title, cover_url, chapter_count)')
+      .eq('user_id', user.id)
+      .in('status', ['active', 'fulfilled'])
+      .order('created_at', { ascending: false })
+      .limit(5),
+    supabase.from('notifications')
+      .select('id, type, title, content, data, is_read, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(6),
+    supabase.from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false),
   ])
 
   // ── Usage limits (free users only) ────────────────────────────
@@ -98,33 +133,74 @@ export default async function ReaderDashboardPage() {
   const followPct             = Math.min(((followingCount ?? 0) / FREE_LIMITS.follows) * 100, 100)
   const listPct               = Math.min(((listsCount ?? 0) / FREE_LIMITS.lists) * 100, 100)
   const collectionPct         = Math.min(((collectionsCount ?? 0) / FREE_LIMITS.collections) * 100, 100)
+  const monthlyChapters       = (monthlyActivity ?? []).reduce((sum: number, item: any) => sum + (item.chapters_read ?? 0), 0)
 
   const feedItems = (rawFeedItems ?? []).map((r: any) => {
     const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
     return { ...r, profiles: p ?? null }
   })
 
+  const fromReadRecIds = (bakes ?? [])
+    .filter((b: any) => b.counting_mode === 'from_read')
+    .map((b: any) => b.recommendation_id)
+  const progressByRec = new Map<string, number>()
+  if (fromReadRecIds.length > 0) {
+    const { data: myLists } = await supabase
+      .from('reading_lists').select('id').eq('user_id', user.id)
+    const myListIds = (myLists ?? []).map((l: any) => l.id)
+    if (myListIds.length > 0) {
+      const { data: progressItems } = await supabase
+        .from('reading_list_items')
+        .select('recommendation_id, progress_chapter')
+        .in('list_id', myListIds)
+        .in('recommendation_id', fromReadRecIds)
+      for (const item of (progressItems ?? []) as any[]) {
+        if (item.progress_chapter != null) {
+          const existing = progressByRec.get(item.recommendation_id) ?? 0
+          progressByRec.set(item.recommendation_id, Math.max(existing, item.progress_chapter))
+        }
+      }
+    }
+  }
+  const bakesWithProgress = (bakes ?? []).map((b: any) => ({
+    ...b,
+    recommendation: Array.isArray(b.recommendations) ? b.recommendations[0] : b.recommendations,
+    progress_chapter: b.counting_mode === 'from_read'
+      ? (progressByRec.get(b.recommendation_id) ?? null)
+      : null,
+  }))
+
+  const normalizedCuratorSubmissions = (curatorSubmissions ?? []).map((submission: any) => ({
+    id: submission.id,
+    title: submission.title ?? 'Untitled',
+    cover_url: submission.cover_url ?? null,
+    is_approved: Boolean(submission.is_approved),
+    is_draft: Boolean(submission.is_draft),
+    rejection_reason: submission.rejection_reason ?? null,
+    upvotes: Number(submission.upvotes ?? 0),
+    save_count: Number(submission.save_count ?? 0),
+    view_count: Number(submission.view_count ?? 0),
+    review_count: Number(submission.review_count ?? 0),
+  }))
+
   const initials          = (profile.display_name || profile.username).slice(0, 2).toUpperCase()
   const isFollowingNobody = (followingCount ?? 0) === 0
   const hasReadingItems   = (currentlyReading ?? []).length > 0
 
   const stats = [
-    { label: 'Recommendations', value: profile.total_recommendations ?? 0, icon: BookOpen,   href: '/reader/dashboard/recommendations', bg: 'bg-violet-500/10', text: 'text-violet-500' },
     { label: 'Saved Comics',    value: savedCount ?? 0,                    icon: Bookmark,   href: '/reader/dashboard/saved',           bg: 'bg-rose-500/10',   text: 'text-rose-500'  },
     { label: 'Reading Lists',   value: listsCount ?? 0,                    icon: BookMarked, href: '/reader/dashboard/lists',           bg: 'bg-primary/10',    text: 'text-primary'   },
     { label: 'Reviews Written', value: reviewCount ?? 0,                   icon: Star,       href: '/reader/dashboard/reviews',         bg: 'bg-amber-500/10',  text: 'text-amber-500' },
   ]
 
   const quickActions = [
-    { href: '/reader/dashboard/recommendations/new', icon: Plus,       label: 'Submit a Recommendation', desc: 'Share a comic with the community', bg: 'bg-primary/10',    text: 'text-primary'    },
     { href: '/feed',                                 icon: LayoutList, label: 'Following Feed',           desc: 'Latest from people you follow',   bg: 'bg-violet-500/10', text: 'text-violet-500' },
     { href: '/reader/dashboard/lists',               icon: BookMarked, label: 'Reading Lists',            desc: 'Manage your reading collection',  bg: 'bg-teal-500/10',   text: 'text-teal-500'   },
     { href: '/browse',                               icon: Flame,      label: 'Browse Comics',            desc: 'Discover new recommendations',    bg: 'bg-rose-500/10',   text: 'text-rose-500'   },
   ]
 
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-
+  const readerView = (
+    <div className="space-y-8">
       {/* Welcome banner */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-6 md:p-8">
         <div className="absolute inset-0 pointer-events-none">
@@ -170,6 +246,18 @@ export default async function ReaderDashboardPage() {
         hasAvatar={!!profile.avatar_url}
         hasBio={!!profile.bio}
         hasWebsite={!!profile.website}
+      />
+
+      <ReadingStreakWidget
+        currentStreak={profile.current_streak ?? 0}
+        longestStreak={profile.longest_streak ?? 0}
+        monthlyChapters={monthlyChapters}
+      />
+
+      <ProUpsellCard
+        title="Unlock Pro Reader"
+        features={['Unlimited follows & lists', 'Reading analytics', 'Priority support', 'Profile themes']}
+        ctaLabel="Upgrade to Pro Reader"
       />
 
       {/* Free Plan Limits */}
@@ -260,6 +348,7 @@ export default async function ReaderDashboardPage() {
                 <Button size="sm" variant="outline" className="gap-1.5 border-primary/30 text-primary">
                   <BookMarked size={13} />My Lists
                 </Button>
+                
               </Link>
             </div>
           </div>
@@ -272,6 +361,14 @@ export default async function ReaderDashboardPage() {
           listsHref="/reader/dashboard/lists"
         />
       )}
+
+      <ActiveBakesSection bakes={bakesWithProgress} />
+
+      <NotificationsFeedSection
+        notifications={notifications ?? []}
+        unreadCount={unreadCount ?? 0}
+        notificationsHref="/reader/dashboard/notifications"
+      />
 
       {/* Following feed */}
       <div>
@@ -360,6 +457,25 @@ export default async function ReaderDashboardPage() {
           ))}
         </div>
       </div>
+    </div>
+  )
+
+  const curatorView = (
+    <CuratorPanel
+      submissions={normalizedCuratorSubmissions}
+      monthlyCount={recCount}
+      isPro={false}
+      dashboardPrefix=""
+    />
+  )
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <DashboardViewTabs
+        showCurator={!!profile.is_curator}
+        readerView={readerView}
+        curatorView={curatorView}
+      />
     </div>
   )
 }

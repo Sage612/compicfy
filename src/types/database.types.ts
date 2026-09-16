@@ -1256,6 +1256,7 @@ export type Database = {
           collection_count: number | null
           comic_url: string | null
           created_at: string | null
+          current_streak: number
           discord_user_id: string | null
           display_name: string | null
           email_notifications: boolean | null
@@ -1270,6 +1271,8 @@ export type Database = {
           kickstarter_url: string | null
           last_match_refresh_at: string | null
           last_seen: string | null
+          last_streak_date: string | null
+          longest_streak: number
           matches_last_shown_at: string | null
           member_since: string | null
           notification_prefs: Json
@@ -1316,6 +1319,7 @@ export type Database = {
           collection_count?: number | null
           comic_url?: string | null
           created_at?: string | null
+          current_streak?: number
           discord_user_id?: string | null
           display_name?: string | null
           email_notifications?: boolean | null
@@ -1330,6 +1334,8 @@ export type Database = {
           kickstarter_url?: string | null
           last_match_refresh_at?: string | null
           last_seen?: string | null
+          last_streak_date?: string | null
+          longest_streak?: number
           matches_last_shown_at?: string | null
           member_since?: string | null
           notification_prefs?: Json
@@ -1376,6 +1382,7 @@ export type Database = {
           collection_count?: number | null
           comic_url?: string | null
           created_at?: string | null
+          current_streak?: number
           discord_user_id?: string | null
           display_name?: string | null
           email_notifications?: boolean | null
@@ -1390,6 +1397,8 @@ export type Database = {
           kickstarter_url?: string | null
           last_match_refresh_at?: string | null
           last_seen?: string | null
+          last_streak_date?: string | null
+          longest_streak?: number
           matches_last_shown_at?: string | null
           member_since?: string | null
           notification_prefs?: Json
@@ -1504,6 +1513,41 @@ export type Database = {
           },
           {
             foreignKeyName: "reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reading_activity: {
+        Row: {
+          activity_date: string
+          chapters_read: number
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_date: string
+          chapters_read?: number
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_date?: string
+          chapters_read?: number
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_activity_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"

@@ -838,7 +838,7 @@ export async function GET(req: Request) {
           // without tracking it on any list at all.
           const { data: activeBakes } = await supabase
             .from('bake_requests')
-            .select('id, user_id, target_chapter_count, chapter_count_at_bake_start')
+            .select('id, user_id, recommendation_id, target_chapter_count, chapter_count_at_bake_start, counting_mode')
             .eq('recommendation_id', comic.id)
             .eq('status', 'active')
 
@@ -847,7 +847,37 @@ export async function GET(req: Request) {
             const bakeNotificationsToSend: Array<{ user_id: string; bakeId: number; chaptersReady: number }> = []
 
             for (const bake of activeBakes) {
-              const chaptersAccumulated = newChapterCount - bake.chapter_count_at_bake_start
+              let currentCount: number
+              if (bake.counting_mode === 'from_read') {
+                const { data: userLists } = await supabase
+                  .from('reading_lists')
+                  .select('id')
+                  .eq('user_id', bake.user_id)
+
+                const listIds = (userLists ?? []).map((l: any) => l.id)
+
+                let liveProgress = 0
+                if (listIds.length > 0) {
+                  const { data: trackedItem } = await supabase
+                    .from('reading_list_items')
+                    .select('progress_chapter')
+                    .eq('recommendation_id', bake.recommendation_id)
+                    .in('list_id', listIds)
+                    .order('updated_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+
+                  liveProgress = trackedItem?.progress_chapter ?? 0
+                }
+
+                currentCount = liveProgress
+              } else {
+                currentCount = newChapterCount
+              }
+
+              const baseline = bake.chapter_count_at_bake_start
+              const chaptersAccumulated = Math.max(0, currentCount - baseline)
+
               if (chaptersAccumulated >= bake.target_chapter_count) {
                 fulfilledBakeIds.push(bake.id)
                 bakeNotificationsToSend.push({

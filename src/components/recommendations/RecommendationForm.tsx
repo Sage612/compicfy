@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useForm, Controller } from 'react-hook-form'
+import { useForm, Controller, type Resolver } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -23,7 +23,7 @@ import { PeakHourModal } from '@/components/recommendations/PeakHourModal'
 import { LimitReachedModal } from '@/components/recommendations/LimitReachedModal'
 import { FREE_LIMITS } from '@/lib/utils/constants'
 import { cn } from '@/lib/utils'
-import { MangaSearch } from './MangaSearch'
+import { MangaSearch, type MangaResult } from './MangaSearch'
 import { createClient } from '@/lib/supabase/client'
 import { validatePlatformLink } from '@/lib/utils/platformLinks'
 import { isProUser, hasUnlimitedPerks } from '@/lib/access'
@@ -165,16 +165,17 @@ export function RecommendationForm({ userId }: Props) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await (supabase as any)
+      const { data: profile } = await supabase
         .from('profiles')
         .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role')
         .eq('id', user.id)
         .single()
 
       if (!profile) return
-      const realPro = isProUser(profile)
+      const accessProfile = { ...profile, role: profile.role ?? '' }
+      const realPro = isProUser(accessProfile)
       setIsPro(realPro)
-      const unlimited = hasUnlimitedPerks(profile)
+      const unlimited = hasUnlimitedPerks(accessProfile)
       setUnlimitedPerks(unlimited)
 
       if (!unlimited) {
@@ -197,14 +198,14 @@ export function RecommendationForm({ userId }: Props) {
   const usagePct     = monthlyCount !== null ? Math.min(100, Math.round((monthlyCount / FREE_LIMITS.recommendations_per_month) * 100)) : 0
 
   const { register, handleSubmit, control, watch, setValue, getValues, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(formSchema) as any,
+    resolver: zodResolver(formSchema) as Resolver<FormValues>,
     defaultValues: {
       title:              prefillTitle,
       author:             prefillAuthor,
       artist:             prefillArtist,
       description:        prefillDescription,
-      type:               (prefillType as any) || undefined,
-      status:             (prefillStatus as any) || undefined,
+      type:               (prefillType as FormValues['type']) || undefined,
+      status:             (prefillStatus as FormValues['status']) || undefined,
       cover_url:          prefillCover,
       genres:             prefillGenres,
       official_platforms: [],
@@ -334,13 +335,19 @@ export function RecommendationForm({ userId }: Props) {
     }
   }
 
-  const handleMangaSelect = (result: any) => {
+  const handleMangaSelect = (result: MangaResult) => {
     setValue('title',       result.title              || '')
     setValue('author',      result.author             || '')
     setValue('artist',      result.artist             || '')
     setValue('description', result.description?.slice(0, 2000) || '')
-    setValue('type',        result.type               || 'manga')
-    setValue('status',      result.status             || 'ongoing')
+    const importedType = TYPES.some(option => option.value === result.type)
+      ? result.type as FormValues['type']
+      : 'manga'
+    const importedStatus = STATUSES.some(option => option.value === result.status)
+      ? result.status as FormValues['status']
+      : 'ongoing'
+    setValue('type',        importedType)
+    setValue('status',      importedStatus)
     if (result.year)     setValue('year_released', result.year)
     if (result.chapters) setValue('chapter_count', result.chapters)
     if (Array.isArray(result.alternativeTitles) && result.alternativeTitles.length > 0) {
@@ -400,7 +407,7 @@ export function RecommendationForm({ userId }: Props) {
             <div className="flex items-start gap-2">
               <AlertTriangle size={13} className="text-red-500 shrink-0 mt-0.5" />
               <p className="text-xs text-red-600 font-medium">
-                You've used all {FREE_LIMITS.recommendations_per_month} recommendations for this month. It resets on the 1st, in the meantime your entry can be saved as a draft.
+                You&apos;ve used all {FREE_LIMITS.recommendations_per_month} recommendations for this month. It resets on the 1st, in the meantime your entry can be saved as a draft.
               </p>
             </div>
           )}
@@ -457,12 +464,12 @@ export function RecommendationForm({ userId }: Props) {
                     <Sparkles size={14} className="text-primary shrink-0 mt-0.5" />
                     <div>
                       <p className="text-xs font-bold text-foreground">
-                        "{duplicateWarning.title}" is already on ComPicfy!
+                        &quot;{duplicateWarning.title}&quot; is already on ComPicfy!
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                         {duplicateWarning.is_approved
-                          ? "Instead of a duplicate entry, join in on this one, upvote it, leave your own review, or save it. That's how the community builds it up together."
-                          : "It's currently pending review, once it's live you'll be able to upvote it, review it, or save it."}
+                          ? "Instead of a duplicate entry, join in on this one, upvote it, leave your own review, or save it. That&apos;s how the community builds it up together."
+                          : "It&apos;s currently pending review, once it&apos;s live you&apos;ll be able to upvote it, review it, or save it."}
                       </p>
                     </div>
                   </div>
@@ -493,12 +500,12 @@ export function RecommendationForm({ userId }: Props) {
                       <div className="mt-1.5 space-y-1">
                         {similarWarnings.slice(0, 3).map(s => (
                           <p key={s.id} className="text-xs text-muted-foreground">
-                            "{s.title}" <span className="text-muted-foreground/60">({s.similarity}% similar)</span>
+                            &quot;{s.title}&quot; <span className="text-muted-foreground/60">({s.similarity}% similar)</span>
                           </p>
                         ))}
                       </div>
                       <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
-                        If this is genuinely a different title, you can continue. If it's the same comic under a different name, please search for it above instead of submitting a duplicate.
+                        If this is genuinely a different title, you can continue. If it&apos;s the same comic under a different name, please search for it above instead of submitting a duplicate.
                       </p>
                     </div>
                   </div>
@@ -734,7 +741,7 @@ export function RecommendationForm({ userId }: Props) {
             className="h-10"
           />
           <p className="text-[11px] text-muted-foreground leading-snug">
-            Link to a MangaUpdates entry or similar database page. Leave blank and we'll try to find one automatically.
+            Link to a MangaUpdates entry or similar database page. Leave blank and we&apos;ll try to find one automatically.
           </p>
           {errors.more_info_link && <p className="text-xs text-destructive">{errors.more_info_link.message}</p>}
         </div>

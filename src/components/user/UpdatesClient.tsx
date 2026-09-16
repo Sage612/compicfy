@@ -30,6 +30,7 @@ interface BakeItem {
   target_chapter_count: number
   counting_mode: 'from_now' | 'from_read'
   chapter_count_at_bake_start: number
+  progress_chapter?: number | null
   status: 'active' | 'fulfilled'
   recommendations?: { title: string; cover_url: string | null; chapter_count: number }
 }
@@ -437,8 +438,11 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
           </p>
           <div className="space-y-2">
             {activeBakes.map(bake => {
-              const currentCount = bake.recommendations?.chapter_count ?? bake.chapter_count_at_bake_start
-              const chaptersSoFar = Math.max(0, currentCount - bake.chapter_count_at_bake_start)
+              const baseline = bake.chapter_count_at_bake_start
+              const currentCount = bake.counting_mode === 'from_read'
+                ? (bake.progress_chapter ?? baseline)
+                : (bake.recommendations?.chapter_count ?? baseline)
+              const chaptersSoFar = Math.max(0, currentCount - baseline)
               const progressPct = Math.min(100, Math.round((chaptersSoFar / bake.target_chapter_count) * 100))
               const ti = themeIndex(String(bake.id))
 

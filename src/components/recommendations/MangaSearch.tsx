@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Search, Loader2, BookOpen, Sparkles, X } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
-interface MangaResult {
+export interface MangaResult {
   id: string
   title: string
   alternativeTitles: string[]

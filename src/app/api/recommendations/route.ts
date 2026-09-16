@@ -132,7 +132,7 @@ export async function POST(request: Request) {
 
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('role, is_banned, is_pro, pro_expires_at, is_patron, patron_expires_at')
+      .select('role, is_banned, is_pro, pro_expires_at, is_patron, patron_expires_at, user_type')
       .eq('id', user.id)
       .single()
 
@@ -143,6 +143,7 @@ export async function POST(request: Request) {
       pro_expires_at: string | null
       is_patron?:     boolean | null
       patron_expires_at?: string | null
+      user_type:      string
     } | null
 
     if (profile?.is_banned) {
@@ -158,6 +159,10 @@ export async function POST(request: Request) {
     // separate ad-hoc computations that could drift out of sync with
     // each other (and already had, missing patrons in both spots).
     const isProSubmitter = profile ? isProUser(profile as any) : false
+
+    // Derived server-side from the account type — creator accounts submit
+    // their own work by default, reader/curator accounts do not.
+    const isOwnWork = profile?.user_type === 'creator'
 
     // ── Read save_as_draft BEFORE enforcing limits ──
     // FIX: limit checks used to run unconditionally, before we even knew
@@ -232,6 +237,7 @@ export async function POST(request: Request) {
 
         const insertDraft = {
           user_id:            user.id,
+          is_own_work:        isOwnWork,
           title:              data.title,
           description:        data.description,
           type:               data.type,
@@ -287,6 +293,7 @@ export async function POST(request: Request) {
     
     const insertData = {
       user_id:            user.id,
+      is_own_work:        isOwnWork,
       title:              data.title,
       description:        data.description,
       type:               data.type,

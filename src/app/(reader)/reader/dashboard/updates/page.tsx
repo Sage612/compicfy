@@ -78,11 +78,46 @@ export default async function ReaderUpdatesPage() {
     .in('status', ['active', 'fulfilled'])
     .order('created_at', { ascending: false })
 
+  const fromReadBakes = (bakes ?? []).filter((bake: any) => bake.counting_mode === 'from_read')
+  let progressByRecommendation = new Map<string, number>()
+
+  if (fromReadBakes.length > 0) {
+    const recommendationIds = fromReadBakes.map((bake: any) => bake.recommendation_id)
+    const { data: userLists } = await supabase
+      .from('reading_lists')
+      .select('id')
+      .eq('user_id', user.id)
+
+    const listIds = (userLists ?? []).map((list: any) => list.id)
+
+    if (listIds.length > 0) {
+      const { data: progressRows } = await supabase
+        .from('reading_list_items')
+        .select('recommendation_id, progress_chapter, updated_at')
+        .in('recommendation_id', recommendationIds)
+        .in('list_id', listIds)
+        .order('updated_at', { ascending: false })
+
+      for (const row of (progressRows ?? []) as any[]) {
+        if (!progressByRecommendation.has(row.recommendation_id)) {
+          progressByRecommendation.set(row.recommendation_id, row.progress_chapter ?? 0)
+        }
+      }
+    }
+  }
+
+  const bakesWithProgress = (bakes ?? []).map((bake: any) => ({
+    ...bake,
+    progress_chapter: bake.counting_mode === 'from_read'
+      ? (progressByRecommendation.get(bake.recommendation_id) ?? 0)
+      : null,
+  }))
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <UpdatesClient
         initialUpdates={updates}
-        initialBakes={(bakes ?? []) as any}
+        initialBakes={bakesWithProgress as any}
       />
     </div>
   )
