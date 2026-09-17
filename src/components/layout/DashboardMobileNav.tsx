@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
   LayoutDashboard, BookOpen, Bookmark, BookMarked,
   Bell, Settings, CreditCard, Star, Plus,
@@ -11,7 +11,6 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
-// Pure reader concerns — nothing here is about submitting/managing recommendations.
 const READER_ITEMS = [
   { href: '/reader/dashboard',               label: 'Home',        icon: LayoutDashboard, exact: true,  excludePaths: [] as string[] },
   { href: '/reader/dashboard/saved',         label: 'Saved',       icon: Bookmark,        exact: false, excludePaths: [] as string[] },
@@ -23,12 +22,11 @@ const READER_ITEMS = [
   { href: '/reader/dashboard/notifications', label: 'Alerts',      icon: Bell,            exact: false, excludePaths: [] as string[] },
 ]
 
-// Curator concerns — submitting recommendations of others' work and tracking them.
-// "Submit" stays reachable for every reader (it's how curator status is earned in the
-// first place); the rest only matters once you've actually submitted something.
+// Real curator content pages. "Switch to Curator" itself is not a link to
+// one of these — it's the ?view=curator toggle, added separately below.
 const CURATOR_ITEMS = [
-  { href: '/reader/dashboard/recommendations/new', label: 'Submit',  icon: Plus,     exact: true,  isSubmit: true, excludePaths: [] as string[] },
-  { href: '/reader/dashboard/recommendations',     label: 'My Recs', icon: Sparkles, exact: false, isSubmit: false, excludePaths: ['/reader/dashboard/recommendations/new'] },
+  { href: '/reader/dashboard/recommendations', label: 'My Recs', icon: Sparkles, exact: false, isSubmit: false, excludePaths: ['/reader/dashboard/recommendations/new'] },
+  { href: '/reader/dashboard/recommendations/new', label: 'Submit', icon: Plus, exact: true, isSubmit: true, excludePaths: [] as string[] },
 ]
 
 const SETTINGS_ITEMS = [
@@ -47,98 +45,96 @@ const CREATOR_ITEMS = [
   { href: '/creator/dashboard/billing',       label: 'Billing',    icon: CreditCard,      exact: false, isSubmit: false, excludePaths: [] as string[] },
 ]
 
-function isNavItemActive(
-  pathname: string,
-  href: string,
-  exact: boolean,
-  excludePaths: string[] = [],
-): boolean {
+function isNavItemActive(pathname: string, href: string, exact: boolean, excludePaths: string[] = []): boolean {
   if (excludePaths.some(p => pathname === p || pathname.startsWith(p + '/'))) return false
   return exact ? pathname === href : (pathname === href || pathname.startsWith(href + '/'))
 }
 
-function NavLink({
-  href, label, icon: Icon, exact, isSubmit = false, excludePaths = [], pathname,
-  activeColor, activeBg, submitColor, submitBg, dotColor,
-}: any) {
+function NavLink({ href, label, icon: Icon, exact, isSubmit = false, excludePaths = [], pathname, colors }: any) {
   const isActive = isNavItemActive(pathname, href, exact, excludePaths)
   return (
     <Link
       href={href}
       className={cn(
         'relative flex flex-col items-center gap-1 px-3 py-1.5 min-w-[56px] flex-none rounded-xl transition-all duration-150',
-        isActive ? activeColor : isSubmit ? submitColor : 'text-foreground/70 hover:text-foreground'
+        isActive ? colors.activeColor : isSubmit ? colors.submitColor : 'text-foreground/70 hover:text-foreground'
       )}
     >
       <div className={cn(
         'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150',
-        isActive
-          ? `${activeBg} shadow-sm text-white`
-          : isSubmit
-            ? `${submitBg} text-foreground/80`
-            : 'bg-muted/80 text-foreground/70 hover:bg-muted hover:text-foreground'
+        isActive ? `${colors.activeBg} shadow-sm text-white`
+          : isSubmit ? `${colors.submitBg} text-foreground/80`
+          : 'bg-muted/80 text-foreground/70 hover:bg-muted hover:text-foreground'
       )}>
         <Icon size={17} />
       </div>
-      <span className={cn(
-        'text-[9px] font-semibold whitespace-nowrap leading-none',
-        isActive ? activeColor : isSubmit ? submitColor : 'text-foreground/70'
-      )}>
+      <span className={cn('text-[9px] font-semibold whitespace-nowrap leading-none', isActive ? colors.activeColor : isSubmit ? colors.submitColor : 'text-foreground/70')}>
         {label}
       </span>
-      {isActive && <span className={cn('absolute -bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full', dotColor)} />}
+      {isActive && <span className={cn('absolute -bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full', colors.dotColor)} />}
     </Link>
   )
 }
 
 export function DashboardMobileNav() {
-  const pathname                = usePathname()
+  const pathname      = usePathname()
+  const searchParams  = useSearchParams()
   const [userType, setUserType] = useState<'reader' | 'creator'>('reader')
-  const supabase                = createClient()
+  const [isCurator, setIsCurator] = useState(false)
+  const supabase = createClient()
 
   useEffect(() => {
-    const getType = async () => {
+    const getProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const { data: profile } = await (supabase as any)
-        .from('profiles')
-        .select('user_type')
-        .eq('id', user.id)
-        .single()
-      if (profile) setUserType((profile.user_type as 'reader' | 'creator') ?? 'reader')
+        .from('profiles').select('user_type, is_curator').eq('id', user.id).single()
+      if (profile) {
+        setUserType((profile.user_type as 'reader' | 'creator') ?? 'reader')
+        setIsCurator(!!profile.is_curator)
+      }
     }
-    getType()
+    getProfile()
   }, [])
 
   if (userType === 'creator') {
+    const colors = { activeColor: 'text-teal-500', activeBg: 'bg-teal-500 shadow-teal-500/30', submitColor: 'text-teal-500/80', submitBg: 'bg-teal-500/10', dotColor: 'bg-teal-500' }
     return (
       <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden touch-land:flex lg:hidden bg-background/95 backdrop-blur-lg border-t border-border">
         <div className="flex overflow-x-auto no-scrollbar px-2 py-2 gap-1">
-          {CREATOR_ITEMS.map(item => (
-            <NavLink key={item.href} {...item} pathname={pathname}
-              activeColor="text-teal-500" activeBg="bg-teal-500 shadow-teal-500/30"
-              submitColor="text-teal-500/80" submitBg="bg-teal-500/10" dotColor="bg-teal-500"
-            />
-          ))}
+          {CREATOR_ITEMS.map(item => <NavLink key={item.href} {...item} pathname={pathname} colors={colors} />)}
         </div>
         <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
       </nav>
     )
   }
 
-  const colors = {
-    activeColor: 'text-primary', activeBg: 'bg-primary shadow-primary/30',
-    submitColor: 'text-primary/80', submitBg: 'bg-primary/10', dotColor: 'bg-primary',
-  }
+  // The one dynamic part: which item set renders depends on the ACTUAL
+  // active tab (?view=curator), not a static always-visible grouping. A
+  // non-curator never sees curator items at all, regardless of URL.
+  const onCuratorView = isCurator && searchParams.get('view') === 'curator'
+  const items = onCuratorView ? CURATOR_ITEMS : READER_ITEMS
+  const colors = onCuratorView
+    ? { activeColor: 'text-violet-500', activeBg: 'bg-violet-500 shadow-violet-500/30', submitColor: 'text-violet-500/80', submitBg: 'bg-violet-500/10', dotColor: 'bg-violet-500' }
+    : { activeColor: 'text-primary',   activeBg: 'bg-primary shadow-primary/30',       submitColor: 'text-primary/80',   submitBg: 'bg-primary/10',   dotColor: 'bg-primary'   }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden touch-land:flex lg:hidden bg-background/95 backdrop-blur-lg border-t border-border">
       <div className="flex overflow-x-auto no-scrollbar px-2 py-2 gap-1 items-center">
-        {READER_ITEMS.map(item => <NavLink key={item.href} {...item} pathname={pathname} {...colors} />)}
+        {isCurator && (
+          <Link
+            href={onCuratorView ? '/reader/dashboard' : '/reader/dashboard?view=curator'}
+            className="flex flex-col items-center gap-1 px-3 py-1.5 min-w-[56px] flex-none rounded-xl text-foreground/70 hover:text-foreground"
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-muted/80 text-foreground/70 hover:bg-muted hover:text-foreground">
+              {onCuratorView ? <LayoutDashboard size={17} /> : <Sparkles size={17} />}
+            </div>
+            <span className="text-[9px] font-semibold whitespace-nowrap leading-none">{onCuratorView ? 'Reader' : 'Curator'}</span>
+          </Link>
+        )}
+        {items.map(item => <NavLink key={item.href} {...item} pathname={pathname} colors={colors} />)}
         <div className="w-px h-8 bg-border shrink-0 mx-1" />
-        {CURATOR_ITEMS.map(item => <NavLink key={item.href} {...item} pathname={pathname} {...colors} />)}
-        <div className="w-px h-8 bg-border shrink-0 mx-1" />
-        {SETTINGS_ITEMS.map(item => <NavLink key={item.href} {...item} pathname={pathname} {...colors} />)}
+        {SETTINGS_ITEMS.map(item => <NavLink key={item.href} {...item} pathname={pathname} colors={colors} />)}
       </div>
       <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
     </nav>

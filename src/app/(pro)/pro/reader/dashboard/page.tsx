@@ -58,6 +58,14 @@ export default async function ProReaderDashboardPage() {
   startOfMonth.setDate(1)
   startOfMonth.setHours(0, 0, 0, 0)
 
+  // ── FIX: same broken nested-relation filter bug as the free dashboard —
+  // .eq('reading_lists.user_id', ...) on an embedded resource is silently
+  // ignored by PostgREST (already documented/fixed elsewhere in this
+  // codebase). Replaced with the proven two-step list-id pattern. ──
+  const { data: myLists } = await supabase
+    .from('reading_lists').select('id').eq('user_id', user.id)
+  const myListIds = (myLists ?? []).map((l: any) => l.id)
+
   const [
     { count: totalRecs },
     { count: savedCount },
@@ -82,10 +90,13 @@ export default async function ProReaderDashboardPage() {
     supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     (supabase as any).from('pro_leaderboard').select('rank, score').eq('user_id', user.id).order('month', { ascending: false }).limit(1).maybeSingle(),
     (supabase as any).from('profile_views').select('*', { count: 'exact', head: true }).eq('profile_id', user.id).gte('viewed_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
-    supabase.from('reading_list_items')
-      .select('id, list_id, status, progress_chapter, last_read_at, added_at, reading_lists!inner(user_id), recommendations(id, title, cover_url, type, status, chapter_count)')
-      .eq('reading_lists.user_id', user.id).eq('status', 'reading')
-      .order('added_at', { ascending: false }).limit(6),
+    myListIds.length > 0
+      ? supabase.from('reading_list_items')
+          .select('id, list_id, status, progress_chapter, last_read_at, added_at, recommendations(id, title, cover_url, type, status, chapter_count)')
+          .in('list_id', myListIds)
+          .eq('status', 'reading')
+          .order('added_at', { ascending: false }).limit(6)
+      : Promise.resolve({ data: [] }),
     followingIds.length > 0
       ? supabase.from('recommendations')
           .select('id, title, cover_url, type, created_at, user_id, profiles!recommendations_user_id_fkey(username, display_name, avatar_url)')
@@ -129,21 +140,16 @@ export default async function ProReaderDashboardPage() {
     .filter((b: any) => b.counting_mode === 'from_read')
     .map((b: any) => b.recommendation_id)
   const progressByRec = new Map<string, number>()
-  if (fromReadRecIds.length > 0) {
-    const { data: myLists } = await supabase
-      .from('reading_lists').select('id').eq('user_id', user.id)
-    const myListIds = (myLists ?? []).map((l: any) => l.id)
-    if (myListIds.length > 0) {
-      const { data: progressItems } = await supabase
-        .from('reading_list_items')
-        .select('recommendation_id, progress_chapter')
-        .in('list_id', myListIds)
-        .in('recommendation_id', fromReadRecIds)
-      for (const item of (progressItems ?? []) as any[]) {
-        if (item.progress_chapter != null) {
-          const existing = progressByRec.get(item.recommendation_id) ?? 0
-          progressByRec.set(item.recommendation_id, Math.max(existing, item.progress_chapter))
-        }
+  if (fromReadRecIds.length > 0 && myListIds.length > 0) {
+    const { data: progressItems } = await supabase
+      .from('reading_list_items')
+      .select('recommendation_id, progress_chapter')
+      .in('list_id', myListIds)
+      .in('recommendation_id', fromReadRecIds)
+    for (const item of (progressItems ?? []) as any[]) {
+      if (item.progress_chapter != null) {
+        const existing = progressByRec.get(item.recommendation_id) ?? 0
+        progressByRec.set(item.recommendation_id, Math.max(existing, item.progress_chapter))
       }
     }
   }

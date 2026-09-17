@@ -12,11 +12,10 @@ import { CurrentlyReadingSection } from '@/components/recommendations/CurrentlyR
 import { Button } from '@/components/ui/button'
 import {
   BookOpen, Bookmark, Plus, Settings, Flame, ArrowRight,
-  BookMarked, ChevronRight, LayoutList, Users, UserPlus, Radar, Star, Target, Zap,
+  BookMarked, ChevronRight, LayoutList, Users, UserPlus, Radar, Star,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, formatNumber, timeAgo } from '@/lib/utils/format'
-import { FREE_LIMITS } from '@/lib/utils/constants'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Dashboard' }
@@ -58,6 +57,17 @@ export default async function ReaderDashboardPage() {
   startOfMonth.setDate(1)
   startOfMonth.setHours(0, 0, 0, 0)
 
+  // ── FIX: reading_list_items!inner(user_id) + .eq('reading_lists.user_id', ...)
+  // is the exact broken nested-relation-filter pattern already documented and
+  // fixed elsewhere in this codebase (api/bakes/route.ts, reading-progress
+  // route) — PostgREST doesn't reliably apply it. Replaced with the same
+  // two-step list-id pattern used everywhere else this bug was fixed: fetch
+  // this user's own reading_lists ids first, then filter reading_list_items
+  // by list_id IN (...) directly. ──
+  const { data: myLists } = await supabase
+    .from('reading_lists').select('id').eq('user_id', user.id)
+  const myListIds = (myLists ?? []).map((l: any) => l.id)
+
   const [
     { count: listsCount },
     { count: savedCount },
@@ -83,10 +93,13 @@ export default async function ReaderDashboardPage() {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .gte('created_at', startOfMonth.toISOString()),
-    supabase.from('reading_list_items')
-      .select('id, list_id, status, progress_chapter, last_read_at, added_at, reading_lists!inner(user_id), recommendations(id, title, cover_url, type, status, chapter_count)')
-      .eq('reading_lists.user_id', user.id).eq('status', 'reading')
-      .order('added_at', { ascending: false }).limit(6),
+    myListIds.length > 0
+      ? supabase.from('reading_list_items')
+          .select('id, list_id, status, progress_chapter, last_read_at, added_at, recommendations(id, title, cover_url, type, status, chapter_count)')
+          .in('list_id', myListIds)
+          .eq('status', 'reading')
+          .order('added_at', { ascending: false }).limit(6)
+      : Promise.resolve({ data: [] }),
     followingIds.length > 0
       ? supabase
           .from('recommendations')
@@ -125,15 +138,8 @@ export default async function ReaderDashboardPage() {
   ])
 
   // ── Usage limits (free users only) ────────────────────────────
-  const { count: collectionsCount } = await (supabase as any)
-    .from('collections').select('*', { count: 'exact', head: true }).eq('user_id', user.id)
-
-  const recCount              = monthlyRecCount ?? 0   // ← live monthly count, not all-time total
-  const recPct                = Math.min((recCount / FREE_LIMITS.recommendations_per_month) * 100, 100)
-  const followPct             = Math.min(((followingCount ?? 0) / FREE_LIMITS.follows) * 100, 100)
-  const listPct               = Math.min(((listsCount ?? 0) / FREE_LIMITS.lists) * 100, 100)
-  const collectionPct         = Math.min(((collectionsCount ?? 0) / FREE_LIMITS.collections) * 100, 100)
-  const monthlyChapters       = (monthlyActivity ?? []).reduce((sum: number, item: any) => sum + (item.chapters_read ?? 0), 0)
+  const recCount = monthlyRecCount ?? 0
+  const monthlyChapters = (monthlyActivity ?? []).reduce((sum: number, item: any) => sum + (item.chapters_read ?? 0), 0)
 
   const feedItems = (rawFeedItems ?? []).map((r: any) => {
     const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
@@ -144,21 +150,16 @@ export default async function ReaderDashboardPage() {
     .filter((b: any) => b.counting_mode === 'from_read')
     .map((b: any) => b.recommendation_id)
   const progressByRec = new Map<string, number>()
-  if (fromReadRecIds.length > 0) {
-    const { data: myLists } = await supabase
-      .from('reading_lists').select('id').eq('user_id', user.id)
-    const myListIds = (myLists ?? []).map((l: any) => l.id)
-    if (myListIds.length > 0) {
-      const { data: progressItems } = await supabase
-        .from('reading_list_items')
-        .select('recommendation_id, progress_chapter')
-        .in('list_id', myListIds)
-        .in('recommendation_id', fromReadRecIds)
-      for (const item of (progressItems ?? []) as any[]) {
-        if (item.progress_chapter != null) {
-          const existing = progressByRec.get(item.recommendation_id) ?? 0
-          progressByRec.set(item.recommendation_id, Math.max(existing, item.progress_chapter))
-        }
+  if (fromReadRecIds.length > 0 && myListIds.length > 0) {
+    const { data: progressItems } = await supabase
+      .from('reading_list_items')
+      .select('recommendation_id, progress_chapter')
+      .in('list_id', myListIds)
+      .in('recommendation_id', fromReadRecIds)
+    for (const item of (progressItems ?? []) as any[]) {
+      if (item.progress_chapter != null) {
+        const existing = progressByRec.get(item.recommendation_id) ?? 0
+        progressByRec.set(item.recommendation_id, Math.max(existing, item.progress_chapter))
       }
     }
   }
@@ -260,52 +261,6 @@ export default async function ReaderDashboardPage() {
         ctaLabel="Upgrade to Pro Reader"
       />
 
-      {/* Free Plan Limits */}
-      <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Target size={13} className="text-muted-foreground" />
-            <div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Free Plan Status</h2>
-              <p className="text-xs font-semibold">Usage & Resource Limits</p>
-            </div>
-          </div>
-          <Link href="/pricing">
-            <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 border-amber-500/30 text-amber-600 hover:bg-amber-500/10">
-              <Zap size={9} />Upgrade
-            </Button>
-          </Link>
-        </div>
-
-        <div className="space-y-2.5">
-          {[
-            { label: 'Recs this month', current: recCount,              limit: FREE_LIMITS.recommendations_per_month, pct: recPct,        color: 'bg-violet-500' },
-            { label: 'Following',       current: followingCount ?? 0,   limit: FREE_LIMITS.follows,                  pct: followPct,     color: 'bg-primary'    },
-            { label: 'Reading Lists',   current: listsCount ?? 0,       limit: FREE_LIMITS.lists,                    pct: listPct,       color: 'bg-teal-500'   },
-            { label: 'Collections',     current: collectionsCount ?? 0, limit: FREE_LIMITS.collections,              pct: collectionPct, color: 'bg-indigo-500' },
-          ].map(({ label, current, limit, pct, color }) => (
-            <div key={label} className="space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-muted-foreground">{label}</span>
-                <span className={`text-[10px] font-semibold tabular-nums ${pct >= 80 ? 'text-amber-500' : 'text-muted-foreground'}`}>
-                  {current} / {limit}
-                </span>
-              </div>
-              <div className="h-1 rounded-full bg-muted overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${pct >= 90 ? 'bg-amber-500' : color}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p className="text-[10px] text-muted-foreground leading-relaxed">
-          Upgrade to Pro for unlimited recommendations, follows, lists, collections and more.
-        </p>
-      </div>
-
       {/* Stats */}
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Your Stats</h2>
@@ -348,7 +303,6 @@ export default async function ReaderDashboardPage() {
                 <Button size="sm" variant="outline" className="gap-1.5 border-primary/30 text-primary">
                   <BookMarked size={13} />My Lists
                 </Button>
-                
               </Link>
             </div>
           </div>

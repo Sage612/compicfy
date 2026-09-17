@@ -1,11 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
   LayoutDashboard, BookOpen, Bookmark, Star, Bell,
   Settings, BookMarked, CreditCard, Crown, Plus,
-  Users, Link as LinkIcon, Palette, Layers, Upload, Radar, Sparkles,
+  Users, Link as LinkIcon, Palette, Layers, Upload, Radar, Sparkles, ArrowLeftRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
@@ -23,9 +23,6 @@ const READER_NAV = [
   { href: '/reader/dashboard/notifications', label: 'Notifications', icon: Bell,            exact: false, excludePaths: [] as string[] },
 ]
 
-// "Submit a Rec" stays reachable for every reader — it's the entry point into curator
-// status. "My Recs" only really matters once you've submitted something, but there's
-// no harm showing it early; it'll just be empty until then.
 const CURATOR_NAV = [
   { href: '/reader/dashboard/recommendations/new', label: 'Submit a Rec', icon: Plus,      exact: true,  isSubmit: true },
   { href: '/reader/dashboard/recommendations',     label: 'My Recs',      icon: Sparkles,  exact: false, excludePaths: ['/reader/dashboard/recommendations/new'] },
@@ -47,20 +44,14 @@ const CREATOR_NAV = [
   { href: '/creator/dashboard/billing',       label: 'Billing',         icon: CreditCard,      exact: false, isSubmit: false, excludePaths: [] as string[] },
 ]
 
-function isNavItemActive(
-  pathname: string,
-  href: string,
-  exact: boolean,
-  excludePaths: string[] = [],
-): boolean {
+function isNavItemActive(pathname: string, href: string, exact: boolean, excludePaths: string[] = []): boolean {
   if (excludePaths.some(p => pathname === p || pathname.startsWith(p + '/'))) return false
   return exact ? pathname === href : (pathname === href || pathname.startsWith(href + '/'))
 }
 
-function NavItem({ href, label, icon: Icon, exact, isSubmit = false, excludePaths = [], pathname, isPro, isAdmin, accent }: any) {
+function NavItem({ href, label, icon: Icon, exact, isSubmit = false, excludePaths = [], pathname, isPro, isAdmin, isTeal }: any) {
   const isActive  = isNavItemActive(pathname, href, exact, excludePaths)
   const isBilling = href.endsWith('/billing')
-  const isTeal    = accent === 'teal'
 
   return (
     <Link
@@ -95,17 +86,15 @@ function NavItem({ href, label, icon: Icon, exact, isSubmit = false, excludePath
   )
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="px-3 mt-3 mb-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">{children}</p>
-}
-
 export function DashboardNav() {
-  const pathname                  = usePathname()
-  const [isPro,    setIsPro]      = useState(false)
-  const [isAdmin,  setIsAdmin]    = useState(false)
-  const [userType, setUserType]   = useState<'reader' | 'creator'>('reader')
-  const [loaded,   setLoaded]     = useState(false)
-  const supabase                  = createClient()
+  const pathname     = usePathname()
+  const searchParams = useSearchParams()
+  const [isPro,    setIsPro]    = useState(false)
+  const [isAdmin,  setIsAdmin]  = useState(false)
+  const [userType, setUserType] = useState<'reader' | 'creator'>('reader')
+  const [isCurator, setIsCurator] = useState(false)
+  const [loaded,   setLoaded]   = useState(false)
+  const supabase = createClient()
 
   useEffect(() => {
     const getProfile = async () => {
@@ -114,7 +103,7 @@ export function DashboardNav() {
 
       const { data: profile } = await (supabase as any)
         .from('profiles')
-        .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role, user_type')
+        .select('is_pro, pro_expires_at, is_patron, patron_expires_at, role, user_type, is_curator')
         .eq('id', user.id)
         .single()
 
@@ -122,6 +111,7 @@ export function DashboardNav() {
         setIsAdmin(isAdminCheck(profile))
         setIsPro(isProUser(profile))
         setUserType((profile.user_type as 'reader' | 'creator') ?? 'reader')
+        setIsCurator(!!profile.is_curator)
       }
       setLoaded(true)
     }
@@ -137,32 +127,45 @@ export function DashboardNav() {
           </div>
         )}
         {CREATOR_NAV.map(item => (
-          <NavItem key={item.href} {...item} pathname={pathname} isPro={isPro} isAdmin={isAdmin} accent="teal" />
+          <NavItem key={item.href} {...item} pathname={pathname} isPro={isPro} isAdmin={isAdmin} isTeal />
         ))}
       </nav>
     )
   }
 
+  // The real fix: which set renders depends on the actual active tab, read
+  // from the same ?view= param DashboardViewTabs writes to — not a static
+  // "show both, labeled" grouping.
+  const onCuratorView = isCurator && searchParams.get('view') === 'curator'
+
   return (
     <nav className="flex flex-col gap-0.5">
       {loaded && (
-        <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-xl border bg-primary/10 border-primary/20 text-primary text-xs font-black">
-          <BookOpen size={12} />Reader Dashboard
+        <div className={cn(
+          'flex items-center justify-between gap-2 px-3 py-2 mb-2 rounded-xl border text-xs font-black',
+          onCuratorView ? 'bg-violet-500/10 border-violet-500/20 text-violet-600 dark:text-violet-400' : 'bg-primary/10 border-primary/20 text-primary'
+        )}>
+          <span className="flex items-center gap-2">
+            {onCuratorView ? <><Sparkles size={12} />Curator</> : <><BookOpen size={12} />Reader Dashboard</>}
+          </span>
+          {isCurator && (
+            <Link
+              href={onCuratorView ? '/reader/dashboard' : '/reader/dashboard?view=curator'}
+              className="flex items-center gap-1 text-[10px] font-bold opacity-70 hover:opacity-100 transition-opacity"
+            >
+              <ArrowLeftRight size={10} />
+              {onCuratorView ? 'Reader' : 'Curator'}
+            </Link>
+          )}
         </div>
       )}
 
-      {READER_NAV.map(item => (
-        <NavItem key={item.href} {...item} pathname={pathname} isPro={isPro} isAdmin={isAdmin} accent="primary" />
+      {(onCuratorView ? CURATOR_NAV : READER_NAV).map(item => (
+        <NavItem key={item.href} {...item} pathname={pathname} isPro={isPro} isAdmin={isAdmin} isTeal={false} />
       ))}
 
-      <SectionLabel>Curator</SectionLabel>
-      {CURATOR_NAV.map(item => (
-        <NavItem key={item.href} {...item} pathname={pathname} isPro={isPro} isAdmin={isAdmin} accent="primary" />
-      ))}
-
-      <SectionLabel>Account</SectionLabel>
       {SETTINGS_NAV.map(item => (
-        <NavItem key={item.href} {...item} pathname={pathname} isPro={isPro} isAdmin={isAdmin} accent="primary" />
+        <NavItem key={item.href} {...item} pathname={pathname} isPro={isPro} isAdmin={isAdmin} isTeal={false} />
       ))}
     </nav>
   )

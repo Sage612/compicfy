@@ -17,18 +17,36 @@ const REPORT_REASONS = [
   { value: 'other',           label: 'Other'                       },
 ]
 
+// A separate, tag-specific reason set — "duplicate recommendation" and
+// "wrong platform listed" don't make sense for a bad tag assignment.
+// Kept short and relevant to what a tag report is actually ever about:
+// the tag is wrong for this comic, or it's abusive/spam.
+const TAG_REPORT_REASONS = [
+  { value: 'irrelevant_tag', label: "Doesn't apply to this comic" },
+  { value: 'spam',           label: 'Spam or abusive tag'         },
+  { value: 'duplicate_tag',  label: 'Duplicate of another tag'    },
+  { value: 'other',          label: 'Other'                       },
+]
+
+// entityType-to-display-label — extend here, not with more inline
+// ternaries, whenever ReportButton needs to support another entity.
+const ENTITY_LABELS: Record<Props['entityType'], string> = {
+  recommendation:     'Recommendation',
+  review:              'Review',
+  recommendation_tag: 'Tag',
+}
+
 interface Props {
-  entityType: 'recommendation' | 'review'
+  entityType: 'recommendation' | 'review' | 'recommendation_tag'
   entityId:   string
   isLoggedIn: boolean
   compact?:   boolean
   /**
-   * NEW: renders as a full bordered button matching ShareButton's
-   * non-compact style (px-3.5 py-2 rounded-xl border bg-card), instead
-   * of the bare text link. Used when Report is paired in a button row
-   * (e.g. next to Share in the action deck) so the two visually match
-   * instead of one being a tiny inline link next to a real button.
-   * Does not affect the existing `compact` byline usage.
+   * Renders as a full bordered button matching ShareButton's non-compact
+   * style, instead of the bare text link. Used when Report is paired in
+   * a button row (e.g. next to Share in the action deck) so the two
+   * visually match instead of one being a tiny inline link next to a
+   * real button. Does not affect the existing `compact` byline usage.
    */
   asButton?: boolean
 }
@@ -40,6 +58,8 @@ export function ReportButton({ entityType, entityId, isLoggedIn, compact = false
   const [submitting,   setSubmitting]   = useState(false)
   const [submitted,    setSubmitted]    = useState(false)
   const [authPrompt,   setAuthPrompt]   = useState(false)
+
+  const reasons = entityType === 'recommendation_tag' ? TAG_REPORT_REASONS : REPORT_REASONS
 
   const handleOpen = () => {
     if (!isLoggedIn) { setAuthPrompt(true); return }
@@ -116,7 +136,7 @@ export function ReportButton({ entityType, entityId, isLoggedIn, compact = false
                   <Flag size={11} className="text-destructive" />
                 </div>
                 <p className="text-xs font-black uppercase tracking-widest text-destructive">
-                  Report {entityType === 'recommendation' ? 'Recommendation' : 'Review'}
+                  Report {ENTITY_LABELS[entityType]}
                 </p>
               </div>
               <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -149,7 +169,7 @@ export function ReportButton({ entityType, entityId, isLoggedIn, compact = false
                         className="w-full appearance-none h-10 px-3 pr-8 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50"
                       >
                         <option value="">Select a reason…</option>
-                        {REPORT_REASONS.map(r => (
+                        {reasons.map(r => (
                           <option key={r.value} value={r.value}>{r.label}</option>
                         ))}
                       </select>

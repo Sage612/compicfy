@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { BookOpen, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -11,7 +11,22 @@ interface Props {
 }
 
 export function DashboardViewTabs({ showCurator, readerView, curatorView }: Props) {
-  const [tab, setTab] = useState<'reader' | 'curator'>('reader')
+  const router       = useRouter()
+  const pathname     = usePathname()
+  const searchParams = useSearchParams()
+
+  // URL, not local state — this is what lets the nav (a separate component)
+  // know which tab is active and show matching links, without prop-drilling
+  // or a context provider across the layout boundary.
+  const tab = searchParams.get('view') === 'curator' ? 'curator' : 'reader'
+
+  const setTab = (next: 'reader' | 'curator') => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (next === 'reader') params.delete('view') // keep the URL clean on the default tab
+    else params.set('view', next)
+    const qs = params.toString()
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }
 
   // Not a curator yet — no tabs, just the reader view. Nothing changes for
   // the vast majority of accounts that haven't earned this yet.

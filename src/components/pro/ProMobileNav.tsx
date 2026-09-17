@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
   BarChart2, BookOpen, Bookmark, Bell,
   Settings, LayoutDashboard, BookMarked, Trophy, Download,
@@ -22,7 +22,6 @@ const PRO_READER_ITEMS = [
   { href: '/pro/reader/dashboard/notifications',       label: 'Alerts',      icon: Bell,            exact: false, excludePaths: [] as string[] },
 ]
 
-// Everything about submitting/managing/measuring recommendations lives here now.
 const PRO_CURATOR_ITEMS = [
   { href: '/pro/reader/dashboard/recommendations/new', label: 'Submit',    icon: Plus,      exact: true,  isSubmit: true, excludePaths: [] as string[] },
   { href: '/pro/reader/dashboard/recommendations',     label: 'My Recs',   icon: Sparkles,  exact: false, excludePaths: ['/pro/reader/dashboard/recommendations/new'] },
@@ -52,12 +51,7 @@ interface Props {
   userType?: 'reader' | 'creator'
 }
 
-function isNavItemActive(
-  pathname: string,
-  href: string,
-  exact: boolean,
-  excludePaths: string[] = [],
-): boolean {
+function isNavItemActive(pathname: string, href: string, exact: boolean, excludePaths: string[] = []): boolean {
   if (excludePaths.some(p => pathname === p || pathname.startsWith(p + '/'))) return false
   return exact ? pathname === href : (pathname === href || pathname.startsWith(href + '/'))
 }
@@ -81,10 +75,7 @@ function NavLink({ href, label, icon: Icon, exact, isSubmit = false, excludePath
         isActive ? activeColor : isSubmit ? submitColor : idleColor
       )}
     >
-      <div className={cn(
-        'w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150',
-        isActive ? `${activeBg} shadow-sm` : isSubmit ? submitBg : idleBg
-      )}>
+      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-150', isActive ? `${activeBg} shadow-sm` : isSubmit ? submitBg : idleBg)}>
         <Icon size={18} />
       </div>
       <span className="text-[10px] font-bold whitespace-nowrap leading-none tracking-tight">{label}</span>
@@ -94,23 +85,24 @@ function NavLink({ href, label, icon: Icon, exact, isSubmit = false, excludePath
 }
 
 export function ProMobileNav({ userType: userTypeProp }: Props = {}) {
-  const pathname                = usePathname()
+  const pathname     = usePathname()
+  const searchParams = useSearchParams()
   const [userType, setUserType] = useState<'reader' | 'creator'>(userTypeProp ?? 'reader')
-  const supabase                = createClient()
+  const [isCurator, setIsCurator] = useState(false)
+  const supabase = createClient()
 
   useEffect(() => {
-    if (userTypeProp) return
-    const getType = async () => {
+    const getProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const { data: profile } = await (supabase as any)
-        .from('profiles')
-        .select('user_type')
-        .eq('id', user.id)
-        .single()
-      if (profile) setUserType((profile.user_type as 'reader' | 'creator') ?? 'reader')
+        .from('profiles').select('user_type, is_curator').eq('id', user.id).single()
+      if (profile) {
+        if (!userTypeProp) setUserType((profile.user_type as 'reader' | 'creator') ?? 'reader')
+        setIsCurator(!!profile.is_curator)
+      }
     }
-    getType()
+    getProfile()
   }, [userTypeProp])
 
   const isCreator = userType === 'creator'
@@ -126,12 +118,24 @@ export function ProMobileNav({ userType: userTypeProp }: Props = {}) {
     )
   }
 
+  const onCuratorView = isCurator && searchParams.get('view') === 'curator'
+  const items = onCuratorView ? PRO_CURATOR_ITEMS : PRO_READER_ITEMS
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden touch-land:flex lg:hidden bg-background/95 backdrop-blur-lg border-t border-border">
       <div className="flex overflow-x-auto no-scrollbar px-2 py-2 gap-1 items-center">
-        {PRO_READER_ITEMS.map(item => <NavLink key={item.href} {...item} pathname={pathname} isCreator={false} />)}
-        <div className="w-px h-8 bg-border shrink-0 mx-1" />
-        {PRO_CURATOR_ITEMS.map(item => <NavLink key={item.href} {...item} pathname={pathname} isCreator={false} />)}
+        {isCurator && (
+          <Link
+            href={onCuratorView ? '/pro/reader/dashboard' : '/pro/reader/dashboard?view=curator'}
+            className="flex flex-col items-center gap-1 px-3 py-1.5 min-w-[56px] flex-none rounded-xl text-amber-500/60 hover:text-amber-500"
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-amber-500/5 hover:bg-amber-500/10">
+              {onCuratorView ? <LayoutDashboard size={18} /> : <Sparkles size={18} />}
+            </div>
+            <span className="text-[10px] font-bold whitespace-nowrap leading-none tracking-tight">{onCuratorView ? 'Reader' : 'Curator'}</span>
+          </Link>
+        )}
+        {items.map(item => <NavLink key={item.href} {...item} pathname={pathname} isCreator={false} />)}
         <div className="w-px h-8 bg-border shrink-0 mx-1" />
         {PRO_SETTINGS_ITEMS.map(item => <NavLink key={item.href} {...item} pathname={pathname} isCreator={false} />)}
       </div>

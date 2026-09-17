@@ -1,7 +1,54 @@
+// src/app/api/recommendation-tags/route.ts
+//
+// GET /api/recommendation-tags?recommendation_id=<uuid> — lists all tags
+// currently attached to a comic. No auth required (matches the
+// "viewable by everyone" RLS policy on recommendation_tags) — needed by
+// TagList on the public comic detail page.
+//
+// POST /api/recommendation-tags — attaches an existing, approved tag to
+// a comic. Any logged-in user can do this (not just the original
+// submitter), since the whole point is that no single person knows every
+// applicable trope/mood for a comic. Enforces a soft cap (15 tags per
+// comic) at the application layer.
+
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
 const MAX_TAGS_PER_COMIC = 15
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const recommendationId = searchParams.get('recommendation_id')
+
+  if (!recommendationId) {
+    return NextResponse.json({ error: 'recommendation_id is required' }, { status: 400 })
+  }
+
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('recommendation_tags')
+    .select('id, tag_id, tags(id, name, category)')
+    .eq('recommendation_id', recommendationId)
+
+  if (error) {
+    console.error('Failed to fetch recommendation tags:', error)
+    return NextResponse.json({ tags: [] })
+  }
+
+  const tags = (data ?? [])
+    .filter((row: any) => row.tags) // guard against a dangling tag_id if a tag was ever hard-deleted
+    .map((row: any) => ({
+      relationId: row.id,
+      tag: {
+        id:       row.tags.id,
+        name:     row.tags.name,
+        category: row.tags.category,
+      },
+    }))
+
+  return NextResponse.json({ tags })
+}
 
 export async function POST(req: Request) {
   const supabase = await createClient()
@@ -15,10 +62,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'recommendation_id and tag_id are required' }, { status: 400 })
   }
 
-  // Confirm the tag is actually approved — a pending/rejected tag_id
-  // should never be attachable, even if someone crafts the request
-  // directly (RLS doesn't block this specifically since
-  // recommendation_tags' own insert policy only checks added_by).
   const { data: tag, error: tagError } = await supabase
     .from('tags')
     .select('id, status')
@@ -29,7 +72,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Tag not found or not approved' }, { status: 400 })
   }
 
-  // Enforce the cap.
   const { count, error: countError } = await supabase
     .from('recommendation_tags')
     .select('id', { count: 'exact', head: true })
@@ -56,8 +98,6 @@ export async function POST(req: Request) {
     .single()
 
   if (error) {
-    // Unique constraint violation means this exact tag is already on
-    // this comic — a friendlier message than a raw DB error.
     if (error.code === '23505') {
       return NextResponse.json({ error: 'This tag is already on this comic' }, { status: 409 })
     }
