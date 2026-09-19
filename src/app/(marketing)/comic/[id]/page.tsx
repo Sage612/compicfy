@@ -634,11 +634,13 @@ export default async function ComicDetailPage({ params }: Props) {
                 </div>
               )}
 
-              <MyReadingSources
-                comicId={id}
-                isLoggedIn={!!user}
-                isPro={currentUserIsPro}
-              />
+              <div id="reading-sources" className="scroll-mt-24">
+                <MyReadingSources
+                  comicId={id}
+                  isLoggedIn={!!user}
+                  isPro={currentUserIsPro}
+                />
+              </div>
 
               {rec.more_info_link && (
                 <MoreInfoSection

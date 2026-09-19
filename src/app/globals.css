@@ -229,6 +229,7 @@
   --font-sans: var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
   --font-display: 'Syne', var(--font-geist-sans), system-ui, sans-serif;
+  --font-dashboard-serif: var(--font-dashboard-serif-raw), Georgia, serif;
 
   /* ── COLORS ── */
   --color-background: var(--background);

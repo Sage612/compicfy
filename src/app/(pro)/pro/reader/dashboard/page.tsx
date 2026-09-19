@@ -13,7 +13,7 @@ import { NotificationsFeedSection } from '@/components/dashboard/NotificationsFe
 import { CurrentlyReadingSection } from '@/components/recommendations/CurrentlyReadingSection'
 import { Button } from '@/components/ui/button'
 import {
-  Crown, BarChart2, Eye, Download, Trophy,
+  Crown, Trophy,
   BookOpen, Bookmark, ArrowRight,
   Zap, ChevronRight, Plus, Settings,
   LayoutList, BookMarked, Flame, Users, UserPlus, Star,
@@ -167,15 +167,7 @@ export default async function ProReaderDashboardPage() {
   const hasReadingItems   = (currentlyReading ?? []).length > 0
   const monthlyChapters   = (monthlyActivity ?? []).reduce((sum: number, item: any) => sum + (item.chapters_read ?? 0), 0)
 
-  const proTools = [
-    { href: '/pro/reader/dashboard/analytics',   icon: BarChart2, label: 'Analytics',     desc: 'See your rec performance',           color: 'bg-violet-500/10', text: 'text-violet-500' },
-    { href: '/pro/reader/dashboard/analytics',   icon: Eye,       label: 'Profile Views', desc: `${viewsThisMonth ?? 0} this month`,  color: 'bg-blue-500/10',   text: 'text-blue-500'   },
-    { href: '/pro/reader/dashboard/export',      icon: Download,  label: 'Export Lists',  desc: 'Download as CSV or PDF',             color: 'bg-primary/10',    text: 'text-primary'    },
-    { href: '/pro/reader/dashboard/leaderboard', icon: Trophy,    label: 'Leaderboard',   desc: leaderboardEntry?.rank ? `Rank #${leaderboardEntry.rank}` : 'See your rank', color: 'bg-amber-500/10', text: 'text-amber-500' },
-  ]
-
   const statsRow = [
-    { label: 'Recommendations', value: totalRecs ?? 0,      icon: BookOpen,   color: 'text-violet-500', bg: 'bg-violet-500/10', href: '/pro/reader/dashboard/recommendations' },
     { label: 'Saved Comics',    value: savedCount ?? 0,     icon: Bookmark,   color: 'text-primary',    bg: 'bg-primary/10',    href: '/pro/reader/dashboard/saved'           },
     { label: 'Reading Lists',   value: listsCount ?? 0,     icon: BookMarked, color: 'text-teal-500',   bg: 'bg-teal-500/10',   href: '/pro/reader/dashboard/lists'           },
     { label: 'Reviews Written', value: reviewCount ?? 0,    icon: Star,       color: 'text-amber-500',  bg: 'bg-amber-500/10',  href: '/pro/reader/dashboard/reviews'         },
@@ -240,27 +232,6 @@ export default async function ProReaderDashboardPage() {
               </div>
               <p className="text-2xl font-black tabular-nums">{value}</p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{label}</p>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Pro Tools */}
-      <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Pro Tools</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {proTools.map(({ href, icon: Icon, label, desc, color, text }) => (
-            <Link key={`${href}-${label}`} href={href}>
-              <div className="group flex items-center gap-4 p-4 rounded-2xl border border-border bg-card hover:border-amber-500/40 hover:shadow-md transition-all duration-200 cursor-pointer">
-                <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform', color)}>
-                  <Icon size={17} className={text} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold group-hover:text-amber-600 transition-colors">{label}</p>
-                  <p className="text-xs text-muted-foreground truncate">{desc}</p>
-                </div>
-                <ArrowRight size={14} className="text-muted-foreground/30 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
-              </div>
             </Link>
           ))}
         </div>

@@ -133,10 +133,11 @@ export function DashboardNav() {
     )
   }
 
-  // The real fix: which set renders depends on the actual active tab, read
-  // from the same ?view= param DashboardViewTabs writes to — not a static
-  // "show both, labeled" grouping.
-  const onCuratorView = isCurator && searchParams.get('view') === 'curator'
+  // Same fix as DashboardMobileNav: curator mode persists once you're on a
+  // curator route itself, not just while the ?view= param happens to be set.
+  const CURATOR_ROUTE_PREFIXES = ['/reader/dashboard/recommendations']
+  const onCuratorRoute = CURATOR_ROUTE_PREFIXES.some(p => pathname.startsWith(p))
+  const onCuratorView = isCurator && (searchParams.get('view') === 'curator' || onCuratorRoute)
 
   return (
     <nav className="flex flex-col gap-0.5">

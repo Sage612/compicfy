@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { Croissant, Calendar } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 type Bake = {
   id:                          number
@@ -54,8 +53,8 @@ export function ActiveBakesSection({ bakes }: Props) {
 
   return (
     <div>
-      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-        <Croissant size={13} />Active Bakes
+      <h2 className="font-dashboard-serif text-xl mb-3 flex items-center gap-2">
+        <Croissant size={16} className="text-muted-foreground/60" />Active bakes
       </h2>
       <div className="space-y-2">
         {bakes.map(bake => {
@@ -66,7 +65,7 @@ export function ActiveBakesSection({ bakes }: Props) {
             <Link
               key={bake.id}
               href={`/comic/${bake.recommendation.id}`}
-              className="flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-primary/30 transition-colors"
+              className="flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-foreground/20 transition-colors"
             >
               <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
                 {bake.recommendation.cover_url && (
@@ -74,20 +73,20 @@ export function ActiveBakesSection({ bakes }: Props) {
                 )}
               </div>
               <div className="flex-1 min-w-0 space-y-1.5">
-                <p className="text-xs font-black truncate">{bake.recommendation.title}</p>
-                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <p className="text-sm font-medium truncate">{bake.recommendation.title}</p>
+                <div className="h-1 rounded-full bg-muted overflow-hidden">
                   <div
-                    className={cn('h-full rounded-full transition-all duration-700', isReady ? 'bg-emerald-500' : 'bg-amber-500')}
+                    className="h-full rounded-full bg-foreground/70 transition-all duration-700"
                     style={{ width: `${pct}%` }}
                   />
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">
-                    {isReady ? '🎉 Ready to binge!' : `${current} / ${target} chapters`}
+                  <span className="text-xs text-muted-foreground">
+                    {isReady ? 'Ready to binge' : `${current} / ${target} chapters`}
                   </span>
                   {bake.predicted_ready_at && !isReady && (
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <Calendar size={9} />~{new Date(bake.predicted_ready_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Calendar size={10} />~{new Date(bake.predicted_ready_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                     </span>
                   )}
                 </div>

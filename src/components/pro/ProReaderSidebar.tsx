@@ -73,7 +73,14 @@ export function ProReaderSidebar() {
     getProfile()
   }, [])
 
-  const onCuratorView = isCurator && searchParams.get('view') === 'curator'
+  const CURATOR_ROUTE_PREFIXES = [
+    '/pro/reader/dashboard/recommendations',
+    '/pro/reader/dashboard/analytics',
+    '/pro/reader/dashboard/export',
+    '/pro/reader/dashboard/leaderboard',
+  ]
+  const onCuratorRoute = CURATOR_ROUTE_PREFIXES.some(p => pathname.startsWith(p))
+  const onCuratorView = isCurator && (searchParams.get('view') === 'curator' || onCuratorRoute)
 
   return (
     <div className="flex flex-col gap-1 w-full">

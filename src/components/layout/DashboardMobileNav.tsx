@@ -109,10 +109,15 @@ export function DashboardMobileNav() {
     )
   }
 
-  // The one dynamic part: which item set renders depends on the ACTUAL
-  // active tab (?view=curator), not a static always-visible grouping. A
-  // non-curator never sees curator items at all, regardless of URL.
-  const onCuratorView = isCurator && searchParams.get('view') === 'curator'
+  // The mode is curator if EITHER the ?view=curator param is set (set by the
+  // dashboard-home tab switcher) OR the current path is itself one of the
+  // curator-only routes. The second check is what keeps the nav correct
+  // once you actually click into My Recs/Submit — those pages have no
+  // ?view= param of their own, so relying on the param alone made the nav
+  // silently revert to Reader the instant you left the dashboard home page.
+  const CURATOR_ROUTE_PREFIXES = ['/reader/dashboard/recommendations']
+  const onCuratorRoute = CURATOR_ROUTE_PREFIXES.some(p => pathname.startsWith(p))
+  const onCuratorView = isCurator && (searchParams.get('view') === 'curator' || onCuratorRoute)
   const items = onCuratorView ? CURATOR_ITEMS : READER_ITEMS
   const colors = onCuratorView
     ? { activeColor: 'text-violet-500', activeBg: 'bg-violet-500 shadow-violet-500/30', submitColor: 'text-violet-500/80', submitBg: 'bg-violet-500/10', dotColor: 'bg-violet-500' }

@@ -118,7 +118,14 @@ export function ProMobileNav({ userType: userTypeProp }: Props = {}) {
     )
   }
 
-  const onCuratorView = isCurator && searchParams.get('view') === 'curator'
+  const CURATOR_ROUTE_PREFIXES = [
+    '/pro/reader/dashboard/recommendations',
+    '/pro/reader/dashboard/analytics',
+    '/pro/reader/dashboard/export',
+    '/pro/reader/dashboard/leaderboard',
+  ]
+  const onCuratorRoute = CURATOR_ROUTE_PREFIXES.some(p => pathname.startsWith(p))
+  const onCuratorView = isCurator && (searchParams.get('view') === 'curator' || onCuratorRoute)
   const items = onCuratorView ? PRO_CURATOR_ITEMS : PRO_READER_ITEMS
 
   return (
