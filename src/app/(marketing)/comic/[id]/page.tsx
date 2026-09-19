@@ -29,6 +29,7 @@ import { MobileActionBar } from '@/components/recommendations/MobileActionBar'
 import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnButton'
 import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { MoreInfoSection } from '@/components/comic-detail/MoreInfoSection'
+import { TagList } from '@/components/comic-detail/TagList'
 import { resolvePlatformIcon } from '@/lib/utils/platformIcons'
 import { headers } from 'next/headers'
 import { Fraunces, JetBrains_Mono } from 'next/font/google'
@@ -588,6 +589,9 @@ export default async function ComicDetailPage({ params }: Props) {
                   ))}
                 </div>
               )}
+
+              {/* Trope/mood tags — roadmap item #2 */}
+              <TagList recommendationId={id} isLoggedIn={!!user} />
 
               {rec.official_platforms && rec.official_platforms.length > 0 && (
                 <div className="flex md:flex-wrap justify-center md:justify-start gap-2 overflow-x-auto md:overflow-visible no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
