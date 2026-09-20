@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Flame, BookOpen, Bookmark, BookMarked, Star, CheckCircle2 } from 'lucide-react'
+import { Flame, BookOpen, Bookmark, BookMarked, Star, CheckCircle2, Target } from 'lucide-react'
 
 interface Props {
   savedCount:        number
@@ -9,49 +9,74 @@ interface Props {
   monthlyChapters:   number
   lastMonthChapters: number
   completedCount:    number
+  currentStreak:     number
+  monthlyGoal:       number
   savedHref:   string
   listsHref:   string
   reviewsHref: string
 }
 
-function Stat({ icon: Icon, label, value, sub, href }: {
+function StatCard({ icon: Icon, label, value, sub }: {
   icon: React.ElementType
   label: string
   value: string
   sub?: string
-  href?: string
 }) {
-  const content = (
-    <div className="flex items-center gap-3 py-3">
-      <Icon size={15} className="text-muted-foreground/50 shrink-0" />
-      <div className="min-w-0 flex-1">
-        <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60">{label}</p>
-        <p className="text-lg font-medium tabular-nums leading-tight">{value}</p>
+  return (
+    <div className="rounded-2xl border border-border p-4 space-y-2">
+      <div className="flex items-center gap-1.5 text-muted-foreground/60">
+        <Icon size={14} />
+        <span className="text-xs">{label}</span>
       </div>
-      {sub && <p className="text-xs text-muted-foreground shrink-0">{sub}</p>}
+      <p className="text-2xl font-medium tabular-nums leading-none">{value}</p>
+      {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
     </div>
   )
-  return href ? <Link href={href} className="hover:opacity-70 transition-opacity">{content}</Link> : content
 }
 
 export function ReaderStatsSection({
   savedCount, listsCount, reviewCount, allTimeChapters, monthlyChapters,
-  lastMonthChapters, completedCount, savedHref, listsHref, reviewsHref,
+  lastMonthChapters, completedCount, currentStreak, monthlyGoal,
+  savedHref, listsHref, reviewsHref,
 }: Props) {
   const delta = monthlyChapters - lastMonthChapters
   const deltaPct = lastMonthChapters > 0 ? Math.round((delta / lastMonthChapters) * 100) : null
   const monthlySub = deltaPct === null ? undefined : `${deltaPct >= 0 ? '+' : ''}${deltaPct}% vs last month`
 
+  const goalPct = monthlyGoal > 0 ? Math.min(100, Math.round((monthlyChapters / monthlyGoal) * 100)) : 0
+
   return (
     <div>
-      <h2 className="font-dashboard-serif text-xl mb-1">Reader stats</h2>
-      <div className="divide-y divide-border">
-        <Stat icon={BookOpen}      label="All-time reads"  value={`${allTimeChapters.toLocaleString()} ch.`} />
-        <Stat icon={Flame}         label="This month"      value={`${monthlyChapters} ch.`} sub={monthlySub} />
-        <Stat icon={CheckCircle2}  label="Completed"       value={`${completedCount} series`} />
-        <Stat icon={Bookmark}      label="Saved comics"    value={String(savedCount)}  href={savedHref} />
-        <Stat icon={BookMarked}    label="Reading lists"   value={String(listsCount)}  href={listsHref} />
-        <Stat icon={Star}          label="Reviews written" value={String(reviewCount)} href={reviewsHref} />
+      <h2 className="font-dashboard-serif text-xl mb-3">Reader stats</h2>
+
+      <div className="grid grid-cols-2 gap-3">
+        <StatCard icon={Flame}        label="Streak"          value={`${currentStreak}`} sub={currentStreak === 1 ? '1 day in a row' : `${currentStreak} days in a row`} />
+        <StatCard icon={BookOpen}     label="This month"      value={String(monthlyChapters)} sub={monthlySub} />
+        <StatCard icon={BookOpen}     label="All time"        value={allTimeChapters.toLocaleString()} sub="chapters read" />
+        <StatCard icon={CheckCircle2} label="Completed"       value={String(completedCount)} sub="series closed" />
+
+        <Link href={savedHref}>
+          <StatCard icon={Bookmark}   label="Saved comics"    value={String(savedCount)} />
+        </Link>
+        <Link href={listsHref}>
+          <StatCard icon={BookMarked} label="Reading lists"   value={String(listsCount)} />
+        </Link>
+        <Link href={reviewsHref} className="col-span-2">
+          <StatCard icon={Star}       label="Reviews written" value={String(reviewCount)} />
+        </Link>
+      </div>
+
+      {/* Monthly goal — full width */}
+      <div className="rounded-2xl border border-border p-4 space-y-2 mt-3">
+        <div className="flex items-center gap-1.5 text-muted-foreground/60">
+          <Target size={14} />
+          <span className="text-xs">Monthly goal</span>
+        </div>
+        <p className="text-2xl font-medium tabular-nums leading-none">{goalPct}%</p>
+        <p className="text-xs text-muted-foreground">{monthlyChapters} / {monthlyGoal} ch.</p>
+        <div className="h-1 rounded-full bg-muted overflow-hidden mt-1">
+          <div className="h-full rounded-full bg-foreground/70 transition-all duration-700" style={{ width: `${goalPct}%` }} />
+        </div>
       </div>
     </div>
   )

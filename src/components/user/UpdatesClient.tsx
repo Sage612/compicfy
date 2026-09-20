@@ -150,7 +150,7 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
       onClick: () => { window.location.href = `/comic/${bake.recommendation_id}` },
     }] : []),
     {
-      label: 'Stop baking',
+      label: bake.status === 'fulfilled' ? 'Dismiss' : 'Stop baking',
       icon: busyBakeId === bake.id ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />,
       onClick: () => clearBake(bake),
       destructive: true,

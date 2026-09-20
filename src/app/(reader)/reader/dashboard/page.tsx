@@ -6,7 +6,7 @@ import { ReaderStatsSection } from '@/components/dashboard/ReaderStatsSection'
 import { ActiveBakesSection } from '@/components/dashboard/ActiveBakesSection'
 import { NotificationsFeedSection } from '@/components/dashboard/NotificationsFeedSection'
 import { CircleSection } from '@/components/dashboard/CircleSection'
-import { QuickAccessSection } from '@/components/dashboard/QuickAccessSection.tsx'
+import { QuickAccessSection } from '@/components/dashboard/QuickAccessSection'
 import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { ProUpsellCard } from '@/components/dashboard/ProUpsellCard'
 import { DashboardViewTabs } from '@/components/dashboard/DashboardViewTabs'
@@ -226,6 +226,8 @@ export default async function ReaderDashboardPage() {
         monthlyChapters={monthlyChapters}
         lastMonthChapters={lastMonthChapters}
         completedCount={completedCount ?? 0}
+        currentStreak={profile.current_streak ?? 0}
+        monthlyGoal={profile.monthly_reading_goal ?? 50}
         savedHref="/reader/dashboard/saved"
         listsHref="/reader/dashboard/lists"
         reviewsHref="/reader/dashboard/reviews"

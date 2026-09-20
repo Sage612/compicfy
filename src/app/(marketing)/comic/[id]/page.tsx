@@ -11,7 +11,7 @@ import { isProUser } from '@/lib/access'
 import {
   BookOpen, Calendar, Hash, User, Palette,
   Globe, ExternalLink, ArrowLeft, ShieldAlert,
-  Star, ThumbsUp, Bookmark, MessageSquare,
+  Star, ThumbsUp, Bookmark, MessageSquare, Eye,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, timeAgo } from '@/lib/utils/format'
@@ -71,6 +71,15 @@ function ratioToStars(upvotes: number, downvotes: number): number {
 function isCrawler(userAgent: string): boolean {
   return /googlebot|bingbot|slurp|duckduckbot|baiduspider|yandex|facebot|ia_archiver|twitterbot|linkedinbot|whatsapp|telegrambot/i
     .test(userAgent)
+}
+
+// Mobile-only quick-stat line under the title (Score · Views · Chapters),
+// mirroring the compact "8.6/10 · 1.1M · 98 ch" density from the reference
+// screens. Uses real fields only — rec.score, rec.view_count, rec.chapter_count.
+// No per-chapter data exists in the schema (no `chapters` table), so this
+// stays aggregate rather than listing individual chapters.
+function formatCompactNumber(n: number): string {
+  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -435,13 +444,22 @@ export default async function ComicDetailPage({ params }: Props) {
     </div>
   )
 
+  // Mobile-only compact stat line under the title. Real fields only:
+  // rec.score, rec.view_count, rec.chapter_count. No fabricated data.
+  const mobileQuickStats: { icon: typeof Star; label: string }[] = [
+    { icon: Star, label: rec.score != null ? `${rec.score.toFixed(1)}/10` : '— /10' },
+    { icon: Eye,  label: formatCompactNumber(rec.view_count ?? 0) },
+    ...(rec.chapter_count ? [{ icon: BookOpen, label: `${rec.chapter_count} ch` }] : []),
+  ]
+
   return (
     <>
       <ComicJsonLd rec={rec} id={id} recommenderName={recommenderName} />
 
       <div className={`${display.variable} ${mono.variable} min-h-screen bg-dossier text-dossier-foreground`}>
 
-        <div className="relative h-20 md:h-[12vh] md:min-h-[92px] md:max-h-[132px] overflow-hidden">
+        {/* Hero — mobile height tightened (h-20 -> h-16). md:h-[12vh] etc. unchanged. */}
+        <div className="relative h-16 md:h-[12vh] md:min-h-[92px] md:max-h-[132px] overflow-hidden">
           {rec.cover_url ? (
             <img
               src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
@@ -455,7 +473,7 @@ export default async function ComicDetailPage({ params }: Props) {
           <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-15 mix-blend-overlay`} />
           <div className="absolute inset-0 bg-gradient-to-t from-dossier via-dossier/60 to-dossier/10" />
 
-          <div className="absolute top-5 left-4 md:left-6 z-10">
+          <div className="absolute top-4 md:top-5 left-4 md:left-6 z-10">
             <Link
               href="/browse"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-dossier-panel/60 border border-dossier-foreground/10 text-xs text-dossier-foreground/70 hover:text-dossier-foreground hover:border-dossier-foreground/30 backdrop-blur-md transition-colors"
@@ -466,12 +484,18 @@ export default async function ComicDetailPage({ params }: Props) {
           </div>
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-4 md:px-6 -mt-4 md:-mt-7 z-20 pb-6 pb-[calc(72px+env(safe-area-inset-bottom,0px))] md:pb-6">
+        {/* Mobile bottom padding tightened to match MobileActionBar's real
+            height (72px, same constant already used elsewhere in this file)
+            plus a touch less breathing room above it (-mt-3 vs -mt-4). */}
+        <div className="relative max-w-7xl mx-auto px-4 md:px-6 -mt-3 md:-mt-7 z-20 pb-4 pb-[calc(72px+env(safe-area-inset-bottom,0px))] md:pb-6">
 
-          <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
+          <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-8">
 
+            {/* Cover column — mobile cover shrunk (w-44 -> w-32) to reclaim
+                vertical space. md:w-52 / md:w-[180px] untouched, so desktop
+                sidebar cover is pixel-identical to before. */}
             <div className="md:w-52 shrink-0 order-1">
-              <div className="mx-auto md:mx-0 w-44 md:w-52 space-y-4">
+              <div className="mx-auto md:mx-0 w-32 md:w-52 space-y-3 md:space-y-4">
 
                 <div className="relative flex">
                   <div
@@ -482,7 +506,7 @@ export default async function ComicDetailPage({ params }: Props) {
                     </span>
                   </div>
 
-                  <div className="relative w-44 md:w-[180px] aspect-[3/4] rounded-r-lg md:rounded-l-none rounded-lg overflow-hidden border-y border-r border-dossier-foreground/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] bg-dossier-panel">
+                  <div className="relative w-32 md:w-[180px] aspect-[3/4] rounded-r-lg md:rounded-l-none rounded-lg overflow-hidden border-y border-r border-dossier-foreground/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] bg-dossier-panel">
                     <div className={`absolute -inset-4 rounded-2xl ${typeStyle.detailGlow} blur-2xl opacity-30 -z-10`} />
                     {rec.cover_url ? (
                       <img
@@ -518,8 +542,12 @@ export default async function ComicDetailPage({ params }: Props) {
               </div>
             </div>
 
-            <div className="md:hidden order-2 space-y-1.5 -mt-1">
-              <div className="flex flex-wrap items-center justify-center gap-2">
+            {/* Mobile title block — tightened negative margin, badges+title
+                gap reduced, and a new compact quick-stats line added
+                (Score · Views · Chapters), matching the reference screens'
+                density without fabricating a chapter list we don't have data for. */}
+            <div className="md:hidden order-2 space-y-1 -mt-1">
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
                 <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${statusMeta.badge}`}>
                   {statusMeta.label}
                 </span>
@@ -530,9 +558,17 @@ export default async function ComicDetailPage({ params }: Props) {
               <h1 className="font-[family-name:var(--font-dossier-display)] text-2xl font-black italic leading-[0.95] tracking-tight text-center text-dossier-foreground">
                 {rec.title}
               </h1>
+              <div className="flex items-center justify-center gap-x-3 font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/50 pt-0.5">
+                {mobileQuickStats.map((s, i) => (
+                  <span key={s.label + i} className="flex items-center gap-1">
+                    <s.icon size={11} className="text-dossier-foreground/35" />
+                    {s.label}
+                  </span>
+                ))}
+              </div>
             </div>
 
-            <div className="flex-1 min-w-0 pt-1 md:pt-2 space-y-2 md:space-y-3 order-3">
+            <div className="flex-1 min-w-0 pt-0.5 md:pt-2 space-y-1.5 md:space-y-3 order-3">
 
               <div className="hidden md:block space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
@@ -557,8 +593,13 @@ export default async function ComicDetailPage({ params }: Props) {
                 </h1>
               </div>
 
+              {/* Original author/year/chapters meta row — now desktop-only.
+                  Its content is redundant with the new mobile quick-stats
+                  line above (which already surfaces chapters), so on mobile
+                  we show a leaner author/year-only line instead, directly
+                  below. md:flex + all md: styling below is untouched. */}
               {metaItems.length > 0 && (
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-1.5 gap-y-1 font-[family-name:var(--font-mono)] text-[11px] md:text-xs text-dossier-foreground/50 md:border-y md:border-dossier-foreground/10 md:py-2.5">
+                <div className="hidden md:flex flex-wrap items-center gap-x-1.5 gap-y-1 font-[family-name:var(--font-mono)] text-xs text-dossier-foreground/50 md:justify-start md:border-y md:border-dossier-foreground/10 md:py-2.5">
                   {metaItems.map((item, i) => (
                     <span key={item.key} className="flex items-center gap-x-1.5">
                       {i > 0 && <span className="text-dossier-foreground/20 mx-0.5">•</span>}
@@ -569,7 +610,7 @@ export default async function ComicDetailPage({ params }: Props) {
                     </span>
                   ))}
                   {rec.type && (
-                    <span className="hidden md:flex items-center gap-1.5">
+                    <span className="flex items-center gap-1.5">
                       <span className="text-dossier-foreground/20 mx-0.5">•</span>
                       <Globe size={12} className="text-dossier-foreground/30" />
                       {rec.type}
@@ -578,11 +619,19 @@ export default async function ComicDetailPage({ params }: Props) {
                 </div>
               )}
 
+              {(rec.author || rec.year_released) && (
+                <div className="md:hidden flex items-center justify-center gap-x-1.5 font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/45">
+                  {rec.author && <span>{rec.author}</span>}
+                  {rec.author && rec.year_released && <span className="text-dossier-foreground/20">•</span>}
+                  {rec.year_released && <span>{rec.year_released}</span>}
+                </div>
+              )}
+
               {rec.genres && rec.genres.length > 0 && (
-                <div className="flex flex-wrap justify-center md:justify-start gap-1.5">
+                <div className="flex flex-wrap justify-center md:justify-start gap-1 md:gap-1.5">
                   {rec.genres.map((genre: string) => (
                     <Link key={genre} href={`/browse?genre=${genre}`}>
-                      <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors">
+                      <span className="inline-flex px-2 md:px-2.5 py-0.5 md:py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors">
                         {genre}
                       </span>
                     </Link>
@@ -594,11 +643,11 @@ export default async function ComicDetailPage({ params }: Props) {
               <TagList recommendationId={id} isLoggedIn={!!user} />
 
               {rec.official_platforms && rec.official_platforms.length > 0 && (
-                <div className="flex md:flex-wrap justify-center md:justify-start gap-2 overflow-x-auto md:overflow-visible no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+                <div className="flex md:flex-wrap justify-center md:justify-start gap-1.5 md:gap-2 overflow-x-auto md:overflow-visible no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
                   {rec.official_platforms.map((platform: string, i: number) => (
                     <div
                       key={platform}
-                      className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full border border-dossier-foreground/10 bg-dossier-panel/40 text-[11px] text-dossier-foreground/60 hover:border-dossier-foreground/25 transition-colors shrink-0 whitespace-nowrap"
+                      className="flex items-center gap-1.5 pl-2 md:pl-2.5 pr-2 py-1 md:py-1.5 rounded-full border border-dossier-foreground/10 bg-dossier-panel/40 text-[11px] text-dossier-foreground/60 hover:border-dossier-foreground/25 transition-colors shrink-0 whitespace-nowrap"
                     >
                       {(() => {
                         const icon = resolvePlatformIcon(platform)
@@ -654,16 +703,24 @@ export default async function ComicDetailPage({ params }: Props) {
                 />
               )}
 
-              <div className="flex items-stretch rounded-xl border border-dossier-foreground/10 bg-dossier-panel/40 divide-x divide-dossier-foreground/10 overflow-hidden backdrop-blur-sm">
+              {/* Stats bar — grouped with MobileActionBar on mobile.
+                  Sticky just above the fixed action bar (72px, same
+                  constant used in the page's bottom padding above) so
+                  score/upvotes/saves stay visually attached to the
+                  vote/save controls without the user needing to scroll —
+                  this is the "grouped with the vote buttons" treatment
+                  you liked. Desktop keeps the original in-flow, non-sticky
+                  bar exactly as before via md:static and md:px-5/md:py-2.5. */}
+              <div className="sticky bottom-[calc(72px+env(safe-area-inset-bottom,0px))] md:static z-20 flex items-stretch rounded-xl border border-dossier-foreground/10 bg-dossier-panel/95 md:bg-dossier-panel/40 backdrop-blur-md md:backdrop-blur-sm divide-x divide-dossier-foreground/10 overflow-hidden shadow-[0_-8px_20px_-8px_rgba(0,0,0,0.25)] md:shadow-none">
                 {stats.map(({ icon: Icon, label, value }) => (
-                  <div key={label} className="flex-1 px-2 md:px-5 py-2.5 text-center">
+                  <div key={label} className="flex-1 px-1.5 md:px-5 py-2 md:py-2.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <Icon size={12} className="text-dossier-foreground/40" />
-                      <p className="font-[family-name:var(--font-mono)] text-lg md:text-xl font-bold tabular-nums leading-none text-dossier-foreground">
+                      <p className="font-[family-name:var(--font-mono)] text-base md:text-xl font-bold tabular-nums leading-none text-dossier-foreground">
                         {value}
                       </p>
                     </div>
-                    <p className="mt-1 text-[9px] uppercase tracking-widest text-dossier-foreground/40">{label}</p>
+                    <p className="mt-1 text-[8.5px] md:text-[9px] uppercase tracking-widest text-dossier-foreground/40">{label}</p>
                   </div>
                 ))}
               </div>
@@ -682,31 +739,31 @@ export default async function ComicDetailPage({ params }: Props) {
                 isPro={currentUserIsPro}
               />
 
-              <div className="space-y-6 pt-4 md:pt-8">
+              <div className="space-y-4 md:space-y-6 pt-3 md:pt-8">
 
-          <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-3 md:gap-4`}>
-            <div className="relative rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/30 backdrop-blur-sm p-5 md:p-6 overflow-hidden">
+          <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-2.5 md:gap-4`}>
+            <div className="relative rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/30 backdrop-blur-sm p-4 md:p-6 overflow-hidden">
               <div className={`absolute -top-10 -right-10 w-40 h-40 rounded-full ${typeStyle.detailGlow} blur-3xl opacity-20`} />
-              <h2 className="relative font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
+              <h2 className="relative font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-2 md:mb-3">
                 About
               </h2>
 
-              <p className="relative text-[15px] leading-relaxed text-dossier-foreground/75 max-w-prose">{rec.description}</p>
+              <p className="relative text-sm md:text-[15px] leading-relaxed text-dossier-foreground/75 max-w-prose">{rec.description}</p>
             </div>
 
             {rec.why_recommend && (
-              <div className={`relative rounded-2xl border ${typeStyle.border} bg-dossier-panel/40 p-5 md:p-6 flex flex-col`}>
-                <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
+              <div className={`relative rounded-2xl border ${typeStyle.border} bg-dossier-panel/40 p-4 md:p-6 flex flex-col`}>
+                <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-2 md:mb-3">
                   Why Read This
                 </h2>
-                <p className="font-[family-name:var(--font-dossier-display)] italic text-lg leading-snug text-dossier-foreground/85 flex-1">
+                <p className="font-[family-name:var(--font-dossier-display)] italic text-base md:text-lg leading-snug text-dossier-foreground/85 flex-1">
                   &ldquo;{rec.why_recommend}&rdquo;
                 </p>
               </div>
             )}
           </div>
 
-          <div className="rounded-2xl border border-dashed border-dossier-foreground/15 bg-dossier-panel/20 p-5 md:p-6">
+          <div className="rounded-2xl border border-dashed border-dossier-foreground/15 bg-dossier-panel/20 p-4 md:p-6">
             <SubmitYourOwnButton
               isLoggedIn={!!user}
               submitRoute={submitRoute}
@@ -714,7 +771,7 @@ export default async function ComicDetailPage({ params }: Props) {
             />
           </div>
 
-          <div className="flex items-center justify-between py-4 border-t border-dossier-foreground/10 text-xs text-dossier-foreground/40">
+          <div className="flex items-center justify-between py-3 md:py-4 border-t border-dossier-foreground/10 text-xs text-dossier-foreground/40">
             <div className="flex items-center gap-2 flex-wrap">
               <span>Recommended by</span>
               <RecommenderLink
@@ -735,7 +792,7 @@ export default async function ComicDetailPage({ params }: Props) {
             </div>
           </div>
 
-          <section className="pt-2 border-t border-dossier-foreground/10 space-y-4">
+          <section className="pt-2 border-t border-dossier-foreground/10 space-y-3 md:space-y-4">
             <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
               Reviews
             </h2>
@@ -757,7 +814,7 @@ export default async function ComicDetailPage({ params }: Props) {
             />
           </Suspense>
 
-          <section className="pt-2 border-t border-dossier-foreground/10 space-y-4">
+          <section className="pt-2 border-t border-dossier-foreground/10 space-y-3 md:space-y-4">
             <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
               Next Reads
             </h2>
