@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Flame, BookOpen, Bookmark, BookMarked, Star, CheckCircle2, Target } from 'lucide-react'
+import { Flame, BookOpen, Bookmark, BookMarked, Star, CheckCircle2 } from 'lucide-react'
 
 interface Props {
   savedCount:        number
@@ -10,7 +10,6 @@ interface Props {
   lastMonthChapters: number
   completedCount:    number
   currentStreak:     number
-  monthlyGoal:       number
   savedHref:   string
   listsHref:   string
   reviewsHref: string
@@ -36,14 +35,12 @@ function StatCard({ icon: Icon, label, value, sub }: {
 
 export function ReaderStatsSection({
   savedCount, listsCount, reviewCount, allTimeChapters, monthlyChapters,
-  lastMonthChapters, completedCount, currentStreak, monthlyGoal,
+  lastMonthChapters, completedCount, currentStreak,
   savedHref, listsHref, reviewsHref,
 }: Props) {
   const delta = monthlyChapters - lastMonthChapters
   const deltaPct = lastMonthChapters > 0 ? Math.round((delta / lastMonthChapters) * 100) : null
   const monthlySub = deltaPct === null ? undefined : `${deltaPct >= 0 ? '+' : ''}${deltaPct}% vs last month`
-
-  const goalPct = monthlyGoal > 0 ? Math.min(100, Math.round((monthlyChapters / monthlyGoal) * 100)) : 0
 
   return (
     <div>
@@ -64,19 +61,6 @@ export function ReaderStatsSection({
         <Link href={reviewsHref} className="col-span-2">
           <StatCard icon={Star}       label="Reviews written" value={String(reviewCount)} />
         </Link>
-      </div>
-
-      {/* Monthly goal — full width */}
-      <div className="rounded-2xl border border-border p-4 space-y-2 mt-3">
-        <div className="flex items-center gap-1.5 text-muted-foreground/60">
-          <Target size={14} />
-          <span className="text-xs">Monthly goal</span>
-        </div>
-        <p className="text-2xl font-medium tabular-nums leading-none">{goalPct}%</p>
-        <p className="text-xs text-muted-foreground">{monthlyChapters} / {monthlyGoal} ch.</p>
-        <div className="h-1 rounded-full bg-muted overflow-hidden mt-1">
-          <div className="h-full rounded-full bg-foreground/70 transition-all duration-700" style={{ width: `${goalPct}%` }} />
-        </div>
       </div>
     </div>
   )

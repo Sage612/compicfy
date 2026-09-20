@@ -1275,6 +1275,7 @@ export type Database = {
           longest_streak: number
           matches_last_shown_at: string | null
           member_since: string | null
+          monthly_reading_goal: number
           notification_prefs: Json
           onboarding_completed: boolean | null
           patreon_url: string | null
@@ -1338,6 +1339,7 @@ export type Database = {
           longest_streak?: number
           matches_last_shown_at?: string | null
           member_since?: string | null
+          monthly_reading_goal?: number
           notification_prefs?: Json
           onboarding_completed?: boolean | null
           patreon_url?: string | null
@@ -1401,6 +1403,7 @@ export type Database = {
           longest_streak?: number
           matches_last_shown_at?: string | null
           member_since?: string | null
+          monthly_reading_goal?: number
           notification_prefs?: Json
           onboarding_completed?: boolean | null
           patreon_url?: string | null

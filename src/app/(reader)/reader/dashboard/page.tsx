@@ -3,15 +3,18 @@ import { redirect } from 'next/navigation'
 import { DashboardGreeting } from '@/components/dashboard/DashboardGreeting'
 import { ContinueReadingHero } from '@/components/dashboard/ContinueReadingHero'
 import { ReaderStatsSection } from '@/components/dashboard/ReaderStatsSection'
+import { MonthlyGoalPicker } from '@/components/dashboard/MonthlyGoalPicker'
+import { ReadingCalendarSection } from '@/components/dashboard/ReadingCalendarSection'
+import { CompletedSeriesSection } from '@/components/dashboard/CompletedSeriesSection'
+import { ListsCollectionsShelf } from '@/components/dashboard/ListsCollectionsShelf'
+import { SavedComicsSection } from '@/components/dashboard/SavedComicsSection'
 import { ActiveBakesSection } from '@/components/dashboard/ActiveBakesSection'
 import { NotificationsFeedSection } from '@/components/dashboard/NotificationsFeedSection'
 import { CircleSection } from '@/components/dashboard/CircleSection'
-import { QuickAccessSection } from '@/components/dashboard/QuickAccessSection'
 import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { ProUpsellCard } from '@/components/dashboard/ProUpsellCard'
 import { DashboardViewTabs } from '@/components/dashboard/DashboardViewTabs'
 import { CuratorPanel } from '@/components/dashboard/CuratorPanel'
-import { CurrentlyReadingSection } from '@/components/recommendations/CurrentlyReadingSection'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Dashboard' }
@@ -52,7 +55,6 @@ export default async function ReaderDashboardPage() {
     { count: monthlyRecCount },
     { data: currentlyReading },
     { data: rawFeedItems },
-    { data: listsForTracker },
     { data: curatorSubmissions },
     { data: monthlyActivity },
     { data: lastMonthActivity },
@@ -61,6 +63,11 @@ export default async function ReaderDashboardPage() {
     { data: bakes },
     { data: notifications },
     { count: unreadCount },
+    { data: rawActivity },
+    { data: completedItems },
+    { data: savedItems },
+    { data: myReadingLists },
+    { data: myCollections },
   ] = await Promise.all([
     supabase.from('reading_lists').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
     supabase.from('saves').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
@@ -88,7 +95,6 @@ export default async function ReaderDashboardPage() {
           .order('created_at', { ascending: false })
           .limit(4)
       : Promise.resolve({ data: [] }),
-    supabase.from('reading_lists').select('id, name').eq('user_id', user.id).order('created_at', { ascending: false }),
     supabase.from('recommendations')
       .select('id, title, cover_url, is_approved, is_draft, rejection_reason, upvotes, save_count, view_count, review_count')
       .eq('user_id', user.id)
@@ -127,6 +133,33 @@ export default async function ReaderDashboardPage() {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('is_read', false),
+    supabase.from('reading_activity')
+      .select('activity_date, chapters_read')
+      .eq('user_id', user.id)
+      .gte('activity_date', new Date(Date.now() - 112 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)),
+    myListIds.length > 0
+      ? supabase.from('reading_list_items')
+          .select('id, recommendations(id, title, cover_url, type)')
+          .in('list_id', myListIds)
+          .eq('status', 'completed')
+          .order('updated_at', { ascending: false })
+          .limit(10)
+      : Promise.resolve({ data: [] }),
+    supabase.from('saves')
+      .select('id, recommendations(id, title, cover_url, type, chapter_count)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(6),
+    supabase.from('reading_lists')
+      .select('id, name, reading_list_items(count)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(2),
+    (supabase as any).from('collections')
+      .select('id, name, collection_items(count)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(2),
   ])
 
   // ── Reading source links — for ContinueReadingHero's source-aware Continue
@@ -175,6 +208,58 @@ export default async function ReaderDashboardPage() {
       ? (progressByRec.get(b.recommendation_id) ?? null)
       : null,
   }))
+
+    const activityByDate: Record<string, number> = {}
+    for (const row of (rawActivity ?? []) as any[]) {
+      activityByDate[row.activity_date] = row.chapters_read ?? 0
+    }
+
+    const listIds = (myReadingLists ?? []).map((l: any) => l.id)
+    const collectionIds = (myCollections ?? []).map((c: any) => c.id)
+    const [{ data: listCovers }, { data: collectionCovers }] = await Promise.all([
+      listIds.length > 0
+        ? supabase.from('reading_list_items')
+            .select('list_id, recommendations(cover_url)')
+            .in('list_id', listIds)
+        : Promise.resolve({ data: [] }),
+      collectionIds.length > 0
+        ? (supabase as any).from('collection_items')
+            .select('collection_id, recommendations(cover_url)')
+            .in('collection_id', collectionIds)
+        : Promise.resolve({ data: [] }),
+    ])
+
+    const coversByList = new Map<string, string[]>()
+    for (const row of (listCovers ?? []) as any[]) {
+      const url = row.recommendations?.cover_url
+      if (!url) continue
+      const covers = coversByList.get(row.list_id) ?? []
+      if (covers.length < 3) covers.push(url)
+      coversByList.set(row.list_id, covers)
+    }
+    const coversByCollection = new Map<string, string[]>()
+    for (const row of (collectionCovers ?? []) as any[]) {
+      const url = row.recommendations?.cover_url
+      if (!url) continue
+      const covers = coversByCollection.get(row.collection_id) ?? []
+      if (covers.length < 3) covers.push(url)
+      coversByCollection.set(row.collection_id, covers)
+    }
+
+    const shelfEntries = [
+      ...(myReadingLists ?? []).map((l: any) => ({
+        id: l.id, name: l.name, kind: 'list' as const,
+        itemCount: l.reading_list_items?.[0]?.count ?? 0,
+        covers: coversByList.get(l.id) ?? [],
+        href: `/reader/dashboard/lists/${l.id}`,
+      })),
+      ...(myCollections ?? []).map((c: any) => ({
+        id: c.id, name: c.name, kind: 'collection' as const,
+        itemCount: c.collection_items?.[0]?.count ?? 0,
+        covers: coversByCollection.get(c.id) ?? [],
+        href: `/collections/${c.id}`,
+      })),
+    ]
 
   const feedItems = (rawFeedItems ?? []).map((r: any) => {
     const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
@@ -227,11 +312,20 @@ export default async function ReaderDashboardPage() {
         lastMonthChapters={lastMonthChapters}
         completedCount={completedCount ?? 0}
         currentStreak={profile.current_streak ?? 0}
-        monthlyGoal={profile.monthly_reading_goal ?? 50}
         savedHref="/reader/dashboard/saved"
         listsHref="/reader/dashboard/lists"
         reviewsHref="/reader/dashboard/reviews"
       />
+
+      <MonthlyGoalPicker
+        userId={user.id}
+        initialGoal={profile.monthly_reading_goal ?? 50}
+        monthlyChapters={monthlyChapters}
+      />
+
+      <ReadingCalendarSection activityByDate={activityByDate} />
+
+      <CompletedSeriesSection items={completedItems ?? []} />
 
       <ActiveBakesSection bakes={bakesWithProgress} />
 
@@ -241,25 +335,15 @@ export default async function ReaderDashboardPage() {
         notificationsHref="/reader/dashboard/notifications"
       />
 
-      {/* Full interactive tracker — inline chapter updates. Handles its own
-          empty state, so no separate empty-state block needed here. */}
-      <CurrentlyReadingSection
-        initialItems={(currentlyReading ?? []).map((item: any) => ({ ...item, status: item.status ?? 'reading' }))}
-        lists={listsForTracker ?? []}
-        listsHref="/reader/dashboard/lists"
-      />
+      <ListsCollectionsShelf entries={shelfEntries} allHref="/reader/dashboard/lists" />
+
+      <SavedComicsSection items={savedItems ?? []} allHref="/reader/dashboard/saved" />
 
       <CircleSection
         items={feedItems}
         isFollowingNobody={(followingCount ?? 0) === 0}
         feedHref="/feed"
         discoverHref="/feed?tab=discover"
-        browseHref="/browse"
-      />
-
-      <QuickAccessSection
-        feedHref="/feed"
-        listsHref="/reader/dashboard/lists"
         browseHref="/browse"
       />
 
