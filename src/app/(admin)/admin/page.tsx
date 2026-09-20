@@ -111,16 +111,16 @@ export default async function AdminPage() {
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
 
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-          <Shield size={16} className="text-primary-foreground" />
-        </div>
-        <div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+            <Shield size={16} className="text-primary-foreground" />
+          </div>
           <h1 className="text-2xl font-black tracking-tight">Admin Dashboard</h1>
-          <p className="text-muted-foreground text-sm">
-            {isAdmin ? 'Full admin access' : 'Moderator access'}
-          </p>
         </div>
+        <p className="text-muted-foreground text-sm pl-0.5">
+          {isAdmin ? 'Full admin access' : 'Moderator access'}
+        </p>
       </div>
 
       {/* Stats grid */}

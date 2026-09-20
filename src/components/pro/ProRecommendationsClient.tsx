@@ -109,17 +109,17 @@ export default function ProRecommendationsClient({
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/20 shrink-0">
-            <BookOpen size={16} className="text-white" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-xl font-black tracking-tight leading-tight truncate">My Recommendations</h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Crown size={11} className="text-amber-500 fill-amber-500" />
-              <span className="text-xs text-amber-600 font-semibold">Unlimited · Pro</span>
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-2 min-w-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/20 shrink-0">
+              <BookOpen size={16} className="text-white" />
             </div>
+            <h1 className="text-xl font-black tracking-tight leading-tight truncate">My Recommendations</h1>
+          </div>
+          <div className="flex items-center gap-1.5 pl-0.5">
+            <Crown size={11} className="text-amber-500 fill-amber-500" />
+            <span className="text-xs text-amber-600 font-semibold">Unlimited · Pro</span>
           </div>
         </div>
         <Link href={`${basePath}/new`} className="shrink-0">

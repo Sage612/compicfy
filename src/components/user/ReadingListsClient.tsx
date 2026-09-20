@@ -306,21 +306,21 @@ export function ReadingListsClient({
       {/* ── Header ── */}
       {!hideHeader && (
   <div className="flex items-start justify-between">
-    <div className="flex items-start gap-3">
-      <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-        <BookMarked size={16} className="text-primary" />
+    <div className="space-y-2">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+          <BookMarked size={16} className="text-primary" />
+        </div>
+        <h1 className="text-2xl font-black tracking-tight leading-none">Reading Lists</h1>
       </div>
-      <div>
-        <h1 className="text-2xl font-black tracking-tight leading-none"> Reading Lists</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {lists.length} list{lists.length !== 1 ? 's' : ''}
-          {isProUser === false && (
-            <span className="text-muted-foreground/60 ml-1">
-              · {Math.max(0, FREE_LIMITS.lists - lists.length)} free slot{FREE_LIMITS.lists - lists.length !== 1 ? 's' : ''} remaining
-            </span>
-          )}
-        </p>
-      </div>
+      <p className="text-muted-foreground text-sm pl-0.5">
+        {lists.length} list{lists.length !== 1 ? 's' : ''}
+        {isProUser === false && (
+          <span className="text-muted-foreground/60 ml-1">
+            · {Math.max(0, FREE_LIMITS.lists - lists.length)} free slot{FREE_LIMITS.lists - lists.length !== 1 ? 's' : ''} remaining
+          </span>
+        )}
+      </p>
     </div>
     {!showCreate && (
       <Button size="sm" onClick={handleNewListClick}

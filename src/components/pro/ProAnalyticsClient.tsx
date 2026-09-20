@@ -207,14 +207,14 @@ export function ProAnalyticsClient({ recommendations, analytics }: Props) {
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
 
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-          <BarChart2 size={16} className="text-white" />
-        </div>
-        <div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
+            <BarChart2 size={16} className="text-white" />
+          </div>
           <h1 className="text-2xl font-black tracking-tight">Analytics</h1>
-          <p className="text-muted-foreground text-sm">Your recommendation performance</p>
         </div>
+        <p className="text-muted-foreground text-sm pl-0.5">Your recommendation performance</p>
       </div>
 
       {/* Totals */}

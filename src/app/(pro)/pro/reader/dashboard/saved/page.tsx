@@ -26,15 +26,15 @@ export default async function ProReaderSavedPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
 
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-            <Bookmark size={17} className="text-amber-500" />
-          </div>
-          <div className="min-w-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-2 min-w-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+              <Bookmark size={17} className="text-amber-500" />
+            </div>
             <h1 className="text-xl font-black tracking-tight truncate">Saved Comics</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">{comics.length} saved · unlimited on Pro</p>
           </div>
+          <p className="text-xs text-muted-foreground pl-0.5">{comics.length} saved · unlimited on Pro</p>
         </div>
         <Link href="/browse" className="shrink-0">
           <Button size="sm" className="gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white">

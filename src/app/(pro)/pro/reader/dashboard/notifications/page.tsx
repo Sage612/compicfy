@@ -32,15 +32,14 @@ export default async function ProReaderNotificationsPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
-      {/* Header Matrix Layout Block */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-          <Bell size={17} className="text-amber-500" />
-        </div>
-        <div className="min-w-0">
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+            <Bell size={17} className="text-amber-500" />
+          </div>
           <h1 className="text-xl font-black tracking-tight truncate">Notifications</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Your activity and alerts</p>
         </div>
+        <p className="text-xs text-muted-foreground pl-0.5">Your activity and alerts</p>
       </div>
 
       {/* 4. Pass the verified structure array straight down into the interactive deck */}

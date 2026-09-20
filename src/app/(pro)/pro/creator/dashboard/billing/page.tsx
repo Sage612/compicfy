@@ -37,14 +37,14 @@ export default async function ProCreatorBillingPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
 
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
-          <CreditCard size={16} className="text-teal-500" />
-        </div>
-        <div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
+            <CreditCard size={16} className="text-teal-500" />
+          </div>
           <h1 className="text-xl font-black tracking-tight">Billing</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Manage your Pro Creator subscription.</p>
         </div>
+        <p className="text-xs text-muted-foreground pl-0.5">Manage your Pro Creator subscription.</p>
       </div>
 
       {/* Plan card */}

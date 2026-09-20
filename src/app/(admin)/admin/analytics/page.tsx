@@ -26,14 +26,14 @@ export default async function AnalyticsPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20">
-          <BarChart3 size={17} className="text-white" />
-        </div>
-        <div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20">
+            <BarChart3 size={17} className="text-white" />
+          </div>
           <h1 className="text-2xl font-black tracking-tight">Analytics</h1>
-          <p className="text-muted-foreground text-sm">Platform insights and metrics</p>
         </div>
+        <p className="text-muted-foreground text-sm pl-0.5">Platform insights and metrics</p>
       </div>
 
       {/* Dashboard */}

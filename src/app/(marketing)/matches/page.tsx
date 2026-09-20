@@ -46,15 +46,13 @@ export default async function MatchesPage() {
         <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
           <Sparkles size={16} className="text-white" />
         </div>
-        <div>
-          <h1 className="text-2xl font-black tracking-tight">Readers Like You</h1>
-          <p className="text-muted-foreground text-sm">
-            {isPro
-              ? 'People whose taste in comics lines up with yours'
-              : 'Your top 3 matches this week'}
-          </p>
-        </div>
+        <h1 className="text-2xl font-black tracking-tight">Readers Like You</h1>
       </div>
+      <p className="text-muted-foreground text-sm">
+        {isPro
+          ? 'People whose taste in comics lines up with yours'
+          : 'Your top 3 matches this week'}
+      </p>
 
       {/* Free-tier upsell — matches item #17's Pro value prop (top 10/daily + filters) */}
       {!isPro && (

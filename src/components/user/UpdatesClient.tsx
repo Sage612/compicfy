@@ -203,18 +203,18 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
         actions={actionSheetBake ? buildBakeActions(actionSheetBake) : []}
       />
 
-      <div className="flex items-start gap-3">
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
           <BookOpen size={16} className="text-primary" />
         </div>
-        <div>
           <h1 className="text-2xl font-black tracking-tight leading-none">Updates</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length === 0
-              ? "You're all caught up"
-              : `${totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length} thing${totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length !== 1 ? 's' : ''} need your attention`}
-          </p>
         </div>
+        <p className="text-muted-foreground text-sm pl-0.5">
+          {totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length === 0
+            ? "You're all caught up"
+            : `${totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length} thing${totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length !== 1 ? 's' : ''} need your attention`}
+        </p>
       </div>
 
       {/* ── Tabs + search — real fix for the "500 comics, bakes buried at

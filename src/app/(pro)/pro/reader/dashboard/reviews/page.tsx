@@ -32,15 +32,14 @@ export default async function ProReaderReviewsPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 
-      {/* Header with icon */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-          <Star size={17} className="text-amber-500" />
-        </div>
-        <div className="min-w-0">
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
+            <Star size={17} className="text-amber-500" />
+          </div>
           <h1 className="text-xl font-black tracking-tight truncate">My Reviews</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{reviews?.length ?? 0} written</p>
         </div>
+        <p className="text-xs text-muted-foreground pl-0.5">{reviews?.length ?? 0} written</p>
       </div>
 
       {/* Empty */}

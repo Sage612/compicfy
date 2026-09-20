@@ -23,14 +23,14 @@ export default async function AffiliateAnalyticsPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-          <Link2 size={17} className="text-white" />
-        </div>
-        <div>
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <Link2 size={17} className="text-white" />
+          </div>
           <h1 className="text-2xl font-black tracking-tight">Affiliate Analytics</h1>
-          <p className="text-muted-foreground text-sm">Track affiliate link clicks and platform performance</p>
         </div>
+        <p className="text-muted-foreground text-sm pl-0.5">Track affiliate link clicks and platform performance</p>
       </div>
       <AffiliateAnalytics />
     </div>
