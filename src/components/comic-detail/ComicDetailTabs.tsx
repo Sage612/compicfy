@@ -28,6 +28,10 @@ interface ComicDetailTabsProps {
   /** Vote counts, for the Community tab's vote-split bar */
   upvotes: number
   downvotes: number
+  /** Metadata pill row, e.g. ["Manhwa", "Ongoing", "Teen 13+", "98 ch. · 2 days ago"] */
+  metaBadges: string[]
+  /** rec.genres — rendered as solid pills above the (dashed) trope/mood tags */
+  genres: string[]
 
   /** Slots — pre-rendered by the server component (page.tsx) so this
    *  client component never needs the data-fetching logic behind them. */
@@ -47,6 +51,8 @@ export function ComicDetailTabs({
   officialPlatforms,
   upvotes,
   downvotes,
+  metaBadges,
+  genres,
   tagList,
   moreInfo,
   personalSources,
@@ -109,7 +115,42 @@ export function ComicDetailTabs({
             </div>
           )}
 
-          {tagList}
+          {metaBadges.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
+                Metadata
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {metaBadges.map(badge => (
+                  <span
+                    key={badge}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60"
+                  >
+                    {badge}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
+              Genres &amp; Tags
+            </p>
+            {genres.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {genres.map(genre => (
+                  <span
+                    key={genre}
+                    className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60"
+                  >
+                    {genre}
+                  </span>
+                ))}
+              </div>
+            )}
+            {tagList}
+          </div>
 
           {moreInfo}
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Bookmark, Crown } from 'lucide-react'
+import { Bookmark, Crown, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,10 @@ interface Props {
   initialSaved:     boolean
   isLoggedIn:       boolean
   comicTitle?:      string
+  /** 'default' = existing full-width pill button (unchanged).
+   *  'icon'    = circular icon+label button, used by the mobile hero
+   *              action row. */
+  variant?:         'default' | 'icon'
 }
 
 export function SaveButton({
@@ -20,6 +24,7 @@ export function SaveButton({
   initialSaved,
   isLoggedIn,
   comicTitle,
+  variant = 'default',
 }: Props) {
   const [saved,     setSaved]     = useState(initialSaved)
   const [loading,   setLoading]   = useState(false)
@@ -86,6 +91,47 @@ export function SaveButton({
     } finally {
       setLoading(false)
     }
+  }
+
+  if (variant === 'icon') {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={loading}
+          aria-label={saved ? 'Saved' : 'Save'}
+          className="flex flex-col items-center gap-1.5 shrink-0"
+        >
+          <span
+            className={cn(
+              'w-11 h-11 rounded-full border flex items-center justify-center transition-colors',
+              saved
+                ? 'bg-dossier-foreground/10 border-dossier-foreground/30 text-dossier-foreground'
+                : 'border-dossier-foreground/10 text-dossier-foreground/60'
+            )}
+          >
+            {loading
+              ? <Loader2 size={16} className="animate-spin" />
+              : <Bookmark size={16} className={cn(saved && 'fill-current')} />
+            }
+          </span>
+          <span className="text-[11px] text-dossier-foreground/60">
+            {saved ? 'Saved' : 'Save'}
+          </span>
+        </button>
+
+        <AuthPromptModal
+          open={showAuth}
+          onClose={() => setShowAuth(false)}
+          config={{
+            action: 'save this comic',
+            comicTitle,
+            icon: <Bookmark size={24} className="text-primary" />,
+          }}
+        />
+      </>
+    )
   }
 
   return (

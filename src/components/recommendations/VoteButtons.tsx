@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ThumbsUp, ThumbsDown, Loader2 } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, Loader2, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/utils/format'
@@ -14,6 +14,12 @@ interface Props {
   initialVote:      'up' | 'down' | null
   isLoggedIn:       boolean
   comicTitle?:      string
+  /** 'default' = existing two-button pill row (unchanged).
+   *  'icon'    = single circular icon+label button, used by the mobile
+   *              hero action row and the "More" sheet's Downvote row. */
+  variant?:         'default' | 'icon'
+  /** icon variant only: which direction this button represents. */
+  mode?:            'up' | 'down'
 }
 
 export function VoteButtons({
@@ -23,6 +29,8 @@ export function VoteButtons({
   initialVote,
   isLoggedIn,
   comicTitle,
+  variant = 'default',
+  mode = 'up',
 }: Props) {
   const [upvotes,     setUpvotes]     = useState(initialUpvotes)
   const [downvotes,   setDownvotes]   = useState(initialDownvotes)
@@ -86,6 +94,49 @@ export function VoteButtons({
     } finally {
       setLoadingVote(null)
     }
+  }
+
+  if (variant === 'icon') {
+    const active = userVote === mode
+    const label = mode === 'up' ? 'Voted' : 'Downvote'
+    const Icon = mode === 'up' ? ChevronUp : ThumbsDown
+    const loading = loadingVote === mode
+
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => handleVote(mode)}
+          disabled={!!loadingVote}
+          aria-label={label}
+          className="flex flex-col items-center gap-1.5 shrink-0"
+        >
+          <span
+            className={cn(
+              'w-11 h-11 rounded-full border flex items-center justify-center transition-colors',
+              active
+                ? 'bg-dossier-foreground/10 border-dossier-foreground/30 text-dossier-foreground'
+                : 'border-dossier-foreground/10 text-dossier-foreground/60'
+            )}
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <Icon size={16} />}
+          </span>
+          <span className="text-[11px] text-dossier-foreground/60">{label}</span>
+        </button>
+
+        <AuthPromptModal
+          open={showAuth}
+          onClose={() => { setShowAuth(false); setPendingVote(null) }}
+          config={{
+            action: pendingVote === 'up' ? 'upvote this comic' : 'downvote this comic',
+            comicTitle,
+            icon: pendingVote === 'up'
+              ? <ThumbsUp size={24} className="text-emerald-500" />
+              : <ThumbsDown size={24} className="text-rose-500" />,
+          }}
+        />
+      </>
+    )
   }
 
   return (

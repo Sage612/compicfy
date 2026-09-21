@@ -25,7 +25,7 @@ import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
 import { ReadingProgressButton } from '@/components/recommendations/ReadingProgressButton'
 import { BakeButton } from '@/components/recommendations/BakeButton'
-import { MobileActionBar } from '@/components/recommendations/MobileActionBar'
+import { ComicMobileHero } from '@/components/comic-detail/ComicMobileHero'
 import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnButton'
 import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { MoreInfoSection } from '@/components/comic-detail/MoreInfoSection'
@@ -476,9 +476,67 @@ export default async function ComicDetailPage({ params }: Props) {
 
         <div className="relative max-w-7xl mx-auto px-4 md:px-6 -mt-4 md:-mt-7 z-20 pb-6 pb-[calc(72px+env(safe-area-inset-bottom,0px))] md:pb-6">
 
+          <ComicMobileHero
+            recommendationId={id}
+            title={rec.title}
+            coverUrl={rec.cover_url}
+            typeLabel={typeStyle.label}
+            statusLabel={statusMeta.label}
+            yearReleased={rec.year_released}
+            ratingValue={ratioToStars(rec.upvotes ?? 0, rec.downvotes ?? 0)}
+            upvotePct={
+              (rec.upvotes ?? 0) + (rec.downvotes ?? 0) > 0
+                ? Math.round(((rec.upvotes ?? 0) / ((rec.upvotes ?? 0) + (rec.downvotes ?? 0))) * 100)
+                : null
+            }
+            initialUpvotes={rec.upvotes ?? 0}
+            initialDownvotes={rec.downvotes ?? 0}
+            initialVote={userVote}
+            initialSaved={isSaved}
+            isLoggedIn={!!user}
+            shareUrl={`${SITE_URL}/comic/${id}`}
+            continueSlot={
+              <ReadingProgressButton
+                comicId={id}
+                chapterCount={rec.chapter_count}
+                isLoggedIn={!!user}
+              />
+            }
+            moreSheetContent={
+              <>
+                <VoteButtons
+                  recommendationId={id}
+                  initialUpvotes={rec.upvotes ?? 0}
+                  initialDownvotes={rec.downvotes ?? 0}
+                  initialVote={userVote}
+                  isLoggedIn={!!user}
+                  comicTitle={rec.title}
+                  variant="icon"
+                  mode="down"
+                />
+                <BakeButton
+                  comicId={id}
+                  chapterCount={rec.chapter_count}
+                  isLoggedIn={!!user}
+                  isPro={currentUserIsPro}
+                />
+                {user && <AddToListButton recommendationId={id} userId={user.id} />}
+                <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
+              </>
+            }
+            reportButton={
+              <ReportButton
+                entityType="recommendation"
+                entityId={id}
+                isLoggedIn={!!user}
+                asButton
+              />
+            }
+          />
+
           <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
 
-            <div className="md:w-52 shrink-0 order-1">
+            <div className="hidden md:block md:w-52 shrink-0 order-1">
               <div className="mx-auto md:mx-0 w-44 md:w-52 space-y-4">
 
                 <div className="relative flex">
@@ -526,20 +584,6 @@ export default async function ComicDetailPage({ params }: Props) {
               </div>
             </div>
 
-            <div className="md:hidden order-2 space-y-1.5 -mt-1">
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${statusMeta.badge}`}>
-                  {statusMeta.label}
-                </span>
-                <span className="px-1.5 py-0.5 rounded border border-dossier-foreground/10 text-dossier-foreground/40 text-[10px] capitalize">
-                  {rec.content_rating?.replace('_', ' ')}
-                </span>
-              </div>
-              <h1 className="font-[family-name:var(--font-dossier-display)] text-2xl font-black italic leading-[0.95] tracking-tight text-center text-dossier-foreground">
-                {rec.title}
-              </h1>
-            </div>
-
             <div className="flex-1 min-w-0 pt-1 md:pt-2 space-y-2 md:space-y-3 order-3">
 
               <div className="hidden md:block space-y-2">
@@ -565,38 +609,42 @@ export default async function ComicDetailPage({ params }: Props) {
                 </h1>
               </div>
 
-              {metaItems.length > 0 && (
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-1.5 gap-y-1 font-[family-name:var(--font-mono)] text-[11px] md:text-xs text-dossier-foreground/50 md:border-y md:border-dossier-foreground/10 md:py-2.5">
-                  {metaItems.map((item, i) => (
-                    <span key={item.key} className="flex items-center gap-x-1.5">
-                      {i > 0 && <span className="text-dossier-foreground/20 mx-0.5">•</span>}
+              {/* Desktop-only — mobile shows these as pills inside
+                  ComicDetailTabs' Overview tab (Metadata / Genres & Tags). */}
+              <div className="hidden md:block space-y-2 md:space-y-3">
+                {metaItems.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-[family-name:var(--font-mono)] text-[11px] md:text-xs text-dossier-foreground/50 md:border-y md:border-dossier-foreground/10 md:py-2.5">
+                    {metaItems.map((item, i) => (
+                      <span key={item.key} className="flex items-center gap-x-1.5">
+                        {i > 0 && <span className="text-dossier-foreground/20 mx-0.5">•</span>}
+                        <span className="flex items-center gap-1.5">
+                          <item.icon size={12} className="text-dossier-foreground/30" />
+                          {item.label}
+                        </span>
+                      </span>
+                    ))}
+                    {rec.type && (
                       <span className="flex items-center gap-1.5">
-                        <item.icon size={12} className="text-dossier-foreground/30" />
-                        {item.label}
+                        <span className="text-dossier-foreground/20 mx-0.5">•</span>
+                        <Globe size={12} className="text-dossier-foreground/30" />
+                        {rec.type}
                       </span>
-                    </span>
-                  ))}
-                  {rec.type && (
-                    <span className="hidden md:flex items-center gap-1.5">
-                      <span className="text-dossier-foreground/20 mx-0.5">•</span>
-                      <Globe size={12} className="text-dossier-foreground/30" />
-                      {rec.type}
-                    </span>
-                  )}
-                </div>
-              )}
+                    )}
+                  </div>
+                )}
 
-              {rec.genres && rec.genres.length > 0 && (
-                <div className="flex flex-wrap justify-center md:justify-start gap-1.5">
-                  {rec.genres.map((genre: string) => (
-                    <Link key={genre} href={`/browse?genre=${genre}`}>
-                      <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors">
-                        {genre}
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              )}
+                {rec.genres && rec.genres.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {rec.genres.map((genre: string) => (
+                      <Link key={genre} href={`/browse?genre=${genre}`}>
+                        <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors">
+                          {genre}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* ── DESKTOP-ONLY (unchanged single-scroll layout) ──
                   TagList, official platforms row, MyReadingSources and
@@ -667,7 +715,9 @@ export default async function ComicDetailPage({ params }: Props) {
                 )}
               </div>
 
-              <div className="flex items-stretch rounded-xl border border-dossier-foreground/10 bg-dossier-panel/40 divide-x divide-dossier-foreground/10 overflow-hidden backdrop-blur-sm">
+              {/* Desktop-only — the mobile hero's rating pill + icon row +
+                  Community tab's vote-split bar cover this on mobile now. */}
+              <div className="hidden md:flex items-stretch rounded-xl border border-dossier-foreground/10 bg-dossier-panel/40 divide-x divide-dossier-foreground/10 overflow-hidden backdrop-blur-sm">
                 {stats.map(({ icon: Icon, label, value }) => (
                   <div key={label} className="flex-1 px-2 md:px-5 py-2.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
@@ -681,19 +731,10 @@ export default async function ComicDetailPage({ params }: Props) {
                 ))}
               </div>
 
-              <MobileActionBar
-                recommendationId={id}
-                comicTitle={rec.title}
-                shareUrl={`${SITE_URL}/comic/${id}`}
-                initialUpvotes={rec.upvotes ?? 0}
-                initialDownvotes={rec.downvotes ?? 0}
-                initialVote={userVote}
-                initialSaved={isSaved}
-                isLoggedIn={!!user}
-                userId={user?.id}
-                chapterCount={rec.chapter_count}
-                isPro={currentUserIsPro}
-              />
+              {/* MobileActionBar (fixed-footer variant) removed on mobile —
+                  ComicMobileHero's icon row + More sheet replace it,
+                  matching the mockup. Kept available for desktop if you
+                  ever want it there; currently unused above md. */}
 
               {/* ── MOBILE-ONLY tabbed layout (Overview / Sources / Community) ── */}
               <div className="md:hidden pt-4">
@@ -703,6 +744,17 @@ export default async function ComicDetailPage({ params }: Props) {
                   officialPlatforms={officialPlatformsZipped}
                   upvotes={rec.upvotes ?? 0}
                   downvotes={rec.downvotes ?? 0}
+                  metaBadges={[
+                    typeStyle.label,
+                    statusMeta.label,
+                    rec.content_rating ? rec.content_rating.replace('_', ' ') : null,
+                    rec.chapter_count
+                      ? rec.last_chapter_released_at
+                        ? `${rec.chapter_count} ch. · ${timeAgo(rec.last_chapter_released_at)}`
+                        : `${rec.chapter_count} ch.`
+                      : null,
+                  ].filter((b): b is string => !!b)}
+                  genres={rec.genres ?? []}
                   tagList={<TagList recommendationId={id} isLoggedIn={!!user} />}
                   moreInfo={
                     rec.more_info_link ? (
