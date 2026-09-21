@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Flame, BookOpen, Bookmark, BookMarked, Star, CheckCircle2 } from 'lucide-react'
+import { Flame, BookOpen, Bookmark, BookMarked, Star, CheckCircle2, Target } from 'lucide-react'
 
 interface Props {
   savedCount:        number
@@ -10,6 +10,7 @@ interface Props {
   lastMonthChapters: number
   completedCount:    number
   currentStreak:     number
+  monthlyGoal:       number
   savedHref:   string
   listsHref:   string
   reviewsHref: string
@@ -35,12 +36,13 @@ function StatCard({ icon: Icon, label, value, sub }: {
 
 export function ReaderStatsSection({
   savedCount, listsCount, reviewCount, allTimeChapters, monthlyChapters,
-  lastMonthChapters, completedCount, currentStreak,
+  lastMonthChapters, completedCount, currentStreak, monthlyGoal,
   savedHref, listsHref, reviewsHref,
 }: Props) {
   const delta = monthlyChapters - lastMonthChapters
   const deltaPct = lastMonthChapters > 0 ? Math.round((delta / lastMonthChapters) * 100) : null
   const monthlySub = deltaPct === null ? undefined : `${deltaPct >= 0 ? '+' : ''}${deltaPct}% vs last month`
+  const goalPct = monthlyGoal > 0 ? Math.min(100, Math.round((monthlyChapters / monthlyGoal) * 100)) : 0
 
   return (
     <div>
@@ -61,6 +63,17 @@ export function ReaderStatsSection({
         <Link href={reviewsHref} className="col-span-2">
           <StatCard icon={Star}       label="Reviews written" value={String(reviewCount)} />
         </Link>
+
+        {/* Plain quick-glance card — no picker here, that lives in the
+            separate interactive MonthlyReaderSection further down the page. */}
+        <div className="col-span-2 rounded-2xl border border-border p-4 space-y-2">
+          <div className="flex items-center gap-1.5 text-muted-foreground/60">
+            <Target size={14} />
+            <span className="text-xs">Monthly goal</span>
+          </div>
+          <p className="text-2xl font-medium tabular-nums leading-none">{goalPct}%</p>
+          <p className="text-xs text-muted-foreground">{monthlyChapters} / {monthlyGoal} ch.</p>
+        </div>
       </div>
     </div>
   )

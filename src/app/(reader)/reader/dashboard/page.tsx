@@ -3,13 +3,14 @@ import { redirect } from 'next/navigation'
 import { DashboardGreeting } from '@/components/dashboard/DashboardGreeting'
 import { ContinueReadingHero } from '@/components/dashboard/ContinueReadingHero'
 import { ReaderStatsSection } from '@/components/dashboard/ReaderStatsSection'
-import { MonthlyGoalPicker } from '@/components/dashboard/MonthlyGoalPicker'
+import { MonthlyGoalPrompt } from '@/components/dashboard/MonthlyGoalPrompt'
+import { MonthlyReaderSection } from '@/components/dashboard/MonthlyReaderSection'
 import { ReadingCalendarSection } from '@/components/dashboard/ReadingCalendarSection'
 import { CompletedSeriesSection } from '@/components/dashboard/CompletedSeriesSection'
-import { ListsCollectionsShelf } from '@/components/dashboard/ListsCollectionsShelf'
-import { SavedComicsSection } from '@/components/dashboard/SavedComicsSection'
 import { ActiveBakesSection } from '@/components/dashboard/ActiveBakesSection'
 import { NotificationsFeedSection } from '@/components/dashboard/NotificationsFeedSection'
+import { ListsCollectionsShelf } from '@/components/dashboard/ListsCollectionsShelf'
+import { SavedComicsSection } from '@/components/dashboard/SavedComicsSection'
 import { CircleSection } from '@/components/dashboard/CircleSection'
 import { ProfileCompletionBanner } from '@/components/dashboard/ProfileCompletionBanner'
 import { ProUpsellCard } from '@/components/dashboard/ProUpsellCard'
@@ -41,6 +42,10 @@ export default async function ReaderDashboardPage() {
   const startOfLastMonth = new Date(startOfMonth)
   startOfLastMonth.setMonth(startOfLastMonth.getMonth() - 1)
 
+  const monthStartStr = startOfMonth.toISOString().slice(0, 10)
+  const lastMonthStartStr = startOfLastMonth.toISOString().slice(0, 10)
+  const calendarStartStr = new Date(Date.now() - 112 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+
   // Two-step list-id pattern — the proven fix for PostgREST silently
   // ignoring nested-relation filters like .eq('reading_lists.user_id', ...).
   const { data: myLists } = await supabase
@@ -63,7 +68,8 @@ export default async function ReaderDashboardPage() {
     { data: bakes },
     { data: notifications },
     { count: unreadCount },
-    { data: rawActivity },
+    { data: rawCalendarActivity },
+    { data: typeActivityRows },
     { data: completedItems },
     { data: savedItems },
     { data: myReadingLists },
@@ -103,12 +109,12 @@ export default async function ReaderDashboardPage() {
     supabase.from('reading_activity')
       .select('chapters_read')
       .eq('user_id', user.id)
-      .gte('activity_date', startOfMonth.toISOString().slice(0, 10)),
+      .gte('activity_date', monthStartStr),
     supabase.from('reading_activity')
       .select('chapters_read')
       .eq('user_id', user.id)
-      .gte('activity_date', startOfLastMonth.toISOString().slice(0, 10))
-      .lt('activity_date', startOfMonth.toISOString().slice(0, 10)),
+      .gte('activity_date', lastMonthStartStr)
+      .lt('activity_date', monthStartStr),
     supabase.from('reading_activity')
       .select('chapters_read')
       .eq('user_id', user.id),
@@ -133,10 +139,18 @@ export default async function ReaderDashboardPage() {
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('is_read', false),
+    // Reading Calendar — full 16-week lookback window
     supabase.from('reading_activity')
       .select('activity_date, chapters_read')
       .eq('user_id', user.id)
-      .gte('activity_date', new Date(Date.now() - 112 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)),
+      .gte('activity_date', calendarStartStr),
+    // This month's chapters by type — real, not all-time (reading_activity.type
+    // exists as of add_reading_activity_type_tracking.sql)
+    supabase.from('reading_activity')
+      .select('type, chapters_read')
+      .eq('user_id', user.id)
+      .gte('activity_date', monthStartStr),
+    // Completed series with real covers
     myListIds.length > 0
       ? supabase.from('reading_list_items')
           .select('id, recommendations(id, title, cover_url, type)')
@@ -145,16 +159,19 @@ export default async function ReaderDashboardPage() {
           .order('updated_at', { ascending: false })
           .limit(10)
       : Promise.resolve({ data: [] }),
+    // Saved comics with real covers
     supabase.from('saves')
       .select('id, recommendations(id, title, cover_url, type, chapter_count)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(6),
+    // Lists shelf — item counts; covers fetched separately below
     supabase.from('reading_lists')
       .select('id, name, reading_list_items(count)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(2),
+    // Collections shelf
     (supabase as any).from('collections')
       .select('id, name, collection_items(count)')
       .eq('user_id', user.id)
@@ -163,7 +180,8 @@ export default async function ReaderDashboardPage() {
   ])
 
   // ── Reading source links — for ContinueReadingHero's source-aware Continue
-  // button. Only need these for comics currently being read. ──
+  // button. Compicfy isn't a reading platform, so "Continue reading" must
+  // point at wherever the user actually reads this comic, not an internal page. ──
   const readingRecIds = (currentlyReading ?? [])
     .map((item: any) => item.recommendations?.id)
     .filter(Boolean)
@@ -209,57 +227,55 @@ export default async function ReaderDashboardPage() {
       : null,
   }))
 
-    const activityByDate: Record<string, number> = {}
-    for (const row of (rawActivity ?? []) as any[]) {
-      activityByDate[row.activity_date] = row.chapters_read ?? 0
-    }
+  // ── Lists & Collections shelf — cover thumbnails (item counts came back as
+  // nested count objects above, covers need one more targeted pass) ──
+  const listIds = (myReadingLists ?? []).map((l: any) => l.id)
+  const collectionIds = (myCollections ?? []).map((c: any) => c.id)
 
-    const listIds = (myReadingLists ?? []).map((l: any) => l.id)
-    const collectionIds = (myCollections ?? []).map((c: any) => c.id)
-    const [{ data: listCovers }, { data: collectionCovers }] = await Promise.all([
-      listIds.length > 0
-        ? supabase.from('reading_list_items')
-            .select('list_id, recommendations(cover_url)')
-            .in('list_id', listIds)
-        : Promise.resolve({ data: [] }),
-      collectionIds.length > 0
-        ? (supabase as any).from('collection_items')
-            .select('collection_id, recommendations(cover_url)')
-            .in('collection_id', collectionIds)
-        : Promise.resolve({ data: [] }),
-    ])
+  const [{ data: listCovers }, { data: collectionCovers }] = await Promise.all([
+    listIds.length > 0
+      ? supabase.from('reading_list_items')
+          .select('list_id, recommendations(cover_url)')
+          .in('list_id', listIds)
+      : Promise.resolve({ data: [] }),
+    collectionIds.length > 0
+      ? (supabase as any).from('collection_items')
+          .select('collection_id, recommendations(cover_url)')
+          .in('collection_id', collectionIds)
+      : Promise.resolve({ data: [] }),
+  ])
 
-    const coversByList = new Map<string, string[]>()
-    for (const row of (listCovers ?? []) as any[]) {
-      const url = row.recommendations?.cover_url
-      if (!url) continue
-      const covers = coversByList.get(row.list_id) ?? []
-      if (covers.length < 3) covers.push(url)
-      coversByList.set(row.list_id, covers)
-    }
-    const coversByCollection = new Map<string, string[]>()
-    for (const row of (collectionCovers ?? []) as any[]) {
-      const url = row.recommendations?.cover_url
-      if (!url) continue
-      const covers = coversByCollection.get(row.collection_id) ?? []
-      if (covers.length < 3) covers.push(url)
-      coversByCollection.set(row.collection_id, covers)
-    }
+  const coversByList = new Map<string, string[]>()
+  for (const row of (listCovers ?? []) as any[]) {
+    const url = row.recommendations?.cover_url
+    if (!url) continue
+    const arr = coversByList.get(row.list_id) ?? []
+    if (arr.length < 3) arr.push(url)
+    coversByList.set(row.list_id, arr)
+  }
+  const coversByCollection = new Map<string, string[]>()
+  for (const row of (collectionCovers ?? []) as any[]) {
+    const url = row.recommendations?.cover_url
+    if (!url) continue
+    const arr = coversByCollection.get(row.collection_id) ?? []
+    if (arr.length < 3) arr.push(url)
+    coversByCollection.set(row.collection_id, arr)
+  }
 
-    const shelfEntries = [
-      ...(myReadingLists ?? []).map((l: any) => ({
-        id: l.id, name: l.name, kind: 'list' as const,
-        itemCount: l.reading_list_items?.[0]?.count ?? 0,
-        covers: coversByList.get(l.id) ?? [],
-        href: `/reader/dashboard/lists/${l.id}`,
-      })),
-      ...(myCollections ?? []).map((c: any) => ({
-        id: c.id, name: c.name, kind: 'collection' as const,
-        itemCount: c.collection_items?.[0]?.count ?? 0,
-        covers: coversByCollection.get(c.id) ?? [],
-        href: `/collections/${c.id}`,
-      })),
-    ]
+  const shelfEntries = [
+    ...(myReadingLists ?? []).map((l: any) => ({
+      id: l.id, name: l.name, kind: 'list' as const,
+      itemCount: l.reading_list_items?.[0]?.count ?? 0,
+      covers: coversByList.get(l.id) ?? [],
+      href: `/reader/dashboard/lists/${l.id}`,
+    })),
+    ...(myCollections ?? []).map((c: any) => ({
+      id: c.id, name: c.name, kind: 'collection' as const,
+      itemCount: c.collection_items?.[0]?.count ?? 0,
+      covers: coversByCollection.get(c.id) ?? [],
+      href: `/collections/${c.id}`, // TODO confirm this route once collections have a real detail page
+    })),
+  ]
 
   const feedItems = (rawFeedItems ?? []).map((r: any) => {
     const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles
@@ -284,6 +300,21 @@ export default async function ReaderDashboardPage() {
   const lastMonthChapters = sum(lastMonthActivity)
   const allTimeChapters   = sum(allTimeActivity)
   const recCount          = monthlyRecCount ?? 0
+  const monthlyGoal       = profile.monthly_reading_goal ?? 50
+
+  const activityByDate: Record<string, number> = {}
+  for (const row of (rawCalendarActivity ?? []) as any[]) {
+    activityByDate[row.activity_date] = (activityByDate[row.activity_date] ?? 0) + (row.chapters_read ?? 0)
+  }
+
+  const chaptersByType = new Map<string, number>()
+  for (const row of (typeActivityRows ?? []) as any[]) {
+    if (!row.type) continue // pre-migration rows have no type recorded — expected, not a bug
+    chaptersByType.set(row.type, (chaptersByType.get(row.type) ?? 0) + (row.chapters_read ?? 0))
+  }
+  const typeBreakdown = [...chaptersByType.entries()]
+    .map(([type, chapters]) => ({ type, chapters }))
+    .sort((a, b) => b.chapters - a.chapters)
 
   const readerView = (
     <div className="space-y-8">
@@ -303,6 +334,8 @@ export default async function ReaderDashboardPage() {
 
       <ContinueReadingHero items={readingItemsWithSource} listsHref="/reader/dashboard/lists" />
 
+      <MonthlyGoalPrompt userId={user.id} currentGoal={monthlyGoal} />
+
       <ReaderStatsSection
         savedCount={savedCount ?? 0}
         listsCount={listsCount ?? 0}
@@ -312,15 +345,18 @@ export default async function ReaderDashboardPage() {
         lastMonthChapters={lastMonthChapters}
         completedCount={completedCount ?? 0}
         currentStreak={profile.current_streak ?? 0}
+        monthlyGoal={monthlyGoal}
         savedHref="/reader/dashboard/saved"
         listsHref="/reader/dashboard/lists"
         reviewsHref="/reader/dashboard/reviews"
       />
 
-      <MonthlyGoalPicker
+      <MonthlyReaderSection
         userId={user.id}
-        initialGoal={profile.monthly_reading_goal ?? 50}
         monthlyChapters={monthlyChapters}
+        lastMonthChapters={lastMonthChapters}
+        initialGoal={monthlyGoal}
+        typeBreakdown={typeBreakdown}
       />
 
       <ReadingCalendarSection activityByDate={activityByDate} />
