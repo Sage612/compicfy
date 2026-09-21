@@ -30,6 +30,7 @@ import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnB
 import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { MoreInfoSection } from '@/components/comic-detail/MoreInfoSection'
 import { TagList } from '@/components/comic-detail/TagList'
+import { ComicDetailTabs } from '@/components/comic-detail/ComicDetailTabs'
 import { resolvePlatformIcon } from '@/lib/utils/platformIcons'
 import { headers } from 'next/headers'
 import { Fraunces, JetBrains_Mono } from 'next/font/google'
@@ -381,6 +382,13 @@ export default async function ComicDetailPage({ params }: Props) {
     },
   ].filter(Boolean) as { key: string; icon: typeof User; label: string }[]
 
+  // Zipped for ComicDetailTabs' Sources tab (mobile only) — same source
+  // data the desktop official-platforms row above already renders.
+  const officialPlatformsZipped = (rec.official_platforms ?? []).map((name, i) => ({
+    name,
+    link: rec.official_links?.[i] ?? null,
+  }))
+
   const actionDeck = (
     <div className="rounded-xl border border-dossier-foreground/10 bg-dossier-panel/60 p-2.5 space-y-2">
       <div className="grid grid-cols-2 gap-2">
@@ -590,69 +598,74 @@ export default async function ComicDetailPage({ params }: Props) {
                 </div>
               )}
 
-              {/* Trope/mood tags — roadmap item #2 */}
-              <TagList recommendationId={id} isLoggedIn={!!user} />
+              {/* ── DESKTOP-ONLY (unchanged single-scroll layout) ──
+                  TagList, official platforms row, MyReadingSources and
+                  MoreInfoSection now render on mobile inside
+                  ComicDetailTabs (Overview/Sources tabs) below instead. */}
+              <div className="hidden md:block space-y-2 md:space-y-3">
+                <TagList recommendationId={id} isLoggedIn={!!user} />
 
-              {rec.official_platforms && rec.official_platforms.length > 0 && (
-                <div className="flex md:flex-wrap justify-center md:justify-start gap-2 overflow-x-auto md:overflow-visible no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-                  {rec.official_platforms.map((platform: string, i: number) => (
-                    <div
-                      key={platform}
-                      className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full border border-dossier-foreground/10 bg-dossier-panel/40 text-[11px] text-dossier-foreground/60 hover:border-dossier-foreground/25 transition-colors shrink-0 whitespace-nowrap"
-                    >
-                      {(() => {
-                        const icon = resolvePlatformIcon(platform)
-                        if (icon.kind === 'svg') {
-                          return (
-                            <svg viewBox="0 0 24 24" width={10} height={10} className="shrink-0" aria-hidden="true">
-                              <path d={icon.path} fill={icon.hex} />
-                            </svg>
-                          )
-                        }
-                        if (icon.kind === 'monogram') {
-                          return (
-                            <span
-                              className="w-3.5 h-3.5 rounded-[3px] flex items-center justify-center text-[8px] font-bold shrink-0"
-                              style={{ background: icon.bg, color: icon.fg }}
-                              aria-hidden="true"
-                            >
-                              {icon.letter}
-                            </span>
-                          )
-                        }
-                        return <Globe size={10} className="text-dossier-foreground/40 shrink-0" />
-                      })()}
-                      <span className="font-medium">{platform}</span>
-                      {rec.official_links?.[i] && (
-                        <a
-                          href={rec.official_links[i]}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-label={`Open ${platform} link`}
-                        >
-                          <ExternalLink size={10} className="text-dossier-foreground/40 hover:text-dossier-foreground transition-colors" />
-                        </a>
-                      )}
-                    </div>
-                  ))}
+                {rec.official_platforms && rec.official_platforms.length > 0 && (
+                  <div className="flex md:flex-wrap justify-center md:justify-start gap-2 overflow-x-auto md:overflow-visible no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+                    {rec.official_platforms.map((platform: string, i: number) => (
+                      <div
+                        key={platform}
+                        className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full border border-dossier-foreground/10 bg-dossier-panel/40 text-[11px] text-dossier-foreground/60 hover:border-dossier-foreground/25 transition-colors shrink-0 whitespace-nowrap"
+                      >
+                        {(() => {
+                          const icon = resolvePlatformIcon(platform)
+                          if (icon.kind === 'svg') {
+                            return (
+                              <svg viewBox="0 0 24 24" width={10} height={10} className="shrink-0" aria-hidden="true">
+                                <path d={icon.path} fill={icon.hex} />
+                              </svg>
+                            )
+                          }
+                          if (icon.kind === 'monogram') {
+                            return (
+                              <span
+                                className="w-3.5 h-3.5 rounded-[3px] flex items-center justify-center text-[8px] font-bold shrink-0"
+                                style={{ background: icon.bg, color: icon.fg }}
+                                aria-hidden="true"
+                              >
+                                {icon.letter}
+                              </span>
+                            )
+                          }
+                          return <Globe size={10} className="text-dossier-foreground/40 shrink-0" />
+                        })()}
+                        <span className="font-medium">{platform}</span>
+                        {rec.official_links?.[i] && (
+                          <a
+                            href={rec.official_links[i]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`Open ${platform} link`}
+                          >
+                            <ExternalLink size={10} className="text-dossier-foreground/40 hover:text-dossier-foreground transition-colors" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div id="reading-sources" className="scroll-mt-24">
+                  <MyReadingSources
+                    comicId={id}
+                    isLoggedIn={!!user}
+                    isPro={currentUserIsPro}
+                  />
                 </div>
-              )}
 
-              <div id="reading-sources" className="scroll-mt-24">
-                <MyReadingSources
-                  comicId={id}
-                  isLoggedIn={!!user}
-                  isPro={currentUserIsPro}
-                />
+                {rec.more_info_link && (
+                  <MoreInfoSection
+                    link={rec.more_info_link}
+                    source={rec.more_info_link_source}
+                    verifiedAt={rec.more_info_link_verified_at}
+                  />
+                )}
               </div>
-
-              {rec.more_info_link && (
-                <MoreInfoSection
-                  link={rec.more_info_link}
-                  source={rec.more_info_link_source}
-                  verifiedAt={rec.more_info_link_verified_at}
-                />
-              )}
 
               <div className="flex items-stretch rounded-xl border border-dossier-foreground/10 bg-dossier-panel/40 divide-x divide-dossier-foreground/10 overflow-hidden backdrop-blur-sm">
                 {stats.map(({ icon: Icon, label, value }) => (
@@ -682,7 +695,69 @@ export default async function ComicDetailPage({ params }: Props) {
                 isPro={currentUserIsPro}
               />
 
-              <div className="space-y-6 pt-4 md:pt-8">
+              {/* ── MOBILE-ONLY tabbed layout (Overview / Sources / Community) ── */}
+              <div className="md:hidden pt-4">
+                <ComicDetailTabs
+                  description={rec.description}
+                  whyRecommend={rec.why_recommend}
+                  officialPlatforms={officialPlatformsZipped}
+                  upvotes={rec.upvotes ?? 0}
+                  downvotes={rec.downvotes ?? 0}
+                  tagList={<TagList recommendationId={id} isLoggedIn={!!user} />}
+                  moreInfo={
+                    rec.more_info_link ? (
+                      <MoreInfoSection
+                        link={rec.more_info_link}
+                        source={rec.more_info_link_source}
+                        verifiedAt={rec.more_info_link_verified_at}
+                      />
+                    ) : null
+                  }
+                  personalSources={
+                    <MyReadingSources
+                      comicId={id}
+                      isLoggedIn={!!user}
+                      isPro={currentUserIsPro}
+                    />
+                  }
+                  reviewSection={
+                    <ReviewSection
+                      recommendationId={id}
+                      currentUserId={user?.id ?? null}
+                      isLoggedIn={!!user}
+                      recommenderId={rec.user_id}
+                      currentUserRole={currentUserProfile?.role ?? null}
+                    />
+                  }
+                  nextReads={
+                    <SimilarComics
+                      comicId={id}
+                      contentRating={rec.content_rating}
+                      showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
+                    />
+                  }
+                  contextualOffers={
+                    <Suspense fallback={<div className="h-40 bg-dossier-panel/30 animate-pulse rounded-2xl border border-dossier-foreground/10" />}>
+                      <ContextualOffers
+                        comicId={id}
+                        comicTitle={rec.title}
+                        genre={rec.genres?.[0] || 'Action'}
+                        maxOffers={3}
+                      />
+                    </Suspense>
+                  }
+                  submitOwnButton={
+                    <SubmitYourOwnButton
+                      isLoggedIn={!!user}
+                      submitRoute={submitRoute}
+                      comicId={id}
+                    />
+                  }
+                />
+              </div>
+
+              {/* ── DESKTOP-ONLY (unchanged single-scroll layout) ── */}
+              <div className="hidden md:block space-y-6 pt-4 md:pt-8">
 
           <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-3 md:gap-4`}>
             <div className="relative rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/30 backdrop-blur-sm p-5 md:p-6 overflow-hidden">
