@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Bookmark, Crown, Loader2 } from 'lucide-react'
+import { Bookmark, Crown, Loader2, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -105,15 +105,15 @@ export function SaveButton({
         >
           <span
             className={cn(
-              'w-11 h-11 rounded-full border flex items-center justify-center transition-colors',
+              'w-11 h-11 rounded-full flex items-center justify-center transition-colors',
               saved
-                ? 'bg-dossier-foreground/10 border-dossier-foreground/30 text-dossier-foreground'
-                : 'border-dossier-foreground/10 text-dossier-foreground/60'
+                ? 'bg-dossier-foreground text-dossier'
+                : 'border border-dossier-foreground/10 text-dossier-foreground/60'
             )}
           >
             {loading
               ? <Loader2 size={16} className="animate-spin" />
-              : <Bookmark size={16} className={cn(saved && 'fill-current')} />
+              : saved ? <Check size={16} /> : <Bookmark size={16} />
             }
           </span>
           <span className="text-[11px] text-dossier-foreground/60">

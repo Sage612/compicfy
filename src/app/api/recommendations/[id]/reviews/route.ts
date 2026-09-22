@@ -71,6 +71,69 @@ export async function POST(
     }
 
     const body = await request.json()
+
+    // ── Rating-only path (QuickRatingCard) ──────────────────────────
+    // Deliberately bypasses reviewSchema (which requires 3+ chars of
+    // content) instead of loosening that shared schema — reviewSchema is
+    // also used by the PATCH edit route, and relaxing it there risks
+    // letting a full review through with empty content by accident.
+    // This path only ever runs when the client explicitly opts in via
+    // rating_only, so it can never be hit by the normal review form.
+    if (body.rating_only === true) {
+      const ratingValue = Number(body.rating)
+      if (!Number.isInteger(ratingValue) || ratingValue < 1 || ratingValue > 5) {
+        return NextResponse.json(
+          { error: 'Rating must be a whole number from 1 to 5' },
+          { status: 400 }
+        )
+      }
+
+      const { data: review, error } = await ((supabase.from('reviews') as any)
+        .insert({
+          user_id:            user.id,
+          recommendation_id:  id,
+          content:            '',
+          rating:             ratingValue,
+          contains_spoilers:  false,
+        })
+        .select('*, profiles(username, display_name, avatar_url)')
+        .single())
+
+      if (error) throw error
+
+      // Notify comic owner — same as the full-review path, just without
+      // a content excerpt since there isn't one.
+      try {
+        const [{ data: rec }, { data: reviewer }] = await Promise.all([
+          (supabase as any).from('recommendations').select('user_id, title').eq('id', id).single(),
+          (supabase as any).from('profiles').select('username, display_name').eq('id', user.id).single(),
+        ])
+
+        if (rec && rec.user_id !== user.id) {
+          const reviewerUsername = reviewer?.username ?? 'someone'
+          const reviewerName     = reviewer?.display_name || reviewerUsername
+          const notifTitle       = `${reviewerName} rated your recommendation "${rec.title}" ${ratingValue}★`
+
+          await (supabase as any).from('notifications').insert({
+            user_id: rec.user_id,
+            type:    'review',
+            title:   notifTitle,
+            content: null,
+            should_push: true,
+            data:    { recommendation_id: id, reviewer_id: user.id },
+          })
+          // No email for rating-only — sendReviewNotificationEmail expects
+          // real review text; a separate rating-notification email isn't
+          // something I have a template for. Flag if you want one added.
+        }
+      } catch (notifError) {
+        console.error('Notification error (non-fatal):', notifError)
+      }
+
+      return NextResponse.json({ review }, { status: 201 })
+    }
+
+    // ── Full review path (unchanged) ────────────────────────────────
     const normalized = {
       ...body,
       rating: body.rating ? Number(body.rating) : null,

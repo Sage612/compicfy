@@ -66,36 +66,45 @@ export async function GET(req: Request) {
 
     const { start, end } = getWeekRange(weekOffset)
 
-    let query = supabase
+    // Only ONE dot-notation cross-table filter (reading_lists.user_id) —
+    // this exact pattern is already proven safe in
+    // /api/reading-progress/updates. Filtering on a SECOND joined table's
+    // columns in the same query (recommendations.last_chapter_released_at,
+    // .type, .status) turned out to be the actual bug here: Supabase's
+    // query builder silently failed when combining dot-notation filters
+    // across two different embedded resources at once. Everything below
+    // is filtered in plain JS instead, after a single safe fetch.
+    const { data: items, error } = await supabase
       .from('reading_list_items')
       .select(`
-        list_id, status,
+        list_id, status, progress_chapter,
         reading_lists!inner(user_id),
         recommendations!inner(id, title, cover_url, type, status, genres, chapter_count, last_chapter_released_at)
       `)
       .eq('reading_lists.user_id', user.id)
       .in('status', ['reading', 'plan_to_read'])
-      .not('recommendations.last_chapter_released_at', 'is', null)
-      .gte('recommendations.last_chapter_released_at', start)
-      .lt('recommendations.last_chapter_released_at', end)
-
-    if (typeFilter)   query = query.eq('recommendations.type', typeFilter)
-    if (statusFilter) query = query.eq('recommendations.status', statusFilter)
-
-    const { data: items, error } = await query
 
     if (error) return NextResponse.json({ error: 'Failed to fetch release radar' }, { status: 500 })
 
-    let results = (items ?? []).map((item: any) => ({
-      list_id:                   item.list_id,
-      recommendation_id:         item.recommendations.id,
-      title:                     item.recommendations.title,
-      cover_url:                 item.recommendations.cover_url,
-      type:                      item.recommendations.type,
-      genres:                    item.recommendations.genres ?? [],
-      chapter_count:             item.recommendations.chapter_count,
-      last_chapter_released_at:  item.recommendations.last_chapter_released_at,
-    }))
+    let results = (items ?? [])
+      .filter((item: any) => {
+        const releasedAt = item.recommendations?.last_chapter_released_at
+        if (!releasedAt) return false
+        return releasedAt >= start && releasedAt < end
+      })
+      .filter((item: any) => !typeFilter   || item.recommendations.type   === typeFilter)
+      .filter((item: any) => !statusFilter || item.recommendations.status === statusFilter)
+      .map((item: any) => ({
+        list_id:                   item.list_id,
+        recommendation_id:         item.recommendations.id,
+        title:                     item.recommendations.title,
+        cover_url:                 item.recommendations.cover_url,
+        type:                      item.recommendations.type,
+        genres:                    item.recommendations.genres ?? [],
+        chapter_count:             item.recommendations.chapter_count,
+        progress_chapter:          item.progress_chapter,
+        last_chapter_released_at:  item.recommendations.last_chapter_released_at,
+      }))
 
     // genres is a text[] column — filtered in JS since Supabase's query
     // builder .contains() on an array needs an exact-shape array literal,

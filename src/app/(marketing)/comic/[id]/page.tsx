@@ -24,13 +24,13 @@ import { Button } from '@/components/ui/button'
 import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
 import { ReadingProgressButton } from '@/components/recommendations/ReadingProgressButton'
+import { ContinueReadingButton } from '@/components/comic-detail/ContinueReadingButton'
 import { BakeButton } from '@/components/recommendations/BakeButton'
-import { ComicMobileHero } from '@/components/comic-detail/ComicMobileHero'
+import { ComicDetailTabs } from '@/components/comic-detail/ComicDetailTabs'
 import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnButton'
 import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { MoreInfoSection } from '@/components/comic-detail/MoreInfoSection'
 import { TagList } from '@/components/comic-detail/TagList'
-import { ComicDetailTabs } from '@/components/comic-detail/ComicDetailTabs'
 import { resolvePlatformIcon } from '@/lib/utils/platformIcons'
 import { headers } from 'next/headers'
 import { Fraunces, JetBrains_Mono } from 'next/font/google'
@@ -476,63 +476,6 @@ export default async function ComicDetailPage({ params }: Props) {
 
         <div className="relative max-w-7xl mx-auto px-4 md:px-6 -mt-4 md:-mt-7 z-20 pb-6 pb-[calc(72px+env(safe-area-inset-bottom,0px))] md:pb-6">
 
-          <ComicMobileHero
-            recommendationId={id}
-            title={rec.title}
-            coverUrl={rec.cover_url}
-            typeLabel={typeStyle.label}
-            statusLabel={statusMeta.label}
-            yearReleased={rec.year_released}
-            ratingValue={ratioToStars(rec.upvotes ?? 0, rec.downvotes ?? 0)}
-            upvotePct={
-              (rec.upvotes ?? 0) + (rec.downvotes ?? 0) > 0
-                ? Math.round(((rec.upvotes ?? 0) / ((rec.upvotes ?? 0) + (rec.downvotes ?? 0))) * 100)
-                : null
-            }
-            initialUpvotes={rec.upvotes ?? 0}
-            initialDownvotes={rec.downvotes ?? 0}
-            initialVote={userVote}
-            initialSaved={isSaved}
-            isLoggedIn={!!user}
-            shareUrl={`${SITE_URL}/comic/${id}`}
-            continueSlot={
-              <ReadingProgressButton
-                comicId={id}
-                chapterCount={rec.chapter_count}
-                isLoggedIn={!!user}
-              />
-            }
-            moreSheetContent={
-              <>
-                <VoteButtons
-                  recommendationId={id}
-                  initialUpvotes={rec.upvotes ?? 0}
-                  initialDownvotes={rec.downvotes ?? 0}
-                  initialVote={userVote}
-                  isLoggedIn={!!user}
-                  comicTitle={rec.title}
-                  variant="icon"
-                  mode="down"
-                />
-                <BakeButton
-                  comicId={id}
-                  chapterCount={rec.chapter_count}
-                  isLoggedIn={!!user}
-                  isPro={currentUserIsPro}
-                />
-                {user && <AddToListButton recommendationId={id} userId={user.id} />}
-                <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
-              </>
-            }
-            reportButton={
-              <ReportButton
-                entityType="recommendation"
-                entityId={id}
-                isLoggedIn={!!user}
-                asButton
-              />
-            }
-          />
 
           <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
 
@@ -731,82 +674,190 @@ export default async function ComicDetailPage({ params }: Props) {
                 ))}
               </div>
 
-              {/* MobileActionBar (fixed-footer variant) removed on mobile —
-                  ComicMobileHero's icon row + More sheet replace it,
-                  matching the mockup. Kept available for desktop if you
-                  ever want it there; currently unused above md. */}
-
-              {/* ── MOBILE-ONLY tabbed layout (Overview / Sources / Community) ── */}
-              <div className="md:hidden pt-4">
-                <ComicDetailTabs
-                  description={rec.description}
-                  whyRecommend={rec.why_recommend}
-                  officialPlatforms={officialPlatformsZipped}
-                  upvotes={rec.upvotes ?? 0}
-                  downvotes={rec.downvotes ?? 0}
-                  metaBadges={[
-                    typeStyle.label,
-                    statusMeta.label,
-                    rec.content_rating ? rec.content_rating.replace('_', ' ') : null,
-                    rec.chapter_count
-                      ? rec.last_chapter_released_at
-                        ? `${rec.chapter_count} ch. · ${timeAgo(rec.last_chapter_released_at)}`
-                        : `${rec.chapter_count} ch.`
-                      : null,
-                  ].filter((b): b is string => !!b)}
-                  genres={rec.genres ?? []}
-                  tagList={<TagList recommendationId={id} isLoggedIn={!!user} />}
-                  moreInfo={
-                    rec.more_info_link ? (
-                      <MoreInfoSection
-                        link={rec.more_info_link}
-                        source={rec.more_info_link_source}
-                        verifiedAt={rec.more_info_link_verified_at}
-                      />
-                    ) : null
-                  }
-                  personalSources={
-                    <MyReadingSources
+              {/* ── MOBILE-ONLY tabbed layout (hero + sticky icon row/tabs + Overview/Sources/Community) ── */}
+              <ComicDetailTabs
+                recommendationId={id}
+                title={rec.title}
+                coverUrl={rec.cover_url}
+                isFeatured={!!rec.is_featured}
+                typeLabel={typeStyle.label}
+                statusLabel={statusMeta.label}
+                yearReleased={rec.year_released}
+                ratingValue={ratioToStars(rec.upvotes ?? 0, rec.downvotes ?? 0)}
+                upvotePct={
+                  (rec.upvotes ?? 0) + (rec.downvotes ?? 0) > 0
+                    ? Math.round(((rec.upvotes ?? 0) / ((rec.upvotes ?? 0) + (rec.downvotes ?? 0))) * 100)
+                    : null
+                }
+                initialUpvotes={rec.upvotes ?? 0}
+                initialDownvotes={rec.downvotes ?? 0}
+                initialVote={userVote}
+                initialSaved={isSaved}
+                isLoggedIn={!!user}
+                shareUrl={`${SITE_URL}/comic/${id}`}
+                hasOfficialSource={officialPlatformsZipped.some(p => !!p.link)}
+                continueSlot={
+                  <ContinueReadingButton
+                    comicId={id}
+                    isLoggedIn={!!user}
+                    officialPlatforms={officialPlatformsZipped}
+                  />
+                }
+                moreSheetContent={
+                  <>
+                    <VoteButtons
+                      recommendationId={id}
+                      initialUpvotes={rec.upvotes ?? 0}
+                      initialDownvotes={rec.downvotes ?? 0}
+                      initialVote={userVote}
+                      isLoggedIn={!!user}
+                      comicTitle={rec.title}
+                      variant="icon"
+                      mode="down"
+                    />
+                    <BakeButton
                       comicId={id}
+                      chapterCount={rec.chapter_count}
                       isLoggedIn={!!user}
                       isPro={currentUserIsPro}
                     />
-                  }
-                  reviewSection={
-                    <ReviewSection
-                      recommendationId={id}
-                      currentUserId={user?.id ?? null}
-                      isLoggedIn={!!user}
-                      recommenderId={rec.user_id}
-                      currentUserRole={currentUserProfile?.role ?? null}
+                    {user && <AddToListButton recommendationId={id} userId={user.id} />}
+                    <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
+                  </>
+                }
+                reportButton={
+                  <ReportButton
+                    entityType="recommendation"
+                    entityId={id}
+                    isLoggedIn={!!user}
+                    asButton
+                  />
+                }
+                description={rec.description}
+                whyRecommend={rec.why_recommend}
+                officialPlatforms={officialPlatformsZipped}
+                upvotes={rec.upvotes ?? 0}
+                downvotes={rec.downvotes ?? 0}
+                metaBadges={[
+                  typeStyle.label,
+                  statusMeta.label,
+                  rec.content_rating ? rec.content_rating.replace('_', ' ') : null,
+                  rec.chapter_count
+                    ? rec.last_chapter_released_at
+                      ? `${rec.chapter_count} ch. · ${timeAgo(rec.last_chapter_released_at)}`
+                      : `${rec.chapter_count} ch.`
+                    : null,
+                  rec.year_released ? String(rec.year_released) : null,
+                  rec.author
+                    ? (rec.artist && rec.artist !== rec.author ? `${rec.author} · ${rec.artist}` : rec.author)
+                    : null,
+                ].filter((b): b is string => !!b)}
+                genres={rec.genres ?? []}
+                tagList={<TagList recommendationId={id} isLoggedIn={!!user} />}
+                moreInfo={
+                  rec.more_info_link ? (
+                    <MoreInfoSection
+                      link={rec.more_info_link}
+                      source={rec.more_info_link_source}
+                      verifiedAt={rec.more_info_link_verified_at}
                     />
-                  }
-                  nextReads={
-                    <SimilarComics
+                  ) : null
+                }
+                personalSources={
+                  <MyReadingSources
+                    comicId={id}
+                    isLoggedIn={!!user}
+                    isPro={currentUserIsPro}
+                  />
+                }
+                reviewSection={
+                  <ReviewSection
+                    recommendationId={id}
+                    currentUserId={user?.id ?? null}
+                    isLoggedIn={!!user}
+                    recommenderId={rec.user_id}
+                    currentUserRole={currentUserProfile?.role ?? null}
+                  />
+                }
+                nextReads={
+                  <SimilarComics
+                    comicId={id}
+                    contentRating={rec.content_rating}
+                    showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
+                  />
+                }
+                contextualOffers={
+                  <Suspense fallback={<div className="h-40 bg-dossier-panel/30 animate-pulse rounded-2xl border border-dossier-foreground/10" />}>
+                    <ContextualOffers
                       comicId={id}
-                      contentRating={rec.content_rating}
-                      showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
+                      comicTitle={rec.title}
+                      genre={rec.genres?.[0] || 'Action'}
+                      maxOffers={3}
                     />
-                  }
-                  contextualOffers={
-                    <Suspense fallback={<div className="h-40 bg-dossier-panel/30 animate-pulse rounded-2xl border border-dossier-foreground/10" />}>
-                      <ContextualOffers
-                        comicId={id}
-                        comicTitle={rec.title}
-                        genre={rec.genres?.[0] || 'Action'}
-                        maxOffers={3}
-                      />
-                    </Suspense>
-                  }
-                  submitOwnButton={
-                    <SubmitYourOwnButton
-                      isLoggedIn={!!user}
-                      submitRoute={submitRoute}
-                      comicId={id}
-                    />
-                  }
-                />
-              </div>
+                  </Suspense>
+                }
+                submitOwnButton={
+                  <SubmitYourOwnButton
+                    isLoggedIn={!!user}
+                    submitRoute={submitRoute}
+                    comicId={id}
+                  />
+                }
+                recommenderCard={
+                  !isGhostRec && profile ? (
+                    <div className="rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/40 p-5">
+                      <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
+                        Recommender
+                      </p>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {profile.avatar_url ? (
+                            <img
+                              src={profile.avatar_url}
+                              alt=""
+                              className="h-10 w-10 rounded-full border border-dossier-foreground/10 object-cover shrink-0"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full border border-dossier-foreground/10 bg-dossier flex items-center justify-center text-xs font-bold text-dossier-foreground/40 shrink-0">
+                              {recommenderName.slice(0, 1).toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-medium truncate text-dossier-foreground">{recommenderName}</p>
+                            {profile.username && (
+                              <p className="font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/40 truncate">
+                                @{profile.username}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {(recommenderIsVerified || recommenderIsPro) && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {recommenderIsVerified && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-dossier-foreground/15 text-dossier-foreground/60">
+                                Verified
+                              </span>
+                            )}
+                            {recommenderIsPro && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-amber-500/30 text-amber-400">
+                                Pro
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {profile.username && (
+                        <Link
+                          href={`/${profile.username}`}
+                          className="mt-3 flex items-center justify-center w-full h-8 rounded-[10px] border border-dossier-foreground/10 bg-dossier/60 font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/70"
+                        >
+                          View profile →
+                        </Link>
+                      )}
+                    </div>
+                  ) : null
+                }
+              />
 
               {/* ── DESKTOP-ONLY (unchanged single-scroll layout) ── */}
               <div className="hidden md:block space-y-6 pt-4 md:pt-8">
