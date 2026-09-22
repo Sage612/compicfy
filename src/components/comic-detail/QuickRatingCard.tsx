@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 interface Props {
   recommendationId: string
   isLoggedIn:        boolean
+  onSubmitted?:      () => void
 }
 
 /**
@@ -15,7 +16,7 @@ interface Props {
  * inserts a review row with empty content instead. See the route's
  * rating_only branch for details.
  */
-export function QuickRatingCard({ recommendationId, isLoggedIn }: Props) {
+export function QuickRatingCard({ recommendationId, isLoggedIn, onSubmitted }: Props) {
   const [rating,     setRating]     = useState(0)
   const [hover,       setHover]     = useState(0)
   const [submitting,  setSubmitting] = useState(false)
@@ -38,6 +39,7 @@ export function QuickRatingCard({ recommendationId, isLoggedIn }: Props) {
         return
       }
       setSubmitted(true)
+      onSubmitted?.()
       toast.success('Rating saved!')
     } catch {
       toast.error('Failed to submit rating')

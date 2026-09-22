@@ -715,6 +715,11 @@ export default async function ComicDetailPage({ params }: Props) {
                       variant="icon"
                       mode="down"
                     />
+                    <ReadingProgressButton
+                      comicId={id}
+                      chapterCount={rec.chapter_count}
+                      isLoggedIn={!!user}
+                    />
                     <BakeButton
                       comicId={id}
                       chapterCount={rec.chapter_count}
@@ -784,6 +789,8 @@ export default async function ComicDetailPage({ params }: Props) {
                     comicId={id}
                     contentRating={rec.content_rating}
                     showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
+                    layout="scroll"
+                    hideHeading
                   />
                 }
                 contextualOffers={

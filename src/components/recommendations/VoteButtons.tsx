@@ -98,7 +98,9 @@ export function VoteButtons({
 
   if (variant === 'icon') {
     const active = userVote === mode
-    const label = mode === 'up' ? 'Voted' : 'Downvote'
+    const label = mode === 'up'
+      ? (active ? 'Voted' : 'Vote')
+      : (active ? 'Downvoted' : 'Downvote')
     const Icon = mode === 'up' ? ChevronUp : ThumbsDown
     const loading = loadingVote === mode
 

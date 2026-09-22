@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, type ReactNode } from 'react'
+import { useState, useRef, useEffect, cloneElement, isValidElement, type ReactNode } from 'react'
 import { Star, Share2, MoreHorizontal, X, Globe, ExternalLink, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { VoteButtons } from '@/components/recommendations/VoteButtons'
 import { SaveButton } from '@/components/recommendations/SaveButton'
@@ -102,19 +102,45 @@ export function ComicDetailTabs({
 }: ComicDetailTabsProps) {
   const [active, setActive] = useState<TabKey>('overview')
   const [sheetOpen, setSheetOpen] = useState(false)
-  const stickyRef = useRef<HTMLDivElement>(null)
+  const [reviewsRefreshKey, setReviewsRefreshKey] = useState(0)
+  const [pinned, setPinned] = useState(false)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
+  const [barHeight, setBarHeight] = useState(0)
+
+  // Sticky bar via a sentinel + IntersectionObserver + `fixed`, instead
+  // of CSS `position: sticky`. Sticky silently breaks the moment ANY
+  // ancestor between it and the real scrolling container has overflow
+  // set to anything but `visible` — extremely common in a mobile app
+  // shell (a `overflow-x: hidden` on body to kill horizontal scroll is
+  // the usual culprit, and it's also a known iOS Safari bug that
+  // overflow-x hidden disables vertical sticky entirely). `fixed`
+  // positioned via scroll observation doesn't depend on that at all.
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setPinned(!entry.isIntersecting && entry.boundingClientRect.top < 0),
+      { threshold: 0 }
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (barRef.current) setBarHeight(barRef.current.offsetHeight)
+  }, [pinned])
 
   const totalVotes = upvotes + downvotes
   const upPct = totalVotes > 0 ? Math.round((upvotes / totalVotes) * 100) : null
 
   const readAheadPlatform = officialPlatforms.find(
-    (p): p is OfficialPlatform & { link: string } =>
-      Boolean(p.link) && p.name.toLowerCase().includes('webtoon')
+    p => p.link && p.name.toLowerCase().includes('webtoon')
   )
 
   const jumpToSources = () => {
     setActive('sources')
-    stickyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    sentinelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const handleShare = async () => {
@@ -186,10 +212,20 @@ export function ComicDetailTabs({
 
       </div>
 
-      {/* Sticky: icon row + tab bar (pinned together while scrolling a tab) */}
+      {/* Sentinel — sits right where the bar normally starts. When it
+          scrolls above the viewport, the bar pins to fixed. */}
+      <div ref={sentinelRef} />
+
+      {/* Spacer — only rendered while pinned, so fixed-positioning the
+          bar doesn't yank the content below it up by the bar's height. */}
+      {pinned && <div style={{ height: barHeight }} />}
+
+      {/* Icon row + tab bar (pinned together while scrolling a tab) */}
       <div
-        ref={stickyRef}
-        className="sticky top-0 z-30 -mx-4 px-4 mt-4 bg-dossier/95 backdrop-blur-md border-b border-dossier-foreground/10"
+        ref={barRef}
+        className={`z-30 -mx-4 px-4 mt-4 bg-dossier/95 backdrop-blur-md border-b border-dossier-foreground/10 ${
+          pinned ? 'fixed top-0 left-0 right-0 mx-0' : ''
+        }`}
       >
         <div className="flex items-center justify-around py-3">
           <SaveButton
@@ -435,22 +471,26 @@ export function ComicDetailTabs({
               </div>
             )}
 
-            <QuickRatingCard recommendationId={recommendationId} isLoggedIn={isLoggedIn} />
+            <QuickRatingCard
+              recommendationId={recommendationId}
+              isLoggedIn={isLoggedIn}
+              onSubmitted={() => setReviewsRefreshKey(k => k + 1)}
+            />
 
-            {reviewSection}
+            {/* Re-keying forces ReviewSection to remount and refetch,
+                so a rating submitted via QuickRatingCard above shows up
+                immediately — otherwise the two components are separate
+                islands with no shared state and ReviewSection stays
+                stale until a full page reload. */}
+            {isValidElement(reviewSection)
+              ? cloneElement(reviewSection as React.ReactElement<any>, { key: reviewsRefreshKey })
+              : reviewSection}
 
             <section className="pt-2 border-t border-dossier-foreground/10 space-y-4">
               <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
                 Next Reads
               </h2>
-              {/* Horizontal scroll — the layout itself depends on
-                  SimilarComics rendering its cards as flex/inline items
-                  internally. If it renders a CSS grid instead, this
-                  wrapper alone won't force a single scrolling row; send
-                  that file if it still wraps instead of scrolling. */}
-              <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-4 px-4 [&>*]:shrink-0">
-                {nextReads}
-              </div>
+              {nextReads}
             </section>
           </div>
         )}

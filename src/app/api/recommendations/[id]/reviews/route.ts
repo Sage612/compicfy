@@ -122,9 +122,17 @@ export async function POST(
             should_push: true,
             data:    { recommendation_id: id, reviewer_id: user.id },
           })
-          // No email for rating-only — sendReviewNotificationEmail expects
-          // real review text; a separate rating-notification email isn't
-          // something I have a template for. Flag if you want one added.
+          // sendReviewNotificationEmail's `reviewContent` param is just
+          // interpolated into the template as text — reusing it here with
+          // a synthesized message instead of real review text, so this
+          // gets a real email instead of being skipped.
+          sendReviewNotificationEmail(
+            rec.user_id,
+            reviewerUsername,
+            rec.title,
+            id,
+            `Rated it ${ratingValue}★`
+          ).catch(console.error)
         }
       } catch (notifError) {
         console.error('Notification error (non-fatal):', notifError)
