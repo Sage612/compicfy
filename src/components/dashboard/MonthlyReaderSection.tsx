@@ -20,6 +20,8 @@ interface Props {
 
 export function MonthlyReaderSection({ userId, monthlyChapters, lastMonthChapters, initialGoal, typeBreakdown }: Props) {
   const [goal, setGoal] = useState(initialGoal)
+  const [customOpen, setCustomOpen] = useState(false)
+  const [customValue, setCustomValue] = useState(String(initialGoal))
   const [isPending, startTransition] = useTransition()
   const supabase = createClient()
 
@@ -30,10 +32,19 @@ export function MonthlyReaderSection({ userId, monthlyChapters, lastMonthChapter
   const maxType = Math.max(1, ...typeBreakdown.map(t => t.chapters))
 
   const setGoalTo = (next: number) => {
+    if (!Number.isFinite(next) || next <= 0) return
     setGoal(next) // optimistic
     startTransition(async () => {
       await supabase.from('profiles').update({ monthly_reading_goal: next }).eq('id', userId)
     })
+  }
+
+  const submitCustom = () => {
+    const parsed = parseInt(customValue, 10)
+    if (Number.isFinite(parsed) && parsed > 0) {
+      setGoalTo(parsed)
+      setCustomOpen(false)
+    }
   }
 
   return (
@@ -68,20 +79,51 @@ export function MonthlyReaderSection({ userId, monthlyChapters, lastMonthChapter
         <div className="h-1 rounded-full bg-muted overflow-hidden">
           <div className="h-full rounded-full bg-foreground/70 transition-all duration-700" style={{ width: `${goalPct}%` }} />
         </div>
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex items-center gap-2 pt-1 flex-wrap">
           {PRESETS.map(p => (
             <button
               key={p}
               type="button"
               disabled={isPending}
-              onClick={() => setGoalTo(p)}
+              onClick={() => { setGoalTo(p); setCustomOpen(false) }}
               className={`h-8 px-3 rounded-full text-xs font-medium border transition-colors disabled:opacity-50 ${
-                goal === p ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:border-foreground/30'
+                goal === p && !customOpen ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:border-foreground/30'
               }`}
             >
               {p}
             </button>
           ))}
+          {!customOpen ? (
+            <button
+              type="button"
+              onClick={() => { setCustomValue(String(goal)); setCustomOpen(true) }}
+              className={`h-8 px-3 rounded-full text-xs font-medium border transition-colors ${
+                customOpen || !PRESETS.includes(goal) ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:border-foreground/30'
+              }`}
+            >
+              Custom
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={1}
+                value={customValue}
+                onChange={e => setCustomValue(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submitCustom()}
+                className="h-8 w-16 rounded-full border border-border bg-transparent px-3 text-xs text-center focus:outline-none focus:border-foreground/40"
+                autoFocus
+              />
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={submitCustom}
+                className="h-8 px-3 rounded-full text-xs font-medium bg-foreground text-background disabled:opacity-50"
+              >
+                Set
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

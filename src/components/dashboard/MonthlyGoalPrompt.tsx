@@ -23,6 +23,7 @@ interface Props {
 export function MonthlyGoalPrompt({ userId, currentGoal }: Props) {
   const [goal, setGoal] = useState(currentGoal)
   const [changing, setChanging] = useState(false)
+  const [customValue, setCustomValue] = useState(String(currentGoal))
   const [isPending, startTransition] = useTransition()
   const supabase = createClient()
 
@@ -63,7 +64,7 @@ export function MonthlyGoalPrompt({ userId, currentGoal }: Props) {
       ) : (
         <>
           <span className="text-muted-foreground shrink-0">New goal:</span>
-          <div className="flex items-center gap-1.5 flex-1">
+          <div className="flex items-center gap-1.5 flex-1 flex-wrap">
             {PRESETS.map(p => (
               <button
                 key={p}
@@ -74,6 +75,20 @@ export function MonthlyGoalPrompt({ userId, currentGoal }: Props) {
                 {p}
               </button>
             ))}
+            <input
+              type="number"
+              min={1}
+              value={customValue}
+              onChange={e => setCustomValue(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  const parsed = parseInt(customValue, 10)
+                  if (Number.isFinite(parsed) && parsed > 0) setGoalTo(parsed)
+                }
+              }}
+              placeholder="Custom"
+              className="h-7 w-16 rounded-full border border-border bg-transparent px-2.5 text-xs text-center focus:outline-none focus:border-foreground/40"
+            />
           </div>
         </>
       )}
