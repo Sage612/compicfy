@@ -1,13 +1,51 @@
 'use client'
 
 import { useState, useRef, useEffect, cloneElement, isValidElement, type ReactNode } from 'react'
-import { Star, Share2, MoreHorizontal, X, Globe, ExternalLink, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { Star, Share2, MoreHorizontal, X, Globe, ExternalLink, ThumbsUp, ThumbsDown, ChevronDown } from 'lucide-react'
 import { VoteButtons } from '@/components/recommendations/VoteButtons'
 import { SaveButton } from '@/components/recommendations/SaveButton'
 import { QuickRatingCard } from '@/components/comic-detail/QuickRatingCard'
 import { resolvePlatformIcon } from '@/lib/utils/platformIcons'
 
 type TabKey = 'overview' | 'sources' | 'community'
+
+// Click-to-expand row for the "More" sheet — matches the original
+// MobileActionBar's SheetRow: tapping a row reveals that item's actual
+// component in place, instead of every item's full UI rendering open
+// simultaneously.
+function SheetRow({
+  icon,
+  label,
+  children,
+  isOpen,
+  onToggle,
+}: {
+  icon: ReactNode
+  label: string
+  children: ReactNode
+  isOpen: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div className="border-b border-dossier-foreground/10 last:border-b-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between gap-3 px-1 py-3 text-left"
+      >
+        <span className="flex items-center gap-3 text-sm text-dossier-foreground">
+          {icon}
+          {label}
+        </span>
+        <ChevronDown
+          size={16}
+          className={`text-dossier-foreground/40 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {isOpen && <div className="pb-3 pl-1">{children}</div>}
+    </div>
+  )
+}
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
@@ -43,7 +81,8 @@ interface ComicDetailTabsProps {
   continueSlot: ReactNode | null
   hasOfficialSource: boolean
 
-  moreSheetContent: ReactNode
+  downvoteSlot:     ReactNode
+  moreSheetRows:    { key: string; icon: ReactNode; label: string; content: ReactNode }[]
   reportButton:     ReactNode
 
   description:       string | null
@@ -52,7 +91,6 @@ interface ComicDetailTabsProps {
   upvotes:           number
   downvotes:         number
   metaBadges:        string[]
-  genres:            string[]
 
   tagList:          ReactNode
   moreInfo:         ReactNode
@@ -82,7 +120,8 @@ export function ComicDetailTabs({
   shareUrl,
   continueSlot,
   hasOfficialSource,
-  moreSheetContent,
+  downvoteSlot,
+  moreSheetRows,
   reportButton,
   description,
   whyRecommend,
@@ -90,7 +129,6 @@ export function ComicDetailTabs({
   upvotes,
   downvotes,
   metaBadges,
-  genres,
   tagList,
   moreInfo,
   personalSources,
@@ -102,35 +140,10 @@ export function ComicDetailTabs({
 }: ComicDetailTabsProps) {
   const [active, setActive] = useState<TabKey>('overview')
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [openRow, setOpenRow] = useState<string | null>(null)
   const [reviewsRefreshKey, setReviewsRefreshKey] = useState(0)
   const [reviewsExpanded, setReviewsExpanded] = useState(false)
-  const [pinned, setPinned] = useState(false)
-  const sentinelRef = useRef<HTMLDivElement>(null)
-  const barRef = useRef<HTMLDivElement>(null)
-  const [barHeight, setBarHeight] = useState(0)
-
-  // Sticky bar via a sentinel + IntersectionObserver + `fixed`, instead
-  // of CSS `position: sticky`. Sticky silently breaks the moment ANY
-  // ancestor between it and the real scrolling container has overflow
-  // set to anything but `visible` — extremely common in a mobile app
-  // shell (a `overflow-x: hidden` on body to kill horizontal scroll is
-  // the usual culprit, and it's also a known iOS Safari bug that
-  // overflow-x hidden disables vertical sticky entirely). `fixed`
-  // positioned via scroll observation doesn't depend on that at all.
-  useEffect(() => {
-    const sentinel = sentinelRef.current
-    if (!sentinel) return
-    const observer = new IntersectionObserver(
-      ([entry]) => setPinned(!entry.isIntersecting && entry.boundingClientRect.top < 0),
-      { threshold: 0 }
-    )
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [])
-
-  useEffect(() => {
-    if (barRef.current) setBarHeight(barRef.current.offsetHeight)
-  }, [pinned])
+  const tabBarRef = useRef<HTMLDivElement>(null)
 
   const totalVotes = upvotes + downvotes
   const upPct = totalVotes > 0 ? Math.round((upvotes / totalVotes) * 100) : null
@@ -141,7 +154,7 @@ export function ComicDetailTabs({
 
   const jumpToSources = () => {
     setActive('sources')
-    sentinelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    tabBarRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
   const handleShare = async () => {
@@ -213,29 +226,10 @@ export function ComicDetailTabs({
 
       </div>
 
-      {/* Sentinel — sits right where the bar normally starts. When it
-          scrolls above the viewport, the bar pins to fixed. */}
-      <div ref={sentinelRef} />
-
-      {/* Spacer — only rendered while pinned, so fixed-positioning the
-          bar doesn't yank the content below it up by the bar's height. */}
-      {pinned && <div style={{ height: barHeight }} />}
-
-      {/* Icon row + tab bar (pinned together while scrolling a tab).
-          Docks at var(--header-h) — same CSS var MobileTabBar maintains
-          for its own fixed positioning — instead of top: 0, so this sits
-          below your global fixed Header + MobileTabBar instead of
-          underneath/behind them. z-30 stays below MobileTabBar's z-40. */}
+      {/* Icon row + tab bar — plain in-flow, no pinning/sticky. */}
       <div
-        ref={barRef}
-        className={`z-30 -mx-4 px-4 mt-4 bg-dossier/95 backdrop-blur-md border-b border-dossier-foreground/10 ${
-          pinned ? 'fixed left-0 right-0 mx-0' : ''
-        }`}
-        style={
-          pinned
-            ? { top: 'var(--header-h)', transition: 'top 300ms cubic-bezier(0.4, 0, 0.2, 1)' }
-            : undefined
-        }
+        ref={tabBarRef}
+        className="-mx-4 px-4 mt-4 bg-dossier/95 border-b border-dossier-foreground/10"
       >
         <div className="flex items-center justify-around py-3">
           <SaveButton
@@ -334,24 +328,7 @@ export function ComicDetailTabs({
               </div>
             )}
 
-            <div className="space-y-2">
-              <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
-                Genres &amp; Tags
-              </p>
-              {genres.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {genres.map(genre => (
-                    <span
-                      key={genre}
-                      className="px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60"
-                    >
-                      {genre}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {tagList}
-            </div>
+            {tagList}
 
             {moreInfo}
 
@@ -545,7 +522,20 @@ export function ComicDetailTabs({
               {title}
             </p>
 
-            <div className="space-y-4">{moreSheetContent}</div>
+            <div className="space-y-1">
+              {downvoteSlot}
+              {moreSheetRows.map(row => (
+                <SheetRow
+                  key={row.key}
+                  icon={row.icon}
+                  label={row.label}
+                  isOpen={openRow === row.key}
+                  onToggle={() => setOpenRow(current => (current === row.key ? null : row.key))}
+                >
+                  {row.content}
+                </SheetRow>
+              ))}
+            </div>
 
             <div className="mt-5 pt-4 border-t border-dossier-foreground/10 text-destructive text-sm">
               {reportButton}

@@ -7,6 +7,11 @@ interface Props {
   currentStreak:   number
   monthlyChapters: number
   settingsHref:    string
+  // Optional — lets Pro (or any future variant) extend the same shared
+  // greeting instead of forking it into a separate component.
+  badges?:      React.ReactNode // rendered next to the greeting headline
+  extraLine?:   React.ReactNode // rendered below the streak/monthly line, e.g. leaderboard rank
+  avatarSlot?:  React.ReactNode // overrides the default plain avatar circle entirely
 }
 
 function timeOfDayGreeting(): string {
@@ -28,7 +33,7 @@ function todayLabel(): string {
   })
 }
 
-export function DashboardGreeting({ displayName, avatarUrl, currentStreak, monthlyChapters, settingsHref }: Props) {
+export function DashboardGreeting({ displayName, avatarUrl, currentStreak, monthlyChapters, settingsHref, badges, extraLine, avatarSlot }: Props) {
   const firstName = displayName.split(' ')[0]
 
   const streakLine = currentStreak > 0
@@ -41,12 +46,16 @@ export function DashboardGreeting({ displayName, avatarUrl, currentStreak, month
         <p className="text-[11px] uppercase tracking-widest text-muted-foreground/60">
           {todayLabel()}
         </p>
-        <h1 className="font-dashboard-serif text-3xl md:text-4xl italic text-foreground">
-          {timeOfDayGreeting()}, {firstName}.
-        </h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="font-dashboard-serif text-3xl md:text-4xl italic text-foreground">
+            {timeOfDayGreeting()}, {firstName}.
+          </h1>
+          {badges}
+        </div>
         <p className="text-sm text-muted-foreground">
           {streakLine} Pick up where the panel stopped.
         </p>
+        {extraLine}
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
@@ -57,15 +66,17 @@ export function DashboardGreeting({ displayName, avatarUrl, currentStreak, month
         >
           <Settings size={14} />
         </Link>
-        <div className="w-9 h-9 rounded-full bg-muted border border-border overflow-hidden flex items-center justify-center shrink-0">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <span className="text-xs font-semibold text-muted-foreground">
-              {firstName.slice(0, 2).toUpperCase()}
-            </span>
-          )}
-        </div>
+        {avatarSlot ?? (
+          <div className="w-9 h-9 rounded-full bg-muted border border-border overflow-hidden flex items-center justify-center shrink-0">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-semibold text-muted-foreground">
+                {firstName.slice(0, 2).toUpperCase()}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

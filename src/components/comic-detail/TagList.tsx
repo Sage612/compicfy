@@ -2,7 +2,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, X, Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, X, Loader2, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { ReportButton } from '@/components/recommendations/ReportButton'
 
@@ -17,17 +18,40 @@ interface RecommendationTag {
   tag:        Tag
 }
 
+interface LeadingItem {
+  label: string
+  href?: string
+}
+
 interface Props {
   recommendationId: string
   isLoggedIn:        boolean
+  /** Section heading. Defaults to 'Tags'. Pass 'Genres & Tags' when
+   *  leadingItems (genres) are also supplied, so there's one heading
+   *  covering both instead of two stacked headings for the same block. */
+  heading?:           string
+  /** Read-only pills rendered before the fetched/editable tags — used
+   *  for the comic's genres, which aren't part of the tags system and
+   *  have no add/report affordance of their own. */
+  leadingItems?:      LeadingItem[]
+  /** When true, the whole section becomes an expand/collapse accordion
+   *  (collapsed by default) instead of always-open. */
+  collapsible?:       boolean
 }
 
-export function TagList({ recommendationId, isLoggedIn }: Props) {
+export function TagList({
+  recommendationId,
+  isLoggedIn,
+  heading = 'Tags',
+  leadingItems = [],
+  collapsible = false,
+}: Props) {
   const [tags,        setTags]        = useState<RecommendationTag[]>([])
   const [loading,      setLoading]     = useState(true)
   const [showPicker,   setShowPicker]  = useState(false)
   const [allTags,      setAllTags]     = useState<Tag[]>([])
   const [adding,       setAdding]      = useState<string | null>(null)
+  const [expanded,     setExpanded]    = useState(!collapsible)
 
   const [showSuggestForm, setShowSuggestForm] = useState(false)
   const [suggestName,     setSuggestName]     = useState('')
@@ -109,48 +133,80 @@ export function TagList({ recommendationId, isLoggedIn }: Props) {
 
   if (loading) return null
 
-  // Nothing attached and the viewer can't add anything (logged out) —
-  // don't render an empty section at all.
-  if (tags.length === 0 && !isLoggedIn) return null
+  // Nothing attached, no genres passed in, and the viewer can't add
+  // anything (logged out) — don't render an empty section at all.
+  if (tags.length === 0 && leadingItems.length === 0 && !isLoggedIn) return null
 
   return (
     <div className="space-y-1.5">
-      <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
-        Tags
-      </h2>
-
-      <div className="flex flex-wrap justify-center md:justify-start gap-1.5 items-center">
-        {tags.map(({ relationId, tag }) => (
-          <div
-            key={relationId}
-            className="group relative inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors"
-          >
-            <span>{tag.name}</span>
-            {isLoggedIn && (
-              <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                <ReportButton
-                  entityType="recommendation_tag"
-                  entityId={relationId}
-                  isLoggedIn={isLoggedIn}
-                  compact
-                />
-              </span>
-            )}
-          </div>
-        ))}
-
-        {isLoggedIn && !showPicker && !showSuggestForm && (
-          <button
-            onClick={openPicker}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border border-dashed border-dossier-foreground/15 text-dossier-foreground/40 hover:border-dossier-foreground/30 hover:text-dossier-foreground/70 transition-colors"
-          >
-            <Plus size={10} />
-            Add tag
-          </button>
+      <button
+        type="button"
+        onClick={() => collapsible && setExpanded(v => !v)}
+        className="w-full flex items-center justify-between"
+        disabled={!collapsible}
+      >
+        <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
+          {heading}
+        </h2>
+        {collapsible && (
+          <ChevronDown
+            size={13}
+            className={`text-dossier-foreground/40 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          />
         )}
-      </div>
+      </button>
 
-      {showPicker && (
+      {expanded && (
+        <div className="flex flex-wrap justify-center md:justify-start gap-1.5 items-center">
+          {leadingItems.map(item => (
+            item.href ? (
+              <Link key={item.label} href={item.href}>
+                <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors">
+                  {item.label}
+                </span>
+              </Link>
+            ) : (
+              <span
+                key={item.label}
+                className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60"
+              >
+                {item.label}
+              </span>
+            )
+          ))}
+
+          {tags.map(({ relationId, tag }) => (
+            <div
+              key={relationId}
+              className="group relative inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors"
+            >
+              <span>{tag.name}</span>
+              {isLoggedIn && (
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ReportButton
+                    entityType="recommendation_tag"
+                    entityId={relationId}
+                    isLoggedIn={isLoggedIn}
+                    compact
+                  />
+                </span>
+              )}
+            </div>
+          ))}
+
+          {isLoggedIn && !showPicker && !showSuggestForm && (
+            <button
+              onClick={openPicker}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border border-dashed border-dossier-foreground/15 text-dossier-foreground/40 hover:border-dossier-foreground/30 hover:text-dossier-foreground/70 transition-colors"
+            >
+              <Plus size={10} />
+              Add tag
+            </button>
+          )}
+        </div>
+      )}
+
+      {expanded && showPicker && (
         <div className="w-full p-3 rounded-xl border border-dossier-foreground/10 bg-dossier-panel/40 space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[10px] uppercase tracking-widest text-dossier-foreground/40 font-[family-name:var(--font-mono)]">
@@ -182,10 +238,6 @@ export function TagList({ recommendationId, isLoggedIn }: Props) {
             )}
           </div>
 
-          {/* Suggest a brand-new tag — was previously missing from this
-              component entirely; the only place to suggest one was the
-              submission form's TagPicker, with no path from an existing
-              comic's page at all. */}
           <div className="pt-2 border-t border-dossier-foreground/10">
             {!showSuggestForm ? (
               <button

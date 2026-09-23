@@ -12,6 +12,7 @@ import {
   BookOpen, Calendar, Hash, User, Palette,
   Globe, ExternalLink, ArrowLeft, ShieldAlert,
   Star, ThumbsUp, Bookmark, MessageSquare,
+  Croissant, Layers,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, timeAgo } from '@/lib/utils/format'
@@ -712,33 +713,57 @@ export default async function ComicDetailPage({ params }: Props) {
                     officialPlatforms={officialPlatformsZipped}
                   />
                 }
-                moreSheetContent={
-                  <>
-                    <VoteButtons
-                      recommendationId={id}
-                      initialUpvotes={rec.upvotes ?? 0}
-                      initialDownvotes={rec.downvotes ?? 0}
-                      initialVote={userVote}
-                      isLoggedIn={!!user}
-                      comicTitle={rec.title}
-                      variant="icon"
-                      mode="down"
-                    />
-                    <ReadingProgressButton
-                      comicId={id}
-                      chapterCount={rec.chapter_count}
-                      isLoggedIn={!!user}
-                    />
-                    <BakeButton
-                      comicId={id}
-                      chapterCount={rec.chapter_count}
-                      isLoggedIn={!!user}
-                      isPro={currentUserIsPro}
-                    />
-                    {user && <AddToListButton recommendationId={id} userId={user.id} />}
-                    <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
-                  </>
+                downvoteSlot={
+                  <VoteButtons
+                    recommendationId={id}
+                    initialUpvotes={rec.upvotes ?? 0}
+                    initialDownvotes={rec.downvotes ?? 0}
+                    initialVote={userVote}
+                    isLoggedIn={!!user}
+                    comicTitle={rec.title}
+                    variant="icon"
+                    mode="down"
+                  />
                 }
+                moreSheetRows={[
+                  {
+                    key: 'progress',
+                    icon: <BookOpen size={16} className="text-dossier-foreground/50" />,
+                    label: 'Reading progress',
+                    content: (
+                      <ReadingProgressButton
+                        comicId={id}
+                        chapterCount={rec.chapter_count}
+                        isLoggedIn={!!user}
+                      />
+                    ),
+                  },
+                  {
+                    key: 'bake',
+                    icon: <Croissant size={16} className="text-dossier-foreground/50" />,
+                    label: 'Let it bake',
+                    content: (
+                      <BakeButton
+                        comicId={id}
+                        chapterCount={rec.chapter_count}
+                        isLoggedIn={!!user}
+                        isPro={currentUserIsPro}
+                      />
+                    ),
+                  },
+                  ...(user ? [{
+                    key: 'list',
+                    icon: <Bookmark size={16} className="text-dossier-foreground/50" />,
+                    label: 'Add to list',
+                    content: <AddToListButton recommendationId={id} userId={user.id} />,
+                  }] : []),
+                  {
+                    key: 'collection',
+                    icon: <Layers size={16} className="text-dossier-foreground/50" />,
+                    label: 'Add to collection',
+                    content: <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />,
+                  },
+                ]}
                 reportButton={
                   <ReportButton
                     entityType="recommendation"
@@ -766,8 +791,15 @@ export default async function ComicDetailPage({ params }: Props) {
                     ? (rec.artist && rec.artist !== rec.author ? `${rec.author} · ${rec.artist}` : rec.author)
                     : null,
                 ].filter((b): b is string => !!b)}
-                genres={rec.genres ?? []}
-                tagList={<TagList recommendationId={id} isLoggedIn={!!user} />}
+                tagList={
+                  <TagList
+                    recommendationId={id}
+                    isLoggedIn={!!user}
+                    heading="Genres & Tags"
+                    leadingItems={(rec.genres ?? []).map(g => ({ label: g, href: `/browse?genre=${g}` }))}
+                    collapsible
+                  />
+                }
                 moreInfo={
                   rec.more_info_link ? (
                     <MoreInfoSection

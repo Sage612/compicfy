@@ -1,12 +1,10 @@
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import {
   ThumbsUp, Eye, Bookmark, MessageSquare, ChevronRight,
-  Plus, FileEdit, AlertCircle, ExternalLink, Target, Zap,
+  Plus, FileEdit, AlertCircle, ExternalLink, Target,
   BarChart2, Download, Trophy,
 } from 'lucide-react'
 import { formatNumber } from '@/lib/utils/format'
-import { cn } from '@/lib/utils'
 import { FREE_LIMITS } from '@/lib/utils/constants'
 import { ProUpsellCard } from './ProUpsellCard'
 
@@ -62,10 +60,10 @@ export function CuratorPanel({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {proTools.map(({ href, icon: Icon, label, desc }) => (
             <Link key={label} href={href}
-              className="p-3 rounded-xl border border-amber-500/20 bg-amber-500/5 hover:border-amber-500/40 transition-colors"
+              className="p-3 rounded-xl border border-border hover:border-foreground/20 transition-colors"
             >
-              <Icon size={14} className="text-amber-500 mb-1.5" />
-              <p className="text-xs font-bold leading-tight">{label}</p>
+              <Icon size={14} className="text-muted-foreground/60 mb-1.5" />
+              <p className="text-xs font-medium leading-tight">{label}</p>
               <p className="text-[10px] text-muted-foreground truncate">{desc}</p>
             </Link>
           ))}
@@ -74,30 +72,23 @@ export function CuratorPanel({
 
       {/* Limit tracker — only meaningful for free curators */}
       {!isPro && (
-        <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+        <div className="rounded-2xl border border-border p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Target size={13} className="text-muted-foreground" />
-              <span className="text-xs font-black uppercase tracking-wider text-muted-foreground">Submission Limit</span>
+            <div className="flex items-center gap-2 text-muted-foreground/60">
+              <Target size={13} />
+              <span className="text-xs">Submission limit</span>
             </div>
-            <Link href="/pricing">
-              <Button size="sm" variant="outline" className="h-6 text-[10px] px-2 gap-1 border-amber-500/30 text-amber-600 hover:bg-amber-500/10">
-                <Zap size={9} />Upgrade
-              </Button>
+            <Link href="/pricing" className="text-xs font-medium hover:underline">
+              Upgrade
             </Link>
           </div>
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground">Recs this month</span>
-              <span className={cn('text-[10px] font-semibold tabular-nums', recPct >= 80 ? 'text-amber-500' : 'text-muted-foreground')}>
-                {monthlyCount} / {FREE_LIMITS.recommendations_per_month}
-              </span>
+              <span className="text-xs text-muted-foreground">Recs this month</span>
+              <span className="text-xs tabular-nums">{monthlyCount} / {FREE_LIMITS.recommendations_per_month}</span>
             </div>
             <div className="h-1 rounded-full bg-muted overflow-hidden">
-              <div
-                className={cn('h-full rounded-full transition-all duration-700', recPct >= 90 ? 'bg-amber-500' : 'bg-violet-500')}
-                style={{ width: `${recPct}%` }}
-              />
+              <div className="h-full rounded-full bg-foreground/70 transition-all duration-700" style={{ width: `${recPct}%` }} />
             </div>
           </div>
         </div>
@@ -106,13 +97,13 @@ export function CuratorPanel({
       {/* Rejected — surfaced first since these need action */}
       {rejected.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <AlertCircle size={13} className="text-red-500" />Needs Attention
+          <h2 className="font-dashboard-serif text-xl flex items-center gap-2">
+            <AlertCircle size={15} className="text-muted-foreground/60" />Needs attention
           </h2>
           {rejected.map(s => (
-            <div key={s.id} className="p-3 rounded-2xl border border-red-500/20 bg-red-500/5 space-y-1">
-              <p className="text-xs font-black">{s.title}</p>
-              <p className="text-[11px] text-muted-foreground">{s.rejection_reason}</p>
+            <div key={s.id} className="p-3 rounded-2xl border border-border space-y-1">
+              <p className="text-sm font-medium">{s.title}</p>
+              <p className="text-xs text-muted-foreground">{s.rejection_reason}</p>
             </div>
           ))}
         </div>
@@ -121,15 +112,15 @@ export function CuratorPanel({
       {/* Drafts */}
       {drafts.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <FileEdit size={13} />Drafts
+          <h2 className="font-dashboard-serif text-xl flex items-center gap-2">
+            <FileEdit size={15} className="text-muted-foreground/60" />Drafts
           </h2>
           {drafts.map(s => (
             <Link key={s.id} href={`${dashboardPrefix}/reader/dashboard/recommendations/new?draft=${s.id}`}
-              className="flex items-center gap-3 p-3 rounded-2xl border border-dashed border-border bg-card/50 hover:border-primary/30 transition-colors"
+              className="flex items-center gap-3 p-3 rounded-2xl border border-dashed border-border hover:border-foreground/20 transition-colors"
             >
-              <span className="text-xs font-black flex-1 truncate">{s.title || 'Untitled draft'}</span>
-              <span className="text-[10px] text-muted-foreground shrink-0">Continue editing</span>
+              <span className="text-sm font-medium flex-1 truncate">{s.title || 'Untitled draft'}</span>
+              <span className="text-xs text-muted-foreground shrink-0">Continue editing</span>
               <ChevronRight size={13} className="text-muted-foreground/40 shrink-0" />
             </Link>
           ))}
@@ -139,11 +130,11 @@ export function CuratorPanel({
       {/* Pending review */}
       {pending.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Pending Review</h2>
+          <h2 className="font-dashboard-serif text-xl">Pending review</h2>
           {pending.map(s => (
-            <div key={s.id} className="flex items-center gap-3 p-3 rounded-2xl border border-amber-500/20 bg-amber-500/5">
-              <span className="text-xs font-black flex-1 truncate">{s.title}</span>
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600 shrink-0">⏳ Pending</span>
+            <div key={s.id} className="flex items-center gap-3 p-3 rounded-2xl border border-border">
+              <span className="text-sm font-medium flex-1 truncate">{s.title}</span>
+              <span className="text-xs text-muted-foreground shrink-0">Pending</span>
             </div>
           ))}
         </div>
@@ -152,33 +143,33 @@ export function CuratorPanel({
       {/* Live submissions — performance */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Your Recommendations</h2>
-          <Link href={`${dashboardPrefix}/reader/dashboard/recommendations/new`}>
-            <Button size="sm" className="h-7 text-xs gap-1"><Plus size={12} />New</Button>
+          <h2 className="font-dashboard-serif text-xl">Your recommendations</h2>
+          <Link href={`${dashboardPrefix}/reader/dashboard/recommendations/new`} className="text-xs font-medium hover:underline flex items-center gap-1">
+            <Plus size={12} />New
           </Link>
         </div>
         {live.length > 0 ? (
           <div className="space-y-2">
             {live.map(s => (
-              <div key={s.id} className="flex items-center gap-3 p-3 rounded-2xl border border-border bg-card">
+              <div key={s.id} className="flex items-center gap-3 p-3 rounded-2xl border border-border">
                 <div className="w-9 h-12 rounded-lg overflow-hidden bg-muted shrink-0">
                   {s.cover_url && <img src={proxyCover(s.cover_url)} alt={s.title} className="w-full h-full object-cover" />}
                 </div>
-                <p className="text-xs font-black flex-1 truncate">{s.title}</p>
-                <div className="hidden sm:flex gap-3 text-[10px] text-muted-foreground shrink-0">
-                  <span className="flex items-center gap-1"><ThumbsUp size={9} className="text-emerald-500" />{s.upvotes}</span>
-                  <span className="flex items-center gap-1"><Eye size={9} className="text-blue-500" />{formatNumber(s.view_count)}</span>
-                  <span className="flex items-center gap-1"><Bookmark size={9} className="text-violet-500" />{s.save_count}</span>
-                  <span className="flex items-center gap-1"><MessageSquare size={9} className="text-amber-500" />{s.review_count}</span>
+                <p className="text-sm font-medium flex-1 truncate">{s.title}</p>
+                <div className="hidden sm:flex gap-3 text-xs text-muted-foreground shrink-0">
+                  <span className="flex items-center gap-1"><ThumbsUp size={11} />{s.upvotes}</span>
+                  <span className="flex items-center gap-1"><Eye size={11} />{formatNumber(s.view_count)}</span>
+                  <span className="flex items-center gap-1"><Bookmark size={11} />{s.save_count}</span>
+                  <span className="flex items-center gap-1"><MessageSquare size={11} />{s.review_count}</span>
                 </div>
-                <Link href={`/comic/${s.id}`}>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0"><ExternalLink size={11} className="text-muted-foreground" /></Button>
+                <Link href={`/comic/${s.id}`} className="text-muted-foreground hover:text-foreground transition-colors shrink-0">
+                  <ExternalLink size={13} />
                 </Link>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground p-4 rounded-2xl border border-dashed border-border text-center">
+          <p className="text-sm text-muted-foreground p-4 rounded-2xl border border-dashed border-border text-center">
             No approved recommendations yet.
           </p>
         )}
