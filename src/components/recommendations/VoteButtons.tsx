@@ -115,10 +115,10 @@ export function VoteButtons({
         >
           <span
             className={cn(
-              'w-11 h-11 rounded-full flex items-center justify-center transition-colors',
+              'w-11 h-11 rounded-full flex items-center justify-center border transition-colors',
               active
-                ? 'bg-dossier-foreground text-dossier'
-                : 'border border-dossier-foreground/10 text-dossier-foreground/60'
+                ? 'bg-dossier-foreground/20 border-dossier-foreground/60 text-dossier-foreground'
+                : 'border-dossier-foreground/10 text-dossier-foreground/60'
             )}
           >
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Icon size={16} />}

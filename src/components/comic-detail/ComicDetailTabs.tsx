@@ -103,6 +103,7 @@ export function ComicDetailTabs({
   const [active, setActive] = useState<TabKey>('overview')
   const [sheetOpen, setSheetOpen] = useState(false)
   const [reviewsRefreshKey, setReviewsRefreshKey] = useState(0)
+  const [reviewsExpanded, setReviewsExpanded] = useState(false)
   const [pinned, setPinned] = useState(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const barRef = useRef<HTMLDivElement>(null)
@@ -220,12 +221,21 @@ export function ComicDetailTabs({
           bar doesn't yank the content below it up by the bar's height. */}
       {pinned && <div style={{ height: barHeight }} />}
 
-      {/* Icon row + tab bar (pinned together while scrolling a tab) */}
+      {/* Icon row + tab bar (pinned together while scrolling a tab).
+          Docks at var(--header-h) — same CSS var MobileTabBar maintains
+          for its own fixed positioning — instead of top: 0, so this sits
+          below your global fixed Header + MobileTabBar instead of
+          underneath/behind them. z-30 stays below MobileTabBar's z-40. */}
       <div
         ref={barRef}
         className={`z-30 -mx-4 px-4 mt-4 bg-dossier/95 backdrop-blur-md border-b border-dossier-foreground/10 ${
-          pinned ? 'fixed top-0 left-0 right-0 mx-0' : ''
+          pinned ? 'fixed left-0 right-0 mx-0' : ''
         }`}
+        style={
+          pinned
+            ? { top: 'var(--header-h)', transition: 'top 300ms cubic-bezier(0.4, 0, 0.2, 1)' }
+            : undefined
+        }
       >
         <div className="flex items-center justify-around py-3">
           <SaveButton
@@ -482,9 +492,26 @@ export function ComicDetailTabs({
                 immediately — otherwise the two components are separate
                 islands with no shared state and ReviewSection stays
                 stale until a full page reload. */}
-            {isValidElement(reviewSection)
-              ? cloneElement(reviewSection as React.ReactElement<any>, { key: reviewsRefreshKey })
-              : reviewSection}
+            <div className="relative">
+              <div className={reviewsExpanded ? '' : 'max-h-[420px] overflow-hidden'}>
+                {isValidElement(reviewSection)
+                  ? cloneElement(reviewSection as React.ReactElement<any>, { key: reviewsRefreshKey })
+                  : reviewSection}
+              </div>
+              {!reviewsExpanded && (
+                <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-dossier to-transparent pointer-events-none" />
+              )}
+            </div>
+
+            {!reviewsExpanded && (
+              <button
+                type="button"
+                onClick={() => setReviewsExpanded(true)}
+                className="w-full h-10 rounded-xl border border-dossier-foreground/15 text-sm font-semibold text-dossier-foreground/80"
+              >
+                Load more reviews
+              </button>
+            )}
 
             <section className="pt-2 border-t border-dossier-foreground/10 space-y-4">
               <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
@@ -498,7 +525,7 @@ export function ComicDetailTabs({
 
       {/* More sheet */}
       {sheetOpen && (
-        <div className="fixed inset-0 z-40 flex items-end">
+        <div className="fixed inset-0 z-[60] flex items-end">
           <div className="absolute inset-0 bg-black/50" onClick={() => setSheetOpen(false)} />
           <div className="relative w-full bg-dossier-panel rounded-t-2xl border-t border-dossier-foreground/10 px-5 pt-3 pb-6 max-h-[85vh] overflow-y-auto">
             <div className="w-9 h-1 rounded-full bg-dossier-foreground/20 mx-auto mb-4" />

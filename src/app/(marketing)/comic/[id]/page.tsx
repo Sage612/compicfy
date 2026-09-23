@@ -48,6 +48,15 @@ const mono = JetBrains_Mono({
   variable: '--font-mono',
 })
 
+// Same caching pitfall already documented in the vote route: Next.js can
+// cache a Server Component's data fetches (Supabase uses `fetch`
+// internally) unless explicitly opted out. Without this, a refresh right
+// after voting could serve a stale cached read of the `votes` row instead
+// of the fresh one — showing the vote as cleared even though it's
+// correctly persisted server-side.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
 const GHOST_ID = '00000000-0000-0000-0000-000000000000'
 
@@ -855,7 +864,9 @@ export default async function ComicDetailPage({ params }: Props) {
                       </div>
                       {profile.username && (
                         <Link
-                          href={`/${profile.username}`}
+                          href={profile.user_type === 'creator'
+                            ? `/creator/${profile.username}`
+                            : `/profile/${profile.username}`}
                           className="mt-3 flex items-center justify-center w-full h-8 rounded-[10px] border border-dossier-foreground/10 bg-dossier/60 font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/70"
                         >
                           View profile →
@@ -1001,7 +1012,9 @@ export default async function ComicDetailPage({ params }: Props) {
 
                   {profile.username && (
                     <Link
-                      href={`/${profile.username}`}
+                      href={profile.user_type === 'creator'
+                        ? `/creator/${profile.username}`
+                        : `/profile/${profile.username}`}
                       className="mt-3 flex items-center justify-center w-full h-8 rounded-[10px] border border-dossier-foreground/10 bg-dossier-panel/60 font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/70 hover:text-dossier-foreground hover:border-dossier-foreground/30 transition-colors"
                     >
                       View profile →
