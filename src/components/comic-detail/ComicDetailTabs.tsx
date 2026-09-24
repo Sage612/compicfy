@@ -75,9 +75,6 @@ interface ComicDetailTabsProps {
   isLoggedIn:       boolean
   shareUrl:         string
 
-  /** Rendered when at least one official platform exists — pass your
-   *  <ReadingProgressButton /> here. If false/null, a "Find where to
-   *  read" button renders instead, which jumps to the Sources tab. */
   continueSlot: ReactNode | null
   hasOfficialSource: boolean
   existingRating:    number | null
@@ -193,12 +190,12 @@ export function ComicDetailTabs({
           </div>
 
           <div className="flex-1 min-w-0 pt-1 space-y-2">
-            <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.2em] text-dossier-foreground/50">
-              {typeLabel} · {statusLabel}{yearReleased ? ` · ${yearReleased}` : ''}
-            </p>
-            <h1 className="font-[family-name:var(--font-dossier-display)] text-3xl font-black italic leading-[0.95] tracking-tight text-dossier-foreground">
+            <h1 className="font-[family-name:var(--font-dossier-display)] text-3xl font-black italic leading-[1.1] tracking-tight text-dossier-foreground">
               {title}
             </h1>
+            <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.15em] text-dossier-foreground/70 truncate">
+              {typeLabel} · {statusLabel}{yearReleased ? ` · ${yearReleased}` : ''}
+            </p>
 
             {upvotePct !== null && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-dossier-foreground/10 bg-dossier-panel/40 text-sm text-dossier-foreground/80">
@@ -265,7 +262,7 @@ export function ComicDetailTabs({
           </button>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="flex items-center justify-center gap-6">
           {TABS.map(tab => (
             <button
               key={tab.key}
@@ -467,11 +464,6 @@ export function ComicDetailTabs({
               onSubmitted={() => setReviewsRefreshKey(k => k + 1)}
             />
 
-            {/* Re-keying forces ReviewSection to remount and refetch,
-                so a rating submitted via QuickRatingCard above shows up
-                immediately — otherwise the two components are separate
-                islands with no shared state and ReviewSection stays
-                stale until a full page reload. */}
             <div className="relative">
               <div className={reviewsExpanded ? '' : 'max-h-[420px] overflow-hidden'}>
                 {isValidElement(reviewSection)
