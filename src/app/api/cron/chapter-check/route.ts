@@ -170,6 +170,7 @@ interface SourceResult {
   status:                ResolvedStatus
   formatRejected:        boolean
   originalTotalChapters?: number | null
+  isGenuinelyCompleted?:  boolean | null
 }
 
 const REJECTED: SourceResult = { chapter: null, status: null, formatRejected: true }
@@ -213,6 +214,7 @@ async function getChapterFromMU(id: string): Promise<SourceResult> {
       status: matchedLine?.status ?? null,
       formatRejected: false,
       originalTotalChapters: matchedLine?.totalChapters ?? null,
+      isGenuinelyCompleted: typeof data?.completed === 'boolean' ? data.completed : null,
     }
   } catch (err) {
     console.error(`MU chapter error for ${id}:`, err)
@@ -313,6 +315,7 @@ async function resolveChapterCount(comic: any): Promise<{
   statusSources:    string[]
   formatRejections: string[]
   originalTotalChapters: number | null
+  isGenuinelyCompleted: boolean | null
 }> {
   const tried: string[] = []
   const formatRejections: string[] = []
@@ -320,6 +323,7 @@ async function resolveChapterCount(comic: any): Promise<{
 
   let muChapter: number | null = null
   let muOriginalTotalChapters: number | null = null
+  let muIsGenuinelyCompleted: boolean | null = null
   if (comic.mangaupdates_id) {
     tried.push('MangaUpdates')
     const muRes = await getChapterFromMU(comic.mangaupdates_id)
@@ -328,6 +332,7 @@ async function resolveChapterCount(comic: any): Promise<{
     } else {
       muChapter = muRes.chapter
       muOriginalTotalChapters = muRes.originalTotalChapters ?? null
+      muIsGenuinelyCompleted = muRes.isGenuinelyCompleted ?? null
       if (muRes.status) statusVotes.push({ source: 'MangaUpdates', status: muRes.status })
     }
   }
@@ -389,38 +394,38 @@ async function resolveChapterCount(comic: any): Promise<{
 
   // ── Chapter count resolution — unchanged logic from before ──
   if (muChapter !== null && mdChapter !== null && Math.abs(muChapter - mdChapter) <= 1) {
-    return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters }
+    return { chapter: Math.max(muChapter, mdChapter), source: 'MU+MD confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
   }
 
   if (malChapter !== null) {
     if (muChapter !== null && Math.abs(malChapter - muChapter) <= 1) {
-      return { chapter: Math.max(malChapter, muChapter), source: 'MU+MAL confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters }
+      return { chapter: Math.max(malChapter, muChapter), source: 'MU+MAL confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
     }
     if (mdChapter !== null && Math.abs(malChapter - mdChapter) <= 1) {
-      return { chapter: Math.max(malChapter, mdChapter), source: 'MD+MAL confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters }
+      return { chapter: Math.max(malChapter, mdChapter), source: 'MD+MAL confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
     }
   }
 
   if (alChapter !== null) {
     if (muChapter !== null && Math.abs(alChapter - muChapter) <= 1) {
-      return { chapter: Math.max(alChapter, muChapter), source: 'MU+AniList confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters }
+      return { chapter: Math.max(alChapter, muChapter), source: 'MU+AniList confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
     }
     if (mdChapter !== null && Math.abs(alChapter - mdChapter) <= 1) {
-      return { chapter: Math.max(alChapter, mdChapter), source: 'MD+AniList confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters }
+      return { chapter: Math.max(alChapter, mdChapter), source: 'MD+AniList confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
     }
     if (malChapter !== null && Math.abs(alChapter - malChapter) <= 1) {
-      return { chapter: Math.max(alChapter, malChapter), source: 'MAL+AniList confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters }
+      return { chapter: Math.max(alChapter, malChapter), source: 'MAL+AniList confirmed', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
     }
     if (muChapter === null && mdChapter === null && malChapter === null) {
-      return { chapter: alChapter, source: 'AniList', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters }
+      return { chapter: alChapter, source: 'AniList', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
     }
   }
 
-  if (muChapter !== null)  return { chapter: muChapter,  source: 'MangaUpdates (unconfirmed)', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters }
-  if (mdChapter !== null)  return { chapter: mdChapter,  source: 'MangaDex (unconfirmed)',      tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters }
-  if (malChapter !== null) return { chapter: malChapter, source: 'MAL (unconfirmed)',           tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters }
+  if (muChapter !== null)  return { chapter: muChapter,  source: 'MangaUpdates (unconfirmed)', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
+  if (mdChapter !== null)  return { chapter: mdChapter,  source: 'MangaDex (unconfirmed)',      tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
+  if (malChapter !== null) return { chapter: malChapter, source: 'MAL (unconfirmed)',           tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
 
-  return { chapter: null, source: null, tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters }
+  return { chapter: null, source: null, tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
 }
 
 // ── Lock helpers ────────────────────────────────────────────────
@@ -615,7 +620,7 @@ export async function GET(req: Request) {
       }
 
       try {
-        const { chapter: newChapterCount, source, tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters } = await resolveChapterCount(comic)
+        const { chapter: newChapterCount, source, tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters, isGenuinelyCompleted } = await resolveChapterCount(comic)
 
         if (formatRejections.length > 0) {
           const clearPayload: Record<string, any> = {}
@@ -663,8 +668,8 @@ export async function GET(req: Request) {
           if (isTerminalOriginalStatus) {
             const chapterIncreased = finalChapter > (comic.chapter_count ?? 0)
 
-            // Chapter growth is hard evidence that translation is still active,
-            // even when a source reports a stale or mismatched terminal status.
+            // A genuine chapter increase this run is hard evidence that the
+            // translation is still active, regardless of status claims.
             if (chapterIncreased) {
               await supabase.from('recommendations').update({
                 chapter_count: finalChapter,
@@ -674,14 +679,15 @@ export async function GET(req: Request) {
 
               logEntry.status = 'no_update'
               logEntry.new_chapter_count = finalChapter
-              logEntry.reason = `${statusSources.length} sources claim "${resolvedStatus}", but chapter count grew ${comic.chapter_count}→${finalChapter} this run - overriding status claim, staying ongoing.`
+              logEntry.reason = `${statusSources.length} sources report status "${resolvedStatus}", but chapter count grew ${comic.chapter_count}→${finalChapter} this run - overriding status claim, staying as-is.`
               logs.push(logEntry)
               continue
             }
 
             const originalTotal = comic.original_total_chapters ?? originalTotalChapters ?? null
-            const hasCaughtUp = originalTotal !== null &&
-              finalChapter >= originalTotal - CHAPTER_CATCHUP_TOLERANCE
+            const hasCaughtUp = resolvedStatus === 'completed' && isGenuinelyCompleted !== null
+              ? isGenuinelyCompleted
+              : (originalTotal !== null && finalChapter >= originalTotal - CHAPTER_CATCHUP_TOLERANCE)
 
             const updatePayload: Record<string, any> = {
               chapter_count:            finalChapter,

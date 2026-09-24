@@ -360,13 +360,16 @@ export default async function ComicDetailPage({ params }: Props) {
 
   let userVote: 'up' | 'down' | null = null
   let isSaved = false
+  let existingRating: number | null = null
   if (user) {
-    const [voteRes, saveRes] = await Promise.all([
+    const [voteRes, saveRes, ratingRes] = await Promise.all([
       (supabase as any).from('votes').select('vote_type').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle(),
       (supabase as any).from('saves').select('id').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle(),
+      (supabase as any).from('reviews').select('rating').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle(),
     ])
     userVote = (voteRes.data?.vote_type as 'up' | 'down') ?? null
     isSaved  = !!saveRes.data
+    existingRating = typeof ratingRes.data?.rating === 'number' ? ratingRes.data.rating : null
   }
 
   const typeStyle = TYPE_META[rec.type as keyof typeof TYPE_META] ?? DEFAULT_TYPE_META
@@ -706,6 +709,7 @@ export default async function ComicDetailPage({ params }: Props) {
                 isLoggedIn={!!user}
                 shareUrl={`${SITE_URL}/comic/${id}`}
                 hasOfficialSource={officialPlatformsZipped.some(p => !!p.link)}
+                existingRating={existingRating}
                 continueSlot={
                   <ContinueReadingButton
                     comicId={id}

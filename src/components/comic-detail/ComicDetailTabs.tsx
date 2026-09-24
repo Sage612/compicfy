@@ -80,6 +80,7 @@ interface ComicDetailTabsProps {
    *  read" button renders instead, which jumps to the Sources tab. */
   continueSlot: ReactNode | null
   hasOfficialSource: boolean
+  existingRating:    number | null
 
   downvoteSlot:     ReactNode
   moreSheetRows:    { key: string; icon: ReactNode; label: string; content: ReactNode }[]
@@ -120,6 +121,7 @@ export function ComicDetailTabs({
   shareUrl,
   continueSlot,
   hasOfficialSource,
+  existingRating,
   downvoteSlot,
   moreSheetRows,
   reportButton,
@@ -461,6 +463,7 @@ export function ComicDetailTabs({
             <QuickRatingCard
               recommendationId={recommendationId}
               isLoggedIn={isLoggedIn}
+              initialRating={existingRating}
               onSubmitted={() => setReviewsRefreshKey(k => k + 1)}
             />
 

@@ -7,6 +7,10 @@ import { toast } from 'sonner'
 interface Props {
   recommendationId: string
   isLoggedIn:        boolean
+  /** The user's existing rating for this comic, fetched server-side on
+   *  page load. When set, the card shows the already-rated state
+   *  immediately instead of a blank picker the user has to re-tap. */
+  initialRating?:    number | null
   onSubmitted?:      () => void
 }
 
@@ -15,12 +19,18 @@ interface Props {
  * skips the full review schema (which requires 3+ chars of content) and
  * inserts a review row with empty content instead. See the route's
  * rating_only branch for details.
+ *
+ * Once a rating exists (from initialRating or a fresh submit), the stars
+ * become read-only rather than re-submittable — I don't have the PATCH
+ * /reviews/[reviewId] route, so I can't safely wire up "change your
+ * rating" without guessing at its validation the same way the POST route
+ * needed rating_only for. Send that file if you want re-rating enabled.
  */
-export function QuickRatingCard({ recommendationId, isLoggedIn, onSubmitted }: Props) {
-  const [rating,     setRating]     = useState(0)
+export function QuickRatingCard({ recommendationId, isLoggedIn, initialRating = null, onSubmitted }: Props) {
+  const [rating,     setRating]     = useState(initialRating ?? 0)
   const [hover,       setHover]     = useState(0)
   const [submitting,  setSubmitting] = useState(false)
-  const [submitted,   setSubmitted]  = useState(false)
+  const [submitted,   setSubmitted]  = useState(!!initialRating)
 
   if (!isLoggedIn) return null
 
@@ -55,9 +65,20 @@ export function QuickRatingCard({ recommendationId, isLoggedIn, onSubmitted }: P
       </p>
 
       {submitted ? (
-        <p className="text-sm text-dossier-foreground/70">
-          Thanks — your rating is saved. Want to add a written review too? Scroll down.
-        </p>
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5">
+            {[1, 2, 3, 4, 5].map(n => (
+              <Star
+                key={n}
+                size={22}
+                className={rating >= n ? 'fill-amber-400 text-amber-400' : 'text-dossier-foreground/25'}
+              />
+            ))}
+          </div>
+          <p className="text-sm text-dossier-foreground/70">
+            You rated this {rating}★. Want to add a written review too? Scroll down.
+          </p>
+        </div>
       ) : (
         <div className="flex items-center gap-1.5">
           {[1, 2, 3, 4, 5].map(n => (
