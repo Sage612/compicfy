@@ -193,7 +193,7 @@ export function ComicDetailTabs({
             <h1 className="font-[family-name:var(--font-dossier-display)] text-3xl font-black italic leading-[1.1] tracking-tight text-dossier-foreground">
               {title}
             </h1>
-            <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.15em] text-dossier-foreground/70 truncate">
+            <p className="font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.08em] text-dossier-foreground/70 truncate">
               {typeLabel} · {statusLabel}{yearReleased ? ` · ${yearReleased}` : ''}
             </p>
 
