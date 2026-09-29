@@ -1,6 +1,16 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+// FIX: query below previously did select('*') on a public profile page
+// endpoint, leaking reviewed_by, appeal_status/appeal_text, and other
+// internal moderation columns to anonymous visitors. Trimmed to the
+// fields the public profile grid actually needs.
+const PUBLIC_REC_FIELDS = `
+  id, title, description, type, status, genres, content_rating, author,
+  artist, cover_url, chapter_count, year_released, upvotes, downvotes,
+  score, save_count, review_count, daily_votes, user_id, created_at
+`
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ username: string }> }
@@ -22,7 +32,7 @@ export async function GET(
     }
 
     const offset = parseInt(searchParams.get('offset') ?? '0')
-    const limit  = parseInt(searchParams.get('limit')  ?? '24')
+    const limit  = Math.min(parseInt(searchParams.get('limit') ?? '24') || 24, 50)
     const type   = searchParams.get('type')   ?? ''
     const genre  = searchParams.get('genre')  ?? ''
     const status = searchParams.get('status') ?? ''
@@ -32,7 +42,7 @@ export async function GET(
     // Build query — always exclude adult/mature on public profile page
     let query = (supabase as any)
       .from('recommendations')
-      .select('*', { count: 'exact' })
+      .select(PUBLIC_REC_FIELDS, { count: 'exact' })
       .eq('user_id', profile.id)
       .eq('is_approved', true)
       .not('content_rating', 'in', '("adult","mature")')

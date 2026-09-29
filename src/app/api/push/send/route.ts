@@ -69,7 +69,13 @@ export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization')
     const secret     = process.env.INTERNAL_API_SECRET
-    if (secret && authHeader !== `Bearer ${secret}`) {
+    // FIX: was `if (secret && authHeader !== ...)` — if INTERNAL_API_SECRET
+    // was ever unset, `secret &&` short-circuited to false and this check
+    // never ran at all (fails OPEN). Anyone could then POST any user_id +
+    // title/body/link and push an arbitrary "ComPicfy" notification to
+    // that user's device — a phishing vector. Now fails CLOSED: a missing
+    // secret blocks the request instead of skipping the check.
+    if (!secret || authHeader !== `Bearer ${secret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

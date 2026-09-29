@@ -4,7 +4,13 @@ import { createClient } from '@supabase/supabase-js'
 export async function POST(req: Request) {
   try {
     const secret = req.headers.get('x-webhook-secret')
-    if (process.env.WEBHOOK_SECRET && secret !== process.env.WEBHOOK_SECRET) {
+    // FIX: was `if (process.env.WEBHOOK_SECRET && secret !== ...)` — same
+    // fail-open bug as push/send. If WEBHOOK_SECRET was ever unset, this
+    // check never ran, and anyone could POST a forged "notification
+    // insert" payload with an arbitrary title/content, which this route
+    // then forwards straight into push/send for any user_id. Now fails
+    // CLOSED: a missing secret blocks the request.
+    if (!process.env.WEBHOOK_SECRET || secret !== process.env.WEBHOOK_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -19,14 +25,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ skipped: true })
     }
 
-    // NEW: respect the per-notification push preference computed at insert time.
+    // Respect the per-notification push preference computed at insert time.
     // Defaults to true (via DB column default) for any insert path that hasn't
     // been updated to set it explicitly yet.
     if (notif.should_push === false) {
       return NextResponse.json({ skipped: true, reason: 'push_not_requested' })
     }
 
-    // Use service role to bypass RLS â€” no user session in webhook context
+    // Use service role to bypass RLS — no user session in webhook context
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -39,10 +45,7 @@ export async function POST(req: Request) {
       .eq('user_id', notif.user_id)
       .limit(1)
 
-    console.log('Sub check:', subCheck, 'user_id:', notif.user_id)
-
     if (!subCheck || subCheck.length === 0) {
-      console.log('No subscriptions found â€” skipping')
       return NextResponse.json({ skipped: true, reason: 'no_subscriptions' })
     }
 
@@ -52,8 +55,6 @@ export async function POST(req: Request) {
       .select('email_notifications, is_banned, is_suspended, role, is_pro, pro_expires_at, is_patron, patron_expires_at')
       .eq('id', notif.user_id)
       .single()
-
-    console.log('Profile:', JSON.stringify(profile))
 
     if (!profile) {
       return NextResponse.json({ skipped: true, reason: 'no_profile' })
@@ -109,8 +110,6 @@ export async function POST(req: Request) {
     }
 
     // Send push
-    console.log('Sending push to:', notif.user_id, 'url:', url)
-
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_SITE_URL}/api/push/send`,
       {
@@ -129,7 +128,6 @@ export async function POST(req: Request) {
     )
 
     const result = await res.json()
-    console.log('Push send result:', JSON.stringify(result))
     return NextResponse.json({ success: true, ...result })
   } catch (err: any) {
     console.error('Webhook error:', err)

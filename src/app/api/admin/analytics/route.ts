@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { requireRole } from '@/lib/utils/requireRole'
 
 interface TimeSeriesPoint {
   date: string
@@ -60,6 +61,15 @@ interface AnalyticsData {
 }
 
 export async function GET(request: Request) {
+  // ── Auth gate ──────────────────────────────────────────────────────
+  // FIX: this route had NO auth check at all — anyone, logged in or not,
+  // could hit /api/admin/analytics and get full site stats (user counts,
+  // growth curves, moderation queue depth, top users). requireRole(false)
+  // allows admin OR moderator; pass true instead if this should be
+  // admin-only.
+  const auth = await requireRole(false)
+  if (auth.error) return auth.error
+
   try {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)

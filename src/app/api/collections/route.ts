@@ -8,8 +8,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const userId   = searchParams.get('user_id')
     const contains = searchParams.get('contains')
-    const page     = parseInt(searchParams.get('page')  ?? '1')
-    const limit    = parseInt(searchParams.get('limit') ?? '12')
+    // FIX: limit was previously uncapped — ?limit=100000 went straight
+    // into .range(), pulling the entire table in one response.
+    const page     = Math.max(parseInt(searchParams.get('page') ?? '1') || 1, 1)
+    const limit    = Math.min(parseInt(searchParams.get('limit') ?? '12') || 12, 50)
     const offset   = (page - 1) * limit
 
     if (contains) {
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    // ── Single source of truth via proEnforce ─────────────────────────────────
+    // ── Single source of truth via proEnforce ──────────────────────
     const { allowed, error: limitError } = await enforceCollectionLimit(user.id)
     if (!allowed) return limitError!
 

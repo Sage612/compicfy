@@ -1,4 +1,4 @@
-﻿import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { reviewSchema } from '@/lib/utils/validators'
 import { sendReviewNotificationEmail } from '@/lib/email/send'
@@ -10,7 +10,8 @@ export async function GET(
   try {
     const { id } = await params
     const { searchParams } = new URL(request.url)
-    const limit  = parseInt(searchParams.get('limit')  ?? '10')
+    // FIX: limit was previously uncapped.
+    const limit  = Math.min(parseInt(searchParams.get('limit') ?? '10') || 10, 50)
     const offset = parseInt(searchParams.get('offset') ?? '0')
 
     const supabase = await createClient()

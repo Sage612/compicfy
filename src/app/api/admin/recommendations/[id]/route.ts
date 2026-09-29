@@ -17,10 +17,18 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // FIX: this GET had NO auth check — PATCH/DELETE below both call
+  // requireRole(), but GET was left wide open. Since it's select('*') on
+  // the raw table, anyone could pull rejection_reason, reviewed_by,
+  // appeal_text, is_pro_submission etc. for any recommendation by ID,
+  // including unapproved/draft ones, with zero login.
+  const auth = await requireRole(false)
+  if (auth.error) return auth.error
+
   try {
     const { id } = await params
-    const supabase = await createClient()
-    const { data, error } = await supabase.from('recommendations').select('*').eq('id', id).single()
+    const { supabase } = auth
+    const { data, error } = await supabase!.from('recommendations').select('*').eq('id', id).single()
     if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     return NextResponse.json({ recommendation: data })
   } catch {
@@ -45,7 +53,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Admin access required to feature recommendations' }, { status: 403 })
   }
 
-  // ── Plain field edit (no action key) ────────────────────────────────
+  // ── Plain field edit (no action key) ─────────────────────────────
   if (!action) {
     const allowedFields = [
       'title', 'description', 'type', 'status', 'genres', 'themes',
@@ -75,7 +83,7 @@ export async function PATCH(
     return NextResponse.json({ recommendation: data })
   }
 
-  // ── Action-based updates ─────────────────────────────────────────────
+  // ── Action-based updates ─────────────────────────────────────────
   let updates: Record<string, any> = {}
   let logMsg = ''
 

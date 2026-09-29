@@ -6,7 +6,9 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
 
-    const limit    = parseInt(searchParams.get('limit') ?? '12')
+    // FIX: limit was previously uncapped, passed straight into an RPC
+    // as p_limit: limit + 20.
+    const limit    = Math.min(parseInt(searchParams.get('limit') ?? '12') || 12, 50)
     const excludeId = searchParams.get('exclude') ?? null
     const mode     = searchParams.get('mode') ?? 'personalized'
     const comicId  = searchParams.get('comic_id') ?? null

@@ -90,7 +90,15 @@ export async function GET(request: NextRequest) {
   const host = parsed.hostname.toLowerCase()
   const allowed = ALLOWED_HOSTS.some(h => host === h || host.endsWith(`.${h}`))
   if (!allowed) {
-    console.warn(`[image-proxy] Unlisted host: ${host}`)
+    // FIX: this used to only console.warn and fall through to fetch(url)
+    // anyway — the allow-list was never actually enforced. That meant
+    // this endpoint would server-side-fetch ANY url a caller supplied,
+    // including internal/cloud-metadata addresses (SSRF), or just be
+    // used as a free anonymizing proxy. Now it actually blocks.
+    console.warn(`[image-proxy] Blocked unlisted host: ${host}`)
+    return new NextResponse(PLACEHOLDER, {
+      headers: { 'Content-Type': 'image/svg+xml' },
+    })
   }
 
   // Pick the right Referer for domains that validate it

@@ -68,8 +68,12 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
 
-    const page   = parseInt(searchParams.get('page')  ?? '1')
-    const limit  = parseInt(searchParams.get('limit') ?? '24')
+    // FIX: limit/page were previously read straight from the query
+    // string and passed to the search_recommendations RPC with no
+    // ceiling — ?limit=100000 went through untouched (the "egress
+    // bomb" pattern). Now capped server-side.
+    const page   = Math.max(parseInt(searchParams.get('page') ?? '1') || 1, 1)
+    const limit  = Math.min(parseInt(searchParams.get('limit') ?? '24') || 24, 50)
     const type   = searchParams.get('type')   ?? ''
     const genre  = searchParams.get('genre')  ?? ''
     const status = searchParams.get('status') ?? ''

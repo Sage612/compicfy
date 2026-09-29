@@ -7,8 +7,9 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
 
-    const page = parseInt(searchParams.get('page') ?? '1')
-    const limit = parseInt(searchParams.get('limit') ?? '12')
+    // FIX: limit was previously uncapped.
+    const page = Math.max(parseInt(searchParams.get('page') ?? '1') || 1, 1)
+    const limit = Math.min(parseInt(searchParams.get('limit') ?? '12') || 12, 50)
     const category = searchParams.get('category')
     const q = searchParams.get('q')
     const offset = (page - 1) * limit
@@ -45,14 +46,14 @@ export async function POST(request: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const { data: profileData } = await supabase
-  .from('profiles')
-  .select('role')
-  .eq('id', user.id)
-  .single()
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
 
-const profile = profileData as { role: string } | null
+    const profile = profileData as { role: string } | null
 
-if (!profile || !['admin', 'moderator'].includes(profile.role)) {
+    if (!profile || !['admin', 'moderator'].includes(profile.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -74,8 +75,8 @@ if (!profile || !['admin', 'moderator'].includes(profile.role)) {
       '-' + Date.now()
 
     const { data: news, error } = await (supabase as any)
-  .from('news')
-  .insert({
+      .from('news')
+      .insert({
         ...parsed.data,
         slug,
         published_by: user.id,

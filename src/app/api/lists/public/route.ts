@@ -5,8 +5,9 @@ export async function GET(request: Request) {
   try {
     const supabase = await createClient()
     const { searchParams } = new URL(request.url)
-    const page   = parseInt(searchParams.get('page')  ?? '1')
-    const limit  = parseInt(searchParams.get('limit') ?? '24')
+    // FIX: limit was previously uncapped.
+    const page   = Math.max(parseInt(searchParams.get('page') ?? '1') || 1, 1)
+    const limit  = Math.min(parseInt(searchParams.get('limit') ?? '24') || 24, 50)
     const offset = (page - 1) * limit
 
     // Fetch public lists — no nested recommendations here to avoid bloat

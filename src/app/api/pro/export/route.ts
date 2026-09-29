@@ -9,6 +9,18 @@ interface ReadingList {
   description: string | null
 }
 
+// FIX: CSV formula injection guard. A comic title/author/genre starting
+// with =, +, -, or @ can be interpreted as a formula by Excel/Sheets when
+// the CSV is opened, potentially running an attacker-controlled formula
+// (e.g. one that shells out or exfiltrates data via a remote fetch/HYPERLINK).
+// Prefixing with a single quote neutralizes this in every major spreadsheet app.
+function csvSafe(value: string): string {
+  if (/^[=+\-@]/.test(value)) {
+    return `'${value}`
+  }
+  return value
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient()
@@ -56,13 +68,13 @@ export async function GET(req: NextRequest) {
       const rows = items.map((item: any) => {
         const rec = item.recommendations
         return [
-          `"${rec?.title ?? ''}"`,
-          rec?.type ?? '',
-          rec?.status ?? '',
-          `"${(rec?.genres ?? []).join(', ')}"`,
-          `"${rec?.author ?? ''}"`,
-          `"${(rec?.official_platforms ?? []).join(', ')}"`,
-          item.status ?? '',
+          `"${csvSafe(rec?.title ?? '')}"`,
+          csvSafe(rec?.type ?? ''),
+          csvSafe(rec?.status ?? ''),
+          `"${csvSafe((rec?.genres ?? []).join(', '))}"`,
+          `"${csvSafe(rec?.author ?? '')}"`,
+          `"${csvSafe((rec?.official_platforms ?? []).join(', '))}"`,
+          csvSafe(item.status ?? ''),
           item.added_at ? new Date(item.added_at).toLocaleDateString() : '',
         ].join(',')
       })

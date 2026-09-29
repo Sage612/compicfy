@@ -2,6 +2,22 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { recommendationPatchSchema } from '@/lib/utils/validators'
 
+// FIX: GET below previously did select('*') on a PUBLIC, unauthenticated
+// endpoint (the comic detail page). That leaked every internal column —
+// reviewed_by, reviewed_at, appeal_status, appeal_text, is_pro_submission,
+// mangaupdates_id/anilist_id/mal_id, more_info_link_source, etc. — to
+// anyone who hit the URL. This is almost certainly the source of the
+// original leak report. Trim this list to whatever your comic detail page
+// actually renders; nothing internal/moderation-related should be in it.
+const PUBLIC_REC_FIELDS = `
+  id, title, description, type, status, genres, themes, content_warnings,
+  content_rating, official_platforms, official_links, author, artist,
+  publisher, cover_url, banner_url, why_recommend, chapter_count,
+  year_released, alternative_titles, more_info_link, upvotes, downvotes,
+  score, save_count, view_count, review_count, daily_votes, user_id,
+  created_at, is_own_work, is_pro_submission, is_featured
+`
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -12,7 +28,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('recommendations')
-      .select('*')
+      .select(PUBLIC_REC_FIELDS)
       .eq('id', id)
       .eq('is_approved', true)
       .single()
