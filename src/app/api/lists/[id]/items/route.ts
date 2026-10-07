@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { FREE_LIMITS, TRACKING_STATUSES, TRACKING_SUB_STATUS_CUSTOM_MAX_LENGTH } from '@/lib/utils/constants'
+import type { TablesUpdate } from '@/types/database.types'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -218,7 +219,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       )
     }
 
-    const updates: Record<string, any> = {}
+    const updates: TablesUpdate<'reading_list_items'> = {}
 
     if (notes !== undefined) {
       if (notes !== null && typeof notes !== 'string') {

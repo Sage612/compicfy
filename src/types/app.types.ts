@@ -16,3 +16,7 @@ export type News = Tables<'news'>
 export type Notification = Tables<'notifications'>
 export type DailySubmissionCount = Tables<'daily_submission_counts'>
 export type GlobalDailyStats = Tables<'global_daily_stats'>
+export type ReadingProgress = Tables<'reading_progress'>
+export type ReadingSession = Tables<'reading_sessions'>
+export type PinnedQuote = Tables<'pinned_quotes'>
+export type JournalEntry = Tables<'journal_entries'>

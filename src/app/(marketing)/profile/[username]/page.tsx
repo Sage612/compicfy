@@ -17,9 +17,14 @@ import { VerifiedBadge } from '@/components/pro/VerifiedBadge'
 import { Button } from '@/components/ui/button'
 import { TasteTags } from '@/components/profile/TasteTags'
 import { MangaDNACard } from '@/components/profile/MangaDNACard'
+import { CurrentlyObsessedCard } from '@/components/profile/CurrentlyObsessedCard'
+import { QuoteScrapbook } from '@/components/profile/QuoteScrapbook'
+import { ReadingSignals } from '@/components/profile/ReadingSignals'
+import { MemoryWall } from '@/components/profile/MemoryWall'
 import { ProfileBadges } from '@/components/profile/ProfileBadges'
 import { ProfileTabs } from '@/components/profile/ProfileTabs'
 import { PinnedFavoritesEditor } from '@/components/profile/PinnedFavoritesEditor'
+import { getProfileExtras } from '@/lib/profile/getProfileExtras'
 import { getSuggestedMatches } from '@/lib/taste/getSuggestedMatches'
 import { isProUser, isPatronUser, isAdmin as isAdminCheck } from '@/lib/access'
 import { Suspense } from 'react'
@@ -60,6 +65,8 @@ interface ProfileData {
   verified_recommender: boolean | null
   pinned_recommendation_id: string | null
   pinned_favorite_ids: string[] | null
+  current_streak: number
+  longest_streak: number
 }
 
 interface ReadingList {
@@ -108,7 +115,10 @@ const DEFAULT_GENRE_COLOR = 'bg-muted text-muted-foreground border-border'
 export default async function ProfilePage({ params, searchParams }: Props) {
   const { username } = await params
   const { tab: tabParam } = await searchParams
-  const activeTab = tabParam === 'lists' || tabParam === 'taste' ? tabParam : 'recommendations'
+  const activeTab =
+    tabParam === 'lists' || tabParam === 'taste' || tabParam === 'journal'
+      ? tabParam
+      : 'recommendations'
 
   const supabase = await createClient()
 
@@ -288,6 +298,10 @@ export default async function ProfilePage({ params, searchParams }: Props) {
       completedSeriesCount = count ?? 0
     }
   }
+
+  const extras = isGhost
+    ? null
+    : await getProfileExtras(supabase, profile.id, { includeJournal: activeTab === 'journal' })
 
   // ── Taste compatibility — now sourced from the confidence-scored vector
   // pipeline (user_compatibility_scores) instead of the old client-side
@@ -607,6 +621,17 @@ export default async function ProfilePage({ params, searchParams }: Props) {
 
       {(isGhost || activeTab === 'recommendations') && (
         <>
+          {!isGhost && extras?.obsessed && (
+            <CurrentlyObsessedCard
+              data={extras.obsessed}
+              currentStreak={profile.current_streak ?? 0}
+              longestStreak={profile.longest_streak ?? 0}
+              totalChaptersRead={extras.totalChaptersRead}
+              showGold={showGold}
+            />
+          )}
+          {!isGhost && extras?.quote && <QuoteScrapbook quote={extras.quote} />}
+
           {pinnedRec && (
             <section className="space-y-3">
               <div className="flex items-center gap-2">
@@ -795,6 +820,10 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         )
       )}
 
+      {!isGhost && activeTab === 'journal' && (
+        <MemoryWall items={extras?.journal ?? []} isOwner={isOwner} username={profile.username} />
+      )}
+
       {!isGhost && activeTab === 'taste' && (
         <section className="space-y-4">
           {favoriteGenres.length > 0 ? (
@@ -805,6 +834,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
               genres={favoriteGenres}
               isPro={isPro || isAdmin}
               isOwner={isOwner}
+              radarMode
             />
           ) : (
             <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-border text-center space-y-2">
@@ -815,6 +845,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
               </p>
             </div>
           )}
+          {extras?.signals && <ReadingSignals signals={extras.signals} />}
         </section>
       )}
     </div>

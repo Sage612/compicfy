@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Share2, Check, Crown } from 'lucide-react'
 import { toast } from 'sonner'
+import { computeArchetypeScores, RadarChart } from '@/components/profile/RadarChart'
 
 interface Props {
   username:    string
@@ -13,6 +14,7 @@ interface Props {
   isOwner:     boolean
   /** When true, renders as a compact divider bar only (no label, no legend) */
   dividerMode?: boolean
+  radarMode?:   boolean
 }
 
 const GENRE_COLORS: Record<string, string> = {
@@ -58,7 +60,7 @@ function computeGenreDistribution(genres: string[]): { name: string; pct: number
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
 
-export function MangaDNACard({ username, displayName, avatarUrl, genres, isPro, isOwner, dividerMode = false }: Props) {
+export function MangaDNACard({ username, displayName, avatarUrl, genres, isPro, isOwner, dividerMode = false, radarMode = false }: Props) {
   const [copied, setCopied] = useState(false)
   const distribution = computeGenreDistribution(genres)
   if (distribution.length === 0) return null
@@ -151,6 +153,11 @@ export function MangaDNACard({ username, displayName, avatarUrl, genres, isPro, 
           </button>
         )}
       </div>
+      {radarMode && (
+        <div className="mx-auto w-full max-w-xs">
+          <RadarChart scores={computeArchetypeScores(genres)} size={280} />
+        </div>
+      )}
       <div className="h-2 rounded-full overflow-hidden flex gap-px">
         {distribution.map((g, i) => (
           <div

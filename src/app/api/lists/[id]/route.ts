@@ -1,6 +1,7 @@
 // src/app/api/lists/[id]/route.ts
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import type { TablesUpdate } from '@/types/database.types'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -54,14 +55,24 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     const body = await req.json()
     const { name, description, is_public } = body
 
-    if (name !== undefined && !String(name).trim()) {
+    if (name !== undefined && (typeof name !== 'string' || !name.trim())) {
       return NextResponse.json({ error: 'Name cannot be empty' }, { status: 400 })
     }
 
-    const updates: Record<string, unknown> = {}
-    if (name        !== undefined) updates.name        = String(name).trim()
-    if (description !== undefined) updates.description = description
-    if (is_public   !== undefined) updates.is_public   = is_public
+    const updates: TablesUpdate<'reading_lists'> = {}
+    if (name !== undefined) updates.name = name.trim()
+    if (description !== undefined) {
+      if (description !== null && typeof description !== 'string') {
+        return NextResponse.json({ error: 'Description must be a string or null' }, { status: 400 })
+      }
+      updates.description = description
+    }
+    if (is_public !== undefined) {
+      if (is_public !== null && typeof is_public !== 'boolean') {
+        return NextResponse.json({ error: 'is_public must be a boolean or null' }, { status: 400 })
+      }
+      updates.is_public = is_public
+    }
 
     const { data, error } = await supabase
       .from('reading_lists')
