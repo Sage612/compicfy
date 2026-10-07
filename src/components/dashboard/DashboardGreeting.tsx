@@ -4,8 +4,12 @@ import { Settings } from 'lucide-react'
 interface Props {
   displayName:     string
   avatarUrl:       string | null
-  currentStreak:   number
-  monthlyChapters: number
+  // Reader-specific — omit both (or pass subtitle instead) for non-reader
+  // contexts like the Creator dashboard, where "streak/chapters this month"
+  // doesn't mean anything.
+  currentStreak?:   number
+  monthlyChapters?: number
+  subtitle?:        React.ReactNode // overrides the streak line entirely when provided
   settingsHref:    string
   // Optional — lets Pro (or any future variant) extend the same shared
   // greeting instead of forking it into a separate component.
@@ -33,12 +37,16 @@ function todayLabel(): string {
   })
 }
 
-export function DashboardGreeting({ displayName, avatarUrl, currentStreak, monthlyChapters, settingsHref, badges, extraLine, avatarSlot }: Props) {
+export function DashboardGreeting({ displayName, avatarUrl, currentStreak, monthlyChapters, subtitle, settingsHref, badges, extraLine, avatarSlot }: Props) {
   const firstName = displayName.split(' ')[0]
 
-  const streakLine = currentStreak > 0
-    ? `${currentStreak} day streak. ${monthlyChapters} chapter${monthlyChapters === 1 ? '' : 's'} this month.`
-    : `${monthlyChapters} chapter${monthlyChapters === 1 ? '' : 's'} this month.`
+  const streakLine = subtitle ?? (
+    currentStreak != null && monthlyChapters != null ? (
+      currentStreak > 0
+        ? `${currentStreak} day streak. ${monthlyChapters} chapter${monthlyChapters === 1 ? '' : 's'} this month. Pick up where the panel stopped.`
+        : `${monthlyChapters} chapter${monthlyChapters === 1 ? '' : 's'} this month. Pick up where the panel stopped.`
+    ) : null
+  )
 
   return (
     <div className="flex items-start justify-between gap-4">
@@ -52,9 +60,11 @@ export function DashboardGreeting({ displayName, avatarUrl, currentStreak, month
           </h1>
           {badges}
         </div>
-        <p className="text-sm text-muted-foreground">
-          {streakLine} Pick up where the panel stopped.
-        </p>
+        {streakLine && (
+          <p className="text-sm text-muted-foreground">
+            {streakLine}
+          </p>
+        )}
         {extraLine}
       </div>
 

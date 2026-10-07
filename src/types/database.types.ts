@@ -898,6 +898,60 @@ export type Database = {
           },
         ]
       }
+      journal_entries: {
+        Row: {
+          chapter_label: string | null
+          content: string
+          created_at: string
+          id: string
+          is_spoiler: boolean
+          like_count: number
+          mood_emoji: string | null
+          recommendation_id: string | null
+          reply_count: number
+          user_id: string
+        }
+        Insert: {
+          chapter_label?: string | null
+          content: string
+          created_at?: string
+          id?: string
+          is_spoiler?: boolean
+          like_count?: number
+          mood_emoji?: string | null
+          recommendation_id?: string | null
+          reply_count?: number
+          user_id: string
+        }
+        Update: {
+          chapter_label?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          is_spoiler?: boolean
+          like_count?: number
+          mood_emoji?: string | null
+          recommendation_id?: string | null
+          reply_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_entries_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_entries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       list_stars: {
         Row: {
           created_at: string | null
@@ -1128,6 +1182,54 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pinned_quotes: {
+        Row: {
+          chapter_label: string | null
+          created_at: string
+          id: string
+          is_pinned: boolean
+          quote_text: string
+          recommendation_id: string | null
+          stamp_count: number
+          user_id: string
+        }
+        Insert: {
+          chapter_label?: string | null
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          quote_text: string
+          recommendation_id?: string | null
+          stamp_count?: number
+          user_id: string
+        }
+        Update: {
+          chapter_label?: string | null
+          created_at?: string
+          id?: string
+          is_pinned?: boolean
+          quote_text?: string
+          recommendation_id?: string | null
+          stamp_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pinned_quotes_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pinned_quotes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -1529,6 +1631,7 @@ export type Database = {
           chapters_read: number
           created_at: string | null
           id: string
+          type: string | null
           updated_at: string | null
           user_id: string
         }
@@ -1537,6 +1640,7 @@ export type Database = {
           chapters_read?: number
           created_at?: string | null
           id?: string
+          type?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -1545,6 +1649,7 @@ export type Database = {
           chapters_read?: number
           created_at?: string | null
           id?: string
+          type?: string | null
           updated_at?: string | null
           user_id?: string
         }
@@ -1664,6 +1769,134 @@ export type Database = {
             foreignKeyName: "reading_lists_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reading_progress: {
+        Row: {
+          created_at: string
+          current_chapter: number
+          id: string
+          is_actively_reading: boolean
+          last_read_at: string
+          recommendation_id: string
+          total_chapters: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_chapter?: number
+          id?: string
+          is_actively_reading?: boolean
+          last_read_at?: string
+          recommendation_id: string
+          total_chapters?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_chapter?: number
+          id?: string
+          is_actively_reading?: boolean
+          last_read_at?: string
+          recommendation_id?: string
+          total_chapters?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_progress_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reading_sessions: {
+        Row: {
+          created_at: string
+          duration_seconds: number | null
+          ended_at: string
+          id: string
+          recommendation_id: string | null
+          started_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at: string
+          id?: string
+          recommendation_id?: string | null
+          started_at: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number | null
+          ended_at?: string
+          id?: string
+          recommendation_id?: string | null
+          started_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_sessions_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reading_streaks: {
+        Row: {
+          current_streak: number
+          last_active_date: string | null
+          longest_streak: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          current_streak?: number
+          last_active_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          current_streak?: number
+          last_active_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_streaks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -2893,7 +3126,23 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      reading_signals: {
+        Row: {
+          avg_session_hours: number | null
+          peak_hour: number | null
+          total_sessions: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reading_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       activate_patron: {
