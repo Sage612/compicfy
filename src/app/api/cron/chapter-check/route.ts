@@ -12,6 +12,10 @@ const ID_LOCK_NAME       = 'id_checker'
 const CHAPTER_CATCHUP_TOLERANCE = 1
 const PRIORITY_RETRY_COOLDOWN_MS = 5 * 60 * 1000 // 5 min
 const PRIORITY_MAX_RETRIES = 3
+// A Comick-only flag (no other source agrees yet) is accepted only when it is
+// ahead of our stored chapter by at most this many chapters. Set to 0 to
+// require another source to confirm every Comick flag.
+const COMICK_SOLO_MAX_JUMP = 3
 
 // ── Fetch with timeout ────────────────────────────────────────────
 async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
@@ -26,6 +30,13 @@ async function fetchWithTimeout(url: string, options: any = {}, timeoutMs = REQU
     if (err.name === 'AbortError') throw new Error(`Timeout after ${timeoutMs}ms`)
     throw err
   }
+}
+
+// Highest number in a flagged chapter string like "54", "66-68" or "10a".
+function parseFlaggedChapter(raw: string | null | undefined): number | null {
+  if (!raw) return null
+  const nums = String(raw).split('-').map((p) => parseFloat(p.trim())).filter((n) => !isNaN(n))
+  return nums.length > 0 ? Math.max(...nums) : null
 }
 
 type NormalizedFormat = 'manga' | 'novel' | 'other'
@@ -307,7 +318,7 @@ async function getChapterFromAniList(id: string): Promise<SourceResult> {
   }
 }
 
-async function resolveChapterCount(comic: any): Promise<{
+async function resolveChapterCount(comic: any, comickChapter: number | null = null): Promise<{
   chapter:          number | null
   source:           string | null
   tried:            string[]
@@ -320,6 +331,7 @@ async function resolveChapterCount(comic: any): Promise<{
   const tried: string[] = []
   const formatRejections: string[] = []
   const statusVotes: { source: string; status: ResolvedStatus }[] = []
+  if (comickChapter !== null) tried.push('Comick (feed)')
 
   let muChapter: number | null = null
   let muOriginalTotalChapters: number | null = null
@@ -421,6 +433,29 @@ async function resolveChapterCount(comic: any): Promise<{
     }
   }
 
+  // ── Comick (evidence carried by the fast scanner's flag) ──
+  if (comickChapter !== null) {
+    const withComick = (chapter: number, source: string) => ({
+      chapter, source, tried, resolvedStatus, statusSources, formatRejections,
+      originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted,
+    })
+    const others: [string, number | null][] = [
+      ['MangaUpdates', muChapter], ['MangaDex', mdChapter], ['MAL', malChapter], ['AniList', alChapter],
+    ]
+    for (const [name, ch] of others) {
+      if (ch !== null && Math.abs(ch - comickChapter) <= 1) {
+        return withComick(Math.max(ch, comickChapter), `${name}+Comick confirmed`)
+      }
+    }
+    // Comick alone: only when it is ahead of what we store by a small margin
+    // and no other source reports an even higher chapter.
+    const jump = comickChapter - (comic.chapter_count ?? 0)
+    const someoneHigher = others.some(([, ch]) => ch !== null && ch > comickChapter + 1)
+    if (jump > 0 && jump <= COMICK_SOLO_MAX_JUMP && !someoneHigher) {
+      return withComick(comickChapter, 'Comick (unconfirmed)')
+    }
+  }
+
   if (muChapter !== null)  return { chapter: muChapter,  source: 'MangaUpdates (unconfirmed)', tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
   if (mdChapter !== null)  return { chapter: mdChapter,  source: 'MangaDex (unconfirmed)',      tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
   if (malChapter !== null) return { chapter: malChapter, source: 'MAL (unconfirmed)',           tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters: muOriginalTotalChapters, isGenuinelyCompleted: muIsGenuinelyCompleted }
@@ -489,7 +524,7 @@ export async function GET(req: Request) {
     // ── Priority queue: check for fast-scanner-flagged comics first ──
     const { data: priorityEntries } = await supabase
       .from('checker_priority_queue')
-      .select('id, recommendation_id, retry_count, next_retry_at, detected_at')
+      .select('id, recommendation_id, retry_count, next_retry_at, detected_at, source, flagged_chapter')
       .is('processed_at', null)
       .or(`next_retry_at.is.null,next_retry_at.lt.${new Date().toISOString()}`)
       .order('detected_at', { ascending: true })
@@ -499,7 +534,7 @@ export async function GET(req: Request) {
 
     // Tracks queueId/retryCount/detectedAt per comic so the retry branch
     // and the queue-time metric can look them back up after the check.
-    const priorityQueueMap = new Map<string, { queueId: number; retryCount: number; detectedAt: string }>()
+    const priorityQueueMap = new Map<string, { queueId: number; retryCount: number; detectedAt: string; source: string | null; flaggedChapter: string | null; comickChapter: number | null }>()
 
     if (priorityEntries && priorityEntries.length > 0) {
       const priorityIds = priorityEntries.map((entry) => entry.recommendation_id)
@@ -513,10 +548,23 @@ export async function GET(req: Request) {
       priorityComics = fetchedPriorityComics ?? []
 
       for (const entry of priorityEntries) {
+        const prev = priorityQueueMap.get(entry.recommendation_id)
+        const isComick = entry.source === 'comick'
+        const flaggedNum = isComick ? parseFlaggedChapter(entry.flagged_chapter) : null
+        // If a comic has both a Comick and another flag, keep the Comick
+        // one's details: it carries evidence the other sources may lack.
+        const keepPrev = !!prev && prev.source === 'comick' && !isComick
+        const comickChapter = [prev?.comickChapter ?? null, flaggedNum].reduce<number | null>(
+          (a, b) => (b === null ? a : a === null ? b : Math.max(a, b)),
+          null
+        )
         priorityQueueMap.set(entry.recommendation_id, {
-          queueId: entry.id,
-          retryCount: entry.retry_count,
-          detectedAt: entry.detected_at,
+          queueId: keepPrev ? prev!.queueId : entry.id,
+          retryCount: keepPrev ? prev!.retryCount : entry.retry_count,
+          detectedAt: keepPrev ? prev!.detectedAt : entry.detected_at,
+          source: keepPrev ? prev!.source : (entry.source ?? null),
+          flaggedChapter: keepPrev ? prev!.flaggedChapter : (entry.flagged_chapter ?? null),
+          comickChapter,
         })
       }
 
@@ -593,7 +641,8 @@ export async function GET(req: Request) {
         if (queueInfo.retryCount >= PRIORITY_MAX_RETRIES) return
         await supabase.from('checker_priority_queue').insert({
           recommendation_id: comic.id,
-          source: 'mangaupdates',
+          source: queueInfo.source ?? 'mangaupdates',
+          flagged_chapter: queueInfo.flaggedChapter,
           retry_count: queueInfo.retryCount + 1,
           next_retry_at: new Date(Date.now() + PRIORITY_RETRY_COOLDOWN_MS).toISOString(),
         })
@@ -620,7 +669,7 @@ export async function GET(req: Request) {
       }
 
       try {
-        const { chapter: newChapterCount, source, tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters, isGenuinelyCompleted } = await resolveChapterCount(comic)
+        const { chapter: newChapterCount, source, tried, resolvedStatus, statusSources, formatRejections, originalTotalChapters, isGenuinelyCompleted } = await resolveChapterCount(comic, queueInfo?.comickChapter ?? null)
 
         if (formatRejections.length > 0) {
           const clearPayload: Record<string, any> = {}
