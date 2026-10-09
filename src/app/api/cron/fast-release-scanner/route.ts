@@ -27,8 +27,10 @@ import { createClient } from '@supabase/supabase-js'
 
 const REQUEST_TIMEOUT_MS = 8000
 const RELEASES_PER_PAGE = 50
-const LOOKBACK_WINDOW_MS = 20 * 60 * 1000 // cron runs every 1-2 min; 20 min covers a few missed cycles
-const MAX_RELEASE_PAGES = 8
+const NEWEST_PAGES = 6 // newest 300 releases by feed position, no timestamp window
+const DEEP_PAGE_FIRST = 7 // one extra older page per run, rotating through 7..DEEP_PAGE_LAST
+const DEEP_PAGE_LAST = 36
+const SAME_CHAPTER_COOLDOWN_MS = 12 * 60 * 60 * 1000 // don't re-flag the same comic+chapter within 12h
 const TIME_BUDGET_MS = 22000 // stop fetching pages after this so we finish under the 30s cron limit
 const PRIORITY_DEDUP_COOLDOWN_MS = 10 * 60 * 1000
 const DB_IN_CHUNK = 100
@@ -73,61 +75,70 @@ interface MUReleasesSearchResponse {
   results: MUReleaseResult[]
 }
 
-async function fetchReleasesWithinWindow(
-  muToken: string,
-  windowMs: number,
-  deadline: number
-): Promise<{ releases: MUReleaseResult[]; pagesFetched: number; stoppedEarlyReason?: 'page_ceiling' | 'time_budget' }> {
-  const cutoffSeconds = Math.floor((Date.now() - windowMs) / 1000)
+async function fetchReleasePage(muToken: string, page: number): Promise<MUReleaseResult[]> {
+  const res = await fetchWithTimeout('https://api.mangaupdates.com/v1/releases/search', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${muToken}`,
+    },
+    body: JSON.stringify({ page, perpage: RELEASES_PER_PAGE, include_metadata: true }),
+  })
+  if (!res.ok) {
+    const err: any = new Error(`releases/search page ${page} failed: ${res.status}`)
+    err.status = res.status
+    throw err
+  }
+  const data: MUReleasesSearchResponse = await res.json()
+  return data?.results ?? []
+}
+
+// Reads the newest pages by POSITION (not by timestamp): MU's time_added can
+// arrive late or in bursts, so a time window can silently miss releases. Old
+// releases are harmless because the chapter > chapter_count filter drops them.
+// One extra deeper page rotates each minute as a safety net.
+async function fetchNewestReleases(muToken: string, deadline: number) {
+  const deepPage = DEEP_PAGE_FIRST + (Math.floor(Date.now() / 60000) % (DEEP_PAGE_LAST - DEEP_PAGE_FIRST + 1))
+  const pageNumbers = [...Array.from({ length: NEWEST_PAGES }, (_, i) => i + 1), deepPage]
+
+  const settled = await Promise.allSettled(pageNumbers.map((p) => fetchReleasePage(muToken, p)))
+
+  const seen = new Set<number>()
   const releases: MUReleaseResult[] = []
   let pagesFetched = 0
-  let stoppedEarlyReason: 'page_ceiling' | 'time_budget' | undefined
+  let failedPages = 0
+  let firstError: any
 
-  for (let page = 1; page <= MAX_RELEASE_PAGES; page++) {
-    if (Date.now() > deadline) {
-      stoppedEarlyReason = 'time_budget'
-      break
+  settled.forEach((r) => {
+    if (r.status === 'rejected') {
+      failedPages++
+      firstError = firstError ?? r.reason
+      return
     }
-
-    const res = await fetchWithTimeout('https://api.mangaupdates.com/v1/releases/search', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${muToken}`,
-      },
-      body: JSON.stringify({ page, perpage: RELEASES_PER_PAGE, include_metadata: true }),
-    })
-
-    if (!res.ok) {
-      const err: any = new Error(`releases/search page ${page} failed: ${res.status}`)
-      err.status = res.status
-      throw err
-    }
-
-    const data: MUReleasesSearchResponse = await res.json()
-    const pageResults = data?.results ?? []
-    pagesFetched = page
-
-    if (pageResults.length === 0) break
-
-    let olderCount = 0
-    for (const item of pageResults) {
-      const addedAt = item.record?.time_added?.timestamp
-      if (addedAt === undefined || addedAt >= cutoffSeconds) {
-        releases.push(item)
-      } else {
-        olderCount++
+    pagesFetched++
+    for (const item of r.value) {
+      const id = item.record?.id
+      if (id !== undefined) {
+        if (seen.has(id)) continue
+        seen.add(id)
       }
+      releases.push(item)
     }
+  })
 
-    // Only stop when the WHOLE page is outside the window. The feed is not
-    // strictly time-ordered, so one old record does not mean the rest are old.
-    if (olderCount === pageResults.length) break
+  // Nothing at all came back: surface the error (401 handling upstream).
+  if (pagesFetched === 0 && firstError) throw firstError
 
-    if (page === MAX_RELEASE_PAGES) stoppedEarlyReason = 'page_ceiling'
+  let newestAgeMin: number | undefined
+  for (const { record } of releases) {
+    const ts = record?.time_added?.timestamp
+    if (typeof ts === 'number') {
+      const age = (Date.now() / 1000 - ts) / 60
+      if (newestAgeMin === undefined || age < newestAgeMin) newestAgeMin = Math.round(age)
+    }
   }
 
-  return { releases, pagesFetched, stoppedEarlyReason }
+  return { releases, pagesFetched, failedPages, deepPage, newestAgeMin, timedOut: Date.now() > deadline }
 }
 
 function chunk<T>(arr: T[], size: number): T[][] {
@@ -159,7 +170,7 @@ export async function GET(req: Request) {
   try {
     let releaseFetch
     try {
-      releaseFetch = await fetchReleasesWithinWindow(muToken, LOOKBACK_WINDOW_MS, deadline)
+      releaseFetch = await fetchNewestReleases(muToken, deadline)
     } catch (err: any) {
       if (err.status === 401) {
         console.error('MANGAUPDATES_API_TOKEN has expired or is invalid (401). Run refresh-mu-token.js and update the env var.')
@@ -173,14 +184,16 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Failed to fetch MU releases' }, { status: 502 })
     }
 
-    const { releases, pagesFetched, stoppedEarlyReason } = releaseFetch
+    const { releases, pagesFetched, failedPages, deepPage, newestAgeMin } = releaseFetch
+    const stoppedEarlyReason = failedPages > 0 ? `${failedPages}_pages_failed` : undefined
+    const feedInfo = { pages_fetched: pagesFetched, deep_page: deepPage, newest_release_age_min: newestAgeMin }
 
-    if (stoppedEarlyReason) {
-      console.warn(`Fast scanner stopped early (${stoppedEarlyReason}) before covering the full ${LOOKBACK_WINDOW_MS / 60000}min window; some releases may be picked up next run.`)
+    if (failedPages > 0) {
+      console.warn(`Fast scanner: ${failedPages} release page(s) failed this run; the rest were processed.`)
     }
 
     if (releases.length === 0) {
-      return NextResponse.json({ checked_releases: 0, pages_fetched: pagesFetched, flagged: 0 })
+      return NextResponse.json({ checked_releases: 0, ...feedInfo, flagged: 0 })
     }
 
     // Highest chapter per series_id in this window.
@@ -209,7 +222,7 @@ export async function GET(req: Request) {
     if (latestBySeries.size === 0) {
       return NextResponse.json({
         checked_releases: releases.length,
-        pages_fetched: pagesFetched,
+        ...feedInfo,
         flagged: 0,
         skipped_no_metadata: skippedNoMetadata,
         skipped_no_chapter: skippedNoChapter,
@@ -244,7 +257,7 @@ export async function GET(req: Request) {
     if (candidates.length === 0) {
       return NextResponse.json({
         checked_releases: releases.length,
-        pages_fetched: pagesFetched,
+        ...feedInfo,
         unique_series: latestBySeries.size,
         matched_comics: matchedComics.length,
         flagged: 0,
@@ -272,8 +285,30 @@ export async function GET(req: Request) {
       for (const row of existing ?? []) alreadyQueued.add(String(row.recommendation_id))
     }
 
+    // Damper: same comic + same flagged chapter already flagged in the last 12h.
+    const sameChapterStart = new Date(Date.now() - SAME_CHAPTER_COOLDOWN_MS).toISOString()
+    const recentSameChapter = new Set<string>()
+    for (const ids of chunk(candidates.map((c) => c.id), DB_IN_CHUNK)) {
+      const { data: recent, error: recentError } = await supabase
+        .from('checker_priority_queue')
+        .select('recommendation_id, flagged_chapter')
+        .in('recommendation_id', ids)
+        .gt('detected_at', sameChapterStart)
+      if (recentError) {
+        console.error('Same-chapter dedup query failed:', recentError)
+        return NextResponse.json({ error: 'Dedup query failed' }, { status: 500 })
+      }
+      for (const row of recent ?? []) {
+        recentSameChapter.add(`${row.recommendation_id}|${parseChapter(String(row.flagged_chapter ?? ''))}`)
+      }
+    }
+
     const rowsToInsert = candidates
       .filter((c) => !alreadyQueued.has(String(c.id)))
+      .filter((c) => {
+        const info = latestBySeries.get(String(c.mangaupdates_id))!
+        return !recentSameChapter.has(`${c.id}|${info.chapter}`)
+      })
       .map((comic) => {
         const info = latestBySeries.get(String(comic.mangaupdates_id))!
         return {
@@ -300,7 +335,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       checked_releases: releases.length,
-      pages_fetched: pagesFetched,
+      ...feedInfo,
       unique_series: latestBySeries.size,
       matched_comics: matchedComics.length,
       flagged: flaggedCount,
