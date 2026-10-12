@@ -1,142 +1,127 @@
-'use client'
+// Pure SVG radar chart: no dependencies, no client JS needed.
+// Works with any number of axes from 3 up. Each point's distance from the
+// centre is relative to the largest value, so the shape stays readable even
+// when the top genre is only 40%. The real percentages are shown as labels.
 
-// ── Genre → archetype bucketing ──────────────────────────────────────
-// The mockup's "Comic DNA" radar uses 4 fixed axes (Dark Fantasy, System,
-// Psychological, Romance) rather than raw genres. Real profiles have up
-// to ~24 possible genres, so we bucket them into these 4 broad axes
-// instead of introducing new DB fields — this is derived purely from
-// the `genres` array MangaDNACard already receives.
-
-const ARCHETYPE_MAP: Record<string, string[]> = {
-  'Dark Fantasy': ['Fantasy', 'Horror', 'Supernatural', 'Thriller', 'Mystery', 'Historical'],
-  'System':       ['Isekai', 'Action', 'Adventure', 'Sports', 'Martial Arts', 'Mecha', 'Sci-Fi'],
-  'Psychological':['Psychological', 'Drama', 'Seinen', 'Thriller'],
-  'Romance':      ['Romance', 'Shoujo', 'Josei', 'Yuri', 'Yaoi', 'Comedy', 'Slice of Life', 'School Life'],
-}
-
-const AXES = ['Dark Fantasy', 'System', 'Psychological', 'Romance'] as const
-
-export interface ArchetypeScore {
-  axis: typeof AXES[number]
+export interface RadarPoint {
+  axis: string
   pct:  number
 }
 
-export function computeArchetypeScores(genres: string[]): ArchetypeScore[] {
-  if (!genres.length) return AXES.map(axis => ({ axis, pct: 0 }))
+// ── Fallback: favourite genres bucketed into 4 broad archetypes ─────────
+// Only used when a profile has too little activity for a real genre profile.
+// Each genre sits in exactly ONE bucket (the first version double-counted
+// Thriller and ignored Shounen).
+const ARCHETYPE_MAP: Record<string, string[]> = {
+  'Dark Fantasy':  ['Fantasy', 'Horror', 'Supernatural', 'Mystery', 'Historical'],
+  'Action':        ['Action', 'Adventure', 'Isekai', 'Martial Arts', 'Sports', 'Mecha', 'Sci-Fi', 'Shounen'],
+  'Psychological': ['Psychological', 'Thriller', 'Drama', 'Seinen'],
+  'Romance':       ['Romance', 'Shoujo', 'Josei', 'Yuri', 'Yaoi', 'Comedy', 'Slice of Life', 'School Life'],
+}
 
-  const raw = AXES.map(axis => {
-    const bucket = ARCHETYPE_MAP[axis]
-    const hits   = genres.filter(g => bucket.includes(g)).length
-    return { axis, hits }
-  })
-
-  const total = raw.reduce((sum, r) => sum + r.hits, 0)
-  if (total === 0) return AXES.map(axis => ({ axis, pct: 0 }))
-
+export function computeArchetypeScores(genres: string[]): RadarPoint[] {
+  const axes = Object.keys(ARCHETYPE_MAP)
+  const raw = axes.map(axis => ({
+    axis,
+    hits: genres.filter(g => ARCHETYPE_MAP[axis].includes(g)).length,
+  }))
+  const total = raw.reduce((s, r) => s + r.hits, 0)
+  if (total === 0) return []
   return raw.map(r => ({ axis: r.axis, pct: Math.round((r.hits / total) * 100) }))
 }
 
-interface RadarChartProps {
-  scores: ArchetypeScore[]
-  size?:  number
-  color?: string
+// ── Chart ───────────────────────────────────────────────────────────────
+const W = 400
+const H = 300
+const CX = W / 2
+const CY = H / 2
+const R = 95
+const LEVELS = 4
+
+function truncate(s: string, max = 14): string {
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s
 }
 
-export function RadarChart({ scores, size = 260, color = '#f97316' }: RadarChartProps) {
-  const center = size / 2
-  const radius = size * 0.32
-  const levels = 4 // grid rings
+interface Props {
+  points?: RadarPoint[]
+  /** Older name for `points`, still used by MangaDNACard. */
+  scores?: RadarPoint[]
+  color?:  string
+  /** Optional max width in px (MangaDNACard passes one). */
+  size?:   number
+}
 
-  const angleFor = (i: number) => (Math.PI * 2 * i) / scores.length - Math.PI / 2
+export function RadarChart({ points: pointsProp, scores, color = 'var(--color-primary)', size }: Props) {
+  const points = pointsProp ?? scores ?? []
+  if (points.length < 3) return null
 
-  const pointFor = (i: number, valuePct: number) => {
-    const angle = angleFor(i)
-    const r = radius * (valuePct / 100)
-    return {
-      x: center + r * Math.cos(angle),
-      y: center + r * Math.sin(angle),
-    }
-  }
+  const n   = points.length
+  const max = Math.max(...points.map(p => p.pct), 1)
+  const ang = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2
 
-  const labelPointFor = (i: number) => {
-    const angle = angleFor(i)
-    const r = radius + 28
-    return {
-      x: center + r * Math.cos(angle),
-      y: center + r * Math.sin(angle),
-    }
-  }
+  const at = (i: number, frac: number, radius = R) => ({
+    x: CX + radius * frac * Math.cos(ang(i)),
+    y: CY + radius * frac * Math.sin(ang(i)),
+  })
 
-  const dataPoints = scores.map((s, i) => pointFor(i, s.pct))
-  const dataPath = dataPoints.map(p => `${p.x},${p.y}`).join(' ')
+  const data = points.map((p, i) => at(i, p.pct / max))
+  const dataPath = data.map(p => `${p.x},${p.y}`).join(' ')
 
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} width="100%" height="auto" role="img" aria-label="Taste breakdown radar chart">
-      {/* Background grid rings */}
-      {Array.from({ length: levels }, (_, ringIdx) => {
-        const ringPct = ((ringIdx + 1) / levels) * 100
-        const ringPoints = scores.map((_, i) => pointFor(i, ringPct))
-        const ringPath = ringPoints.map(p => `${p.x},${p.y}`).join(' ')
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full h-auto"
+      style={size ? { maxWidth: size } : undefined}
+      role="img"
+      aria-label={`Taste radar: ${points.map(p => `${p.axis} ${p.pct}%`).join(', ')}`}
+    >
+      {/* Grid rings */}
+      {Array.from({ length: LEVELS }, (_, k) => {
+        const frac = (k + 1) / LEVELS
+        const ring = points.map((_, i) => at(i, frac)).map(p => `${p.x},${p.y}`).join(' ')
         return (
-          <polygon
-            key={ringIdx}
-            points={ringPath}
-            fill="none"
-            stroke="currentColor"
-            strokeOpacity={0.12}
-            strokeWidth={1}
-          />
+          <polygon key={k} points={ring} fill="none" stroke="currentColor" strokeOpacity={0.12} strokeWidth={1} />
         )
       })}
 
-      {/* Axis lines */}
-      {scores.map((_, i) => {
-        const outer = pointFor(i, 100)
-        return (
-          <line
-            key={i}
-            x1={center}
-            y1={center}
-            x2={outer.x}
-            y2={outer.y}
-            stroke="currentColor"
-            strokeOpacity={0.12}
-            strokeWidth={1}
-          />
-        )
+      {/* Spokes */}
+      {points.map((_, i) => {
+        const o = at(i, 1)
+        return <line key={i} x1={CX} y1={CY} x2={o.x} y2={o.y} stroke="currentColor" strokeOpacity={0.12} strokeWidth={1} />
       })}
 
       {/* Data shape */}
       <polygon
         points={dataPath}
-        fill={color}
+        style={{ fill: color, stroke: color }}
         fillOpacity={0.25}
-        stroke={color}
         strokeWidth={2}
         strokeLinejoin="round"
       />
-
-      {/* Data points */}
-      {dataPoints.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r={3} fill={color} />
+      {data.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r={3.5} style={{ fill: color }} />
       ))}
 
-      {/* Axis labels */}
-      {scores.map((s, i) => {
-        const lp = labelPointFor(i)
+      {/* Labels, anchored away from the chart so long names never clip */}
+      {points.map((p, i) => {
+        const c = Math.cos(ang(i))
+        const s = Math.sin(ang(i))
+        const l = at(i, 1, R + 14)
+        const anchor = c > 0.25 ? 'start' : c < -0.25 ? 'end' : 'middle'
+        const dy = s < -0.5 ? -6 : s > 0.5 ? 6 : 0
         return (
           <text
             key={i}
-            x={lp.x}
-            y={lp.y}
-            textAnchor="middle"
+            x={l.x}
+            y={l.y + dy}
+            textAnchor={anchor}
             dominantBaseline="middle"
-            fontSize={11}
+            fontSize={12}
             fontWeight={600}
             fill="currentColor"
-            className="text-muted-foreground"
+            fillOpacity={0.75}
           >
-            {s.axis}
+            {truncate(p.axis)}
           </text>
         )
       })}

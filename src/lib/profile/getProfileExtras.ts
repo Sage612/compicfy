@@ -58,6 +58,16 @@ export interface DedicationData {
   readerCount: number
 }
 
+export interface GenreProfile {
+  points:     { axis: string; pct: number }[]   // pct = % of the user's comics carrying that genre
+  comicCount: number
+}
+
+// A radar needs at least 3 axes, and a profile built from 1-2 comics is noise.
+const MIN_COMICS_FOR_RADAR  = 3
+const MIN_GENRES_FOR_RADAR  = 3
+const MAX_RADAR_AXES        = 6
+
 // Every field is optional/nullable: the card renders only what exists and
 // hides itself entirely when nothing does.
 export interface SignalsData {
@@ -79,6 +89,7 @@ export interface JournalItem {
   createdAt:    string
   comicId:      string | null
   comicTitle:   string | null
+  coverUrl:     string | null
 }
 
 export interface ProfileExtras {
@@ -87,6 +98,7 @@ export interface ProfileExtras {
   signals:           SignalsData | null
   totalChaptersRead: number
   journal:           JournalItem[]
+  genreProfile:      GenreProfile | null
 }
 
 function dropLabel(pct: number): DropRateData['label'] {
@@ -130,10 +142,10 @@ async function getDropRate(supabase: Supa, profileId: string): Promise<DropRateD
 export async function getProfileExtras(
   supabase: Supa,
   profileId: string,
-  opts: { includeJournal?: boolean } = {},
+  opts: { includeJournal?: boolean; includeTaste?: boolean } = {},
 ): Promise<ProfileExtras> {
   const [
-    progressRes, activityRes, quoteRes, signalsRes, journalRes, dropRate, dedicationRes,
+    progressRes, activityRes, quoteRes, signalsRes, journalRes, dropRate, dedicationRes, genreRes,
   ] = await Promise.all([
     // Most recently touched series the user is actively reading
     supabase
@@ -172,7 +184,7 @@ export async function getProfileExtras(
     opts.includeJournal
       ? supabase
           .from('journal_entries')
-          .select('id, content, chapter_label, mood_emoji, is_spoiler, like_count, reply_count, created_at, recommendations(id, title)')
+          .select('id, content, chapter_label, mood_emoji, is_spoiler, like_count, reply_count, created_at, recommendations(id, title, cover_url)')
           .eq('user_id', profileId)
           .order('created_at', { ascending: false })
           .limit(30)
@@ -183,7 +195,30 @@ export async function getProfileExtras(
     // Needs migration 20261007_dedication_percentile.sql. Until it is
     // applied this errors; we swallow that and simply show no percentile.
     (supabase as any).rpc('get_dedication_percentile', { p_user_id: profileId }),
+
+    // Needs migration 20261007_genre_profile.sql. Only fetched on the taste
+    // tab. If the function is missing the call errors, genreRes.data is null
+    // and the radar falls back to favourite genres.
+    opts.includeTaste
+      ? (supabase as any).rpc('get_user_genre_profile', { p_user_id: profileId })
+      : Promise.resolve({ data: null }),
   ])
+
+  // ── Genre profile (activity-based radar data) ──
+  let genreProfile: GenreProfile | null = null
+  const genreRows = (genreRes?.data ?? []) as { genre: string; comic_count: number; total_comics: number }[]
+  if (genreRows.length >= MIN_GENRES_FOR_RADAR) {
+    const total = Number(genreRows[0].total_comics ?? 0)
+    if (total >= MIN_COMICS_FOR_RADAR) {
+      genreProfile = {
+        comicCount: total,
+        points: genreRows.slice(0, MAX_RADAR_AXES).map(r => ({
+          axis: r.genre,
+          pct:  Math.round((Number(r.comic_count) / total) * 100),
+        })),
+      }
+    }
+  }
 
   // ── Currently obsessed ──
   let obsessed: ObsessedData | null = null
@@ -198,6 +233,43 @@ export async function getProfileExtras(
         coverUrl:       rec.cover_url ?? null,
         currentChapter: p.current_chapter ?? 0,
         totalChapters:  p.total_chapters ?? rec.chapter_count ?? null,
+      }
+    }
+  }
+
+  // ── Fallback: the app already tracks per-series chapter progress on
+  // reading_list_items (progress_chapter / last_read_at), so readers who never
+  // touch the newer reading_progress table still get a "currently obsessed"
+  // card. Completed and dropped series are skipped. ──
+  if (!obsessed) {
+    const { data: listRows } = await supabase
+      .from('reading_lists')
+      .select('id')
+      .eq('user_id', profileId)
+
+    const listIds = (listRows ?? []).map(l => l.id)
+    if (listIds.length > 0) {
+      const { data: itemRows } = await supabase
+        .from('reading_list_items')
+        .select('progress_chapter, recommendations(id, title, author, cover_url, chapter_count, content_rating)')
+        .in('list_id', listIds)
+        .gt('progress_chapter', 0)
+        .or('status.is.null,status.not.in.(completed,dropped)')
+        .order('last_read_at', { ascending: false, nullsFirst: false })
+        .limit(5)
+
+      for (const row of (itemRows ?? []) as any[]) {
+        const rec = one<any>(row.recommendations)
+        if (!rec || rec.content_rating === 'adult' || rec.content_rating === 'mature') continue
+        obsessed = {
+          comicId:        rec.id,
+          title:          rec.title,
+          author:         rec.author ?? null,
+          coverUrl:       rec.cover_url ?? null,
+          currentChapter: row.progress_chapter ?? 0,
+          totalChapters:  rec.chapter_count ?? null,
+        }
+        break
       }
     }
   }
@@ -261,8 +333,9 @@ export async function getProfileExtras(
       createdAt:    j.created_at,
       comicId:      rec?.id ?? null,
       comicTitle:   rec?.title ?? null,
+      coverUrl:     rec?.cover_url ?? null,
     }
   })
 
-  return { obsessed, quote, signals, totalChaptersRead, journal }
+  return { obsessed, quote, signals, totalChaptersRead, journal, genreProfile }
 }
