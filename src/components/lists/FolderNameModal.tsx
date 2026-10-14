@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, FolderPlus, Loader2, Pencil, X } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { LIST_FOLDER_NAME_MAX_LENGTH } from '@/lib/utils/folders'
@@ -37,33 +37,24 @@ export function FolderNameModal({ mode, initialValue = '', saving, onSubmit, onC
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden"
+        className="w-full max-w-md bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-primary/5">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
-              {mode === 'create'
-                ? <FolderPlus size={11} className="text-primary-foreground" />
-                : <Pencil size={11} className="text-primary-foreground" />}
-            </div>
-            <p className="text-xs font-black uppercase tracking-widest text-primary">
-              {mode === 'create' ? 'New Folder' : 'Rename Folder'}
-            </p>
-          </div>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <p className="font-dashboard-serif text-lg text-foreground">
+            {mode === 'create' ? 'New folder' : 'Rename folder'}
+          </p>
           <button
             onClick={onClose}
             disabled={saving}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            <X size={14} />
+            Close
           </button>
         </div>
 
         <div className="p-5 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">
-              Folder Name <span className="text-destructive">*</span>
-            </label>
+            <label className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Name</label>
             <Input
               value={name}
               onChange={e => setName(e.target.value.slice(0, LIST_FOLDER_NAME_MAX_LENGTH))}
@@ -78,8 +69,8 @@ export function FolderNameModal({ mode, initialValue = '', saving, onSubmit, onC
           </div>
           <div className="flex gap-2 pt-1">
             <Button size="sm" onClick={submit} disabled={!trimmed || saving || unchanged} className="gap-2">
-              {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-              {mode === 'create' ? 'Create Folder' : 'Save Name'}
+              {saving && <Loader2 size={13} className="animate-spin" />}
+              {mode === 'create' ? 'Create folder' : 'Save name'}
             </Button>
             <Button variant="ghost" size="sm" onClick={onClose} disabled={saving}>
               Cancel

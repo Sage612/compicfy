@@ -36,14 +36,14 @@ export function StatusSubStatusModal({ currentStatus, currentSubStatus, saving, 
       onClick={onClose}
     >
       <div
-        className="w-full max-w-xs rounded-2xl border border-border bg-card shadow-2xl shadow-black/20 overflow-hidden"
+        className="w-full max-w-xs rounded-xl border border-border bg-card shadow-xl overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {!pendingStatus ? (
           /* ── Step 1: status list ── */
           <div className="p-2">
             <div className="flex items-center justify-between px-2 py-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground">
                 Status
               </p>
               <button onClick={onClose} className="text-muted-foreground/50 hover:text-foreground transition-colors">
@@ -59,13 +59,12 @@ export function StatusSubStatusModal({ currentStatus, currentSubStatus, saving, 
                     onClick={() => setPendingStatus(value)}
                     disabled={saving}
                     className={cn(
-                      'w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all text-left',
+                      'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors text-left',
                       currentStatus === value
-                        ? cn('border', meta.badge)
+                        ? 'bg-muted text-foreground'
                         : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground'
                     )}
                   >
-                    <span className="text-base leading-none w-5 text-center shrink-0">{meta.emoji}</span>
                     <span className="flex-1">{meta.label}</span>
                     {currentStatus === value && <Check size={13} className="shrink-0" />}
                   </button>
@@ -89,8 +88,7 @@ export function StatusSubStatusModal({ currentStatus, currentSubStatus, saving, 
               </button>
             </div>
 
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-foreground px-1">
-              <span>{pendingMeta!.emoji}</span>
+            <p className="text-xs text-foreground px-1">
               {pendingMeta!.label} — add detail? <span className="font-normal text-muted-foreground">(optional)</span>
             </p>
 
@@ -101,7 +99,7 @@ export function StatusSubStatusModal({ currentStatus, currentSubStatus, saving, 
                     key={preset.value}
                     onClick={() => onConfirm(pendingStatus, preset.value)}
                     disabled={saving}
-                    className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all"
+                    className="w-full text-left px-3 py-2 rounded-lg text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all"
                   >
                     {preset.label}
                   </button>
@@ -109,7 +107,7 @@ export function StatusSubStatusModal({ currentStatus, currentSubStatus, saving, 
                 <button
                   onClick={() => setShowCustom(true)}
                   disabled={saving}
-                  className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all"
+                  className="w-full text-left px-3 py-2 rounded-lg text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all"
                 >
                   Custom…
                 </button>
@@ -130,7 +128,7 @@ export function StatusSubStatusModal({ currentStatus, currentSubStatus, saving, 
                     onChange={e => setCustomText(e.target.value.slice(0, TRACKING_SUB_STATUS_CUSTOM_MAX_LENGTH))}
                     onKeyDown={e => e.key === 'Enter' && handleCustomSubmit()}
                     placeholder="e.g. Waiting for the anime to catch up"
-                    className="flex-1 h-8 text-xs bg-muted border border-border rounded-lg px-2.5 outline-none focus:border-primary text-foreground placeholder:text-muted-foreground"
+                    className="flex-1 h-8 text-xs bg-muted border border-border rounded-lg px-2.5 outline-none focus:border-foreground/60 text-foreground placeholder:text-muted-foreground"
                   />
                   <button
                     onClick={() => setShowCustom(false)}
@@ -146,7 +144,7 @@ export function StatusSubStatusModal({ currentStatus, currentSubStatus, saving, 
                   <button
                     onClick={handleCustomSubmit}
                     disabled={saving || !customText.trim()}
-                    className="h-7 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center gap-1.5"
+                    className="h-7 px-3 rounded-lg bg-foreground text-background text-xs hover:opacity-90 disabled:opacity-40 transition-opacity flex items-center gap-1.5"
                   >
                     {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                     Save

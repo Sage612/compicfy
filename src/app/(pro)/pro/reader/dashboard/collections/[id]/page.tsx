@@ -70,15 +70,14 @@ export default async function ProReaderDashboardCollectionDetailPage({
     .maybeSingle()
 
   return (
-    <div className="pb-8">
-      <CollectionDetailClient
-        collection={assembled}
-        isSaved={!!saveRow}
-        isOwner={true}
-        isLoggedIn={true}
-        backHref="/pro/reader/dashboard/collections"
-        backLabel="My Collections"
-      />
-    </div>
+    <CollectionDetailClient
+      collection={assembled}
+      isSaved={!!saveRow}
+      isOwner={true}
+      isLoggedIn={true}
+      backHref="/pro/reader/dashboard/collections"
+      backLabel="My Collections"
+      isPro
+    />
   )
 }

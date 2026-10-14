@@ -2,11 +2,9 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Crown, CreditCard, AlertTriangle, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { formatDate } from '@/lib/utils/format'
-import { cn } from '@/lib/utils'
 import { isAdmin as isAdminCheck, isModerator as isModeratorCheck, isProUser } from '@/lib/access'
 
 interface Props {
@@ -29,6 +27,8 @@ interface Props {
   email: string
 }
 
+// Rendered inside pages that already provide the page header and shell,
+// so this component only renders the billing sections themselves.
 export function BillingClient({ profile, subscription, email }: Props) {
   const [cancelling, setCancelling] = useState(false)
   const [cancelled,  setCancelled]  = useState(false)
@@ -36,8 +36,7 @@ export function BillingClient({ profile, subscription, email }: Props) {
   const isAdmin = profile ? isAdminCheck(profile) : false
   const isMod   = profile ? isModeratorCheck(profile) : false
 
-  // Real Pro status only — moderator is NOT Pro (see "Mod note" section below
-  // for the perks message shown to moderators instead).
+  // Real Pro status only — moderator is NOT Pro (see the moderator note below).
   const isPro = profile ? isProUser(profile) : false
 
   const isCancelled = subscription?.status === 'cancelled' || cancelled
@@ -64,148 +63,99 @@ export function BillingClient({ profile, subscription, email }: Props) {
     }
   }
 
-  // Correct price display based on plan
   const priceDisplay = subscription?.plan === 'yearly' ? '$29.99' : '$4.99'
   const perLabel     = subscription?.plan === 'yearly' ? 'year'   : 'month'
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div className="space-y-6">
 
-      {/* Header */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-            <CreditCard size={16} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-black tracking-tight">Billing</h1>
-        </div>
-        <p className="text-muted-foreground text-sm pl-0.5">
-          Manage your subscription and billing details
-        </p>
-      </div>
-
-      {/* Admin — lifetime free access */}
       {isAdmin && (
-        <div className="p-5 rounded-2xl border border-primary/30 bg-primary/5 space-y-2">
-          <div className="flex items-center gap-2">
-            <Crown size={16} className="text-primary fill-primary/20" />
-            <p className="font-black text-sm">Admin — Free Pro Access</p>
-          </div>
+        <div className="rounded-xl border border-border bg-card p-5 space-y-1.5">
+          <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Admin</p>
+          <p className="font-dashboard-serif text-lg text-foreground">Free Pro access</p>
           <p className="text-sm text-muted-foreground">
-            You have lifetime free access to all Pro features as an admin. No payment required.
+            You have lifetime access to all Pro features as an admin. No payment required.
           </p>
         </div>
       )}
 
-      {/* Non-admin billing section */}
       {!isAdmin && (
-        <div className={cn(
-          'p-5 rounded-2xl border space-y-4',
-          isPro ? 'border-amber-500/30 bg-amber-500/5' : 'border-border bg-card'
-        )}>
+        <div className="rounded-xl border border-border bg-card p-5 space-y-5">
           <div className="flex items-start justify-between gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                {isPro && <Crown size={15} className="text-amber-500 fill-amber-500" />}
-                <p className="font-black">
-                  {isPro
-                    ? `Pro ${subscription?.plan === 'yearly' ? '(Yearly)' : '(Monthly)'}`
-                    : 'Free Plan'}
-                </p>
-                {isCancelled && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-500 border border-red-500/20 font-semibold">
-                    Cancelled
-                  </span>
-                )}
-                {isPro && !isCancelled && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-semibold">
-                    Active
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">{email}</p>
+            <div className="space-y-1 min-w-0">
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">
+                {isCancelled ? 'Cancelled' : isPro ? 'Active' : 'Current plan'}
+              </p>
+              <p className="font-dashboard-serif text-lg text-foreground">
+                {isPro ? `Pro ${subscription?.plan === 'yearly' ? '(Yearly)' : '(Monthly)'}` : 'Free plan'}
+              </p>
+              <p className="text-sm text-muted-foreground truncate">{email}</p>
               {subscription?.gateway && (
-                <p className="text-xs text-muted-foreground capitalize">
-                  via {subscription.gateway}
-                </p>
+                <p className="text-xs text-muted-foreground capitalize">via {subscription.gateway}</p>
               )}
             </div>
 
-            {isPro && !isAdmin && (
+            {isPro && (
               <div className="text-right shrink-0">
-                <p className="font-black text-lg">{priceDisplay}</p>
+                <p className="font-dashboard-serif text-2xl text-foreground tabular-nums">{priceDisplay}</p>
                 <p className="text-xs text-muted-foreground">per {perLabel}</p>
               </div>
             )}
           </div>
 
-          {/* Dates */}
-          {subscription && (
-            <div className="grid grid-cols-2 gap-3">
+          {subscription && (subscription.started_at || subscription.expires_at) && (
+            <dl className="grid grid-cols-2 gap-4 border-t border-border pt-4">
               {subscription.started_at && (
-                <div className="p-3 rounded-xl bg-background border border-border space-y-0.5">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Started</p>
-                  <p className="text-sm font-semibold">{formatDate(subscription.started_at)}</p>
+                <div className="space-y-0.5">
+                  <dt className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Started</dt>
+                  <dd className="text-sm text-foreground">{formatDate(subscription.started_at)}</dd>
                 </div>
               )}
               {subscription.expires_at && (
-                <div className="p-3 rounded-xl bg-background border border-border space-y-0.5">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                <div className="space-y-0.5">
+                  <dt className="text-[11px] uppercase tracking-widest text-muted-foreground/70">
                     {isCancelled ? 'Access until' : 'Next renewal'}
-                  </p>
-                  <p className="text-sm font-semibold">{formatDate(subscription.expires_at)}</p>
+                  </dt>
+                  <dd className="text-sm text-foreground">{formatDate(subscription.expires_at)}</dd>
                 </div>
               )}
-            </div>
+            </dl>
           )}
 
-          {/* Cancel button */}
+          {isCancelled && (
+            <p className="border-t border-border pt-4 text-xs text-muted-foreground leading-relaxed">
+              Your subscription is cancelled but Pro access remains active until{' '}
+              <span className="text-foreground">{formatDate(subscription?.expires_at ?? '')}</span>.
+              After that you&apos;ll be moved to the free plan.
+            </p>
+          )}
+
           {isPro && !isCancelled && (
-            <div className="flex gap-2 pt-1">
+            <div className="border-t border-border pt-4">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleCancel}
                 disabled={cancelling}
-                className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5"
+                className="text-destructive border-destructive/30 hover:bg-destructive/5"
               >
-                <AlertTriangle size={13} />
-                {cancelling ? 'Cancelling...' : 'Cancel Subscription'}
+                {cancelling ? 'Cancelling…' : 'Cancel subscription'}
               </Button>
             </div>
           )}
 
-          {/* Cancelled notice */}
-          {isCancelled && (
-            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
-              <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Your subscription is cancelled but Pro access remains active until{' '}
-                <strong className="text-foreground">{formatDate(subscription?.expires_at ?? '')}</strong>.
-                After that you'll be moved to the free plan.
-              </p>
-            </div>
-          )}
-
-          {/* Upgrade button */}
-          {!isPro && !isAdmin && (
-            <Link href="/pricing">
-              <Button className="gap-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:opacity-90 border-0 text-white w-full">
-                <Sparkles size={14} />
-                Upgrade to Pro
-              </Button>
-            </Link>
+          {!isPro && (
+            <Button asChild size="sm" className="w-full">
+              <Link href="/pricing">Upgrade to Pro</Link>
+            </Button>
           )}
         </div>
       )}
 
-      {/* Mod note — moderators are NOT Pro, but get specific unlimited perks */}
+      {/* Moderators are NOT Pro but get specific unlimited perks */}
       {isMod && !isPro && (
-        <div className="p-4 rounded-2xl border border-blue-500/20 bg-blue-500/5 space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Crown size={14} className="text-blue-500" />
-            <p className="font-black text-sm text-blue-600">Moderator Perks</p>
-          </div>
+        <div className="rounded-xl border border-border bg-card p-5 space-y-1.5">
+          <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Moderator</p>
           <p className="text-xs text-muted-foreground leading-relaxed">
             As a moderator you get unlimited recommendations, lists, and saves for free.
             Upgrading to Pro additionally unlocks analytics, export, and profile view tracking.
@@ -213,12 +163,11 @@ export function BillingClient({ profile, subscription, email }: Props) {
         </div>
       )}
 
-      {/* Support */}
-      <div className="p-4 rounded-2xl border border-border bg-card space-y-1.5">
-        <p className="font-black text-sm">Need help?</p>
+      <div className="rounded-xl border border-border bg-card p-5 space-y-1">
+        <p className="font-dashboard-serif text-base text-foreground">Need help?</p>
         <p className="text-xs text-muted-foreground">
-          For billing issues, email us at{' '}
-          <a href="mailto:support@compicfy.com" className="text-primary hover:underline font-medium">
+          For billing issues, email{' '}
+          <a href="mailto:support@compicfy.com" className="text-foreground underline underline-offset-4 hover:text-muted-foreground transition-colors">
             support@compicfy.com
           </a>
         </p>

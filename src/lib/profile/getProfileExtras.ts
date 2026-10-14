@@ -74,6 +74,7 @@ export interface SignalsData {
   avgSessionHours: number | null
   peakHour:        number | null
   totalSessions:   number
+  totalHours:      number | null
   dropRate:        DropRateData | null
   dedication:      DedicationData | null
 }
@@ -97,6 +98,7 @@ export interface ProfileExtras {
   quote:             QuoteData | null
   signals:           SignalsData | null
   totalChaptersRead: number
+  totalHours:        number | null
   journal:           JournalItem[]
   genreProfile:      GenreProfile | null
 }
@@ -145,7 +147,7 @@ export async function getProfileExtras(
   opts: { includeJournal?: boolean; includeTaste?: boolean } = {},
 ): Promise<ProfileExtras> {
   const [
-    progressRes, activityRes, quoteRes, signalsRes, journalRes, dropRate, dedicationRes, genreRes,
+    progressRes, activityRes, quoteRes, signalsRes, journalRes, dropRate, dedicationRes, genreRes, hoursRes,
   ] = await Promise.all([
     // Most recently touched series the user is actively reading
     supabase
@@ -202,6 +204,10 @@ export async function getProfileExtras(
     opts.includeTaste
       ? (supabase as any).rpc('get_user_genre_profile', { p_user_id: profileId })
       : Promise.resolve({ data: null }),
+
+    // Needs migration 20261014_journal_likes_and_hours.sql. Total only; the
+    // raw sessions stay private. Errors are swallowed (no hours shown).
+    (supabase as any).rpc('get_total_reading_hours', { p_user_id: profileId }),
   ])
 
   // ── Genre profile (activity-based radar data) ──
@@ -221,27 +227,12 @@ export async function getProfileExtras(
   }
 
   // ── Currently obsessed ──
+  // The reading list is the single source of truth for chapter progress
+  // (progress_chapter / last_read_at), so updating a list and logging a
+  // session always agree. Completed and dropped series are skipped.
+  // reading_progress is only a fallback for older rows. ──
   let obsessed: ObsessedData | null = null
-  if (progressRes.data) {
-    const p   = progressRes.data as any
-    const rec = one<any>(p.recommendations)
-    if (rec) {
-      obsessed = {
-        comicId:        rec.id,
-        title:          rec.title,
-        author:         rec.author ?? null,
-        coverUrl:       rec.cover_url ?? null,
-        currentChapter: p.current_chapter ?? 0,
-        totalChapters:  p.total_chapters ?? rec.chapter_count ?? null,
-      }
-    }
-  }
-
-  // ── Fallback: the app already tracks per-series chapter progress on
-  // reading_list_items (progress_chapter / last_read_at), so readers who never
-  // touch the newer reading_progress table still get a "currently obsessed"
-  // card. Completed and dropped series are skipped. ──
-  if (!obsessed) {
+  {
     const { data: listRows } = await supabase
       .from('reading_lists')
       .select('id')
@@ -270,6 +261,23 @@ export async function getProfileExtras(
           totalChapters:  rec.chapter_count ?? null,
         }
         break
+      }
+    }
+  }
+
+
+  // Fallback: legacy reading_progress rows.
+  if (!obsessed && progressRes.data) {
+    const p   = progressRes.data as any
+    const rec = one<any>(p.recommendations)
+    if (rec) {
+      obsessed = {
+        comicId:        rec.id,
+        title:          rec.title,
+        author:         rec.author ?? null,
+        coverUrl:       rec.cover_url ?? null,
+        currentChapter: p.current_chapter ?? 0,
+        totalChapters:  p.total_chapters ?? rec.chapter_count ?? null,
       }
     }
   }
@@ -306,6 +314,7 @@ export async function getProfileExtras(
   // ── Reading signals (sessions + drop rate + dedication) ──
   const sessionCount = Number(signalsRes.data?.total_sessions ?? 0)
   const hasSessions  = sessionCount > 0
+  const totalHours   = hasSessions && hoursRes?.data != null && Number(hoursRes.data) > 0 ? Number(hoursRes.data) : null
   let signals: SignalsData | null = null
   if (hasSessions || dropRate || dedication) {
     signals = {
@@ -314,6 +323,7 @@ export async function getProfileExtras(
       peakHour: hasSessions && signalsRes.data?.peak_hour != null
         ? Number(signalsRes.data.peak_hour) : null,
       totalSessions: sessionCount,
+      totalHours,
       dropRate,
       dedication,
     }
@@ -337,5 +347,5 @@ export async function getProfileExtras(
     }
   })
 
-  return { obsessed, quote, signals, totalChaptersRead, journal, genreProfile }
+  return { obsessed, quote, signals, totalHours, totalChaptersRead, journal, genreProfile }
 }

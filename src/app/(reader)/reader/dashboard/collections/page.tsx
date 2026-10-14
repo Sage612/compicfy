@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CollectionsClient } from '@/components/collections/CollectionsClient'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
+import { PageShell } from '@/components/dashboard/PageHeader'
 import { FREE_LIMITS } from '@/lib/utils/constants'
 import type { Metadata } from 'next'
 import { hasUnlimitedPerks } from '@/lib/access'
@@ -31,21 +32,19 @@ export default async function ReaderCollectionsPage() {
   const showBanner      = !isPro && collectionCount >= limit - 1
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-0">
+    <PageShell>
       {showBanner && (
-        <div className="mb-6">
-          <UpgradeBanner
-            current={collectionCount}
-            limit={limit}
-            feature="collections"
-            message={
-              collectionCount >= limit
-                ? `You've reached your free collection limit`
-                : `You're close to your free collection limit`
-            }
-            dismissible
-          />
-        </div>
+        <UpgradeBanner
+          current={collectionCount}
+          limit={limit}
+          feature="collections"
+          message={
+            collectionCount >= limit
+              ? `You've reached your free collection limit`
+              : `You're close to your free collection limit`
+          }
+          dismissible
+        />
       )}
 
       <CollectionsClient
@@ -55,7 +54,9 @@ export default async function ReaderCollectionsPage() {
         basePath="/reader/dashboard/collections"
         savedCollectionIds={[]}
         showMobileCreate  // signals component to show create button on mobile too
+        backHref="/reader/dashboard"
+        backLabel="Dashboard"
       />
-    </div>
+    </PageShell>
   )
 }

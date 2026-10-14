@@ -102,7 +102,7 @@ export async function getOtherShrines(supabase: Supa, profileId: string): Promis
 
 export interface ActivityEvent {
   id:        string
-  kind:      'journal' | 'quote' | 'finished' | 'bond'
+  kind:      'journal' | 'quote' | 'finished' | 'bond' | 'streak'
   at:        string
   title:     string
   body:      string | null
@@ -114,6 +114,8 @@ export interface ActivityEvent {
   coverUrl:   string | null
   /** Set only for journal entries, so the owner can delete them. */
   journalId:  string | null
+  /** True when the signed-in viewer has liked this journal entry. */
+  likedByMe:  boolean
 }
 
 export async function getActivityEvents(
@@ -121,8 +123,42 @@ export async function getActivityEvents(
   profileId: string,
   journal: JournalItem[],
   party: PartyMember[],
+  opts: {
+    viewerId?: string | null
+    streak?: { current: number; lastDate: string | null } | null
+  } = {},
 ): Promise<ActivityEvent[]> {
   const events: ActivityEvent[] = []
+
+  // Which of these entries has the viewer already liked?
+  let liked = new Set<string>()
+  if (opts.viewerId && journal.length > 0) {
+    const { data: likeRows } = await (supabase as any)
+      .from('journal_likes').select('journal_id')
+      .eq('user_id', opts.viewerId).in('journal_id', journal.map(j => j.id))
+    liked = new Set(((likeRows ?? []) as any[]).map(r => r.journal_id as string))
+  }
+
+  // Streak flex: only while the streak is alive (active today or yesterday)
+  // and long enough to brag about. The DB keeps the number; a stale value
+  // from a broken streak is never shown.
+  const MILESTONES = [7, 14, 30, 60, 100, 200, 365]
+  const st = opts.streak
+  if (st && st.lastDate && st.current >= MILESTONES[0]) {
+    const DAY = 86_400_000
+    const lastMs = new Date(`${st.lastDate}T00:00:00Z`).getTime()
+    const todayMs = Math.floor(Date.now() / DAY) * DAY
+    if (todayMs - lastMs <= DAY) {
+      const mark = [...MILESTONES].reverse().find(m => st.current >= m) as number
+      events.push({
+        id: `s-${st.lastDate}`, kind: 'streak', at: new Date(lastMs + 12 * 3_600_000).toISOString(),
+        title: `${st.current}-day reading streak`,
+        body: st.current === mark ? `Hit the ${mark}-day mark.` : `Past the ${mark}-day mark and still going.`,
+        isSpoiler: false, moodEmoji: null, likeCount: 0, replyCount: 0,
+        comicTitle: null, coverUrl: null, journalId: null, likedByMe: false,
+      })
+    }
+  }
 
   for (const j of journal) {
     events.push({
@@ -130,7 +166,7 @@ export async function getActivityEvents(
       title: j.comicTitle && j.chapterLabel ? `Logged ${j.chapterLabel} of ${j.comicTitle}` : 'Journaled a session',
       body: j.content, isSpoiler: j.isSpoiler, moodEmoji: j.moodEmoji,
       likeCount: j.likeCount, replyCount: j.replyCount,
-      comicTitle: j.comicTitle, coverUrl: j.coverUrl, journalId: j.id,
+      comicTitle: j.comicTitle, coverUrl: j.coverUrl, journalId: j.id, likedByMe: liked.has(j.id),
     })
   }
 
@@ -140,7 +176,7 @@ export async function getActivityEvents(
       title: `Bonded with ${m.name}`,
       body: m.tagline ?? `Bond level ${m.bondLevel}`,
       isSpoiler: false, moodEmoji: null, likeCount: 0, replyCount: 0,
-      comicTitle: m.seriesTitle, coverUrl: m.seriesCover, journalId: null,
+      comicTitle: m.seriesTitle, coverUrl: m.seriesCover, journalId: null, likedByMe: false,
     })
   }
 
@@ -160,7 +196,7 @@ export async function getActivityEvents(
       id: `q-${q.id}`, kind: 'quote', at: q.created_at,
       title: 'Stamped a line', body: `\u201C${q.quote_text}\u201D`,
       isSpoiler: false, moodEmoji: null, likeCount: q.stamp_count ?? 0, replyCount: 0,
-      comicTitle: rec?.title ?? null, coverUrl: rec?.cover_url ?? null, journalId: null,
+      comicTitle: rec?.title ?? null, coverUrl: rec?.cover_url ?? null, journalId: null, likedByMe: false,
     })
   }
 
@@ -183,7 +219,7 @@ export async function getActivityEvents(
         id: `f-${d.id}`, kind: 'finished', at,
         title: `Finished ${rec.title}`, body: null,
         isSpoiler: false, moodEmoji: null, likeCount: 0, replyCount: 0,
-        comicTitle: rec.title, coverUrl: rec.cover_url ?? null, journalId: null,
+        comicTitle: rec.title, coverUrl: rec.cover_url ?? null, journalId: null, likedByMe: false,
       })
     }
   }

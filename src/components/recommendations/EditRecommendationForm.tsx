@@ -13,7 +13,7 @@ import { CoverUpload } from './CoverUpload'
 import { GenreSelector } from './GenreSelector'
 import { PlatformSelector } from './PlatformSelector'
 import { toast } from 'sonner'
-import { Loader2, BookOpen, Tag, FileText, Globe, Save, Link2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const formSchema = z.object({
@@ -46,44 +46,40 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>
 
 const TYPES = [
-  { value: 'manga',   label: 'Manga',   desc: 'Japanese', activeClass: 'bg-rose-500   border-rose-500   text-white' },
-  { value: 'manhwa',  label: 'Manhwa',  desc: 'Korean',   activeClass: 'bg-teal-500   border-teal-500   text-white' },
-  { value: 'manhua',  label: 'Manhua',  desc: 'Chinese',  activeClass: 'bg-amber-500  border-amber-500  text-white' },
-  { value: 'webtoon', label: 'Webtoon', desc: 'Vertical', activeClass: 'bg-teal-500   border-teal-500   text-white' },
-  { value: 'comic',   label: 'Comic',   desc: 'Western',  activeClass: 'bg-blue-500   border-blue-500   text-white' },
-  { value: 'other',   label: 'Other',   desc: 'Misc',     activeClass: 'bg-zinc-500   border-zinc-500   text-white' },
+  { value: 'manga',   label: 'Manga',   desc: 'Japanese' },
+  { value: 'manhwa',  label: 'Manhwa',  desc: 'Korean'   },
+  { value: 'manhua',  label: 'Manhua',  desc: 'Chinese'  },
+  { value: 'webtoon', label: 'Webtoon', desc: 'Vertical' },
+  { value: 'comic',   label: 'Comic',   desc: 'Western'  },
+  { value: 'other',   label: 'Other',   desc: 'Misc'     },
 ] as const
 
 const STATUSES = [
-  { value: 'ongoing',   label: 'Ongoing',   dot: 'bg-emerald-500' },
-  { value: 'completed', label: 'Completed', dot: 'bg-blue-500'    },
-  { value: 'hiatus',    label: 'On Hiatus', dot: 'bg-amber-500'   },
-  { value: 'cancelled', label: 'Cancelled', dot: 'bg-red-500'     },
+  { value: 'ongoing',   label: 'Ongoing'   },
+  { value: 'completed', label: 'Completed' },
+  { value: 'hiatus',    label: 'On Hiatus' },
+  { value: 'cancelled', label: 'Cancelled' },
 ] as const
 
 const RATINGS = [
-  { value: 'all_ages', label: 'All Ages',   emoji: '🟢' },
-  { value: 'teen',     label: 'Teen 13+',   emoji: '🟡' },
-  { value: 'mature',   label: 'Mature 17+', emoji: '🟠' },
-  { value: 'adult',    label: 'Adult 18+',  emoji: '🔴' },
+  { value: 'all_ages', label: 'All Ages'   },
+  { value: 'teen',     label: 'Teen 13+'   },
+  { value: 'mature',   label: 'Mature 17+' },
+  { value: 'adult',    label: 'Adult 18+'  },
 ] as const
 
-function FormSection({ icon: Icon, title, accent = 'bg-primary', children }: {
-  icon: React.ElementType
-  title: string
-  accent?: string
+function FormSection({ title, danger = false, children }: {
+  title:    string
+  danger?:  boolean
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-muted/30">
-        <div className={`w-7 h-7 rounded-lg ${accent} flex items-center justify-center shrink-0`}>
-          <Icon size={13} className="text-primary-foreground" />
-        </div>
-        <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{title}</h3>
+    <section className={cn('rounded-xl border bg-card overflow-hidden', danger ? 'border-destructive/30' : 'border-border')}>
+      <div className="px-5 py-3.5 border-b border-border">
+        <h3 className={cn('text-[11px] uppercase tracking-widest', danger ? 'text-destructive' : 'text-muted-foreground')}>{title}</h3>
       </div>
       <div className="p-5 space-y-5">{children}</div>
-    </div>
+    </section>
   )
 }
 
@@ -146,7 +142,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
       {/* Basic Info */}
-      <FormSection icon={BookOpen} title="Basic Info">
+      <FormSection title="Basic Info">
         <div className="flex flex-col sm:flex-row gap-6">
           <div className="shrink-0">
             <Controller
@@ -159,7 +155,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
           </div>
           <div className="flex-1 space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="title" className="text-sm font-semibold">
+              <Label htmlFor="title" className="text-sm font-medium">
                 Title <span className="text-destructive">*</span>
               </Label>
               <Input id="title" {...register('title')} placeholder="e.g. One Piece, Solo Leveling…" className="h-11 text-base" />
@@ -167,21 +163,21 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="author" className="text-sm font-semibold">Author</Label>
+                <Label htmlFor="author" className="text-sm font-medium">Author</Label>
                 <Input id="author" {...register('author')} placeholder="Author name" className="h-10" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="artist" className="text-sm font-semibold">Artist</Label>
+                <Label htmlFor="artist" className="text-sm font-medium">Artist</Label>
                 <Input id="artist" {...register('artist')} placeholder="Artist name" className="h-10" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="year_released" className="text-sm font-semibold">Year</Label>
+                <Label htmlFor="year_released" className="text-sm font-medium">Year</Label>
                 <Input id="year_released" type="number" {...register('year_released')} placeholder="e.g. 2020" className="h-10" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="chapter_count" className="text-sm font-semibold">Chapters</Label>
+                <Label htmlFor="chapter_count" className="text-sm font-medium">Chapters</Label>
                 <Input id="chapter_count" type="number" {...register('chapter_count')} placeholder="e.g. 100" className="h-10" />
               </div>
             </div>
@@ -190,24 +186,24 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       </FormSection>
 
       {/* Classification */}
-      <FormSection icon={Tag} title="Classification" accent="bg-blue-500">
+      <FormSection title="Classification">
         <div className="space-y-2">
-          <Label className="text-sm font-semibold">Type <span className="text-destructive">*</span></Label>
+          <Label className="text-sm font-medium">Type <span className="text-destructive">*</span></Label>
           <Controller
             name="type"
             control={control}
             render={({ field }) => (
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {TYPES.map(({ value, label, desc, activeClass }) => (
+                {TYPES.map(({ value, label, desc }) => (
                   <button
                     key={value}
                     type="button"
                     onClick={() => field.onChange(value)}
                     className={cn(
-                      'flex flex-col items-center gap-0.5 px-2 py-2.5 rounded-xl border text-sm font-semibold transition-all',
+                      'flex flex-col items-center gap-0.5 px-2 py-2.5 rounded-xl border text-sm font-medium transition-colors',
                       field.value === value
-                        ? activeClass
-                        : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                        ? 'bg-foreground text-background border-foreground'
+                        : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
                     )}
                   >
                     {label}
@@ -221,25 +217,24 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="space-y-2">
-            <Label className="text-sm font-semibold">Status <span className="text-destructive">*</span></Label>
+            <Label className="text-sm font-medium">Status <span className="text-destructive">*</span></Label>
             <Controller
               name="status"
               control={control}
               render={({ field }) => (
                 <div className="grid grid-cols-2 gap-2">
-                  {STATUSES.map(({ value, label, dot }) => (
+                  {STATUSES.map(({ value, label }) => (
                     <button
                       key={value}
                       type="button"
                       onClick={() => field.onChange(value)}
                       className={cn(
-                        'flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all',
+                        'flex items-center justify-center px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors',
                         field.value === value
-                          ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
-                          : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                          ? 'bg-foreground text-background border-foreground'
+                          : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
                       )}
                     >
-                      <span className={cn('w-2 h-2 rounded-full shrink-0', field.value === value ? 'bg-primary-foreground/80' : dot)} />
                       {label}
                     </button>
                   ))}
@@ -249,25 +244,24 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm font-semibold">Content Rating</Label>
+            <Label className="text-sm font-medium">Content Rating</Label>
             <Controller
               name="content_rating"
               control={control}
               render={({ field }) => (
                 <div className="grid grid-cols-2 gap-2">
-                  {RATINGS.map(({ value, label, emoji }) => (
+                  {RATINGS.map(({ value, label }) => (
                     <button
                       key={value}
                       type="button"
                       onClick={() => field.onChange(value)}
                       className={cn(
-                        'flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all',
+                        'flex items-center justify-center px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors',
                         field.value === value
-                          ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
-                          : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                          ? 'bg-foreground text-background border-foreground'
+                          : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
                       )}
                     >
-                      <span className="leading-none">{emoji}</span>
                       {label}
                     </button>
                   ))}
@@ -279,7 +273,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       </FormSection>
 
       {/* Genres */}
-      <FormSection icon={Tag} title="Genres" accent="bg-rose-500">
+      <FormSection title="Genres">
         <Controller
           name="genres"
           control={control}
@@ -290,31 +284,31 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       </FormSection>
 
       {/* Description */}
-      <FormSection icon={FileText} title="Description" accent="bg-amber-500">
+      <FormSection title="Description">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="description" className="text-sm font-semibold">
+            <Label htmlFor="description" className="text-sm font-medium">
               Description <span className="text-destructive">*</span>
             </Label>
-            <span className="text-xs text-muted-foreground">{descValue.length}/2000</span>
+            <span className="text-xs text-muted-foreground tabular-nums">{descValue.length}/2000</span>
           </div>
           <Textarea id="description" {...register('description')} placeholder="What is this comic about?" rows={4} className="resize-none" />
           {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
         </div>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="why_recommend" className="text-sm font-semibold">
+            <Label htmlFor="why_recommend" className="text-sm font-medium">
               Why do you recommend it?
               <span className="text-muted-foreground font-normal ml-1">(optional)</span>
             </Label>
-            <span className="text-xs text-muted-foreground">{whyValue.length}/1000</span>
+            <span className="text-xs text-muted-foreground tabular-nums">{whyValue.length}/1000</span>
           </div>
           <Textarea id="why_recommend" {...register('why_recommend')} placeholder="What makes this special?" rows={3} className="resize-none" />
         </div>
       </FormSection>
 
       {/* Platforms */}
-      <FormSection icon={Globe} title="Official Platforms" accent="bg-teal-500">
+      <FormSection title="Official Platforms">
         <Controller
           name="official_platforms"
           control={control}
@@ -337,9 +331,9 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       </FormSection>
 
       {/* More Info Link */}
-      <FormSection icon={Link2} title="More Info Link" accent="bg-sky-500">
+      <FormSection title="More Info Link">
         <div className="space-y-1.5">
-          <Label htmlFor="more_info_link" className="text-sm font-semibold">
+          <Label htmlFor="more_info_link" className="text-sm font-medium">
             External reference <span className="text-muted-foreground font-normal">(optional)</span>
           </Label>
           <Input
@@ -360,6 +354,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
         <Button
           type="button"
           variant="ghost"
+          size="sm"
           onClick={() => router.push(isProPath ? '/pro/reader/dashboard/recommendations' : '/reader/dashboard/recommendations')}
           disabled={submitting}
         >
@@ -368,11 +363,12 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
         <Button
           type="submit"
           disabled={submitting || !isDirty}
-          className="gap-2 min-w-44"
+          size="sm"
+          className="min-w-44"
         >
           {submitting
-            ? <><Loader2 size={15} className="animate-spin" /> Saving…</>
-            : <><Save size={15} /> Save Changes</>
+            ? <><Loader2 size={14} className="animate-spin mr-2" />Saving…</>
+            : 'Save Changes'
           }
         </Button>
       </div>

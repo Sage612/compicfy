@@ -3,9 +3,9 @@
 
 import { useState, useRef } from 'react'
 import Link from 'next/link'
-import { Upload, Loader2, CheckCircle2, AlertCircle, FileText, ArrowRight, BookMarked, UserPlus, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 
 type Source = 'myanimelist' | 'anilist'
 
@@ -30,11 +30,14 @@ interface JobResult {
 }
 
 const SOURCE_OPTIONS: { value: Source; label: string; hint: string }[] = [
-  { value: 'myanimelist', label: 'MyAnimeList', hint: 'Profile -> Export List -> Manga' },
-  { value: 'anilist',     label: 'AniList',      hint: 'Settings -> Account -> Export (MAL-format XML)' },
+  { value: 'myanimelist', label: 'MyAnimeList', hint: 'Profile → Export List → Manga' },
+  { value: 'anilist',     label: 'AniList',      hint: 'Settings → Account → Export (MAL-format XML)' },
 ]
 
-export function ImportClient({ basePath = '/reader/dashboard/lists' }: { basePath?: string }) {
+export function ImportClient({
+  basePath = '/reader/dashboard/lists',
+  isPro = false,
+}: { basePath?: string; isPro?: boolean }) {
   const [source, setSource]   = useState<Source>('myanimelist')
   const [file, setFile]       = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
@@ -109,20 +112,19 @@ export function ImportClient({ basePath = '/reader/dashboard/lists' }: { basePat
     }
   }
 
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+  const backHref = basePath.replace(/\/lists$/, '') || '/'
 
-      <div className="space-y-1">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-teal-500/20">
-            <Upload size={16} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-black tracking-tight">Import Your List</h1>
-        </div>
-        <p className="text-muted-foreground text-sm pl-0.5">
-          Bring your existing MyAnimeList or AniList tracking over to ComPicfy
-        </p>
-      </div>
+  return (
+    <PageShell width="narrow">
+
+      <PageHeader
+        eyebrow="Library"
+        title="Import your list"
+        subtitle="Bring your existing MyAnimeList or AniList tracking over to ComPicfy."
+        backHref={backHref}
+        backLabel="Dashboard"
+        isPro={isPro}
+      />
 
       {!result && (
         <>
@@ -133,45 +135,33 @@ export function ImportClient({ basePath = '/reader/dashboard/lists' }: { basePat
                 onClick={() => setSource(opt.value)}
                 disabled={loading}
                 className={cn(
-                  'p-4 rounded-2xl border bg-card space-y-2 text-left transition-all',
+                  'p-4 rounded-xl border bg-card space-y-1.5 text-left transition-colors',
                   source === opt.value
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:border-primary/40'
+                    ? 'border-foreground'
+                    : 'border-border hover:border-foreground/30'
                 )}
               >
-                <div className="flex items-center gap-2">
-                  <span className={cn('text-sm font-black', source === opt.value ? 'text-primary' : 'text-foreground')}>
-                    {opt.label}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {opt.hint}
-                </p>
+                <span className="font-dashboard-serif text-base text-foreground">{opt.label}</span>
+                <p className="text-xs text-muted-foreground leading-relaxed">{opt.hint}</p>
               </button>
             ))}
           </div>
 
-          <div className="p-4 rounded-2xl border border-border bg-card space-y-3">
-            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider text-xs">
-              Export file (.xml)
-            </p>
+          <div className="p-4 rounded-xl border border-border bg-card space-y-3">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Export file (.xml)</p>
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={loading}
               className={cn(
-                'w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-dashed transition-colors text-left',
-                file ? 'border-primary/40 bg-primary/5' : 'border-border hover:border-primary/40'
+                'w-full flex items-center gap-3 px-4 py-3.5 rounded-lg border border-dashed transition-colors text-left',
+                file ? 'border-foreground/40' : 'border-border hover:border-foreground/30'
               )}
             >
-              {file
-                ? <FileText size={16} className="text-primary shrink-0" />
-                : <Upload size={16} className="text-muted-foreground shrink-0" />
-              }
               <span className="text-sm truncate flex-1">
-                {file ? file.name : 'Choose a file...'}
+                {file ? file.name : 'Choose a file…'}
               </span>
               {file && (
-                <span className="text-[10px] text-muted-foreground shrink-0">
+                <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">
                   {(file.size / 1024).toFixed(0)} KB
                 </span>
               )}
@@ -185,85 +175,59 @@ export function ImportClient({ basePath = '/reader/dashboard/lists' }: { basePat
             />
 
             {error && (
-              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-destructive/10 text-destructive text-xs">
-                <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                <p>{error}</p>
-              </div>
+              <p className="px-3 py-2 rounded-lg border border-destructive/30 text-destructive text-xs">{error}</p>
             )}
 
-            <Button
-              onClick={handleImport}
-              disabled={!file || loading}
-              className="w-full gap-2"
-            >
-              {loading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-              {loading ? 'Importing...' : 'Import list'}
+            <Button onClick={handleImport} disabled={!file || loading} className="w-full">
+              {loading ? 'Importing…' : 'Import list'}
             </Button>
           </div>
 
           <p className="text-xs text-muted-foreground text-center">
-            MangaUpdates, MangaBaka and more... import support is coming soon.
+            MangaUpdates, MangaBaka and more — import support is coming soon.
           </p>
         </>
       )}
 
       {result && (
         <div className="space-y-4">
-          <div className="p-5 rounded-2xl border border-primary/20 bg-primary/5 space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <CheckCircle2 size={18} className="text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-black text-sm">
-                  Imported {result.job.matched_count} of {result.job.matched_count + result.job.skipped_count} comics
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Added to your new list, "{result.list.name}"
-                </p>
-              </div>
+          <div className="p-5 rounded-xl border border-foreground/30 bg-card space-y-3">
+            <div>
+              <p className="font-dashboard-serif text-lg text-foreground">
+                Imported {result.job.matched_count} of {result.job.matched_count + result.job.skipped_count} comics
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Added to your new list, &ldquo;{result.list.name}&rdquo;
+              </p>
             </div>
             <Link href={`${basePath}/${result.list.id}`}>
-              <Button size="sm" className="w-full gap-2">
-                <BookMarked size={13} />
-                View list
-                <ArrowRight size={13} />
-              </Button>
+              <Button size="sm" className="w-full">View list</Button>
             </Link>
           </div>
 
           {result.job.skipped_titles.length > 0 && (
-            <div className="p-4 rounded-2xl border border-border bg-card space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                {result.job.skipped_titles.length} couldn't be matched
+            <div className="p-4 rounded-xl border border-border bg-card space-y-2">
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">
+                <span className="tabular-nums">{result.job.skipped_titles.length}</span> couldn&apos;t be matched
               </p>
-              <div className="max-h-72 overflow-y-auto space-y-1.5">
+              <div className="max-h-72 overflow-y-auto divide-y divide-border">
                 {result.job.skipped_titles.map((s, i) => {
                   const added  = addedIndexes.has(i)
                   const adding = addingIndex === i
                   return (
-                    <div key={i} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/40">
+                    <div key={i} className="flex items-center gap-3 py-2.5">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate">{s.title}</p>
-                        <p className="text-muted-foreground text-[10px] mt-0.5">{s.reason}</p>
+                        <p className="text-sm text-foreground truncate">{s.title}</p>
+                        <p className="text-muted-foreground text-[11px] mt-0.5">{s.reason}</p>
                       </div>
                       <Button
                         size="sm"
-                        variant={added ? 'outline' : 'ghost'}
+                        variant="outline"
                         disabled={added || adding}
                         onClick={() => handleAddCustomEntry(s, i)}
-                        className={cn(
-                          'h-7 px-2.5 text-[11px] gap-1.5 shrink-0',
-                          added && 'border-emerald-500/40 text-emerald-600'
-                        )}
+                        className="h-7 px-2.5 text-[11px] shrink-0"
                       >
-                        {adding
-                          ? <Loader2 size={11} className="animate-spin" />
-                          : added
-                            ? <Check size={11} />
-                            : <UserPlus size={11} />
-                        }
-                        {added ? 'Added' : 'Add'}
+                        {adding ? 'Adding…' : added ? 'Added' : 'Add'}
                       </Button>
                     </div>
                   )
@@ -277,6 +241,6 @@ export function ImportClient({ basePath = '/reader/dashboard/lists' }: { basePat
           </Button>
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

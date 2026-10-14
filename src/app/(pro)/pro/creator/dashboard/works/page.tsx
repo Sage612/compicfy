@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { RecsClient } from '@/components/recommendations/RecsClient'
+import { PageShell } from '@/components/dashboard/PageHeader'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'My Works · Pro' }
@@ -17,15 +18,17 @@ export default async function ProCreatorWorksPage() {
   .order('created_at', { ascending: false })
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <PageShell>
       <RecsClient
         initialRecs={(recs as any[]) ?? []}
         userId={user.id}
         newRecHref="/pro/creator/dashboard/works/new"
         editBasePath="/pro/creator/dashboard/works"
         isPro={true}
-        accentColor="teal"
+        title="Works"
+        eyebrow="Creator"
+        backHref="/pro/creator/dashboard"
       />
-    </div>
+    </PageShell>
   )
 }

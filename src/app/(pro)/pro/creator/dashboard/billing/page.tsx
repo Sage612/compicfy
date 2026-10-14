@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { BillingClient } from '@/components/pro/BillingClient'
-import { Palette, CheckCircle2, Sparkles, CreditCard } from 'lucide-react'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 import { formatDate } from '@/lib/utils/format'
 import { isAdmin as isAdminCheck, isProUser, canAccessProDashboard } from '@/lib/access'
 import type { Metadata } from 'next'
@@ -34,62 +34,55 @@ export default async function ProCreatorBillingPage() {
     redirect('/pricing?reason=pro_required')
   }
 
+  const PRO_FEATURES = [
+    'Deep analytics',
+    'Unlimited works',
+    'Audience insights',
+    'Priority review',
+    'Profile view tracking',
+    'Creator Pro badge',
+  ]
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <PageShell width="narrow">
+      <PageHeader
+        eyebrow="Creator"
+        title="Billing"
+        subtitle="Manage your Pro Creator subscription."
+        backHref="/pro/creator/dashboard"
+        backLabel="Dashboard"
+        isPro={isPro || isAdmin}
+      />
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
-            <CreditCard size={16} className="text-teal-500" />
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Current plan</p>
+            <p className="font-dashboard-serif text-lg text-foreground">{isAdmin ? 'Admin' : 'Pro Creator'}</p>
+            <p className="text-sm text-muted-foreground">
+              {isAdmin
+                ? 'Lifetime access'
+                : profile?.pro_expires_at
+                ? `Renews ${formatDate(profile.pro_expires_at)}`
+                : 'Lifetime access'}
+            </p>
           </div>
-          <h1 className="text-xl font-black tracking-tight">Billing</h1>
+          {!isAdmin && <span className="shrink-0 text-xs text-muted-foreground">Active</span>}
         </div>
-        <p className="text-xs text-muted-foreground pl-0.5">Manage your Pro Creator subscription.</p>
-      </div>
-
-      {/* Plan card */}
-      <div className="relative overflow-hidden rounded-2xl border border-teal-500/30 bg-gradient-to-br from-teal-500/10 via-cyan-500/5 to-transparent p-5 space-y-4">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-teal-500/40 to-transparent" />
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-cyan-500 flex items-center justify-center">
-              <Palette size={18} className="text-white" />
-            </div>
-            <div>
-              <p className="font-black text-sm">{isAdmin ? 'Admin' : 'Pro Creator'}</p>
-              <p className="text-xs text-muted-foreground">
-                {isAdmin
-                  ? 'Lifetime access'
-                  : profile?.pro_expires_at
-                  ? `Renews ${formatDate(profile.pro_expires_at)}`
-                  : 'Lifetime access'}
-              </p>
-            </div>
-          </div>
-          {!isAdmin && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-500/15 text-teal-600 text-xs font-black border border-teal-500/20">
-              <Sparkles size={10} />Active
-            </span>
-          )}
-        </div>
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          {['Deep analytics', 'Unlimited works', 'Audience insights', 'Priority review', 'Profile view tracking', 'Creator Pro badge'].map(f => (
-            <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
-              <CheckCircle2 size={12} className="text-teal-500 shrink-0" />{f}
-            </div>
-          ))}
-        </div>
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-border pt-4 text-xs text-muted-foreground">
+          {PRO_FEATURES.map(f => <li key={f}>{f}</li>)}
+        </ul>
       </div>
 
       {isAdmin ? (
-        <div className="p-4 rounded-2xl border border-border bg-muted/30 text-center">
-          <p className="text-xs text-muted-foreground">
+        <div className="rounded-xl border border-dashed border-border px-6 py-8 text-center">
+          <p className="text-sm text-muted-foreground">
             Admin accounts have lifetime Pro access, no billing required.
           </p>
         </div>
       ) : (
         <BillingClient profile={profile} subscription={subscription} email={user.email ?? ''} />
       )}
-    </div>
+    </PageShell>
   )
 }

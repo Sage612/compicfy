@@ -10,5 +10,5 @@ export default async function ProImportPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  return <ImportClient basePath="/pro/reader/dashboard/lists" />
+  return <ImportClient basePath="/pro/reader/dashboard/lists" isPro />
 }

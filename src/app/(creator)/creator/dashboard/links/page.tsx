@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CreatorLinksClient } from '@/components/creator/CreatorLinksClient'
-import { Link as LinkIcon } from 'lucide-react'
 import { isAdmin as isAdminCheck, isProUser } from '@/lib/access'
 import type { Metadata } from 'next'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 
 export const metadata: Metadata = { title: 'Creator Links' }
 
@@ -24,13 +24,14 @@ export default async function CreatorLinksPage() {
   const isPro   = isProUser(profile ?? { role: '', is_pro: false, pro_expires_at: null })
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Creator Links</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Add your links so readers can find and support your work directly from your profile.
-        </p>
-      </div>
+    <PageShell width="narrow">
+      <PageHeader
+        eyebrow="Creator"
+        title="Creator links"
+        subtitle="Let readers find and support your work directly from your profile."
+        backHref="/creator/dashboard"
+        backLabel="Dashboard"
+      />
       <CreatorLinksClient
         userId={user.id}
         initialValues={{
@@ -40,6 +41,6 @@ export default async function CreatorLinksPage() {
         }}
         isPro={isPro}
       />
-    </div>
+    </PageShell>
   )
 }

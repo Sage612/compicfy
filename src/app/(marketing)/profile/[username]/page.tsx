@@ -9,7 +9,6 @@ import { notFound, redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import type { Recommendation } from '@/types/app.types'
 import { getDashboardRoutes } from '@/lib/utils/routes'
-import { PinnedFavoritesEditor } from '@/components/profile/PinnedFavoritesEditor'
 import { ProfileBadges } from '@/components/profile/ProfileBadges'
 import { MangaDNACard } from '@/components/profile/MangaDNACard'
 import { getSuggestedMatches } from '@/lib/taste/getSuggestedMatches'
@@ -19,6 +18,7 @@ import { getParty, getOtherShrines, getActivityEvents } from '@/lib/profile/getS
 import { ShrineTabs, type ShrineTab } from '@/components/profile/shrine/ShrineTabs'
 import { ProfileHero } from '@/components/profile/shrine/ProfileHero'
 import { LogComposer } from '@/components/profile/shrine/LogComposer'
+import { HallOfFameEditor } from '@/components/profile/shrine/HallOfFameEditor'
 import { QuoteEditor } from '@/components/profile/shrine/QuoteEditor'
 import { PartyEditor } from '@/components/profile/shrine/PartyEditor'
 import {
@@ -280,7 +280,13 @@ export default async function ProfilePage({ params, searchParams }: Props) {
 
   const activityEvents = isGhost
     ? []
-    : await getActivityEvents(supabase, profile.id, extras?.journal ?? [], [...party])
+    : await getActivityEvents(supabase, profile.id, extras?.journal ?? [], [...party], {
+      viewerId: viewer?.id ?? null,
+      streak: {
+        current:  profile.current_streak ?? 0,
+        lastDate: ((profileData as any).last_streak_date as string | null) ?? null,
+      },
+    })
 
   const recommendations = (recData ?? []) as Recommendation[]
   const isFollowing     = !!isFollowingData
@@ -332,6 +338,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         recs:      totalRecs,
         completed: completedSeriesCount,
         reviews:   profile.total_reviews ?? 0,
+        hours:     extras?.totalHours ?? null,
       }}
       match={viewerMatch}
     />
@@ -379,9 +386,10 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             canEdit={canEditHall}
             editor={
               isOwner && canEditHall ? (
-                <PinnedFavoritesEditor
+                <HallOfFameEditor
                   initialPinnedIds={profile.pinned_favorite_ids ?? []}
                   candidates={favoriteCandidates}
+                  pinned={pinnedFavorites}
                 />
               ) : null
             }
@@ -460,6 +468,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           events={activityEvents}
           isOwner={isOwner}
           username={profile.username}
+          canLike={!!viewer}
           composer={isOwner ? <LogComposer candidates={favoriteCandidates} /> : null}
         />
       ),

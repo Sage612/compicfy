@@ -46,6 +46,7 @@ interface Props {
     recs:      number
     completed: number
     reviews:   number
+    hours?:    number | null
   }
   statItems?: { label: string; value: string }[]
   match?:     HeroMatch | null
@@ -66,6 +67,7 @@ export function ProfileHero({
     ? [{ label: 'Archived', value: s.recs.toLocaleString() }]
     : [
         ...(s.chapters > 0 ? [{ label: 'Chapters', value: s.chapters.toLocaleString() }] : []),
+        ...(s.hours ? [{ label: 'Hrs read', value: compact(Math.round(s.hours)) }] : []),
         { label: 'Followers', value: compact(s.followers) },
         { label: 'Following', value: compact(s.following) },
         { label: 'Recs',      value: compact(s.recs) },

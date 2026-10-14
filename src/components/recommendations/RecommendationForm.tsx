@@ -16,9 +16,7 @@ import { TagPicker } from './TagPicker'
 import { PlatformSelector } from './PlatformSelector'
 import { SubmissionGuidelineBanner } from '@/components/recommendations/SubmissionGuidelineBanner'
 import { toast } from 'sonner'
-import {Loader2, BookOpen, Info, AlertTriangle, Sparkles,
-  Tag, FileText, Globe, Link2, CalendarClock,
-} from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { PeakHourModal } from '@/components/recommendations/PeakHourModal'
 import { LimitReachedModal } from '@/components/recommendations/LimitReachedModal'
 import { FREE_LIMITS } from '@/lib/utils/constants'
@@ -73,44 +71,40 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>
 
 const TYPES = [
-  { value: 'manga',   label: 'Manga',   desc: 'Japanese', activeClass: 'bg-rose-500   border-rose-500   text-white' },
-  { value: 'manhwa',  label: 'Manhwa',  desc: 'Korean',   activeClass: 'bg-teal-500   border-teal-500 text-white' },
-  { value: 'manhua',  label: 'Manhua',  desc: 'Chinese',  activeClass: 'bg-amber-500  border-amber-500  text-white' },
-  { value: 'webtoon', label: 'Webtoon', desc: 'Vertical', activeClass: 'bg-teal-500   border-teal-500   text-white' },
-  { value: 'comic',   label: 'Comic',   desc: 'Western',  activeClass: 'bg-blue-500   border-blue-500   text-white' },
-  { value: 'other',   label: 'Other',   desc: 'Misc',     activeClass: 'bg-zinc-500   border-zinc-500   text-white' },
+  { value: 'manga',   label: 'Manga',   desc: 'Japanese' },
+  { value: 'manhwa',  label: 'Manhwa',  desc: 'Korean'   },
+  { value: 'manhua',  label: 'Manhua',  desc: 'Chinese'  },
+  { value: 'webtoon', label: 'Webtoon', desc: 'Vertical' },
+  { value: 'comic',   label: 'Comic',   desc: 'Western'  },
+  { value: 'other',   label: 'Other',   desc: 'Misc'     },
 ] as const
 
 const STATUSES = [
-  { value: 'ongoing',   label: 'Ongoing',   dot: 'bg-emerald-500' },
-  { value: 'completed', label: 'Completed', dot: 'bg-blue-500'    },
-  { value: 'hiatus',    label: 'On Hiatus', dot: 'bg-amber-500'   },
-  { value: 'cancelled', label: 'Cancelled', dot: 'bg-red-500'     },
+  { value: 'ongoing',   label: 'Ongoing'   },
+  { value: 'completed', label: 'Completed' },
+  { value: 'hiatus',    label: 'On Hiatus' },
+  { value: 'cancelled', label: 'Cancelled' },
 ] as const
 
 const RATINGS = [
-  { value: 'all_ages', label: 'All Ages',   emoji: '🟢' },
-  { value: 'teen',     label: 'Teen 13+',   emoji: '🟡' },
-  { value: 'mature',   label: 'Mature 17+', emoji: '🟠' },
-  { value: 'adult',    label: 'Adult 18+',  emoji: '🔴' },
+  { value: 'all_ages', label: 'All Ages'   },
+  { value: 'teen',     label: 'Teen 13+'   },
+  { value: 'mature',   label: 'Mature 17+' },
+  { value: 'adult',    label: 'Adult 18+'  },
 ] as const
 
-function FormSection({ icon: Icon, title, accent = 'bg-primary', children }: {
-  icon: React.ElementType
-  title: string
-  accent?: string
+function FormSection({ title, danger = false, children }: {
+  title:    string
+  danger?:  boolean
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-muted/30">
-        <div className={`w-7 h-7 rounded-lg ${accent} flex items-center justify-center shrink-0`}>
-          <Icon size={13} className="text-primary-foreground" />
-        </div>
-        <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{title}</h3>
+    <section className={cn('rounded-xl border bg-card overflow-hidden', danger ? 'border-destructive/30' : 'border-border')}>
+      <div className="px-5 py-3.5 border-b border-border">
+        <h3 className={cn('text-[11px] uppercase tracking-widest', danger ? 'text-destructive' : 'text-muted-foreground')}>{title}</h3>
       </div>
       <div className="p-5 space-y-5">{children}</div>
-    </div>
+    </section>
   )
 }
 
@@ -375,60 +369,43 @@ export function RecommendationForm({ userId }: Props) {
       {/* Monthly usage bar */}
       {unlimitedPerks === false && monthlyCount !== null && (
         <div className={cn(
-          'rounded-2xl border p-4 space-y-3',
-          atRecLimit  ? 'border-red-500/30 bg-red-500/5' :
-          nearRecLimit ? 'border-amber-500/20 bg-amber-500/5' :
-                         'border-border bg-card'
+          'rounded-xl border bg-card p-4 space-y-3',
+          atRecLimit ? 'border-foreground/40' : 'border-border'
         )}>
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <BookOpen size={13} className={atRecLimit ? 'text-red-500' : nearRecLimit ? 'text-amber-500' : 'text-muted-foreground'} />
-              <span className="text-xs font-semibold">
-                {monthlyCount} / {FREE_LIMITS.recommendations_per_month} recommendations this month
-              </span>
-            </div>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {monthlyCount} / {FREE_LIMITS.recommendations_per_month} recommendations this month
+            </span>
             {(atRecLimit || nearRecLimit) && (
-              <Link href="/guidelines#submission-limits" className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline shrink-0">
-                <CalendarClock size={10} />
+              <Link href="/guidelines#submission-limits" className="text-xs text-foreground underline underline-offset-4 shrink-0">
                 About limits
               </Link>
             )}
           </div>
-          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+          <div className="h-1 rounded-full bg-muted overflow-hidden">
             <div
-              className={cn(
-                'h-full rounded-full transition-all duration-500',
-                usagePct >= 100 ? 'bg-red-500' : usagePct >= 85 ? 'bg-amber-500' : 'bg-primary'
-              )}
+              className="h-full rounded-full bg-foreground/70 transition-all duration-500"
               style={{ width: `${usagePct}%` }}
             />
           </div>
           {atRecLimit && (
-            <div className="flex items-start gap-2">
-              <AlertTriangle size={13} className="text-red-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-red-600 font-medium">
-                You&apos;ve used all {FREE_LIMITS.recommendations_per_month} recommendations for this month. It resets on the 1st, in the meantime your entry can be saved as a draft.
-              </p>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              You&apos;ve used all {FREE_LIMITS.recommendations_per_month} recommendations for this month. It resets on the 1st, in the meantime your entry can be saved as a draft.
+            </p>
           )}
         </div>
       )}
 
       {/* Auto-fill banner */}
-      <div className="flex items-start gap-3 p-4 rounded-2xl border border-primary/20 bg-primary/5">
-        <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0 mt-0.5">
-          <Sparkles size={13} className="text-primary-foreground" />
-        </div>
-        <div className="flex-1 space-y-2">
-          <p className="text-sm font-bold text-primary">Auto-fill from external database</p>
-          <MangaSearch onSelect={handleMangaSelect} />
-        </div>
+      <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+        <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Auto-fill from external database</p>
+        <MangaSearch onSelect={handleMangaSelect} />
       </div>
 
       <SubmissionGuidelineBanner />
 
       {/* Basic Info */}
-      <FormSection icon={BookOpen} title="Basic Info">
+      <FormSection title="Basic Info">
         <div className="flex flex-col sm:flex-row gap-6">
           <div className="shrink-0">
             <Controller
@@ -441,7 +418,7 @@ export function RecommendationForm({ userId }: Props) {
           </div>
           <div className="flex-1 space-y-4">
             <div className="space-y-1.5">
-              <Label htmlFor="title" className="text-sm font-semibold">Title <span className="text-destructive">*</span></Label>
+              <Label htmlFor="title" className="text-sm font-medium">Title <span className="text-destructive">*</span></Label>
               <Input
                 id="title"
                 {...register('title')}
@@ -459,11 +436,10 @@ export function RecommendationForm({ userId }: Props) {
                 </p>
               )}
               {duplicateWarning && (
-                <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 space-y-2.5">
+                <div className="p-3.5 rounded-xl border border-border bg-muted/30 space-y-2.5">
                   <div className="flex items-start gap-2.5">
-                    <Sparkles size={14} className="text-primary shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-xs font-bold text-foreground">
+                      <p className="text-xs font-medium text-foreground">
                         &quot;{duplicateWarning.title}&quot; is already on ComPicfy!
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
@@ -474,14 +450,14 @@ export function RecommendationForm({ userId }: Props) {
                     </div>
                   </div>
                   {duplicateWarning.is_approved && (
-                    <div className="flex flex-wrap gap-2 pl-[26px]">
+                    <div className="flex flex-wrap gap-2">
                       <Link href={`/comic/${duplicateWarning.id}`}>
-                        <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-xs">
                           View & Upvote
                         </Button>
                       </Link>
                       <Link href={`/comic/${duplicateWarning.id}#reviews`}>
-                        <Button type="button" size="sm" variant="outline" className="h-7 text-xs gap-1.5">
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-xs">
                           Write a Review
                         </Button>
                       </Link>
@@ -490,17 +466,16 @@ export function RecommendationForm({ userId }: Props) {
                 </div>
               )}
               {!duplicateWarning && similarWarnings.length > 0 && !dismissedSimilar && (
-                <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-2.5">
+                <div className="p-3.5 rounded-xl border border-border bg-muted/30 space-y-2.5">
                   <div className="flex items-start gap-2.5">
-                    <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <p className="text-xs font-bold text-foreground">
+                      <p className="text-xs font-medium text-foreground">
                         This looks similar to {similarWarnings.length === 1 ? 'an existing comic' : `${similarWarnings.length} existing comics`}
                       </p>
                       <div className="mt-1.5 space-y-1">
                         {similarWarnings.slice(0, 3).map(s => (
                           <p key={s.id} className="text-xs text-muted-foreground">
-                            &quot;{s.title}&quot; <span className="text-muted-foreground/60">({s.similarity}% similar)</span>
+                            &quot;{s.title}&quot; <span className="text-muted-foreground/60 tabular-nums">({s.similarity}% similar)</span>
                           </p>
                         ))}
                       </div>
@@ -509,7 +484,7 @@ export function RecommendationForm({ userId }: Props) {
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2 pl-[26px]">
+                  <div className="flex gap-2">
                     <Button
                       type="button"
                       size="sm"
@@ -526,21 +501,21 @@ export function RecommendationForm({ userId }: Props) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="author" className="text-sm font-semibold">Author</Label>
+                <Label htmlFor="author" className="text-sm font-medium">Author</Label>
                 <Input id="author" {...register('author')} placeholder="Author name" className="h-10" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="artist" className="text-sm font-semibold">Artist</Label>
+                <Label htmlFor="artist" className="text-sm font-medium">Artist</Label>
                 <Input id="artist" {...register('artist')} placeholder="Artist name" className="h-10" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="year_released" className="text-sm font-semibold">Year</Label>
+                <Label htmlFor="year_released" className="text-sm font-medium">Year</Label>
                 <Input id="year_released" type="number" {...register('year_released')} placeholder="e.g. 2020" className="h-10" />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="chapter_count" className="text-sm font-semibold">Chapters</Label>
+                <Label htmlFor="chapter_count" className="text-sm font-medium">Chapters</Label>
                 <Input id="chapter_count" type="number" {...register('chapter_count')} placeholder="e.g. 100" className="h-10" />
               </div>
             </div>
@@ -549,24 +524,24 @@ export function RecommendationForm({ userId }: Props) {
       </FormSection>
 
       {/* Classification */}
-      <FormSection icon={Tag} title="Classification" accent="bg-blue-500">
+      <FormSection title="Classification">
         <div className="space-y-2">
-          <Label className="text-sm font-semibold">Type <span className="text-destructive">*</span></Label>
+          <Label className="text-sm font-medium">Type <span className="text-destructive">*</span></Label>
           <Controller
             name="type"
             control={control}
             render={({ field }) => (
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {TYPES.map(({ value, label, desc, activeClass }) => (
+                {TYPES.map(({ value, label, desc }) => (
                   <button
                     key={value}
                     type="button"
                     onClick={() => field.onChange(value)}
                     className={cn(
-                      'flex flex-col items-center gap-0.5 px-2 py-2.5 rounded-xl border text-sm font-semibold transition-all',
+                      'flex flex-col items-center gap-0.5 px-2 py-2.5 rounded-xl border text-sm font-medium transition-colors',
                       field.value === value
-                        ? activeClass
-                        : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                        ? 'bg-foreground text-background border-foreground'
+                        : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
                     )}
                   >
                     {label}
@@ -581,25 +556,24 @@ export function RecommendationForm({ userId }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="space-y-2">
-            <Label className="text-sm font-semibold">Status <span className="text-destructive">*</span></Label>
+            <Label className="text-sm font-medium">Status <span className="text-destructive">*</span></Label>
             <Controller
               name="status"
               control={control}
               render={({ field }) => (
                 <div className="grid grid-cols-2 gap-2">
-                  {STATUSES.map(({ value, label, dot }) => (
+                  {STATUSES.map(({ value, label }) => (
                     <button
                       key={value}
                       type="button"
                       onClick={() => field.onChange(value)}
                       className={cn(
-                        'flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all',
+                        'flex items-center justify-center px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors',
                         field.value === value
-                          ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
-                          : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                          ? 'bg-foreground text-background border-foreground'
+                          : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
                       )}
                     >
-                      <span className={cn('w-2 h-2 rounded-full shrink-0', field.value === value ? 'bg-primary-foreground/80' : dot)} />
                       {label}
                     </button>
                   ))}
@@ -610,34 +584,33 @@ export function RecommendationForm({ userId }: Props) {
           </div>
 
           <div className="space-y-2">
-            <Label className="text-sm font-semibold">Content Rating</Label>
+            <Label className="text-sm font-medium">Content Rating</Label>
             <Controller
               name="content_rating"
               control={control}
               render={({ field }) => (
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-2">
-                    {RATINGS.map(({ value, label, emoji }) => (
+                    {RATINGS.map(({ value, label }) => (
                       <button
                         key={value}
                         type="button"
                         onClick={() => field.onChange(value)}
                         className={cn(
-                          'flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-semibold transition-all',
+                          'flex items-center justify-center px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors',
                           field.value === value
-                            ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
-                            : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                            ? 'bg-foreground text-background border-foreground'
+                            : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
                         )}
                       >
-                        <span className="leading-none">{emoji}</span>
                         {label}
                       </button>
                     ))}
                   </div>
                   {field.value === 'adult' && (
-                    <div className="p-3 rounded-xl bg-destructive/5 border border-destructive/20 space-y-2">
-                      <p className="text-xs font-black text-destructive flex items-center gap-1.5">
-                        <AlertTriangle size={12} /> Adult Content Rules
+                    <div className="p-3.5 rounded-xl border border-destructive/30 space-y-2">
+                      <p className="text-[11px] uppercase tracking-widest text-destructive">
+                        Adult content rules
                       </p>
                       <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside leading-relaxed">
                         <li>Must link to a verified official platform</li>
@@ -659,7 +632,7 @@ export function RecommendationForm({ userId }: Props) {
       </FormSection>
 
       {/* Genres */}
-      <FormSection icon={Tag} title="Genres" accent="bg-rose-500">
+      <FormSection title="Genres">
         <Controller
           name="genres"
           control={control}
@@ -670,44 +643,44 @@ export function RecommendationForm({ userId }: Props) {
       </FormSection>
 
       {/* Tags */}
-      <FormSection icon={Tag} title="Trope & Mood Tags" accent="bg-violet-500">
+      <FormSection title="Trope & Mood Tags">
         <TagPicker value={selectedTagIds} onChange={setSelectedTagIds} />
       </FormSection>
 
       {/* Description */}
-      <FormSection icon={FileText} title="Description" accent="bg-amber-500">
+      <FormSection title="Description">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="description" className="text-sm font-semibold">Description <span className="text-destructive">*</span></Label>
-            <span className="text-xs text-muted-foreground">{descValue.length}/2000</span>
+            <Label htmlFor="description" className="text-sm font-medium">Description <span className="text-destructive">*</span></Label>
+            <span className="text-xs text-muted-foreground tabular-nums">{descValue.length}/2000</span>
           </div>
           <Textarea id="description" {...register('description')} placeholder="What is this comic about?" rows={4} className="resize-none" />
           {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
         </div>
-        <div className="space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-4">
+        <div className="space-y-1.5 rounded-xl border border-border bg-muted/30 p-4">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-0.5">
-              <Label htmlFor="why_recommend" className="text-sm font-black text-primary">
+              <Label htmlFor="why_recommend" className="text-sm font-medium">
                 Why do you recommend it?
               </Label>
               <p className="text-[11px] text-muted-foreground leading-snug">
                 Optional, but recs with a personal reason get far more votes.
               </p>
             </div>
-            <span className="text-xs text-muted-foreground shrink-0 mt-0.5">{whyValue.length}/1000</span>
+            <span className="text-xs text-muted-foreground shrink-0 mt-0.5 tabular-nums">{whyValue.length}/1000</span>
           </div>
           <Textarea
             id="why_recommend"
             {...register('why_recommend')}
             placeholder='e.g. "If you loved Tower of God, this hits the same notes but with better art."'
             rows={3}
-            className="resize-none border-primary/20 focus:border-primary bg-background"
+            className="resize-none bg-background"
           />
         </div>
       </FormSection>
 
       {/* Platforms */}
-      <FormSection icon={Globe} title="Official Platforms" accent="bg-teal-500">
+      <FormSection title="Official Platforms">
         <Controller
           name="official_platforms"
           control={control}
@@ -729,9 +702,9 @@ export function RecommendationForm({ userId }: Props) {
         />
       </FormSection>
 
-      <FormSection icon={Link2} title="More Info Link" accent="bg-sky-500">
+      <FormSection title="More Info Link">
         <div className="space-y-1.5">
-          <Label htmlFor="more_info_link" className="text-sm font-semibold">
+          <Label htmlFor="more_info_link" className="text-sm font-medium">
             External reference <span className="text-muted-foreground font-normal">(optional)</span>
           </Label>
           <Input
@@ -748,8 +721,7 @@ export function RecommendationForm({ userId }: Props) {
       </FormSection>
 
       {/* Info notice */}
-      <div className="flex gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/15">
-        <Info size={15} className="text-primary shrink-0 mt-0.5" />
+      <div className="p-4 rounded-xl border border-border">
         <p className="text-xs text-muted-foreground leading-relaxed">
           Your recommendation will be reviewed by our team before being published.
         </p>
@@ -757,7 +729,7 @@ export function RecommendationForm({ userId }: Props) {
 
       {/* Submit row */}
       <div className="flex items-center justify-between pt-1">
-        <Button type="button" variant="ghost" onClick={() => router.back()} disabled={submitting}>
+        <Button type="button" variant="ghost" size="sm" onClick={() => router.back()} disabled={submitting}>
           Cancel
         </Button>
         <Button
@@ -768,14 +740,15 @@ export function RecommendationForm({ userId }: Props) {
             atRecLimit ||
             (watch('content_rating') === 'adult' && !watch('adult_content_confirmed'))
           }
-          className="gap-2 min-w-44"
+          size="sm"
+          className="min-w-44"
         >
           {atRecLimit ? (
-            <><CalendarClock size={15} /> Monthly Limit Reached</>
+            'Monthly Limit Reached'
           ) : submitting ? (
-            <><Loader2 size={15} className="animate-spin" /> Submitting…</>
+            <><Loader2 size={14} className="animate-spin mr-2" />Submitting…</>
           ) : (
-            <><BookOpen size={15} /> Submit Recommendation</>
+            'Submit Recommendation'
           )}
         </Button>
       </div>

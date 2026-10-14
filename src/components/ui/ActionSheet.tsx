@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface ActionSheetAction {
@@ -46,7 +45,7 @@ export function ActionSheet({ open, onClose, title, actions }: Props) {
         className={cn(
           // Mobile: flush to the viewport bottom. Desktop: centered.
           'absolute bottom-0 left-0 right-0 sm:bottom-auto sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2',
-          'w-full sm:max-w-xs bg-card rounded-t-2xl sm:rounded-2xl',
+          'w-full sm:max-w-xs bg-card rounded-t-xl sm:rounded-xl',
           // No bottom border on mobile — a full border + bottom-0 is what leaves the 1px gap
           'border-t border-x sm:border border-border shadow-2xl',
           'overflow-hidden max-h-[85vh] sm:max-h-none overflow-y-auto',
@@ -55,14 +54,14 @@ export function ActionSheet({ open, onClose, title, actions }: Props) {
       >
         {title && (
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70 truncate">
               {title}
             </p>
             <button
               onClick={onClose}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              <X size={14} />
+              Close
             </button>
           </div>
         )}
@@ -89,7 +88,7 @@ export function ActionSheet({ open, onClose, title, actions }: Props) {
         <div className="sm:hidden border-t border-border">
           <button
             onClick={onClose}
-            className="w-full px-4 py-3 text-sm font-semibold text-center text-muted-foreground hover:text-foreground transition-colors"
+            className="w-full px-4 py-3 text-sm text-center text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancel
           </button>

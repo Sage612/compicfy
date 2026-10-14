@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Sparkles, ArrowRight, Loader2, PenLine } from 'lucide-react'
+import { ArrowRight, Loader2 } from 'lucide-react'
 
 interface Props {
   customEntryId: string
@@ -62,13 +62,12 @@ export function CustomEntryFooter({ customEntryId, title, coverUrl, isPro, onCon
   if (match) {
     return (
       <div className="flex items-center gap-1.5 text-[11px]" onClick={e => e.stopPropagation()}>
-        <Sparkles size={10} className="text-primary shrink-0" />
         <span className="text-muted-foreground">Now in ComPicfy as "{match.title}"</span>
         <button
           type="button"
           onClick={handleConvert}
           disabled={converting}
-          className="inline-flex items-center gap-1 text-primary font-medium hover:opacity-70 transition-opacity"
+          className="inline-flex items-center gap-1 text-foreground underline underline-offset-4 hover:text-muted-foreground transition-colors"
         >
           {converting ? <Loader2 size={10} className="animate-spin" /> : <ArrowRight size={10} />}
           Switch to it
@@ -81,9 +80,8 @@ export function CustomEntryFooter({ customEntryId, title, coverUrl, isPro, onCon
     <Link
       href={submitUrl}
       onClick={e => e.stopPropagation()}
-      className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+      className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
     >
-      <PenLine size={10} />
       Not in ComPicfy yet — recommend it?
     </Link>
   )

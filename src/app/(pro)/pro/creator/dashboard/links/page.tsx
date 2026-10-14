@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CreatorLinksClient } from '@/components/creator/CreatorLinksClient'
-import { Link as LinkIcon } from 'lucide-react'
 import { isAdmin as isAdminCheck, isProUser, canAccessProDashboard } from '@/lib/access'
 import type { Metadata } from 'next'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 
 export const metadata: Metadata = { title: 'Creator Links · Pro' }
 
@@ -26,18 +26,15 @@ export default async function ProCreatorLinksPage() {
   if (!canAccessProDashboard(profile)) redirect('/pricing?reason=pro_required')
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
-            <LinkIcon size={16} className="text-teal-500" />
-          </div>
-          <h1 className="text-xl font-black tracking-tight">Creator Links</h1>
-        </div>
-        <p className="text-xs text-muted-foreground pl-0.5">
-          Let readers find and support your work directly.
-        </p>
-      </div>
+    <PageShell width="narrow">
+      <PageHeader
+        eyebrow="Creator"
+        title="Creator links"
+        subtitle="Let readers find and support your work directly from your profile."
+        backHref="/pro/creator/dashboard"
+        backLabel="Dashboard"
+        isPro
+      />
       <CreatorLinksClient
         userId={user.id}
         initialValues={{
@@ -47,6 +44,6 @@ export default async function ProCreatorLinksPage() {
         }}
         isPro={isPro}
       />
-    </div>
+    </PageShell>
   )
 }

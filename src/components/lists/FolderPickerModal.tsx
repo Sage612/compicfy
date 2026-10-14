@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Folder, Loader2, X } from 'lucide-react'
+import { Check, Folder, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { folderTree } from '@/lib/utils/folders'
 import type { ListFolder } from '@/lib/utils/folders'
@@ -39,19 +39,19 @@ export function FolderPickerModal({
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="w-full max-w-sm bg-card rounded-2xl border border-border shadow-2xl overflow-hidden"
+        className="w-full max-w-sm bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
       >
-        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border bg-primary/5">
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border">
           <div className="min-w-0 space-y-0.5">
-            <p className="text-xs font-black uppercase tracking-widest text-primary">Move to folder</p>
+            <p className="font-dashboard-serif text-lg text-foreground">Move to folder</p>
             <p className="text-xs text-muted-foreground truncate">{itemName}</p>
           </div>
           <button
             onClick={onClose}
             disabled={saving}
-            className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
           >
-            <X size={14} />
+            Close
           </button>
         </div>
 

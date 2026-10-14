@@ -5,12 +5,10 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import { BookMarked, Plus, Trash2, Globe, Lock,
-  Loader2, BookOpen, Pencil, ArrowRight, Crown,
-  Sparkles, Radar, Share2, Star, Check, X, MoreVertical,
-  Folder, FolderPlus, FolderInput, ChevronRight,
+import {
+  Trash2, Globe, Lock, Loader2, Pencil, Share2, MoreVertical,
+  Folder, FolderInput, ChevronRight,
 } from 'lucide-react'
-import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
 import { PageHeader } from '@/components/dashboard/PageHeader'
@@ -36,29 +34,6 @@ interface ReadingList {
   _cover_urls?: string[]
 }
 
-const THEME_GRAD: Record<number, string> = {
-  0: 'from-primary/60 via-primary/20 to-primary/5',
-  1: 'from-violet-500/60 via-violet-500/20 to-violet-500/5',
-  2: 'from-rose-500/60 via-rose-500/20 to-rose-500/5',
-  3: 'from-amber-500/60 via-amber-500/20 to-amber-500/5',
-  4: 'from-emerald-500/60 via-emerald-500/20 to-emerald-500/5',
-  5: 'from-indigo-500/60 via-indigo-500/20 to-indigo-500/5',
-}
-const THEME_BORDER: Record<number, string> = {
-  0: 'border-primary/30',     1: 'border-violet-500/30',
-  2: 'border-rose-500/30',    3: 'border-amber-500/30',
-  4: 'border-emerald-500/30', 5: 'border-indigo-500/30',
-}
-const THEME_ACCENT: Record<number, string> = {
-  0: 'text-primary',      1: 'text-violet-400',
-  2: 'text-rose-400',     3: 'text-amber-400',
-  4: 'text-emerald-400',  5: 'text-indigo-400',
-}
-
-function themeIndex(id: string): number {
-  return id.slice(-6).split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 6
-}
-
 function getCoverPreviews(list: ReadingList): string[] {
   if (Array.isArray(list._cover_urls)) return list._cover_urls.slice(0, 4)
   return []
@@ -69,31 +44,20 @@ function itemCount(list: ReadingList): number {
   return 0
 }
 
-function StackedCover({ covers, themeGrad }: { covers: string[]; themeGrad: string }) {
-  if (covers.length === 0) {
-    return <div className={cn('absolute inset-0 bg-gradient-to-br', themeGrad)} />
-  }
-  const dominant = covers[0]
-  const stack    = covers.slice(1, 4)
+/** Neutral cover mosaic: up to four covers side by side on a muted ground. */
+function CoverStrip({ covers }: { covers: string[] }) {
   return (
-    <div className="absolute inset-0">
-      <img src={`/api/image-proxy?url=${encodeURIComponent(dominant)}`} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
-      {stack.length > 0 && (
-        <div className="absolute bottom-14 right-2 flex items-end">
-          {stack.map((url, i) => (
-            <div key={i} className="relative rounded-lg overflow-hidden border-2 border-black/40 shadow-xl"
-              style={{
-                width: 32 - i * 4, height: 44 - i * 5,
-                marginLeft: i === 0 ? 0 : -10,
-                zIndex: stack.length - i,
-                opacity: 1 - i * 0.12,
-                transform: `rotate(${i % 2 === 0 ? 5 : -4}deg) translateY(${i * 2}px)`,
-              }}>
-              <img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="" className="w-full h-full object-cover" aria-hidden />
-            </div>
-          ))}
+    <div className="relative aspect-[5/2] bg-muted overflow-hidden flex gap-px">
+      {covers.map((url, i) => (
+        <div key={i} className="flex-1 min-w-0 overflow-hidden">
+          <img
+            src={`/api/image-proxy?url=${encodeURIComponent(url)}`}
+            alt=""
+            aria-hidden
+            className="w-full h-full object-cover"
+          />
         </div>
-      )}
+      ))}
     </div>
   )
 }
@@ -416,10 +380,22 @@ export function ReadingListsClient({
     },
   ]
 
-  return (
-    <div className="space-y-6">
+  const newListButton = !showCreate ? (
+    <Button
+      size="sm"
+      variant={atLimit ? 'outline' : 'default'}
+      onClick={handleNewListClick}
+    >
+      {atLimit ? 'Upgrade for more' : 'New list'}
+    </Button>
+  ) : undefined
 
-      {/* ── Shared kebab action sheet ── */}
+  const labelClass = 'text-[11px] uppercase tracking-widest text-muted-foreground/70'
+
+  return (
+    <div className="space-y-8">
+
+      {/* Shared kebab action sheet */}
       <ActionSheet
         open={!!actionSheetList}
         onClose={() => setActionSheetList(null)}
@@ -427,7 +403,7 @@ export function ReadingListsClient({
         actions={actionSheetList ? buildOwnerActions(actionSheetList) : []}
       />
 
-      {/* ── Folder action sheet (item #4) ── */}
+      {/* Folder action sheet */}
       <ActionSheet
         open={!!folderActionSheet}
         onClose={() => setFolderActionSheet(null)}
@@ -435,7 +411,7 @@ export function ReadingListsClient({
         actions={folderActionSheet ? buildFolderActions(folderActionSheet) : []}
       />
 
-      {/* ── Folder name modal (new / rename) ── */}
+      {/* Folder name modal (new / rename) */}
       {folderModal && (
         <FolderNameModal
           mode={folderModal.mode}
@@ -448,7 +424,7 @@ export function ReadingListsClient({
         />
       )}
 
-      {/* ── Move a list into a folder ── */}
+      {/* Move a list into a folder */}
       {movingList && (
         <FolderPickerModal
           itemName={movingList.name}
@@ -462,7 +438,7 @@ export function ReadingListsClient({
         />
       )}
 
-      {/* ── Move a folder into another folder ── */}
+      {/* Move a folder into another folder */}
       {movingFolder && (
         <FolderPickerModal
           itemName={movingFolder.name}
@@ -476,24 +452,29 @@ export function ReadingListsClient({
         />
       )}
 
-      {/* ── Rename modal ── */}
+      {/* Edit list modal */}
       {renamingList && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => !savingRename && setRenamingList(null)}>
-          <div onClick={e => e.stopPropagation()} className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-primary/5">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
-                  <Pencil size={11} className="text-primary-foreground" />
-                </div>
-                <p className="text-xs font-black uppercase tracking-widest text-primary">Edit List</p>
-              </div>
-              <button onClick={() => setRenamingList(null)} disabled={savingRename} className="text-muted-foreground hover:text-foreground transition-colors">
-                <X size={14} />
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => !savingRename && setRenamingList(null)}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            className="w-full max-w-md bg-card rounded-xl border border-border shadow-2xl overflow-hidden"
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <p className="font-dashboard-serif text-lg text-foreground">Edit list</p>
+              <button
+                onClick={() => setRenamingList(null)}
+                disabled={savingRename}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Close
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">List Name <span className="text-destructive">*</span></label>
+                <label className={labelClass}>Name</label>
                 <Input
                   value={renameValue}
                   onChange={e => setRenameValue(e.target.value)}
@@ -503,7 +484,7 @@ export function ReadingListsClient({
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Description <span className="text-muted-foreground/60">(optional)</span></label>
+                <label className={labelClass}>Description</label>
                 <Input
                   value={renameDesc}
                   onChange={e => setRenameDesc(e.target.value)}
@@ -513,8 +494,8 @@ export function ReadingListsClient({
               </div>
               <div className="flex gap-2 pt-1">
                 <Button size="sm" onClick={handleRenameSave} disabled={!renameValue.trim() || savingRename} className="gap-2">
-                  {savingRename ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                  Save Changes
+                  {savingRename && <Loader2 size={13} className="animate-spin" />}
+                  Save changes
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setRenamingList(null)} disabled={savingRename}>Cancel</Button>
               </div>
@@ -523,7 +504,7 @@ export function ReadingListsClient({
         </div>
       )}
 
-      {/* ── Header ── */}
+      {/* Header */}
       {!hideHeader ? (
         <PageHeader
           eyebrow="Library"
@@ -535,101 +516,86 @@ export function ReadingListsClient({
           backHref={basePath.replace(/\/lists$/, '') || '/'}
           backLabel="Dashboard"
           isPro={isProUser === true}
-          actions={
-            !showCreate ? (
-              <Button size="sm" onClick={handleNewListClick}
-                className={cn('gap-1.5', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}>
-                {atLimit ? <Crown size={14} /> : <Plus size={14} />}
-                {atLimit ? 'Upgrade for More' : 'New List'}
-              </Button>
-            ) : undefined
-          }
+          actions={newListButton}
         />
-      ) : (!showCreate && (
-        <div className="flex justify-end">
-          <Button size="sm" onClick={handleNewListClick}
-            className={cn('gap-1.5', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}>
-            {atLimit ? <Crown size={14} /> : <Plus size={14} />}
-            {atLimit ? 'Upgrade for More' : 'New List'}
-          </Button>
-        </div>
-      ))}
+      ) : (newListButton && <div className="flex justify-end">{newListButton}</div>)}
 
       {nearLimit && <UpgradeBanner current={lists.length} limit={FREE_LIMITS.lists} feature="reading lists" message="You're almost at your reading list limit" dismissible />}
       {atLimit && !showCreate && <UpgradeBanner current={lists.length} limit={FREE_LIMITS.lists} feature="reading lists" dismissible={false} />}
 
       {isProUser === false && lists.length > FREE_LIMITS.lists && (
-        <div className="flex items-start gap-3 p-4 rounded-2xl border border-amber-500/20 bg-amber-500/5">
-          <Crown size={14} className="text-amber-500 shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-amber-600">
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-dashed border-border bg-card p-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">
               {lists.length - FREE_LIMITS.lists} list{lists.length - FREE_LIMITS.lists !== 1 ? 's are' : ' is'} locked
             </p>
             <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
               Your comics are safe. Resubscribe to Pro to unlock all {lists.length} lists.
             </p>
           </div>
-          <Link href="/pricing" className="shrink-0">
-            <Button size="sm" className="h-7 text-xs gap-1.5 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white hover:opacity-90">
-              <Sparkles size={11} />Unlock
-            </Button>
+          <Link
+            href="/pricing"
+            className="shrink-0 self-center text-xs text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors"
+          >
+            Unlock
           </Link>
         </div>
       )}
 
-      {/* ── Create form ── */}
+      {/* Create form */}
       {showCreate && (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-primary/5">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
-              <Plus size={13} className="text-primary-foreground" />
-            </div>
-            <p className="text-xs font-black uppercase tracking-widest text-primary">Create New List</p>
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+          <p className="font-dashboard-serif text-lg text-foreground">New list</p>
+          <div className="space-y-1.5">
+            <label className={labelClass}>Name</label>
+            <Input
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              placeholder='"Currently Reading", "Plan to Read"'
+              autoFocus
+              className="h-9 text-sm"
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
+            />
           </div>
-          <div className="p-5 space-y-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">List Name <span className="text-red-500">*</span></label>
-              <Input value={newName} onChange={e => setNewName(e.target.value)}
-                placeholder='"Currently Reading", "Plan to Read"' autoFocus
-                className="h-9 text-sm" onKeyDown={e => e.key === 'Enter' && handleCreate()} />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Description <span className="text-muted-foreground/60">(optional)</span></label>
-              <Input value={newDesc} onChange={e => setNewDesc(e.target.value)}
-                placeholder="What's this list for?" className="h-9 text-sm" />
-            </div>
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div
-                className={cn('w-4 h-4 rounded border-2 flex items-center justify-center transition-colors shrink-0',
-                  isPublic ? 'bg-primary border-primary' : 'border-border group-hover:border-primary/60')}
-                onClick={() => setIsPublic(p => !p)}>
-                {isPublic && <span className="text-primary-foreground text-[10px] font-black leading-none">✓</span>}
-              </div>
-              <div>
-                <span className="text-sm font-medium">Make this list public</span>
-                <p className="text-xs text-muted-foreground">Others can discover and star this list</p>
-              </div>
-            </label>
-            <div className="flex gap-2 pt-1">
-              <Button size="sm" onClick={handleCreate} disabled={!newName.trim() || creating} className="gap-2">
-                {creating ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-                Create List
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => { setShowCreate(false); setNewName(''); setNewDesc('') }}>
-                Cancel
-              </Button>
-            </div>
+          <div className="space-y-1.5">
+            <label className={labelClass}>Description</label>
+            <Input
+              value={newDesc}
+              onChange={e => setNewDesc(e.target.value)}
+              placeholder="What's this list for?"
+              className="h-9 text-sm"
+            />
+          </div>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isPublic}
+              onChange={() => setIsPublic(p => !p)}
+              className="mt-0.5 h-4 w-4 rounded border-border accent-foreground"
+            />
+            <span>
+              <span className="text-sm text-foreground">Make this list public</span>
+              <span className="block text-xs text-muted-foreground">Others can discover and star this list</span>
+            </span>
+          </label>
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" onClick={handleCreate} disabled={!newName.trim() || creating} className="gap-2">
+              {creating && <Loader2 size={13} className="animate-spin" />}
+              Create list
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => { setShowCreate(false); setNewName(''); setNewDesc('') }}>
+              Cancel
+            </Button>
           </div>
         </div>
       )}
 
-      {/* ── Folders (item #4): breadcrumb + new-folder button, then the
-          folders sitting directly inside the one that's open ── */}
+      {/* Folders: breadcrumb + new-folder, then folders inside the open one */}
       {showFolderBar && (
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-3">
             {currentFolderId === null ? (
-              <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/50">Folders</p>
+              <p className={labelClass}>Folders</p>
             ) : (
               <nav className="flex items-center gap-1 text-xs text-muted-foreground min-w-0 overflow-x-auto no-scrollbar">
                 <button
@@ -662,9 +628,9 @@ export function ReadingListsClient({
               <button
                 type="button"
                 onClick={() => setFolderModal({ mode: 'create' })}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
               >
-                <FolderPlus size={12} /> New folder
+                New folder
               </button>
             )}
           </div>
@@ -686,9 +652,9 @@ export function ReadingListsClient({
                       onClick={() => setCurrentFolderId(folder.id)}
                       className="group flex-1 min-w-0 flex items-center gap-3 py-3 text-left"
                     >
-                      <Folder size={16} className="text-muted-foreground/60 shrink-0" />
-                      <span className="text-sm font-medium truncate group-hover:opacity-70 transition-opacity">{folder.name}</span>
-                      <span className="text-[11px] text-muted-foreground/50 shrink-0">{summary}</span>
+                      <Folder size={15} className="text-muted-foreground/60 shrink-0" />
+                      <span className="font-dashboard-serif text-base truncate group-hover:opacity-70 transition-opacity">{folder.name}</span>
+                      <span className="text-[11px] text-muted-foreground/60 shrink-0">{summary}</span>
                     </button>
                     <button
                       type="button"
@@ -706,209 +672,76 @@ export function ReadingListsClient({
         </div>
       )}
 
-      {/* ── Empty state ── */}
+      {/* Empty state */}
       {lists.length === 0 && !showCreate ? (
-        <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
-          <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
-          <div className="relative w-28 h-28 mx-auto mb-6">
-            <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
-            <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
-            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-primary/30 bg-card flex items-center justify-center shadow-lg">
-              <BookMarked size={20} className="text-primary/50" />
-            </div>
-          </div>
-          <h3 className="font-black text-xl mb-2">No lists yet</h3>
-          <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto leading-relaxed">
-            Create lists to organise your reading journey — currently reading, plan to read, all-time favourites.
+        <div className="rounded-xl border border-dashed border-border bg-card px-6 py-16 text-center">
+          <h3 className="font-dashboard-serif text-xl text-foreground">No lists yet</h3>
+          <p className="text-sm text-muted-foreground mt-2 mb-5 max-w-xs mx-auto leading-relaxed">
+            Create lists to organise your reading: currently reading, plan to read, all-time favourites.
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Button size="sm" onClick={() => setShowCreate(true)} className="gap-2">
-              <Plus size={14} />Create Your First List
-            </Button>
-            <Link href="/browse">
-              <Button variant="outline" size="sm" className="gap-2 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all duration-200">
-                <Radar size={14} />Browse Comics
-              </Button>
+          <div className="flex flex-wrap items-center justify-center gap-5">
+            <Button size="sm" onClick={() => setShowCreate(true)}>Create your first list</Button>
+            <Link
+              href="/browse"
+              className="text-sm text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors"
+            >
+              Browse comics
             </Link>
           </div>
         </div>
       ) : visibleLists.length > 0 ? (
-        <>
-          {/* ── MOBILE: Pinterest two-column — kebab replaces the icon row ── */}
-          <div className="sm:hidden grid grid-cols-2 gap-3 items-start">
-            <div className="flex flex-col gap-3">
-              {visibleLists.filter((_, i) => i % 2 === 0).map((list, posInCol) => {
-                const ti     = themeIndex(list.id)
-                const covers = getCoverPreviews(list)
-                const count  = itemCount(list)
-                const locked = isLocked(list.id)
-                const cardH  = ['h-36', 'h-44', 'h-52'][posInCol % 3]
+        <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 gap-4">
+          {visibleLists.map(list => {
+            const covers = getCoverPreviews(list)
+            const count  = itemCount(list)
+            const locked = isLocked(list.id)
+            const meta = [
+              `${count} comic${count !== 1 ? 's' : ''}`,
+              list.is_public ? 'Public' : 'Private',
+              list.star_count > 0 ? `${list.star_count} starred` : null,
+            ].filter(Boolean).join(' · ')
 
-                return (
-                  <div key={list.id} className={cn(
-                    'rounded-2xl border overflow-hidden relative cursor-pointer',
-                    cardH,
-                    locked ? 'border-dashed border-amber-500/30 opacity-75' : THEME_BORDER[ti]
-                  )}>
-                    <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-                    <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
-                      {list.is_public
-                        ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
-                        : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Private</span>
-                      }
-                      {count > 0 && (
-                        <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', THEME_ACCENT[ti])}>
-                          <BookOpen size={7} /> {count}
-                        </span>
-                      )}
-                    </div>
-                    <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
-                    <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 flex items-end justify-between gap-2">
-                      <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md flex-1 min-w-0">{list.name}</p>
-                      <button
-                        onClick={e => { e.preventDefault(); e.stopPropagation(); setActionSheetList(list) }}
-                        className="shrink-0 ml-auto w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md text-white flex items-center justify-center transition-colors border border-white/20"
-                      >
-                        <MoreVertical size={12} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-            <div className="flex flex-col gap-3">
-              {visibleLists.filter((_, i) => i % 2 === 1).map((list, posInCol) => {
-                const ti     = themeIndex(list.id)
-                const covers = getCoverPreviews(list)
-                const count  = itemCount(list)
-                const locked = isLocked(list.id)
-                const cardH  = ['h-44', 'h-52', 'h-36'][posInCol % 3]
+            return (
+              <div
+                key={list.id}
+                className={cn(
+                  'group relative rounded-xl border bg-card overflow-hidden transition-colors',
+                  locked ? 'border-dashed border-border opacity-70' : 'border-border hover:border-foreground/30'
+                )}
+              >
+                {covers.length > 0 ? (
+                  <CoverStrip covers={covers} />
+                ) : (
+                  <div className="aspect-[5/2] bg-muted" />
+                )}
 
-                return (
-                  <div key={list.id} className={cn(
-                    'rounded-2xl border overflow-hidden relative cursor-pointer',
-                    cardH,
-                    locked ? 'border-dashed border-amber-500/30 opacity-75' : THEME_BORDER[ti]
-                  )}>
-                    <StackedCover covers={covers} themeGrad={THEME_GRAD[ti]} />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
-                    <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
-                      {list.is_public
-                        ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
-                        : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Private</span>
-                      }
-                      {count > 0 && (
-                        <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', THEME_ACCENT[ti])}>
-                          <BookOpen size={7} /> {count}
-                        </span>
-                      )}
-                    </div>
-                    <Link href={`${basePath}/${list.id}`} className="absolute inset-0 z-10" aria-label={list.name} />
-                    <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 flex items-end justify-between gap-2">
-                      <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md flex-1 min-w-0">{list.name}</p>
-                      <button
-                        onClick={e => { e.preventDefault(); e.stopPropagation(); setActionSheetList(list) }}
-                        className="shrink-0 ml-auto w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md text-white flex items-center justify-center transition-colors border border-white/20"
-                      >
-                        <MoreVertical size={12} />
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* ── DESKTOP: grid — kebab replaces the icon row ── */}
-          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {visibleLists.map((list) => {
-              const ti     = themeIndex(list.id)
-              const covers = getCoverPreviews(list)
-              const count  = itemCount(list)
-              const locked = isLocked(list.id)
-
-              return (
-                <div key={list.id} className={cn(
-                  'group relative rounded-2xl border bg-card overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5',
-                  locked ? 'border-dashed border-amber-500/20 opacity-80' : THEME_BORDER[ti]
-                )}>
-                  <div className={cn('h-24 relative overflow-hidden bg-gradient-to-br to-transparent', THEME_GRAD[ti])}>
-                    {covers.length > 0 ? (
-                      <div className="absolute inset-0 flex gap-0.5">
-                        {covers.map((url, i) => (
-                          <div key={i} className={cn('relative overflow-hidden',
-                            covers.length === 1 ? 'flex-1' :
-                            covers.length === 2 ? 'flex-1' :
-                            covers.length === 3 && i === 0 ? 'w-1/2' : 'flex-1')}>
-                            <img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
-                    <div className="absolute top-2 right-2">
-                      {list.is_public
-                        ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 backdrop-blur-sm"><Globe size={8} /> Public</span>
-                        : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-muted/80 text-muted-foreground border border-border backdrop-blur-sm"><Lock size={8} /> Private</span>
-                      }
-                    </div>
-                    {count > 0 && (
-                      <div className="absolute bottom-2 left-2">
-                        <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-background/80 backdrop-blur-sm border border-border', THEME_ACCENT[ti])}>
-                          <BookOpen size={8} /> {count} comic{count !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    )}
-                    {locked && (
-                      <div className="absolute top-2 left-2">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-600 border border-amber-500/20">
-                          <Crown size={8} className="fill-amber-500" /> Locked
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4 space-y-3">
-                    <div>
-                      <Link href={`${basePath}/${list.id}`} className={cn('font-black text-sm hover:text-primary transition-colors line-clamp-1 block', locked && 'hover:text-amber-500')}>
-                        {list.name}
-                      </Link>
-                      {list.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{list.description}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      {list.star_count > 0 && (
-                        <span className="flex items-center gap-1 text-[10px]">
-                          <Star size={9} className="text-amber-500/60" />
-                          {list.star_count} starred
-                        </span>
-                      )}
-                      <span className="text-[10px] ml-auto">{formatDate(list.created_at)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Link href={`${basePath}/${list.id}`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full h-7 text-xs gap-1.5 hover:border-primary/40 hover:text-primary">View</Button>
-                      </Link>
-                      <Button
-                        variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        onClick={() => setActionSheetList(list)}
-                      >
-                        <MoreVertical size={14} />
-                      </Button>
-                    </div>
-                  </div>
-                  <Link href={`${basePath}/${list.id}`}
-                    className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity" tabIndex={-1}>
-                    <ArrowRight size={14} className={locked ? 'text-amber-500' : 'text-muted-foreground'} />
+                <div className="p-4 pr-12">
+                  <Link
+                    href={`${basePath}/${list.id}`}
+                    className="font-dashboard-serif text-lg leading-snug text-foreground line-clamp-1 block after:absolute after:inset-0"
+                  >
+                    {list.name}
                   </Link>
+                  {list.description && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">{list.description}</p>
+                  )}
+                  <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70 mt-3">
+                    {locked ? 'Locked' : meta}
+                  </p>
                 </div>
-              )
-            })}
-          </div>
-        </>
+
+                <button
+                  type="button"
+                  onClick={() => setActionSheetList(list)}
+                  aria-label="List options"
+                  className="absolute bottom-3 right-3 z-10 p-1.5 text-muted-foreground/60 hover:text-foreground transition-colors"
+                >
+                  <MoreVertical size={15} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
       ) : currentFolderId !== null && visibleFolders.length === 0 ? (
         <p className="text-center text-xs text-muted-foreground/60 py-10">
           This folder is empty. Use &apos;Move to folder&apos; on a list to put it here.
@@ -917,8 +750,11 @@ export function ReadingListsClient({
 
       {isProUser === false && lists.length > 0 && lists.length < FREE_LIMITS.lists && (
         <div className="flex items-center justify-center pt-2">
-          <Link href="/pricing" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-500 transition-colors">
-            <Sparkles size={11} />Upgrade to Pro for unlimited reading lists
+          <Link
+            href="/pricing"
+            className="text-xs text-muted-foreground underline underline-offset-4 decoration-border hover:text-foreground hover:decoration-foreground transition-colors"
+          >
+            Upgrade to Pro for unlimited reading lists
           </Link>
         </div>
       )}

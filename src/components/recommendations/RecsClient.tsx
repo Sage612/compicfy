@@ -50,9 +50,13 @@ interface Props {
   isPro:         boolean
   // Kept so existing callers still compile. The look is now uniform; this is ignored.
   accentColor?:  'amber' | 'primary' | 'teal'
+  // Header copy so the same list serves readers/curators and creators.
+  title?:        string
+  eyebrow?:      string
+  backHref?:     string
 }
 
-export function RecsClient({ initialRecs, userId, newRecHref, editBasePath, isPro }: Props) {
+export function RecsClient({ initialRecs, userId, newRecHref, editBasePath, isPro, title = 'Recommendations', eyebrow = 'Curator', backHref }: Props) {
   const supabase = createClient()
 
   const [recs,          setRecs]          = useState<Rec[]>(initialRecs)
@@ -172,16 +176,17 @@ export function RecsClient({ initialRecs, userId, newRecHref, editBasePath, isPr
     counts.drafts   > 0 && `${counts.drafts} draft${counts.drafts !== 1 ? 's' : ''}`,
   ].filter(Boolean).join(' · ')
 
-  const backHref = editBasePath.replace(/\/recommendations$/, '') || '/'
+  // Default: the dashboard root, i.e. editBasePath minus its last segment.
+  const resolvedBackHref = backHref ?? (editBasePath.replace(/\/[^/]+$/, '') || '/')
 
   return (
     <div className="space-y-8">
 
       <PageHeader
-        eyebrow="Curator"
-        title="Recommendations"
+        eyebrow={eyebrow}
+        title={title}
         subtitle={subtitle}
-        backHref={backHref}
+        backHref={resolvedBackHref}
         backLabel="Dashboard"
         isPro={isPro}
         actions={<Link href={newRecHref}><Button size="sm">New</Button></Link>}

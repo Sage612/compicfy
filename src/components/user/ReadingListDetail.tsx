@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useMemo } from 'react'
@@ -7,24 +6,16 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import {
-  ArrowLeft,
-  ArrowRight,
-  BookOpen,
   Trash2,
-  Globe,
-  Lock,
   Loader2,
-  ChevronRight,
-  StickyNote,
-  Check,
   X,
-  Pencil,
   Search,
   GripVertical,
   ChevronDown,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 import { ChapterUpdater } from '@/components/recommendations/ChapterUpdater'
 import { AddToTrackerSearch } from '@/components/recommendations/AddToTrackerSearch'
 import { CustomEntryFooter } from '@/components/lists/CustomEntryFooter'
@@ -365,26 +356,32 @@ export function ReadingListDetail({
     [items]
   )
 
+  const metaLine = [
+    `${items.length} comic${items.length !== 1 ? 's' : ''}`,
+    list.is_public ? 'Public' : 'Private',
+    `Created ${formatDate(list.created_at)}`,
+  ].join(' · ')
+
   return (
-    <div className="space-y-8 px-4 py-8 max-w-2xl mx-auto">
-      {/* Back link */}
-      <Link
-        href={backHref}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground/70 hover:text-foreground transition-colors"
-      >
-        <ArrowLeft size={14} />
-        Back to lists
-      </Link>
+    <PageShell width="narrow">
+      <PageHeader
+        eyebrow="Library"
+        title={list.name}
+        subtitle={list.description ? `${list.description}\n${metaLine}` : metaLine}
+        backHref={backHref}
+        backLabel="Lists"
+        isPro={isPro}
+      />
 
       {/* Cover banner */}
       {bannerCovers.length > 0 && (
-        <div className="relative h-40 sm:h-52 rounded-xl overflow-hidden -mt-2">
-          <div className="absolute inset-0 flex gap-0.5">
+        <div className="relative h-40 sm:h-52 rounded-xl overflow-hidden border border-border">
+          <div className="absolute inset-0 flex gap-px bg-border">
             {bannerCovers.map((url, i) => (
               <div
                 key={i}
                 className={cn(
-                  'relative overflow-hidden shrink-0',
+                  'relative overflow-hidden shrink-0 bg-muted',
                   bannerCovers.length === 1 ? 'flex-1' : i === 0 ? 'w-2/5' : 'flex-1'
                 )}
               >
@@ -397,49 +394,23 @@ export function ReadingListDetail({
               </div>
             ))}
           </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/5 to-transparent" />
         </div>
       )}
 
       {/* Locked banner */}
       {isLocked && (
-        <div className="flex items-start justify-between gap-4 py-3 border-y border-amber-500/25">
+        <div className="flex items-start justify-between gap-4 p-4 rounded-xl border border-dashed border-border">
           <div className="space-y-0.5">
-            <p className="text-sm font-medium text-amber-600">This list is locked</p>
-            <p className="text-xs text-muted-foreground/70 leading-relaxed">
+            <p className="text-sm text-foreground">This list is locked</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
               You can view and update comics already here, but cannot add new ones until you resubscribe.
             </p>
           </div>
-          <Link href="/pricing" className="shrink-0 self-center">
-            <span className="text-xs font-medium text-amber-600 border-b border-amber-600/50 hover:opacity-70 transition-opacity whitespace-nowrap">
-              Upgrade
-            </span>
+          <Link href="/pricing" className="shrink-0 self-center text-xs text-foreground underline underline-offset-4 hover:text-muted-foreground transition-colors whitespace-nowrap">
+            Upgrade
           </Link>
         </div>
       )}
-
-      {/* Header */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          {isLocked ? <Lock size={14} className="text-amber-600" /> : null}
-          <h1 className="font-serif text-3xl tracking-tight text-foreground">{list.name}</h1>
-        </div>
-        {list.description && (
-          <p className="text-sm text-muted-foreground/80 leading-relaxed">{list.description}</p>
-        )}
-        <div className="flex items-center gap-3 text-[11px] uppercase tracking-wide text-muted-foreground/60">
-          <span>
-            {items.length} comic{items.length !== 1 ? 's' : ''}
-          </span>
-          <span className="text-border">·</span>
-          <span className="inline-flex items-center gap-1">
-            {list.is_public ? <Globe size={10} /> : <Lock size={10} />}
-            {list.is_public ? 'Public' : 'Private'}
-          </span>
-          <span className="text-border">·</span>
-          <span>Created {formatDate(list.created_at)}</span>
-        </div>
-      </div>
 
       {/* Add controls */}
       {!isLocked && (
@@ -457,10 +428,9 @@ export function ReadingListDetail({
             <button
               type="button"
               onClick={() => setShowAddCustomModal(true)}
-              className="inline-flex items-center gap-1.5 py-2 text-xs text-muted-foreground/70 hover:text-foreground border-b border-border/50 hover:border-foreground/40 transition-colors shrink-0"
+              className="inline-flex items-center py-2 text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 transition-colors shrink-0"
             >
-              Track manually?
-              <ArrowRight size={10} className="opacity-60" />
+              Track manually
             </button>
           )}
         </div>
@@ -471,19 +441,20 @@ export function ReadingListDetail({
         <div className="relative">
           <Search
             size={13}
-            className="absolute left-0 top-1/2 -translate-y-1/2 text-muted-foreground/50 pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 pointer-events-none"
           />
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search this list…"
-            className="w-full h-9 pl-5 pr-6 bg-transparent border-0 border-b border-border/50 text-sm outline-none focus:border-foreground/60 text-foreground placeholder:text-muted-foreground/50 transition-colors"
+            className="w-full h-9 pl-9 pr-8 bg-transparent rounded-lg border border-border text-sm outline-none focus:border-foreground/40 text-foreground placeholder:text-muted-foreground/60 transition-colors"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground transition-colors"
+              aria-label="Clear search"
             >
               <X size={13} />
             </button>
@@ -491,20 +462,20 @@ export function ReadingListDetail({
         </div>
       )}
 
-      {/* Status tabs */}
+      {/* Status filters */}
       {items.length > 0 && (
-        <div className="flex gap-5 overflow-x-auto no-scrollbar border-b border-border/40 -mx-4 px-4">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
           <button
             type="button"
             onClick={() => setFilterStatus(null)}
             className={cn(
-              'pb-2.5 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors shrink-0',
+              'px-3 py-1.5 rounded-full border text-xs whitespace-nowrap transition-colors shrink-0',
               !filterStatus
-                ? 'border-foreground text-foreground font-medium'
-                : 'border-transparent text-muted-foreground/60 hover:text-foreground'
+                ? 'bg-foreground text-background border-foreground'
+                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
             )}
           >
-            All ({items.length})
+            All <span className="opacity-60 tabular-nums">{items.length}</span>
           </button>
           {TRACKING_STATUSES.filter((s) => statusCounts[s.value]).map((s) => (
             <button
@@ -512,13 +483,13 @@ export function ReadingListDetail({
               type="button"
               onClick={() => setFilterStatus(filterStatus === s.value ? null : s.value)}
               className={cn(
-                'pb-2.5 text-sm whitespace-nowrap border-b-2 -mb-px transition-colors shrink-0',
+                'px-3 py-1.5 rounded-full border text-xs whitespace-nowrap transition-colors shrink-0',
                 filterStatus === s.value
-                  ? 'border-foreground text-foreground font-medium'
-                  : 'border-transparent text-muted-foreground/60 hover:text-foreground'
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
               )}
             >
-              {TRACKING_STATUS_META[s.value].label} ({statusCounts[s.value]})
+              {TRACKING_STATUS_META[s.value].label} <span className="opacity-60 tabular-nums">{statusCounts[s.value]}</span>
             </button>
           ))}
         </div>
@@ -526,38 +497,34 @@ export function ReadingListDetail({
 
       {/* Reorder hint */}
       {canReorder && items.length > 1 && (
-        <p className="text-[11px] text-muted-foreground/50 flex items-center gap-1 -mt-4">
-          <GripVertical size={10} />
-          Drag to reorder — clear filters or search first
+        <p className="text-[11px] text-muted-foreground/70 -mt-4">
+          Drag to reorder. Clear filters or search first.
         </p>
       )}
 
       {/* Empty states */}
       {items.length === 0 ? (
-        <div className="text-center py-20 space-y-3">
-          <BookOpen size={22} className="text-muted-foreground/30 mx-auto" />
+        <div className="text-center py-20 rounded-xl border border-dashed border-border space-y-3">
           <div>
-            <h3 className="font-serif text-base text-foreground">No comics yet</h3>
-            <p className="text-xs text-muted-foreground/60 mt-1">
+            <p className="font-dashboard-serif text-lg text-foreground">No comics yet</p>
+            <p className="text-sm text-muted-foreground mt-1">
               {isLocked ? 'Upgrade to Pro to add comics' : 'Use the search above to add comics'}
             </p>
           </div>
           {!isLocked && (
-            <Link href="/browse">
-              <Button size="sm" variant="outline" className="mt-2">
-                Browse comics
-              </Button>
+            <Link href="/browse" className="inline-block text-xs text-foreground underline underline-offset-4">
+              Browse comics
             </Link>
           )}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-sm text-muted-foreground/60">
+        <div className="text-center py-16 rounded-xl border border-dashed border-border">
+          <p className="text-sm text-muted-foreground">
             {searchQuery ? 'No comics match your search' : 'No comics with this status'}
           </p>
         </div>
       ) : (
-        <div className="divide-y divide-border/40">
+        <div className="divide-y divide-border">
           {filtered.map((item) => {
             const display = getItemDisplay(item)
             const statusMeta =
@@ -585,7 +552,7 @@ export function ReadingListDetail({
                 onDragOver={(e) => handleDragOver(e, item.id)}
                 onDrop={(e) => handleDrop(e, item.id)}
                 onDragEnd={handleDragEnd}
-                className={cn('group py-5 transition-opacity', isDragging && 'opacity-40', isDragOver && 'bg-muted/30')}
+                className={cn('group py-5 transition-opacity', isDragging && 'opacity-40', isDragOver && 'bg-muted/40')}
               >
                 <div
                   onClick={() => !blockClick && display.clickHref && router.push(display.clickHref)}
@@ -593,7 +560,7 @@ export function ReadingListDetail({
                 >
                   {canReorder && (
                     <div
-                      className="flex items-center shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/0 group-hover:text-muted-foreground/40 transition-colors -ml-1"
+                      className="flex items-center shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/0 group-hover:text-muted-foreground/60 transition-colors -ml-1"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <GripVertical size={14} />
@@ -601,7 +568,7 @@ export function ReadingListDetail({
                   )}
 
                   {/* Cover */}
-                  <div className="w-16 aspect-[2/3] rounded-lg overflow-hidden bg-muted shrink-0 shadow-sm group-hover:shadow-md transition-shadow relative">
+                  <div className="w-16 aspect-[2/3] rounded-lg overflow-hidden bg-muted border border-border shrink-0 relative">
                     {display.coverUrl ? (
                       <img
                         src={`/api/image-proxy?url=${encodeURIComponent(display.coverUrl)}`}
@@ -609,13 +576,11 @@ export function ReadingListDetail({
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <BookOpen size={16} className="text-muted-foreground opacity-40" />
-                      </div>
+                      <div className="w-full h-full bg-muted" />
                     )}
                     {progressPct !== null && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black/20">
-                        <div className="h-full bg-primary transition-all" style={{ width: `${progressPct}%` }} />
+                      <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted">
+                        <div className="h-full bg-foreground/70 transition-all" style={{ width: `${progressPct}%` }} />
                       </div>
                     )}
                   </div>
@@ -624,17 +589,17 @@ export function ReadingListDetail({
                   <div className="flex-1 min-w-0 space-y-2 py-0.5">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 space-y-1 flex-1">
-                        <p className="font-serif text-base leading-snug line-clamp-1 text-foreground group-hover:opacity-70 transition-opacity">
+                        <p className="font-dashboard-serif text-base leading-snug line-clamp-1 text-foreground group-hover:opacity-70 transition-opacity">
                           {display.title}
                         </p>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <p className="text-[11px] italic text-muted-foreground/60 lowercase">
+                          <p className="text-[11px] text-muted-foreground lowercase">
                             {display.type ?? 'custom'}
                           </p>
                           {progressPct !== null && (
                             <>
-                              <span className="text-muted-foreground/30 text-[11px]">·</span>
-                              <p className="text-[11px] text-primary font-medium">{progressPct}%</p>
+                              <span className="text-muted-foreground/40 text-[11px]">·</span>
+                              <p className="text-[11px] text-muted-foreground tabular-nums">{progressPct}%</p>
                             </>
                           )}
                         </div>
@@ -644,7 +609,8 @@ export function ReadingListDetail({
                         type="button"
                         onClick={(e) => handleRemove(e, item)}
                         disabled={removingId === item.id}
-                        className="text-muted-foreground/40 sm:text-muted-foreground/0 sm:group-hover:text-muted-foreground/50 hover:!text-destructive transition-colors shrink-0 p-1"
+                        className="text-muted-foreground/50 sm:text-muted-foreground/0 sm:group-hover:text-muted-foreground/60 hover:!text-destructive transition-colors shrink-0 p-1"
+                        aria-label="Remove from list"
                       >
                         {removingId === item.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
                       </button>
@@ -658,18 +624,17 @@ export function ReadingListDetail({
                         setStatusModalItemId(item.id)
                       }}
                       disabled={isSavingStatus}
-                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border border-border text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
                     >
                       {isSavingStatus ? (
                         <Loader2 size={10} className="animate-spin" />
                       ) : (
                         <>
-                          <span className={cn('h-1.5 w-1.5 rounded-full', statusMeta.dot)} />
                           {statusMeta.label}
                           {subStatusLabel && (
-                            <span className="text-muted-foreground/50 italic">· {subStatusLabel}</span>
+                            <span className="text-muted-foreground/70">· {subStatusLabel}</span>
                           )}
-                          <ChevronDown size={10} className="opacity-40" />
+                          <ChevronDown size={10} className="opacity-50" />
                         </>
                       )}
                     </button>
@@ -697,13 +662,9 @@ export function ReadingListDetail({
                       />
                     )}
 
-                    <p className="text-[10px] text-muted-foreground/50">Added {formatDate(item.added_at)}</p>
+                    <p className="text-[11px] text-muted-foreground/70">Added {formatDate(item.added_at)}</p>
                   </div>
 
-                  <ChevronRight
-                    size={14}
-                    className="text-muted-foreground/0 group-hover:text-muted-foreground/40 shrink-0 self-center transition-colors"
-                  />
                 </div>
 
                 {/* Private note */}
@@ -717,26 +678,26 @@ export function ReadingListDetail({
                         maxLength={MAX_NOTE_LENGTH}
                         autoFocus
                         rows={2}
-                        className="w-full text-xs bg-transparent border-0 border-b border-border/50 px-0 py-1 resize-none outline-none focus:border-foreground/60 transition-colors placeholder:text-muted-foreground/40"
+                        className="w-full text-xs bg-transparent border-0 border-b border-border px-0 py-1 resize-none outline-none focus:border-foreground/60 transition-colors placeholder:text-muted-foreground/60"
                       />
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-muted-foreground/40">
+                        <span className="text-[11px] text-muted-foreground/60 tabular-nums">
                           {noteDraft.length}/{MAX_NOTE_LENGTH}
                         </span>
                         <div className="flex items-center gap-3">
                           <button
                             onClick={cancelEditingNote}
                             disabled={isSavingNote}
-                            className="text-[11px] text-muted-foreground/60 hover:text-foreground transition-colors flex items-center gap-1"
+                            className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                           >
-                            <X size={10} /> Cancel
+                            Cancel
                           </button>
                           <button
                             onClick={(e) => handleSaveNote(e, item)}
                             disabled={isSavingNote}
-                            className="text-[11px] font-medium text-foreground border-b border-foreground/60 hover:opacity-60 transition-opacity flex items-center gap-1"
+                            className="text-[11px] text-foreground underline underline-offset-4 hover:text-muted-foreground transition-colors flex items-center gap-1"
                           >
-                            {isSavingNote ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                            {isSavingNote && <Loader2 size={10} className="animate-spin" />}
                             Save
                           </button>
                         </div>
@@ -748,19 +709,17 @@ export function ReadingListDetail({
                       onClick={(e) => startEditingNote(e, item)}
                       className="w-full text-left flex items-start gap-1.5 group/note"
                     >
-                      <StickyNote size={11} className="text-muted-foreground/40 shrink-0 mt-0.5" />
-                      <p className="text-[11px] text-muted-foreground/70 italic line-clamp-2 flex-1 leading-snug">
-                        {item.notes}
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 flex-1 leading-snug">
+                        <span className="text-muted-foreground/70">Note: </span>{item.notes}
                       </p>
-                      <Pencil size={10} className="text-muted-foreground/0 group-hover/note:text-muted-foreground/50 transition-colors shrink-0 mt-0.5" />
+                      <span className="text-[11px] text-muted-foreground/0 group-hover/note:text-muted-foreground transition-colors shrink-0 underline underline-offset-4">Edit</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={(e) => startEditingNote(e, item)}
-                      className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors flex items-center gap-1"
+                      className="text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors"
                     >
-                      <StickyNote size={10} />
                       Add a private note
                     </button>
                   )}
@@ -789,7 +748,7 @@ export function ReadingListDetail({
                           notes: item.notes,
                         })
                       }
-                      className="text-[11px] text-muted-foreground/50 hover:text-foreground transition-colors shrink-0"
+                      className="text-[11px] text-muted-foreground hover:text-foreground transition-colors shrink-0"
                     >
                       Edit
                     </button>
@@ -844,6 +803,6 @@ export function ReadingListDetail({
           }}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

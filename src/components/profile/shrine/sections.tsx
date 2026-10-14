@@ -226,6 +226,7 @@ export function SignalsSection({ signals }: { signals: SignalsData }) {
   if (signals.avgSessionHours !== null) rows.push({ label: 'Avg session', value: formatSession(signals.avgSessionHours) })
   if (signals.peakHour !== null)        rows.push({ label: 'Peak hour',   value: `around ${formatHour(signals.peakHour)}` })
   if (signals.dropRate)                 rows.push({ label: 'Drop rate',   value: `${signals.dropRate.pct}% (${signals.dropRate.label})`, tone: DROP_TONE[signals.dropRate.label] })
+  if (signals.totalHours !== null && signals.totalHours > 0) rows.push({ label: 'Hours read', value: `${signals.totalHours.toLocaleString(undefined, { maximumFractionDigits: 1 })}h` })
   if (signals.totalSessions > 0)        rows.push({ label: 'Sessions logged', value: signals.totalSessions.toLocaleString() })
   if (type)                             rows.push({ label: 'Reader type', value: type, tone: 'is-accent' })
 
@@ -329,16 +330,18 @@ function buildGroups(items: ActivityEvent[]) {
   return groups
 }
 
-const KIND_ICON = { journal: 'pen', quote: 'quote', finished: 'check', bond: 'heart' } as const
+const KIND_ICON = { journal: 'pen', quote: 'quote', finished: 'check', bond: 'heart', streak: 'flame' } as const
 
 interface ActivityProps {
   events:    ActivityEvent[]
   isOwner:   boolean
   username:  string
   composer?: ReactNode
+  /** Signed-in viewer: shows a like button on journal entries. */
+  canLike?:  boolean
 }
 
-export function ActivitySection({ events, isOwner, username, composer }: ActivityProps) {
+export function ActivitySection({ events, isOwner, username, composer, canLike = false }: ActivityProps) {
   return (
     <section className="sh-section">
       {events.length > 0 && (
@@ -373,6 +376,8 @@ export function ActivitySection({ events, isOwner, username, composer }: Activit
                   likeCount={it.likeCount}
                   replyCount={it.replyCount}
                   deleteId={isOwner ? it.journalId : null}
+                  likeId={canLike ? it.journalId : null}
+                  liked={it.likedByMe}
                 />
               ))}
             </div>

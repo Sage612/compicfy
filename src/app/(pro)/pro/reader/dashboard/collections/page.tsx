@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CollectionsClient } from '@/components/collections/CollectionsClient'
+import { PageShell } from '@/components/dashboard/PageHeader'
 import type { Metadata } from 'next'
 import { hasUnlimitedPerks } from '@/lib/access'
 
@@ -20,7 +21,7 @@ export default async function ProReaderCollectionsPage() {
   const isPro = profile ? hasUnlimitedPerks(profile) : false
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <PageShell>
       <CollectionsClient
         userId={user.id}
         isProUser={isPro}
@@ -28,7 +29,10 @@ export default async function ProReaderCollectionsPage() {
         basePath="/pro/reader/dashboard/collections"
         savedCollectionIds={[]}
         showMobileCreate
+        backHref="/pro/reader/dashboard"
+        backLabel="Dashboard"
+        isPro
       />
-    </div>
+    </PageShell>
   )
 }

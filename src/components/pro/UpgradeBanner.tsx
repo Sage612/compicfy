@@ -1,7 +1,5 @@
 'use client'
 
-import { Crown, Sparkles, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -33,41 +31,26 @@ export function UpgradeBanner({
   const isAtLimit = isNearLimit && current >= limit
 
   return (
-    <div className={cn(
-      'relative flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 rounded-2xl border',
-      isAtLimit
-        ? 'border-red-500/30 bg-red-500/5'
-        : 'border-amber-500/30 bg-amber-500/5',
-      className
-    )}>
-      {/* Icon */}
-      <div className={cn(
-        'w-10 h-10 rounded-xl flex items-center justify-center shrink-0',
-        isAtLimit
-          ? 'bg-red-500/15'
-          : 'bg-amber-500/15'
-      )}>
-        <Crown size={18} className={isAtLimit ? 'text-red-500' : 'text-amber-500'} />
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0 space-y-1">
-        <p className="font-black text-sm">
+    <div
+      className={cn(
+        'flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 rounded-xl border border-border bg-card p-4',
+        className
+      )}
+    >
+      <div className="flex-1 min-w-0 space-y-1.5">
+        <p className="font-dashboard-serif text-base text-foreground">
           {isAtLimit
             ? `You've reached your ${feature ?? 'monthly'} limit`
-            : message ?? `Upgrade to Pro for unlimited access`}
+            : message ?? 'Upgrade to Pro for unlimited access'}
         </p>
         {isNearLimit && (
-          <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">
+          <div className="space-y-1.5">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70 tabular-nums">
               {current} / {limit} {feature ?? 'used'}
             </p>
-            <div className="h-1.5 w-full max-w-xs rounded-full bg-muted overflow-hidden">
+            <div className="h-1 w-full max-w-xs rounded-full bg-muted overflow-hidden">
               <div
-                className={cn(
-                  'h-full rounded-full transition-all',
-                  percentage >= 100 ? 'bg-red-500' : percentage >= 80 ? 'bg-amber-500' : 'bg-primary'
-                )}
+                className="h-full rounded-full bg-foreground/70 transition-all"
                 style={{ width: `${Math.min(percentage, 100)}%` }}
               />
             </div>
@@ -75,30 +58,20 @@ export function UpgradeBanner({
         )}
       </div>
 
-      {/* CTA */}
-      <div className="flex items-center gap-2 shrink-0">
-        <Link href="/pricing">
-          <Button
-            size="sm"
-            className={cn(
-              'gap-1.5 border-0 text-white shadow-md',
-              isAtLimit
-                ? 'bg-gradient-to-r from-red-500 to-rose-500 shadow-red-500/20'
-                : 'bg-gradient-to-r from-amber-400 to-orange-500 shadow-amber-500/20'
-            )}
-          >
-            <Sparkles size={13} />
-            Upgrade to Pro
-          </Button>
+      <div className="flex items-center gap-4 shrink-0">
+        <Link
+          href="/pricing"
+          className="text-sm text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors"
+        >
+          Upgrade to Pro
         </Link>
-
         {dismissible && (
           <button
             onClick={() => setDismissed(true)}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Dismiss"
           >
-            <X size={15} />
+            Dismiss
           </button>
         )}
       </div>

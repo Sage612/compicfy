@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { SettingsForm } from '@/components/user/SettingsForm'
 import type { Profile } from '@/types/app.types'
 import type { Metadata } from 'next'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 
 export const metadata: Metadata = { title: 'Creator Settings' }
 
@@ -15,12 +16,16 @@ export default async function ProCreatorSettingsPage() {
   if (!profile) redirect('/login')
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1">Manage your creator profile.</p>
-      </div>
+    <PageShell width="narrow">
+      <PageHeader
+        eyebrow="Account"
+        title="Settings"
+        subtitle="Manage your creator profile and preferences."
+        backHref="/pro/creator/dashboard"
+        backLabel="Dashboard"
+        isPro
+      />
       <SettingsForm profile={profile as Profile} userId={user.id} isPro={true} defaultSection="creator-links" />
-    </div>
+    </PageShell>
   )
 }

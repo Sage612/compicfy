@@ -8,15 +8,14 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
-  Plus, Globe, Lock, Loader2,
-  Trash2, Crown, Share2,
-  X, Layers, BookOpen,
-  Bookmark, BookmarkCheck, Pencil, Check, MoreVertical,
+  Globe, Lock, Loader2, Trash2, Share2,
+  X, Bookmark, Pencil, MoreVertical,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { CollectionsSkeleton } from '@/components/collections/CollectionsSkeleton'
 import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet'
+import { PageHeader } from '@/components/dashboard/PageHeader'
 
 interface Collection {
   id:           string
@@ -39,42 +38,6 @@ interface Collection {
 
 const FREE_LIMIT = 3
 
-const THEME_OPTIONS = [
-  { value: 'primary', label: 'Teal',   color: 'bg-primary'     },
-  { value: 'violet',  label: 'Violet', color: 'bg-violet-500'  },
-  { value: 'rose',    label: 'Rose',   color: 'bg-rose-500'    },
-  { value: 'amber',   label: 'Amber',  color: 'bg-amber-500'   },
-  { value: 'emerald', label: 'Green',  color: 'bg-emerald-500' },
-  { value: 'indigo',  label: 'Indigo', color: 'bg-indigo-500'  },
-]
-
-const THEME_GRAD: Record<string, string> = {
-  primary: 'from-primary/60 via-primary/20 to-primary/5',
-  violet:  'from-violet-500/60 via-violet-500/20 to-violet-500/5',
-  rose:    'from-rose-500/60 via-rose-500/20 to-rose-500/5',
-  amber:   'from-amber-500/60 via-amber-500/20 to-amber-500/5',
-  emerald: 'from-emerald-500/60 via-emerald-500/20 to-emerald-500/5',
-  indigo:  'from-indigo-500/60 via-indigo-500/20 to-indigo-500/5',
-}
-
-const THEME_BORDER: Record<string, string> = {
-  primary: 'border-primary/30',
-  violet:  'border-violet-500/30',
-  rose:    'border-rose-500/30',
-  amber:   'border-amber-500/30',
-  emerald: 'border-emerald-500/30',
-  indigo:  'border-indigo-500/30',
-}
-
-const THEME_ACCENT: Record<string, string> = {
-  primary: 'text-primary',
-  violet:  'text-violet-400',
-  rose:    'text-rose-400',
-  amber:   'text-amber-400',
-  emerald: 'text-emerald-400',
-  indigo:  'text-indigo-400',
-}
-
 function itemCount(c: Collection): number {
   return c.collection_items?.length ?? 0
 }
@@ -86,79 +49,36 @@ function getCoverPreviews(c: Collection): string[] {
     .slice(0, 4) as string[]
 }
 
-const CARD_HEIGHTS = ['h-36', 'h-44', 'h-52'] as const
-function colHeightClass(positionInColumn: number): string {
-  return CARD_HEIGHTS[positionInColumn % 3]
-}
-
 function getSaveLabel(saveCount: number, isSaved: boolean): string {
   if (isSaved) return saveCount > 0 ? `${saveCount} saved` : 'Saved'
   return saveCount > 0 ? `${saveCount}` : 'Save'
 }
 
-function StackedCover({
-  covers,
-  themeGrad,
-  coverUrl,
-}: {
-  covers:    string[]
-  themeGrad: string
-  coverUrl:  string | null
-}) {
-  if (covers.length === 0) {
+function proxy(url: string) {
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
+}
+
+// Neutral cover strip. theme_color is intentionally not rendered.
+function CoverMosaic({ covers, coverUrl }: { covers: string[]; coverUrl: string | null }) {
+  if (covers.length > 0) {
     return (
-      <div className="absolute inset-0">
-        {coverUrl ? (
-          <img src={`/api/image-proxy?url=${encodeURIComponent(coverUrl)}`} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
-        ) : (
-          <div className={cn('absolute inset-0 bg-gradient-to-br', themeGrad)} />
-        )}
+      <div className="h-28 flex gap-px bg-border">
+        {covers.map((url, i) => (
+          <div key={i} className="flex-1 min-w-0 bg-muted">
+            <img src={proxy(url)} alt="" aria-hidden className="w-full h-full object-cover" />
+          </div>
+        ))}
       </div>
     )
   }
-
-  const dominant = covers[0]
-  const stack    = covers.slice(1, 4)
-
-  return (
-    <div className="absolute inset-0">
-      <img src={`/api/image-proxy?url=${encodeURIComponent(dominant)}`} alt="" className="absolute inset-0 w-full h-full object-cover" aria-hidden />
-      {stack.length > 0 && (
-        <div className="absolute bottom-14 right-2 flex items-end">
-          {stack.map((url, i) => (
-            <div
-              key={i}
-              className="relative rounded-lg overflow-hidden border-2 border-black/40 shadow-xl"
-              style={{
-                width:      32 - i * 4,
-                height:     44 - i * 5,
-                marginLeft: i === 0 ? 0 : -10,
-                zIndex:     stack.length - i,
-                opacity:    1 - i * 0.12,
-                transform:  `rotate(${i % 2 === 0 ? 5 : -4}deg) translateY(${i * 2}px)`,
-              }}
-            >
-              <img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="" className="w-full h-full object-cover" aria-hidden />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// Kebab trigger only — no anchored dropdown. Opens the shared ActionSheet
-// (imported from @/components/ui/ActionSheet) rendered once at the
-// component root — see bottom of return.
-function CardMenuTrigger({ onOpen }: { onOpen: (e: React.MouseEvent) => void }) {
-  return (
-    <button
-      onClick={onOpen}
-      className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
-    >
-      <MoreVertical size={11} />
-    </button>
-  )
+  if (coverUrl) {
+    return (
+      <div className="h-28 bg-muted">
+        <img src={proxy(coverUrl)} alt="" aria-hidden className="w-full h-full object-cover" />
+      </div>
+    )
+  }
+  return <div className="h-28 bg-muted" />
 }
 
 interface Props {
@@ -168,12 +88,18 @@ interface Props {
   basePath?: string
   savedCollectionIds?: string[]
   showMobileCreate?: boolean
+  /** Dashboard plumbing: back link for the header (omit on public pages). */
+  backHref?: string
+  backLabel?: string
+  /** Pro-tree pages pass this so PageHeader shows the gold Pro mark. */
+  isPro?: boolean
 }
 
 export function CollectionsClient({ userId, isProUser, ownOnly = false,
   basePath = '/collections', savedCollectionIds = [],
- showMobileCreate = false,
- }: Props) {
+  showMobileCreate = false,
+  backHref, backLabel = 'Back', isPro = false,
+}: Props) {
   const [collections, setCollections] = useState<Collection[]>([])
   const [loading,     setLoading]     = useState(true)
   const searchParams = useSearchParams()
@@ -377,158 +303,66 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
 
   const menuTarget = collections.find(c => c.id === openMenuId) ?? null
 
-  const renderCard = (col: Collection, cardH: string) => {
-    const isOwner     = col.user_id === userId
-    const count       = itemCount(col)
-    const themeGrad   = THEME_GRAD[col.theme_color]   ?? THEME_GRAD.primary
-    const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
-    const themeAccent = THEME_ACCENT[col.theme_color] ?? THEME_ACCENT.primary
-    const covers      = getCoverPreviews(col)
-    const isSaved     = savedIds.has(col.id)
-    const avatar      = col.profiles?.avatar_url
-    const username    = col.profiles?.username
-    const saveLabel   = getSaveLabel(col.save_count, isSaved)
+  const ownCount = collections.filter(c => c.user_id === userId).length
 
-    return (
-      <div
-        key={col.id}
-        className={cn(
-          'rounded-2xl border overflow-hidden relative cursor-pointer',
-          cardH,
-          col.is_published ? themeBorder : 'border-dashed border-border/60 opacity-75'
-        )}
-      >
-        <StackedCover covers={covers} themeGrad={themeGrad} coverUrl={col.cover_url} />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10" />
+  const newButton = userId && !showCreate ? (
+    <Button
+      size="sm"
+      variant={atLimit ? 'outline' : 'default'}
+      onClick={() => atLimit ? toast.error('Upgrade to Pro for unlimited collections') : setShowCreate(true)}
+      className={showMobileCreate ? undefined : 'hidden sm:inline-flex'}
+    >
+      {atLimit ? 'Upgrade for more' : 'New collection'}
+    </Button>
+  ) : null
 
-        <div className="absolute top-2 left-2 right-2 z-20 flex items-center justify-between">
-          {col.is_published
-            ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-emerald-400 border border-emerald-500/30 backdrop-blur-sm"><Globe size={7} /> Public</span>
-            : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 text-white/60 border border-white/10 backdrop-blur-sm"><Lock size={7} /> Draft</span>
-          }
-          {count > 0 && (
-            <span className={cn('inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-black/40 backdrop-blur-sm border border-white/10', themeAccent)}>
-              <BookOpen size={7} /> {count}
-            </span>
-          )}
-        </div>
+  const subtitle =
+    'Reading collections from the community' +
+    (!isProUser && userId
+      ? ` · ${Math.max(0, FREE_LIMIT - ownCount)} free slot${FREE_LIMIT - ownCount !== 1 ? 's' : ''} left`
+      : '')
 
-        <Link href={`${basePath}/${col.id}`} className="absolute inset-0 z-10" aria-label={col.title} />
-
-        <div className="absolute bottom-0 left-0 right-0 z-20 p-2.5 space-y-2">
-          <p className="text-white font-black text-xs leading-snug line-clamp-2 drop-shadow-md">
-            {col.title}
-          </p>
-
-          {!isOwner && username && (
-            <div className="flex items-center gap-1.5">
-              {avatar ? (
-                <img src={avatar} alt={username} className="w-4 h-4 rounded-full object-cover border border-white/30" />
-              ) : (
-                <div className="w-4 h-4 rounded-full bg-white/20 border border-white/30 flex items-center justify-center">
-                  <span className="text-[7px] text-white font-bold">{username[0].toUpperCase()}</span>
-                </div>
-              )}
-              <span className="text-[9px] text-white/70 truncate">@{username}</span>
-            </div>
-          )}
-
-          {/* Actions — one primary button + kebab trigger for the rest.
-              The kebab opens the shared bottom sheet (defined once, below),
-              not a locally-anchored dropdown. */}
-          <div className={cn('flex items-center gap-1.5 relative z-30', isOwner && 'justify-end')} onClick={e => e.stopPropagation()}>
-            {isOwner ? (
-              <CardMenuTrigger onOpen={(e) => { e.stopPropagation(); setOpenMenuId(col.id) }} />
-            ) : (
-              <>
-                <button
-                  onClick={(e) => handleSave(col.id, e)}
-                  disabled={savingId === col.id}
-                  className={cn(
-                    'flex items-center gap-1 px-2 h-6 rounded-lg backdrop-blur-sm text-[9px] font-semibold transition-colors border',
-                    isSaved
-                      ? 'bg-primary/70 text-white border-primary/40'
-                      : 'bg-white/15 hover:bg-white/25 text-white border-white/10'
-                  )}
-                >
-                  {savingId === col.id
-                    ? <Loader2 size={9} className="animate-spin" />
-                    : <Bookmark size={9} className={isSaved ? 'fill-white' : ''} />
-                  }
-                  {saveLabel}
-                </button>
-                <button
-                  onClick={(e) => handleShare(col.id, e)}
-                  className="w-6 h-6 rounded-lg bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white flex items-center justify-center transition-colors border border-white/10"
-                >
-                  <Share2 size={9} />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    )
+  const resetCreate = () => {
+    setShowCreate(false)
+    setForm({ title: '', description: '', cover_url: '', theme_color: 'primary', is_published: true })
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pt-3 pb-8 sm:pt-4 space-y-6">
+    <div className="space-y-8">
 
-      {/* ── Edit modal ── */}
+      {/* Edit modal */}
       {editingCollection && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-primary/5">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center">
-                  <Pencil size={11} className="text-primary-foreground" />
-                </div>
-                <p className="text-xs font-black uppercase tracking-widest text-primary">Edit Collection</p>
-              </div>
-              <button onClick={() => setEditingCollection(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+          <div className="w-full max-w-md bg-card rounded-xl border border-border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Edit collection</p>
+              <button onClick={() => setEditingCollection(null)} aria-label="Close" className="text-muted-foreground hover:text-foreground transition-colors">
                 <X size={14} />
               </button>
             </div>
             <div className="p-5 space-y-4 overflow-y-auto flex-1">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Title <span className="text-destructive">*</span></label>
+                <label className="text-xs text-muted-foreground">Title <span className="text-destructive">*</span></label>
                 <Input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} className="h-9 text-sm" autoFocus />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Description</label>
-                <Textarea value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} placeholder="What makes this collection special..." rows={2} className="resize-none text-sm" />
+                <label className="text-xs text-muted-foreground">Description</label>
+                <Textarea value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} placeholder="What makes this collection special…" rows={2} className="resize-none text-sm" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Cover URL</label>
-                <Input value={editForm.cover_url} onChange={e => setEditForm(f => ({ ...f, cover_url: e.target.value }))} placeholder="https://..." className="h-9 text-sm" />
+                <label className="text-xs text-muted-foreground">Cover URL</label>
+                <Input value={editForm.cover_url} onChange={e => setEditForm(f => ({ ...f, cover_url: e.target.value }))} placeholder="https://…" className="h-9 text-sm" />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Theme Colour</label>
-                <div className="flex gap-2">
-                  {THEME_OPTIONS.map(t => (
-                    <button key={t.value} onClick={() => setEditForm(f => ({ ...f, theme_color: t.value }))}
-                      className={cn('w-7 h-7 rounded-full border-2 transition-all', t.color,
-                        editForm.theme_color === t.value ? 'border-foreground scale-110' : 'border-transparent hover:scale-105')}
-                      title={t.label}
-                    />
-                  ))}
-                </div>
-              </div>
-              <label className="flex items-center gap-3 cursor-pointer group">
-                <div className={cn('w-4 h-4 rounded border-2 flex items-center justify-center transition-colors shrink-0',
-                  editForm.is_published ? 'bg-primary border-primary' : 'border-border group-hover:border-primary/60')}
-                  onClick={() => setEditForm(f => ({ ...f, is_published: !f.is_published }))}>
-                  {editForm.is_published && <span className="text-primary-foreground text-[10px] font-black">✓</span>}
-                </div>
-                <div>
-                  <span className="text-sm font-medium">Published</span>
-                  <p className="text-xs text-muted-foreground">Others can discover and save this collection</p>
-                </div>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={editForm.is_published} onChange={e => setEditForm(f => ({ ...f, is_published: e.target.checked }))} className="w-4 h-4 accent-foreground" />
+                <span>
+                  <span className="text-sm text-foreground">Published</span>
+                  <span className="block text-xs text-muted-foreground">Others can discover and save this collection</span>
+                </span>
               </label>
               <div className="flex gap-2 pt-1">
-                <Button size="sm" onClick={handleEditSave} disabled={!editForm.title.trim() || savingEdit} className="gap-2">
-                  {savingEdit ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                  Save Changes
+                <Button size="sm" onClick={handleEditSave} disabled={!editForm.title.trim() || savingEdit}>
+                  {savingEdit ? 'Saving…' : 'Save changes'}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => setEditingCollection(null)}>Cancel</Button>
               </div>
@@ -537,59 +371,26 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
         </div>
       )}
 
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-sm shadow-primary/10">
-              <Layers size={16} className="text-primary" />
-            </div>
-            <h1 className="text-2xl font-black tracking-tight">Collections</h1>
-          </div>
-          <div className="text-muted-foreground text-sm pl-0.5">
-            <p>Reading collections from the community</p>
-            {!isProUser && userId && (
-              <p className="text-muted-foreground/60 mt-0.5">
-                · {Math.max(0, FREE_LIMIT - collections.filter(c => c.user_id === userId).length)} free slot{FREE_LIMIT - collections.filter(c => c.user_id === userId).length !== 1 ? 's' : ''} remaining
-              </p>
-            )}
-          </div>
-        </div>
+      <PageHeader
+        eyebrow="Library"
+        title="Collections"
+        subtitle={subtitle}
+        backHref={backHref}
+        backLabel={backLabel}
+        isPro={isPro}
+        actions={newButton || undefined}
+      />
 
-        {userId && !showCreate && (
-          <Button
-            size="sm"
-            onClick={() => atLimit ? toast.error('Upgrade to Pro for unlimited collections') : setShowCreate(true)}
-            className={cn(
-              'gap-1.5 shrink-0 mt-1',
-              showMobileCreate ? 'inline-flex' : 'hidden sm:inline-flex',
-              atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90'
-                )}
-          >
-            {atLimit ? <Crown size={14} /> : <Plus size={14} />}
-            <span>{atLimit ? 'Upgrade for More' : 'New Collection'}</span>
-          </Button>
-        )}
-      </div>
-
-      {/* ── Create form ── */}
+      {/* Create form */}
       {showCreate && (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-primary/5">
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                <Plus size={13} className="text-primary-foreground" />
-              </div>
-              <p className="text-xs font-black uppercase tracking-widest text-primary">New Collection</p>
-            </div>
-            <button onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground">
-              <X size={14} />
-            </button>
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-border">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground">New collection</p>
           </div>
           <div className="p-5 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Title <span className="text-destructive">*</span></label>
+                <label className="text-xs text-muted-foreground">Title <span className="text-destructive">*</span></label>
                 <Input
                   value={form.title}
                   onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -600,60 +401,37 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-muted-foreground">Cover URL <span className="text-muted-foreground/60">(optional)</span></label>
+                <label className="text-xs text-muted-foreground">Cover URL <span className="text-muted-foreground/60">(optional)</span></label>
                 <Input
                   value={form.cover_url}
                   onChange={e => setForm(f => ({ ...f, cover_url: e.target.value }))}
-                  placeholder="https://..."
+                  placeholder="https://…"
                   className="h-9 text-sm"
                 />
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Description <span className="text-muted-foreground/60">(optional)</span></label>
+              <label className="text-xs text-muted-foreground">Description <span className="text-muted-foreground/60">(optional)</span></label>
               <Textarea
                 value={form.description}
                 onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                placeholder="What makes this collection special..."
+                placeholder="What makes this collection special…"
                 rows={2}
                 className="resize-none text-sm"
               />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-muted-foreground">Theme Colour</label>
-              <div className="flex gap-2">
-                {THEME_OPTIONS.map(t => (
-                  <button
-                    key={t.value}
-                    onClick={() => setForm(f => ({ ...f, theme_color: t.value }))}
-                    className={cn('w-7 h-7 rounded-full border-2 transition-all', t.color,
-                      form.theme_color === t.value ? 'border-foreground scale-110' : 'border-transparent hover:scale-105')}
-                    title={t.label}
-                  />
-                ))}
-              </div>
-            </div>
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div
-                className={cn('w-4 h-4 rounded border-2 flex items-center justify-center transition-colors shrink-0',
-                  form.is_published ? 'bg-primary border-primary' : 'border-border group-hover:border-primary/60')}
-                onClick={() => setForm(f => ({ ...f, is_published: !f.is_published }))}
-              >
-                {form.is_published && <span className="text-primary-foreground text-[10px] font-black">✓</span>}
-              </div>
-              <div>
-                <span className="text-sm font-medium">Publish immediately</span>
-                <p className="text-xs text-muted-foreground">Others can discover and save this collection</p>
-              </div>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={form.is_published} onChange={e => setForm(f => ({ ...f, is_published: e.target.checked }))} className="w-4 h-4 accent-foreground" />
+              <span>
+                <span className="text-sm text-foreground">Publish immediately</span>
+                <span className="block text-xs text-muted-foreground">Others can discover and save this collection</span>
+              </span>
             </label>
             <div className="flex gap-2 pt-1">
-              <Button size="sm" onClick={handleCreate} disabled={!form.title.trim() || creating} className="gap-2">
-                {creating ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-                Create Collection
+              <Button size="sm" onClick={handleCreate} disabled={!form.title.trim() || creating}>
+                {creating ? 'Creating…' : 'Create collection'}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => { setShowCreate(false); setForm({ title: '', description: '', cover_url: '', theme_color: 'primary', is_published: true }) }}>
-                Cancel
-              </Button>
+              <Button variant="ghost" size="sm" onClick={resetCreate}>Cancel</Button>
             </div>
           </div>
         </div>
@@ -662,165 +440,99 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
       {loading && <CollectionsSkeleton />}
 
       {!loading && collections.length === 0 && (
-        <div className="text-center py-16 rounded-2xl border border-dashed border-border space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <Layers size={20} className="text-primary opacity-60" />
-          </div>
+        <div className="text-center py-20 rounded-xl border border-dashed border-border space-y-3">
           <div>
-            <p className="font-black text-sm">No collections yet</p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="font-dashboard-serif text-lg text-foreground">No collections yet</p>
+            <p className="text-sm text-muted-foreground mt-1">
               {userId ? 'Create your first curated collection of comics.' : 'No public collections yet.'}
             </p>
           </div>
           {userId && (
-            <Button size="sm" onClick={() => setShowCreate(true)} className="gap-2">
-              <Plus size={14} /> Create First Collection
-            </Button>
+            <button onClick={() => setShowCreate(true)} className="text-xs text-foreground underline underline-offset-4">
+              Create your first collection
+            </button>
           )}
         </div>
       )}
 
       {!loading && collections.length > 0 && (
-        <>
-          <div className="sm:hidden grid grid-cols-2 gap-3 items-start">
-            <div className="flex flex-col gap-3">
-              {collections.filter((_, i) => i % 2 === 0).map((col, posInCol) =>
-                renderCard(col, colHeightClass(posInCol))
-              )}
-            </div>
-            <div className="flex flex-col gap-3">
-              {collections.filter((_, i) => i % 2 === 1).map((col, posInCol) =>
-                renderCard(col, colHeightClass(posInCol + 1))
-              )}
-            </div>
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          {collections.map((col) => {
+            const isOwner  = col.user_id === userId
+            const count    = itemCount(col)
+            const covers   = getCoverPreviews(col)
+            const isSaved  = savedIds.has(col.id)
+            const saveLabel = getSaveLabel(col.save_count, isSaved)
 
-          {/* ── DESKTOP: original grid — kebab trigger opens the same shared sheet ── */}
-          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {collections.map((col) => {
-              const isOwner     = col.user_id === userId
-              const count       = itemCount(col)
-              const themeGrad   = THEME_GRAD[col.theme_color]   ?? THEME_GRAD.primary
-              const themeBorder = THEME_BORDER[col.theme_color] ?? THEME_BORDER.primary
-              const themeAccent = THEME_ACCENT[col.theme_color] ?? THEME_ACCENT.primary
-              const covers      = getCoverPreviews(col)
-              const isSaved     = savedIds.has(col.id)
-              const saveLabel   = getSaveLabel(col.save_count, isSaved)
-
-              return (
-                <div
-                  key={col.id}
-                  className={cn(
-                    'group relative rounded-2xl border bg-card overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5',
-                    col.is_published ? themeBorder : 'border-dashed border-border opacity-70 hover:opacity-90'
-                  )}
-                >
-                  <div className={cn('h-24 relative overflow-hidden bg-gradient-to-br to-transparent', themeGrad)}>
-                    {covers.length > 0 ? (
-                      <div className="absolute inset-0 flex gap-0.5">
-                        {covers.map((url, i) => (
-                          <div key={i} className={cn('relative overflow-hidden',
-                            covers.length === 1 ? 'flex-1' :
-                            covers.length === 2 ? 'flex-1' :
-                            covers.length === 3 && i === 0 ? 'w-1/2' : 'flex-1')}>
-                            <img src={`/api/image-proxy?url=${encodeURIComponent(url)}`} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-90 transition-opacity duration-300" />
-                            <div className="absolute inset-0 bg-gradient-to-t from-card/80 via-transparent to-transparent" />
-                          </div>
-                        ))}
-                      </div>
-                    ) : col.cover_url ? (
-                      <img src={`/api/image-proxy?url=${encodeURIComponent(col.cover_url)}`} alt={col.title} className="absolute inset-0 w-full h-full object-cover opacity-30" />
-                    ) : null}
-                    <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-card to-transparent" />
-                    <div className="absolute top-2 right-2">
-                      {col.is_published
-                        ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 backdrop-blur-sm"><Globe size={8} /> Public</span>
-                        : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-muted/80 text-muted-foreground border border-border backdrop-blur-sm"><Lock size={8} /> Draft</span>
-                      }
-                    </div>
-                    {count > 0 && (
-                      <div className="absolute bottom-2 left-2">
-                        <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-background/80 backdrop-blur-sm border border-border', themeAccent)}>
-                          <BookOpen size={8} /> {count} comic{count !== 1 ? 's' : ''}
-                        </span>
-                      </div>
+            return (
+              <div
+                key={col.id}
+                className={cn(
+                  'group relative rounded-xl border bg-card overflow-hidden transition-colors flex flex-col',
+                  col.is_published ? 'border-border hover:border-foreground/30' : 'border-dashed border-border opacity-70 hover:opacity-90'
+                )}
+              >
+                <Link href={`${basePath}/${col.id}`} className="block flex-1">
+                  <CoverMosaic covers={covers} coverUrl={col.cover_url} />
+                  <div className="p-3 space-y-1">
+                    <p className="font-dashboard-serif text-base text-foreground line-clamp-1">{col.title}</p>
+                    {col.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{col.description}</p>
                     )}
+                    <p className="text-[11px] text-muted-foreground tabular-nums">
+                      {count} comic{count !== 1 ? 's' : ''} · {col.is_published ? 'Public' : 'Draft'}
+                      {col.save_count > 0 && ` · ${col.save_count} saved`}
+                    </p>
                   </div>
-                  <div className="p-4 space-y-3">
-                    <div>
-                      <Link href={`${basePath}/${col.id}`} className="font-black text-sm hover:text-primary transition-colors line-clamp-1 block">
-                        {col.title}
+                </Link>
+
+                {isOwner ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setOpenMenuId(col.id) }}
+                    aria-label="Collection options"
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-background/90 backdrop-blur border border-border text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
+                  >
+                    <MoreVertical size={13} />
+                  </button>
+                ) : (
+                  <div className="flex items-center justify-between gap-2 px-3 pb-3 text-xs" onClick={e => e.stopPropagation()}>
+                    {col.profiles ? (
+                      <Link href={`/profile/${col.profiles.username}`} className="text-muted-foreground hover:text-foreground transition-colors truncate">
+                        @{col.profiles.username}
                       </Link>
-                      {col.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 leading-relaxed">{col.description}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        {col.save_count > 0 && (
-                          <span className="flex items-center gap-1 text-[10px]">
-                            <Bookmark size={9} className="text-primary/60" />
-                            {col.save_count} saved
-                          </span>
-                        )}
-                      </div>
-                      {!isOwner && col.profiles && (
-                        <Link href={`/profile/${col.profiles.username}`} className="text-[10px] hover:text-primary transition-colors truncate max-w-[80px]">
-                          @{col.profiles.username}
-                        </Link>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
-                      <Link href={`${basePath}/${col.id}`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full h-7 text-xs gap-1.5 hover:border-primary/40 hover:text-primary">
-                          View
-                        </Button>
-                      </Link>
-                      {isOwner ? (
-                        <Button
-                          variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                          onClick={(e) => { e.stopPropagation(); setOpenMenuId(col.id) }}
-                        >
-                          <MoreVertical size={14} />
-                        </Button>
-                      ) : (
-                        <>
-                          <Button
-                            variant="ghost" size="sm"
-                            className={cn('h-7 gap-1 text-xs px-2', isSaved ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
-                            onClick={(e) => handleSave(col.id, e)}
-                            disabled={savingId === col.id}
-                          >
-                            {savingId === col.id
-                              ? <Loader2 size={11} className="animate-spin" />
-                              : <Bookmark size={11} className={isSaved ? 'fill-primary' : ''} />
-                            }
-                            {saveLabel}
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={(e) => handleShare(col.id, e)} title="Share">
-                            <Share2 size={12} />
-                          </Button>
-                        </>
-                      )}
+                    ) : <span />}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <button
+                        onClick={(e) => handleSave(col.id, e)}
+                        disabled={savingId === col.id}
+                        className={cn('transition-colors tabular-nums', isSaved ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}
+                      >
+                        {savingId === col.id ? 'Saving…' : saveLabel}
+                      </button>
+                      <button
+                        onClick={(e) => handleShare(col.id, e)}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Share
+                      </button>
                     </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
-        </>
+                )}
+              </div>
+            )
+          })}
+        </div>
       )}
 
-      {!isProUser && userId && collections.filter(c => c.user_id === userId).length > 0 && (
-        <div className="flex items-center justify-center pt-2">
-          <Link href="/pricing" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-amber-500 transition-colors">
-            <Crown size={11} /> Upgrade to Pro for unlimited collections
+      {!isProUser && userId && ownCount > 0 && (
+        <div className="text-center">
+          <Link href="/pricing" className="text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition-colors">
+            Upgrade to Pro for unlimited collections
           </Link>
         </div>
       )}
 
-      {/* ── Shared action sheet — one instance for both mobile & desktop cards ── */}
+      {/* Shared action sheet, one instance for all cards */}
       <ActionSheet
         open={!!menuTarget}
         onClose={() => setOpenMenuId(null)}
@@ -828,7 +540,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
         actions={menuTarget ? getOwnerActions(menuTarget) : []}
       />
 
-      {/* Moved out of the desktop-only grid — was never reachable on mobile before */}
       <AuthPromptModal
         open={authPrompt}
         onClose={() => setAuthPrompt(false)}

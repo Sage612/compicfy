@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ProAnalyticsClient } from '@/components/pro/ProAnalyticsClient'
 import type { Metadata } from 'next'
+import { PageShell } from '@/components/dashboard/PageHeader'
 
 export const metadata: Metadata = { title: 'Analytics | Pro' }
 
@@ -29,7 +30,7 @@ export default async function ProCreatorAnalyticsPage() {
   ])
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <PageShell>
       <ProAnalyticsClient
         recommendations={(recommendations ?? []).map(r => ({
           ...r,
@@ -42,7 +43,9 @@ export default async function ProCreatorAnalyticsPage() {
           created_at:   r.created_at   ?? '',
         }))}
         analytics={analytics ?? []}
+        backHref="/pro/creator/dashboard"
+        isPro
       />
-    </div>
+    </PageShell>
   )
 }

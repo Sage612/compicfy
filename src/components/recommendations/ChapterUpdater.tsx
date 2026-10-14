@@ -246,7 +246,7 @@ export function ChapterUpdater({
                   : 'text-muted-foreground/60 hover:text-foreground'
               )}
             >
-              <span className={cn('h-1.5 w-1.5 rounded-full', status === value ? meta.dot : 'bg-border')} />
+              <span className={cn('h-1.5 w-1.5 rounded-full', status === value ? 'bg-foreground' : 'bg-border')} />
               {meta.label}
             </button>
           )

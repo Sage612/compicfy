@@ -16,7 +16,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
-export type ActionResult = { ok: true } | { ok: false; error: string }
+export type ActionResult = { ok: true; notice?: string } | { ok: false; error: string }
 
 const fail = (error: string): ActionResult => ({ ok: false, error })
 
@@ -59,6 +59,7 @@ export interface LogInput {
   note:             string | null
   moodEmoji:        string | null
   isSpoiler:        boolean
+  finished?:        boolean
 }
 
 export async function logSession(input: LogInput): Promise<ActionResult> {
@@ -89,23 +90,58 @@ export async function logSession(input: LogInput): Promise<ActionResult> {
     if (error) return fail('Could not save the session.')
   }
 
-  // 2. Live chapter position ("Currently obsessed").
+  // 2. Reading list: the single source of truth for chapter progress. The
+  //    profile's "Currently obsessed" reads straight from here, so logging a
+  //    session and updating a list can never disagree.
+  let notice: string | undefined
   if (chapter !== null && recId) {
-    const { data: rec } = await a.db.from('recommendations').select('chapter_count').eq('id', recId).maybeSingle()
     const now = new Date().toISOString()
-    const { error } = await a.db.from('reading_progress').upsert(
-      {
-        user_id: a.userId,
-        recommendation_id: recId,
-        current_chapter: chapter,
-        total_chapters: rec?.chapter_count ?? null,
-        is_actively_reading: true,
-        last_read_at: now,
-        updated_at: now,
-      },
-      { onConflict: 'user_id,recommendation_id' },
-    )
-    if (error) return fail('Could not update your progress.')
+    const { data: lists } = await a.db.from('reading_lists').select('id, name').eq('user_id', a.userId)
+    const listIds: string[] = (lists ?? []).map((l: any) => l.id)
+
+    // Finishing is always the reader's explicit choice (never inferred from a
+    // chapter number: nobody knows the final chapter of an ongoing series).
+    const patch: Record<string, unknown> = { progress_chapter: chapter, last_read_at: now, updated_at: now }
+    if (input.finished) patch.status = 'completed'
+
+    let updated = 0
+    if (listIds.length > 0) {
+      const { data: rows, error } = await a.db
+        .from('reading_list_items')
+        .update(patch)
+        .in('list_id', listIds)
+        .eq('recommendation_id', recId)
+        .select('id, status')
+      if (error) return fail('Could not update your reading list.')
+      updated = rows?.length ?? 0
+
+      // Reading it now means it is "reading", same as the app's own progress
+      // button does. Leave completed / dropped / on_hold alone unless the
+      // reader said they finished.
+      if (!input.finished && updated > 0) {
+        const promote = (rows as any[]).filter(r => !r.status || r.status === 'plan_to_read').map(r => r.id)
+        if (promote.length > 0) {
+          await a.db.from('reading_list_items').update({ status: 'reading' }).in('id', promote)
+        }
+      }
+    }
+
+    if (updated === 0) {
+      // Not on any list yet: drop it into "Currently Reading" if they have one.
+      const target = (lists ?? []).find((l: any) => /currently\s*reading/i.test(l.name ?? ''))
+      if (target) {
+        const { error } = await a.db.from('reading_list_items').insert({
+          list_id: target.id,
+          recommendation_id: recId,
+          progress_chapter: chapter,
+          last_read_at: now,
+          status: input.finished ? 'completed' : 'reading',
+        })
+        if (error) return fail('Could not add it to your reading list.')
+      } else {
+        notice = 'Saved. Add this series to a reading list to track its progress there too.'
+      }
+    }
   }
 
   // 3. Journal entry (the memory wall).
@@ -122,7 +158,8 @@ export async function logSession(input: LogInput): Promise<ActionResult> {
   }
 
   refresh(a)
-  return { ok: true }
+  revalidatePath('/', 'layout') // reading list pages live elsewhere in the app; refresh them too
+  return { ok: true, notice }
 }
 
 export async function deleteJournalEntry(id: string): Promise<ActionResult> {
@@ -227,4 +264,28 @@ export async function removeCharacter(id: string): Promise<ActionResult> {
   if (error) return fail('Could not remove that character.')
   refresh(a)
   return { ok: true }
+}
+
+/* ── Likes on journal entries ──────────────────────────────── */
+
+export type LikeResult = { ok: true; liked: boolean } | { ok: false; error: string }
+
+export async function toggleJournalLike(journalId: string): Promise<LikeResult> {
+  const a = await authed()
+  if (!a) return { ok: false, error: 'Sign in to like entries.' }
+  const id = clean(journalId, 64)
+  if (!id) return { ok: false, error: 'Missing entry.' }
+
+  const { data: existing, error: readErr } = await a.db
+    .from('journal_likes').select('journal_id').eq('journal_id', id).eq('user_id', a.userId).maybeSingle()
+  if (readErr) return { ok: false, error: 'Could not update your like.' }
+
+  if (existing) {
+    const { error } = await a.db.from('journal_likes').delete().eq('journal_id', id).eq('user_id', a.userId)
+    if (error) return { ok: false, error: 'Could not update your like.' }
+    return { ok: true, liked: false }
+  }
+  const { error } = await a.db.from('journal_likes').insert({ journal_id: id, user_id: a.userId })
+  if (error && error.code !== '23505') return { ok: false, error: 'Could not update your like.' }
+  return { ok: true, liked: true }
 }

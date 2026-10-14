@@ -4,9 +4,9 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
-  BookOpen, Check, Eye, EyeOff, Heart, MessageCircle, PenLine, Quote, Trash2,
+  BookOpen, Check, Eye, EyeOff, Flame, Heart, MessageCircle, PenLine, Quote, Trash2,
 } from 'lucide-react'
-import { deleteJournalEntry } from '@/lib/profile/shrineActions'
+import { deleteJournalEntry, toggleJournalLike } from '@/lib/profile/shrineActions'
 import { proxyCover } from './util'
 
 interface Props {
@@ -15,13 +15,16 @@ interface Props {
   content:    string | null
   isSpoiler:  boolean
   moodEmoji:  string | null
-  icon:       'book' | 'pen' | 'quote' | 'check' | 'heart'
+  icon:       'book' | 'pen' | 'quote' | 'check' | 'heart' | 'flame'
   comicTitle: string | null
   coverUrl:   string | null
   likeCount:  number
   replyCount: number
   /** Pass the journal entry id (owner only) to show a delete button. */
   deleteId?:  string | null
+  /** Journal entry id when the signed-in viewer can like this entry. */
+  likeId?:    string | null
+  liked?:     boolean
 }
 
 const ICONS = {
@@ -30,11 +33,15 @@ const ICONS = {
   quote: Quote,
   check: Check,
   heart: Heart,
+  flame: Flame,
 } as const
 
 export function JournalEntryCard({
-  title, ago, content, isSpoiler, moodEmoji, icon, comicTitle, coverUrl, likeCount, replyCount, deleteId,
+  title, ago, content, isSpoiler, moodEmoji, icon, comicTitle, coverUrl, likeCount, replyCount, deleteId, likeId, liked: likedProp = false,
 }: Props) {
+  const [liked, setLiked] = useState(likedProp)
+  const [likes, setLikes] = useState(likeCount)
+  const [liking, setLiking] = useState(false)
   const [shown, setShown] = useState(false)
   const [pending, start] = useTransition()
   const router = useRouter()
@@ -48,6 +55,20 @@ export function JournalEntryCard({
       if (res.ok) { toast.success('Entry deleted'); router.refresh() }
       else toast.error(res.error)
     })
+  }
+
+  async function like() {
+    if (!likeId || liking) return
+    const next = !liked
+    setLiking(true); setLiked(next); setLikes(n => Math.max(0, n + (next ? 1 : -1)))
+    const res = await toggleJournalLike(likeId)
+    setLiking(false)
+    if (!res.ok) {
+      setLiked(!next); setLikes(n => Math.max(0, n + (next ? -1 : 1)))
+      toast.error(res.error)
+    } else if (res.liked !== next) {
+      setLiked(res.liked); setLikes(n => Math.max(0, n + (res.liked ? 1 : -1)))
+    }
   }
 
   return (
@@ -93,9 +114,17 @@ export function JournalEntryCard({
               <span className="sh-entry-comic">{comicTitle}</span>
             </>
           )}
-          {(likeCount > 0 || replyCount > 0) && (
+          {likeId ? (
             <span className="sh-likes">
-              <Heart size={15} /> {likeCount}
+              <button type="button" className="sh-like-btn" aria-pressed={liked}
+                aria-label={liked ? 'Unlike' : 'Like'} onClick={like}>
+                <Heart size={15} fill={liked ? 'currentColor' : 'none'} /> {likes}
+              </button>
+              {replyCount > 0 && <><MessageCircle size={15} style={{ marginLeft: 8 }} /> {replyCount}</>}
+            </span>
+          ) : (likes > 0 || replyCount > 0) && (
+            <span className="sh-likes">
+              <Heart size={15} /> {likes}
               {replyCount > 0 && <><MessageCircle size={15} style={{ marginLeft: 8 }} /> {replyCount}</>}
             </span>
           )}

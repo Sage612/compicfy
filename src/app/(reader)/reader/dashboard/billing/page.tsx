@@ -3,12 +3,28 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { BillingClient } from '@/components/pro/BillingClient'
 import { Button } from '@/components/ui/button'
-import { Crown, Zap, CheckCircle2, ArrowRight, Sparkles } from 'lucide-react'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 import { formatDate } from '@/lib/utils/format'
 import type { Metadata } from 'next'
 import { isAdmin as isAdminCheck, isProUser } from '@/lib/access'
 
 export const metadata: Metadata = { title: 'Billing' }
+
+const PRO_FEATURES = [
+  'Unlimited recommendations',
+  'Analytics dashboard',
+  'Export reading lists',
+  'Leaderboard access',
+  'Priority review queue',
+  'Profile view tracking',
+]
+
+const UPGRADE_FEATURES = [
+  'Unlimited submissions',
+  'Reading analytics',
+  'Export to CSV/PDF',
+  'Leaderboard rank',
+]
 
 export default async function ReaderBillingPage() {
   const supabase = await createClient()
@@ -32,98 +48,72 @@ export default async function ReaderBillingPage() {
   const isAdmin = profile ? isAdminCheck(profile) : false
   const isPro   = profile ? isProUser(profile) : false
 
+  const planName = isAdmin ? 'Admin' : isPro ? 'Pro Reader' : 'Free'
+  const planNote = isAdmin
+    ? 'Lifetime access'
+    : isPro
+    ? profile?.pro_expires_at
+      ? `Renews ${formatDate(profile.pro_expires_at)}`
+      : 'Lifetime access'
+    : 'Limited features'
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Billing</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Manage your subscription and payments.</p>
-      </div>
+    <PageShell width="narrow">
+      <PageHeader
+        title="Billing"
+        eyebrow="Account"
+        subtitle="Manage your subscription and payments."
+        backHref="/reader/dashboard"
+        backLabel="Dashboard"
+      />
 
-      {/* Current plan card */}
-      <div className={`relative overflow-hidden rounded-2xl border p-6 space-y-4 ${
-        isPro
-          ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent'
-          : 'border-border bg-card'
-      }`}>
-        {isPro && <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />}
-
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              isPro ? 'bg-gradient-to-br from-amber-400 to-orange-500' : 'bg-muted'
-            }`}>
-              {isPro ? <Crown size={18} className="text-white" /> : <Zap size={18} className="text-muted-foreground" />}
-            </div>
-            <div>
-              <p className="font-black text-sm">{isAdmin ? 'Admin' : isPro ? 'Pro Reader' : 'Free'}</p>
-              <p className="text-xs text-muted-foreground">
-                {isAdmin
-                  ? 'Lifetime access'
-                  : isPro
-                  ? profile?.pro_expires_at
-                    ? `Renews ${formatDate(profile.pro_expires_at)}`
-                    : 'Lifetime access'
-                  : 'Limited features'
-                }
-              </p>
-            </div>
+      {/* Current plan */}
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Current plan</p>
+        <dl className="space-y-2 text-sm">
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-muted-foreground">Plan</dt>
+            <dd className="font-dashboard-serif text-base text-foreground">{planName}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-muted-foreground">{isPro || isAdmin ? 'Term' : 'Includes'}</dt>
+            <dd className="text-foreground">{planNote}</dd>
           </div>
           {isPro && !isAdmin && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 text-xs font-black border border-amber-500/20">
-              <Sparkles size={10} />Active
-            </span>
+            <div className="flex items-baseline justify-between gap-4">
+              <dt className="text-muted-foreground">Status</dt>
+              <dd className="text-foreground">Active</dd>
+            </div>
           )}
-        </div>
+        </dl>
 
         {isPro && (
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            {[
-              'Unlimited recommendations',
-              'Analytics dashboard',
-              'Export reading lists',
-              'Leaderboard access',
-              'Priority review queue',
-              'Profile view tracking',
-            ].map(feature => (
-              <div key={feature} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <CheckCircle2 size={12} className="text-amber-500 shrink-0" />
-                {feature}
-              </div>
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-border pt-4 text-xs text-muted-foreground">
+            {PRO_FEATURES.map(feature => (
+              <li key={feature}>{feature}</li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
 
       {!isPro && !isAdmin && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 space-y-4">
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div className="space-y-1">
-            <p className="font-black text-sm text-amber-700 dark:text-amber-400">Upgrade to Pro Reader</p>
+            <h2 className="font-dashboard-serif text-lg text-foreground">Upgrade to Pro Reader</h2>
             <p className="text-xs text-muted-foreground">Unlock unlimited recommendations, analytics, and more.</p>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              'Unlimited submissions',
-              'Reading analytics',
-              'Export to CSV/PDF',
-              'Leaderboard rank',
-            ].map(f => (
-              <div key={f} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CheckCircle2 size={11} className="text-amber-500 shrink-0" />
-                {f}
-              </div>
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+            {UPGRADE_FEATURES.map(f => (
+              <li key={f}>{f}</li>
             ))}
-          </div>
-          <Link href="/pricing">
-            <Button className="w-full gap-2 bg-gradient-to-r from-amber-400 to-orange-500 border-0 text-white shadow-md shadow-amber-500/20">
-              <Crown size={14} />
-              Upgrade to Pro
-              <ArrowRight size={13} />
-            </Button>
-          </Link>
+          </ul>
+          <Button asChild size="sm">
+            <Link href="/pricing">Upgrade to Pro</Link>
+          </Button>
         </div>
       )}
 
       {isPro && !isAdmin && <BillingClient profile={profile} subscription={subscription} email={user.email ?? ''} />}
-    </div>
+    </PageShell>
   )
 }

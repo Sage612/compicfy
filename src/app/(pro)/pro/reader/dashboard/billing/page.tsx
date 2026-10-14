@@ -1,12 +1,21 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { BillingClient } from '@/components/pro/BillingClient'
-import { Crown, Sparkles, CheckCircle2 } from 'lucide-react'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 import { formatDate } from '@/lib/utils/format'
 import { isAdmin as isAdminCheck, isProUser, canAccessProDashboard } from '@/lib/access'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Billing | Pro' }
+
+const PRO_FEATURES = [
+  'Unlimited recommendations',
+  'Analytics dashboard',
+  'Export reading lists',
+  'Leaderboard access',
+  'Priority review queue',
+  'Profile view tracking',
+]
 
 export default async function ProReaderBillingPage() {
   const supabase = await createClient()
@@ -36,46 +45,44 @@ export default async function ProReaderBillingPage() {
     .maybeSingle()
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <PageShell width="narrow">
+      <PageHeader
+        title="Billing"
+        eyebrow="Account"
+        subtitle="Manage your Pro subscription."
+        backHref="/pro/reader/dashboard"
+        backLabel="Dashboard"
+        isPro
+      />
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-            <Crown size={17} className="text-amber-500" />
+      {/* Status */}
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Current plan</p>
+        <dl className="space-y-2 text-sm">
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-muted-foreground">Plan</dt>
+            <dd className="font-dashboard-serif text-base text-foreground">{isAdmin ? 'Admin' : 'Pro Reader'}</dd>
           </div>
-          <h1 className="text-xl font-black tracking-tight truncate">Billing</h1>
-        </div>
-        <p className="text-xs text-muted-foreground pl-0.5">Manage your Pro subscription</p>
-      </div>
-
-      {/* Status card */}
-      <div className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-transparent p-6 space-y-4">
-        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/40 to-transparent" />
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shrink-0">
-            <Crown size={18} className="text-white" />
-          </div>
-          <div>
-            <p className="font-black text-sm">{isAdmin ? 'Admin' : 'Pro Reader'}</p>
-            <p className="text-xs text-muted-foreground">
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-muted-foreground">Term</dt>
+            <dd className="text-foreground">
               {isAdmin
                 ? 'Lifetime access'
                 : profile?.pro_expires_at
                 ? `Active until ${formatDate(profile.pro_expires_at)}`
                 : 'Lifetime access'}
-            </p>
+            </dd>
           </div>
-          <span className="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-600 text-xs font-black border border-amber-500/20">
-            <Sparkles size={10} />Active
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-3 pt-2">
-          {['Unlimited recommendations','Analytics dashboard','Export reading lists','Leaderboard access','Priority review queue','Profile view tracking'].map(f => (
-            <div key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
-              <CheckCircle2 size={12} className="text-amber-500 shrink-0" />{f}
-            </div>
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-muted-foreground">Status</dt>
+            <dd className="text-foreground">Active</dd>
+          </div>
+        </dl>
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5 border-t border-border pt-4 text-xs text-muted-foreground">
+          {PRO_FEATURES.map(f => (
+            <li key={f}>{f}</li>
           ))}
-        </div>
+        </ul>
       </div>
 
       {!isAdmin && (
@@ -85,6 +92,6 @@ export default async function ProReaderBillingPage() {
           email={user.email ?? ''}
         />
       )}
-    </div>
+    </PageShell>
   )
 }

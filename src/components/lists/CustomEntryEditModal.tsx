@@ -71,9 +71,9 @@ export function CustomEntryEditModal({ entry, onClose, onSaved, onDeleted }: Pro
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={() => !saving && !deleting && onClose()}
     >
-      <div onClick={e => e.stopPropagation()} className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-primary/5">
-          <p className="text-xs font-black uppercase tracking-widest text-primary">Edit Custom Entry</p>
+      <div onClick={e => e.stopPropagation()} className="w-full max-w-md bg-card rounded-xl border border-border shadow-xl overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <p className="text-[11px] uppercase tracking-widest text-muted-foreground">Edit Custom Entry</p>
           <button onClick={onClose} disabled={saving || deleting} className="text-muted-foreground hover:text-foreground transition-colors">
             <X size={14} />
           </button>
@@ -81,12 +81,12 @@ export function CustomEntryEditModal({ entry, onClose, onSaved, onDeleted }: Pro
 
         <div className="p-5 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">Title <span className="text-destructive">*</span></label>
+            <label className="text-xs text-muted-foreground">Title <span className="text-destructive">*</span></label>
             <Input value={title} onChange={e => setTitle(e.target.value)} className="h-9 text-sm" autoFocus />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">
+            <label className="text-xs text-muted-foreground">
               Cover image URL <span className="text-muted-foreground/60">(optional)</span>
             </label>
             <Input
@@ -108,7 +108,7 @@ export function CustomEntryEditModal({ entry, onClose, onSaved, onDeleted }: Pro
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-muted-foreground">
+            <label className="text-xs text-muted-foreground">
               Notes <span className="text-muted-foreground/60">(optional, private)</span>
             </label>
             <Input value={notes} onChange={e => setNotes(e.target.value)} className="h-9 text-sm" />

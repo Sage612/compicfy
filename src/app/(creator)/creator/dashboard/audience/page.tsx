@@ -1,9 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Users, UserPlus, Eye, TrendingUp, ArrowRight, Lock } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Button } from '@/components/ui/button'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 import { formatDate, formatNumber } from '@/lib/utils/format'
 import { getProfileRoute } from '@/lib/utils/routes'
 import type { Metadata } from 'next'
@@ -30,66 +29,54 @@ export default async function CreatorAudiencePage() {
     (supabase as any).from('profile_views').select('*', { count: 'exact', head: true }).eq('profile_id', user.id),
   ])
 
-  const stats = [
-    { label: 'Total Followers', value: followersCount ?? 0, icon: Users,      bg: 'bg-violet-500/10', text: 'text-violet-500' },
-    { label: 'Profile Views',   value: profileViews   ?? 0, icon: Eye,        bg: 'bg-blue-500/10',   text: 'text-blue-500'  },
-    { label: 'Views This Month',value: '—',                 icon: TrendingUp, bg: 'bg-teal-500/10',   text: 'text-teal-500'  },
+  const stats: { label: string; value: number | string }[] = [
+    { label: 'Total followers', value: followersCount ?? 0 },
+    { label: 'Profile views',   value: profileViews   ?? 0 },
+    { label: 'Views this month', value: '—' },
   ]
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+    <PageShell>
+      <PageHeader
+        eyebrow="Creator"
+        title="Audience"
+        subtitle="People who follow your work."
+        backHref="/creator/dashboard"
+        backLabel="Dashboard"
+      />
 
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Audience</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">People who follow your work.</p>
-      </div>
-
-      {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
-        {stats.map(({ label, value, icon: Icon, bg, text }) => (
-          <div key={label} className="p-4 rounded-2xl border border-border bg-card space-y-3">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${bg}`}>
-              <Icon size={15} className={text} />
-            </div>
-            <p className="text-xl font-black tabular-nums">
+        {stats.map(({ label, value }) => (
+          <div key={label} className="rounded-xl border border-border bg-card p-4 space-y-2">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">{label}</p>
+            <p className="font-dashboard-serif text-2xl text-foreground tabular-nums">
               {typeof value === 'number' ? formatNumber(value) : value}
             </p>
-            <p className="text-[10px] text-muted-foreground font-medium">{label}</p>
           </div>
         ))}
       </div>
 
-      {/* Pro upsell — views this month is pro only */}
-      <div className="flex items-center gap-3 p-3 rounded-xl border border-amber-500/20 bg-amber-500/5">
-        <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0">
-          <Lock size={13} className="text-amber-500" />
-        </div>
-        <p className="text-xs text-amber-700 dark:text-amber-400 flex-1">
-          Monthly views, growth tracking, and deep audience insights are <strong>Pro only</strong>.
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-3">
+        <p className="text-xs text-muted-foreground">
+          Monthly views, growth tracking, and deeper audience insights are available on Pro.
         </p>
-        <Link href="/pricing">
-          <Button size="sm" variant="outline" className="shrink-0 border-amber-500/30 text-amber-600 hover:bg-amber-500/10 h-7 text-xs px-2.5">
-            Upgrade
-          </Button>
+        <Link href="/pricing" className="shrink-0 text-xs text-foreground underline underline-offset-4">
+          Upgrade
         </Link>
       </div>
 
-      {/* Followers list */}
-      <div>
-        <h2 className="text-xs font-black uppercase tracking-wider text-muted-foreground mb-3">Recent Followers</h2>
+      <section className="space-y-3">
+        <h2 className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Recent followers</h2>
         {!recentFollowers?.length ? (
-          <div className="flex flex-col items-center justify-center py-14 rounded-2xl border border-dashed border-border space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-violet-500/10 flex items-center justify-center">
-              <UserPlus size={20} className="text-violet-500" />
-            </div>
-            <div className="text-center">
-              <p className="font-black text-sm">No followers yet</p>
-              <p className="text-xs text-muted-foreground mt-1">Submit your works and build your audience.</p>
-            </div>
+          <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center space-y-2">
+            <p className="font-dashboard-serif text-lg text-foreground">No followers yet</p>
+            <p className="text-sm text-muted-foreground">Submit your works and build your audience.</p>
+            <Link href="/creator/dashboard/works/new" className="inline-block text-xs text-foreground underline underline-offset-4">
+              Submit a work
+            </Link>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-border rounded-xl border border-border bg-card">
             {(recentFollowers as any[]).map(follow => {
               const p        = Array.isArray(follow.profiles) ? follow.profiles[0] : follow.profiles
               const initials = (p?.display_name || p?.username || 'U').slice(0, 2).toUpperCase()
@@ -97,25 +84,24 @@ export default async function CreatorAudiencePage() {
                 <Link
                   key={follow.follower_id}
                   href={p?.username ? getProfileRoute(p.username, 'reader') : '#'}
-                  className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors"
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors first:rounded-t-xl last:rounded-b-xl"
                 >
                   <Avatar className="h-8 w-8 shrink-0">
                     <AvatarImage src={p?.avatar_url} />
-                    <AvatarFallback className="text-xs font-black bg-violet-500 text-white">{initials}</AvatarFallback>
+                    <AvatarFallback className="text-xs bg-muted text-foreground">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black truncate">{p?.display_name || p?.username}</p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-sm text-foreground truncate">{p?.display_name || p?.username}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">
                       {p?.total_recommendations ?? 0} recs · Followed {formatDate(follow.created_at)}
                     </p>
                   </div>
-                  <ArrowRight size={12} className="text-muted-foreground/40 shrink-0" />
                 </Link>
               )
             })}
           </div>
         )}
-      </div>
-    </div>
+      </section>
+    </PageShell>
   )
 }

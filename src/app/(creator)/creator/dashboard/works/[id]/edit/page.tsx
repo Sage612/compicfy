@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import { EditRecommendationForm } from '@/components/recommendations/EditRecommendationForm'
 import type { Metadata } from 'next'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 
 export const metadata: Metadata = { title: 'Edit Work' }
 
@@ -21,12 +22,15 @@ export default async function CreatorEditWorkPage({ params }: { params: Promise<
   if (!rec) notFound()
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Edit Work</h1>
-        <p className="text-sm text-muted-foreground mt-1">Changes will require re-approval.</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        eyebrow="Creator"
+        title="Edit work"
+        subtitle="Changes will require re-approval."
+        backHref="/creator/dashboard/works"
+        backLabel="Works"
+      />
       <EditRecommendationForm recommendation={rec} userId={user.id} />
-    </div>
+    </PageShell>
   )
 }

@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Users, Eye, TrendingUp, ArrowRight } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 import { formatDate, formatNumber } from '@/lib/utils/format'
 import { getProfileRoute } from '@/lib/utils/routes'
 import type { Metadata } from 'next'
@@ -33,67 +33,68 @@ export default async function ProCreatorAudiencePage() {
   ])
 
   const stats = [
-    { label: 'Total Followers',    value: followersCount  ?? 0, icon: Users,      bg: 'bg-violet-500/10', text: 'text-violet-500' },
-    { label: 'Total Profile Views',value: profileViews    ?? 0, icon: Eye,        bg: 'bg-blue-500/10',   text: 'text-blue-500'   },
-    { label: 'Views This Month',   value: viewsThisMonth  ?? 0, icon: TrendingUp,  bg: 'bg-teal-500/10',   text: 'text-teal-500'   },
+    { label: 'Total followers',     value: followersCount ?? 0 },
+    { label: 'Total profile views', value: profileViews   ?? 0 },
+    { label: 'Views this month',    value: viewsThisMonth ?? 0 },
   ]
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-teal-500/10 flex items-center justify-center shrink-0">
-            <Users size={17} className="text-teal-500" />
-          </div>
-          <h1 className="text-xl font-black tracking-tight truncate">Audience</h1>
-        </div>
-        <p className="text-xs text-muted-foreground pl-0.5">Deep insights — Pro exclusive</p>
-      </div>
+    <PageShell>
+      <PageHeader
+        eyebrow="Creator"
+        title="Audience"
+        subtitle="Deeper insight into the people who follow your work."
+        backHref="/pro/creator/dashboard"
+        backLabel="Dashboard"
+        isPro
+      />
 
       <div className="grid grid-cols-3 gap-3">
-        {stats.map(({ label, value, icon: Icon, bg, text }) => (
-          <div key={label} className="p-4 rounded-2xl border border-teal-500/20 bg-teal-500/5 space-y-3">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${bg}`}>
-              <Icon size={16} className={text} />
-            </div>
-            <p className="text-2xl font-black tabular-nums">{formatNumber(value)}</p>
-            <p className="text-[10px] text-muted-foreground font-medium">{label}</p>
+        {stats.map(({ label, value }) => (
+          <div key={label} className="rounded-xl border border-border bg-card p-4 space-y-2">
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">{label}</p>
+            <p className="font-dashboard-serif text-2xl text-foreground tabular-nums">{formatNumber(value)}</p>
           </div>
         ))}
       </div>
 
-      <div>
-        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Recent Followers</h2>
+      <section className="space-y-3">
+        <h2 className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Recent followers</h2>
         {!recentFollowers?.length ? (
-          <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-dashed border-border space-y-3">
-            <Users size={28} className="text-muted-foreground/40" />
-            <p className="font-black text-sm">No followers yet</p>
-            <p className="text-xs text-muted-foreground">Submit your works and build your audience.</p>
+          <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center space-y-2">
+            <p className="font-dashboard-serif text-lg text-foreground">No followers yet</p>
+            <p className="text-sm text-muted-foreground">Submit your works and build your audience.</p>
+            <Link href="/pro/creator/dashboard/works/new" className="inline-block text-xs text-foreground underline underline-offset-4">
+              Submit a work
+            </Link>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="divide-y divide-border rounded-xl border border-border bg-card">
             {(recentFollowers as any[]).map(follow => {
               const p = Array.isArray(follow.profiles) ? follow.profiles[0] : follow.profiles
               const initials = (p?.display_name || p?.username || 'U').slice(0, 2).toUpperCase()
               return (
-                <Link key={follow.follower_id} href={p?.username ? getProfileRoute(p.username, 'reader') : '#'}
-                  className="flex items-center gap-3 p-3 rounded-2xl border border-border bg-card hover:border-teal-500/30 transition-colors"
+                <Link
+                  key={follow.follower_id}
+                  href={p?.username ? getProfileRoute(p.username, 'reader') : '#'}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors first:rounded-t-xl last:rounded-b-xl"
                 >
-                  <Avatar className="h-9 w-9 shrink-0">
+                  <Avatar className="h-8 w-8 shrink-0">
                     <AvatarImage src={p?.avatar_url} />
-                    <AvatarFallback className="text-xs font-black bg-teal-500 text-white">{initials}</AvatarFallback>
+                    <AvatarFallback className="text-xs bg-muted text-foreground">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black truncate">{p?.display_name || p?.username}</p>
-                    <p className="text-xs text-muted-foreground">{p?.total_recommendations ?? 0} recommendations · Followed {formatDate(follow.created_at)}</p>
+                    <p className="text-sm text-foreground truncate">{p?.display_name || p?.username}</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      {p?.total_recommendations ?? 0} recommendations · Followed {formatDate(follow.created_at)}
+                    </p>
                   </div>
-                  <ArrowRight size={13} className="text-muted-foreground/40 shrink-0" />
                 </Link>
               )
             })}
           </div>
         )}
-      </div>
-    </div>
+      </section>
+    </PageShell>
   )
 }
