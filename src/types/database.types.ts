@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -309,6 +309,13 @@ export type Database = {
             referencedRelation: "recommendations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bake_requests_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       checker_priority_queue: {
@@ -356,6 +363,13 @@ export type Database = {
             referencedRelation: "recommendations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "checker_priority_queue_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       collection_items: {
@@ -396,6 +410,13 @@ export type Database = {
             columns: ["recommendation_id"]
             isOneToOne: false
             referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collection_items_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
             referencedColumns: ["id"]
           },
         ]
@@ -482,6 +503,42 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comick_series_map: {
+        Row: {
+          comick_hid: string
+          created_at: string | null
+          matched_title: string | null
+          recommendation_id: string
+        }
+        Insert: {
+          comick_hid: string
+          created_at?: string | null
+          matched_title?: string | null
+          recommendation_id: string
+        }
+        Update: {
+          comick_hid?: string
+          created_at?: string | null
+          matched_title?: string | null
+          recommendation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comick_series_map_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comick_series_map_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
             referencedColumns: ["id"]
           },
         ]
@@ -573,6 +630,13 @@ export type Database = {
             columns: ["recommendation_id"]
             isOneToOne: false
             referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_featured_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
             referencedColumns: ["id"]
           },
         ]
@@ -736,6 +800,64 @@ export type Database = {
           {
             foreignKeyName: "dmca_submissions_resolved_by_fkey"
             columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      favorite_characters: {
+        Row: {
+          bond_level: number
+          created_at: string
+          id: string
+          image_url: string | null
+          name: string
+          position: number
+          recommendation_id: string | null
+          tagline: string | null
+          user_id: string
+        }
+        Insert: {
+          bond_level?: number
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          name: string
+          position?: number
+          recommendation_id?: string | null
+          tagline?: string | null
+          user_id: string
+        }
+        Update: {
+          bond_level?: number
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          name?: string
+          position?: number
+          recommendation_id?: string | null
+          tagline?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_characters_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "favorite_characters_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "favorite_characters_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -944,10 +1066,52 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "journal_entries_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "journal_entries_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      list_folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "list_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "list_folders"
             referencedColumns: ["id"]
           },
         ]
@@ -1226,6 +1390,13 @@ export type Database = {
             columns: ["recommendation_id"]
             isOneToOne: false
             referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pinned_quotes_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
             referencedColumns: ["id"]
           },
           {
@@ -1552,6 +1723,13 @@ export type Database = {
             referencedRelation: "recommendations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_pinned_recommendation_id_fkey"
+            columns: ["pinned_recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       push_subscriptions: {
@@ -1614,6 +1792,13 @@ export type Database = {
             columns: ["recommendation_id"]
             isOneToOne: false
             referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reactions_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
             referencedColumns: ["id"]
           },
           {
@@ -1728,6 +1913,13 @@ export type Database = {
             referencedRelation: "recommendations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "reading_list_items_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       reading_lists: {
@@ -1735,6 +1927,7 @@ export type Database = {
           cover_url: string | null
           created_at: string | null
           description: string | null
+          folder_id: string | null
           id: string
           is_public: boolean | null
           name: string
@@ -1746,6 +1939,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string | null
           description?: string | null
+          folder_id?: string | null
           id?: string
           is_public?: boolean | null
           name: string
@@ -1757,6 +1951,7 @@ export type Database = {
           cover_url?: string | null
           created_at?: string | null
           description?: string | null
+          folder_id?: string | null
           id?: string
           is_public?: boolean | null
           name?: string
@@ -1765,6 +1960,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "reading_lists_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "list_folders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reading_lists_user_id_fkey"
             columns: ["user_id"]
@@ -1817,6 +2019,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reading_progress_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "reading_progress_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -1859,6 +2068,13 @@ export type Database = {
             columns: ["recommendation_id"]
             isOneToOne: false
             referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reading_sessions_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
             referencedColumns: ["id"]
           },
           {
@@ -1948,6 +2164,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "recommendation_analytics_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "recommendation_analytics_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -1991,6 +2214,13 @@ export type Database = {
             columns: ["recommendation_id"]
             isOneToOne: false
             referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recommendation_tags_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
             referencedColumns: ["id"]
           },
           {
@@ -2079,6 +2309,7 @@ export type Database = {
           status: string
           themes: string[] | null
           title: string
+          title_norm: string | null
           translation_status: string
           type: string
           updated_at: string | null
@@ -2166,6 +2397,7 @@ export type Database = {
           status: string
           themes?: string[] | null
           title: string
+          title_norm?: string | null
           translation_status?: string
           type: string
           updated_at?: string | null
@@ -2253,6 +2485,7 @@ export type Database = {
           status?: string
           themes?: string[] | null
           title?: string
+          title_norm?: string | null
           translation_status?: string
           type?: string
           updated_at?: string | null
@@ -2452,6 +2685,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reviews_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "reviews_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -2485,6 +2725,13 @@ export type Database = {
             columns: ["recommendation_id"]
             isOneToOne: false
             referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saves_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
             referencedColumns: ["id"]
           },
           {
@@ -2669,6 +2916,13 @@ export type Database = {
             columns: ["recommendation_id"]
             isOneToOne: false
             referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sponsored_picks_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2898,6 +3152,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "user_comic_sources_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "user_comic_sources_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -3018,6 +3279,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "user_interactions_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "user_interactions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -3116,6 +3384,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "votes_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "votes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -3136,6 +3411,170 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "reading_sessions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recommendations_public: {
+        Row: {
+          alternative_titles: string[] | null
+          alternative_titles_flat: string | null
+          artist: string | null
+          author: string | null
+          banner_url: string | null
+          best_for: string | null
+          carousel_until: string | null
+          chapter_count: number | null
+          cons: string[] | null
+          content_rating: string | null
+          content_warnings: string[] | null
+          cover_credit: string | null
+          cover_url: string | null
+          created_at: string | null
+          daily_votes: number | null
+          description: string | null
+          downvotes: number | null
+          featured_at: string | null
+          genres: string[] | null
+          id: string | null
+          is_ai_generated: boolean | null
+          is_approved: boolean | null
+          is_featured: boolean | null
+          is_official_only: boolean | null
+          is_own_work: boolean | null
+          is_pro_submission: boolean | null
+          last_chapter_released_at: string | null
+          more_info_link: string | null
+          official_links: string[] | null
+          official_platforms: string[] | null
+          original_language: string | null
+          pros: string[] | null
+          publisher: string | null
+          review_count: number | null
+          save_count: number | null
+          score: number | null
+          status: string | null
+          themes: string[] | null
+          title: string | null
+          translation_status: string | null
+          type: string | null
+          updated_at: string | null
+          upvotes: number | null
+          user_id: string | null
+          view_count: number | null
+          why_recommend: string | null
+          year_confidence: string | null
+          year_ended: number | null
+          year_released: number | null
+        }
+        Insert: {
+          alternative_titles?: string[] | null
+          alternative_titles_flat?: string | null
+          artist?: string | null
+          author?: string | null
+          banner_url?: string | null
+          best_for?: string | null
+          carousel_until?: string | null
+          chapter_count?: number | null
+          cons?: string[] | null
+          content_rating?: string | null
+          content_warnings?: string[] | null
+          cover_credit?: string | null
+          cover_url?: string | null
+          created_at?: string | null
+          daily_votes?: number | null
+          description?: string | null
+          downvotes?: number | null
+          featured_at?: string | null
+          genres?: string[] | null
+          id?: string | null
+          is_ai_generated?: boolean | null
+          is_approved?: boolean | null
+          is_featured?: boolean | null
+          is_official_only?: boolean | null
+          is_own_work?: boolean | null
+          is_pro_submission?: boolean | null
+          last_chapter_released_at?: string | null
+          more_info_link?: string | null
+          official_links?: string[] | null
+          official_platforms?: string[] | null
+          original_language?: string | null
+          pros?: string[] | null
+          publisher?: string | null
+          review_count?: number | null
+          save_count?: number | null
+          score?: number | null
+          status?: string | null
+          themes?: string[] | null
+          title?: string | null
+          translation_status?: string | null
+          type?: string | null
+          updated_at?: string | null
+          upvotes?: number | null
+          user_id?: string | null
+          view_count?: number | null
+          why_recommend?: string | null
+          year_confidence?: string | null
+          year_ended?: number | null
+          year_released?: number | null
+        }
+        Update: {
+          alternative_titles?: string[] | null
+          alternative_titles_flat?: string | null
+          artist?: string | null
+          author?: string | null
+          banner_url?: string | null
+          best_for?: string | null
+          carousel_until?: string | null
+          chapter_count?: number | null
+          cons?: string[] | null
+          content_rating?: string | null
+          content_warnings?: string[] | null
+          cover_credit?: string | null
+          cover_url?: string | null
+          created_at?: string | null
+          daily_votes?: number | null
+          description?: string | null
+          downvotes?: number | null
+          featured_at?: string | null
+          genres?: string[] | null
+          id?: string | null
+          is_ai_generated?: boolean | null
+          is_approved?: boolean | null
+          is_featured?: boolean | null
+          is_official_only?: boolean | null
+          is_own_work?: boolean | null
+          is_pro_submission?: boolean | null
+          last_chapter_released_at?: string | null
+          more_info_link?: string | null
+          official_links?: string[] | null
+          official_platforms?: string[] | null
+          original_language?: string | null
+          pros?: string[] | null
+          publisher?: string | null
+          review_count?: number | null
+          save_count?: number | null
+          score?: number | null
+          status?: string | null
+          themes?: string[] | null
+          title?: string | null
+          translation_status?: string | null
+          type?: string | null
+          updated_at?: string | null
+          upvotes?: number | null
+          user_id?: string | null
+          view_count?: number | null
+          why_recommend?: string | null
+          year_confidence?: string | null
+          year_ended?: number | null
+          year_released?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommendations_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -3216,6 +3655,13 @@ export type Database = {
           value: number
         }[]
       }
+      get_dedication_percentile: {
+        Args: { p_user_id: string }
+        Returns: {
+          reader_count: number
+          top_pct: number
+        }[]
+      }
       get_discover_feed: {
         Args: { p_limit?: number; p_user_id: string }
         Returns: {
@@ -3245,17 +3691,10 @@ export type Database = {
       get_featured_comics: {
         Args: { limit_count?: number }
         Returns: {
-          ai_model: string | null
           alternative_titles: string[] | null
           alternative_titles_flat: string | null
-          anilist_id: string | null
-          appeal_status: string | null
-          appeal_submitted_at: string | null
-          appeal_text: string | null
           artist: string | null
           author: string | null
-          auto_hidden: boolean | null
-          auto_hidden_at: string | null
           banner_url: string | null
           best_for: string | null
           carousel_until: string | null
@@ -3266,65 +3705,36 @@ export type Database = {
           cover_credit: string | null
           cover_url: string | null
           created_at: string | null
-          daily_submissions_count: number | null
           daily_votes: number | null
-          description: string
+          description: string | null
           downvotes: number | null
-          draft_saved_at: string | null
           featured_at: string | null
-          featured_by: string | null
-          genres: string[]
-          id: string
-          id_locked_fields: string[]
-          id_needs_recheck: boolean | null
+          genres: string[] | null
+          id: string | null
           is_ai_generated: boolean | null
           is_approved: boolean | null
-          is_draft: boolean | null
           is_featured: boolean | null
           is_official_only: boolean | null
-          is_own_work: boolean
+          is_own_work: boolean | null
           is_pro_submission: boolean | null
-          kitsu_id: string | null
-          last_chapter_check: string | null
           last_chapter_released_at: string | null
-          last_daily_reset: string | null
-          last_full_reverify: string | null
-          last_id_check: string | null
-          last_more_info_check: string | null
-          mal_id: string | null
-          mangabaka_id: string | null
-          mangadex_id: string | null
-          mangaupdates_id: string | null
           more_info_link: string | null
-          more_info_link_source:
-            | Database["public"]["Enums"]["more_info_link_source"]
-            | null
-          more_info_link_verified_at: string | null
           official_links: string[] | null
-          official_platforms: string[]
+          official_platforms: string[] | null
           original_language: string | null
-          original_total_chapters: number | null
-          pending_original_status: string | null
           pros: string[] | null
           publisher: string | null
-          rejected_at: string | null
-          rejected_by: string | null
-          rejection_reason: string | null
-          report_count: number | null
-          report_threshold_hit_at: string | null
           review_count: number | null
-          reviewed_at: string | null
-          reviewed_by: string | null
           save_count: number | null
           score: number | null
-          status: string
+          status: string | null
           themes: string[] | null
-          title: string
-          translation_status: string
-          type: string
+          title: string | null
+          translation_status: string | null
+          type: string | null
           updated_at: string | null
           upvotes: number | null
-          user_id: string
+          user_id: string | null
           view_count: number | null
           why_recommend: string | null
           year_confidence: string | null
@@ -3333,7 +3743,7 @@ export type Database = {
         }[]
         SetofOptions: {
           from: "*"
-          to: "recommendations"
+          to: "recommendations_public"
           isOneToOne: false
           isSetofReturn: true
         }
@@ -3518,6 +3928,14 @@ export type Database = {
           upvotes: number
         }[]
       }
+      get_user_genre_profile: {
+        Args: { p_user_id: string }
+        Returns: {
+          comic_count: number
+          genre: string
+          total_comics: number
+        }[]
+      }
       get_wildcard_recommendations: {
         Args: { p_exclude_ids: string[]; p_limit: number; p_user_id: string }
         Returns: {
@@ -3607,17 +4025,10 @@ export type Database = {
           p_type?: string
         }
         Returns: {
-          ai_model: string | null
           alternative_titles: string[] | null
           alternative_titles_flat: string | null
-          anilist_id: string | null
-          appeal_status: string | null
-          appeal_submitted_at: string | null
-          appeal_text: string | null
           artist: string | null
           author: string | null
-          auto_hidden: boolean | null
-          auto_hidden_at: string | null
           banner_url: string | null
           best_for: string | null
           carousel_until: string | null
@@ -3628,65 +4039,36 @@ export type Database = {
           cover_credit: string | null
           cover_url: string | null
           created_at: string | null
-          daily_submissions_count: number | null
           daily_votes: number | null
-          description: string
+          description: string | null
           downvotes: number | null
-          draft_saved_at: string | null
           featured_at: string | null
-          featured_by: string | null
-          genres: string[]
-          id: string
-          id_locked_fields: string[]
-          id_needs_recheck: boolean | null
+          genres: string[] | null
+          id: string | null
           is_ai_generated: boolean | null
           is_approved: boolean | null
-          is_draft: boolean | null
           is_featured: boolean | null
           is_official_only: boolean | null
-          is_own_work: boolean
+          is_own_work: boolean | null
           is_pro_submission: boolean | null
-          kitsu_id: string | null
-          last_chapter_check: string | null
           last_chapter_released_at: string | null
-          last_daily_reset: string | null
-          last_full_reverify: string | null
-          last_id_check: string | null
-          last_more_info_check: string | null
-          mal_id: string | null
-          mangabaka_id: string | null
-          mangadex_id: string | null
-          mangaupdates_id: string | null
           more_info_link: string | null
-          more_info_link_source:
-            | Database["public"]["Enums"]["more_info_link_source"]
-            | null
-          more_info_link_verified_at: string | null
           official_links: string[] | null
-          official_platforms: string[]
+          official_platforms: string[] | null
           original_language: string | null
-          original_total_chapters: number | null
-          pending_original_status: string | null
           pros: string[] | null
           publisher: string | null
-          rejected_at: string | null
-          rejected_by: string | null
-          rejection_reason: string | null
-          report_count: number | null
-          report_threshold_hit_at: string | null
           review_count: number | null
-          reviewed_at: string | null
-          reviewed_by: string | null
           save_count: number | null
           score: number | null
-          status: string
+          status: string | null
           themes: string[] | null
-          title: string
-          translation_status: string
-          type: string
+          title: string | null
+          translation_status: string | null
+          type: string | null
           updated_at: string | null
           upvotes: number | null
-          user_id: string
+          user_id: string | null
           view_count: number | null
           why_recommend: string | null
           year_confidence: string | null
@@ -3695,7 +4077,7 @@ export type Database = {
         }[]
         SetofOptions: {
           from: "*"
-          to: "recommendations"
+          to: "recommendations_public"
           isOneToOne: false
           isSetofReturn: true
         }

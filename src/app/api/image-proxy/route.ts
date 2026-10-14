@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server'
 
 const ALLOWED_HOSTS = [
   'cdn.myanimelist.net',
+  'tappytoon.com',
   'myanimelist.net', // MAL also serves images off the bare apex domain
   'myanimelist.cdn-dena.com', // legacy MAL CDN domain
   'midjmppgyvvhgmskilbf.supabase.co', // your own Supabase storage bucket

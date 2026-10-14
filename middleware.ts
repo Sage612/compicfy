@@ -1,4 +1,4 @@
-import { type NextRequest, NextResponse } from 'next/server'
+﻿import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
@@ -17,7 +17,7 @@ export async function middleware(request: NextRequest) {
 
     if (!isCron && !isGate && !isMangaDetails) {
       const bypass = request.cookies.get('vercel_preview_access')?.value
-      if (bypass !== process.env.PREVIEW_ACCESS_SECRET) {
+      if (!process.env.PREVIEW_ACCESS_SECRET || bypass !== process.env.PREVIEW_ACCESS_SECRET) {
         return NextResponse.redirect('https://compicfy.com' + pathname)
       }
     }

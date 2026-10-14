@@ -8,6 +8,7 @@
 // empty list and that section does not render.
 
 import type { createClient } from '@/lib/supabase/server'
+import type { JournalItem } from '@/lib/profile/getProfileExtras'
 
 type Supa = Awaited<ReturnType<typeof createClient>>
 
@@ -24,6 +25,7 @@ export interface PartyMember {
   bondLevel:   number
   seriesTitle: string | null
   seriesCover: string | null
+  createdAt:   string
 }
 
 export async function getParty(supabase: Supa, profileId: string): Promise<PartyMember[]> {
@@ -31,7 +33,7 @@ export async function getParty(supabase: Supa, profileId: string): Promise<Party
   // regenerate the types; hence the `as any`.
   const { data } = await (supabase as any)
     .from('favorite_characters')
-    .select('id, name, tagline, image_url, bond_level, recommendations(id, title, cover_url)')
+    .select('id, name, tagline, image_url, bond_level, created_at, recommendations(id, title, cover_url)')
     .eq('user_id', profileId)
     .order('position', { ascending: true })
     .order('created_at', { ascending: true })
@@ -47,6 +49,7 @@ export async function getParty(supabase: Supa, profileId: string): Promise<Party
       bondLevel:   r.bond_level ?? 1,
       seriesTitle: rec?.title ?? null,
       seriesCover: rec?.cover_url ?? null,
+      createdAt:   r.created_at,
     }
   })
 }
@@ -90,4 +93,101 @@ export async function getOtherShrines(supabase: Supa, profileId: string): Promis
     if (people.length === 6) break
   }
   return people
+}
+
+/* ── Activity feed ─────────────────────────────────────────────
+   One merged, newest-first timeline built from data that already exists:
+   journal entries, stamped quotes, finished series (public lists only) and
+   new party members. Nothing extra is stored. */
+
+export interface ActivityEvent {
+  id:        string
+  kind:      'journal' | 'quote' | 'finished' | 'bond'
+  at:        string
+  title:     string
+  body:      string | null
+  isSpoiler: boolean
+  moodEmoji: string | null
+  likeCount: number
+  replyCount: number
+  comicTitle: string | null
+  coverUrl:   string | null
+  /** Set only for journal entries, so the owner can delete them. */
+  journalId:  string | null
+}
+
+export async function getActivityEvents(
+  supabase: Supa,
+  profileId: string,
+  journal: JournalItem[],
+  party: PartyMember[],
+): Promise<ActivityEvent[]> {
+  const events: ActivityEvent[] = []
+
+  for (const j of journal) {
+    events.push({
+      id: `j-${j.id}`, kind: 'journal', at: j.createdAt,
+      title: j.comicTitle && j.chapterLabel ? `Logged ${j.chapterLabel} of ${j.comicTitle}` : 'Journaled a session',
+      body: j.content, isSpoiler: j.isSpoiler, moodEmoji: j.moodEmoji,
+      likeCount: j.likeCount, replyCount: j.replyCount,
+      comicTitle: j.comicTitle, coverUrl: j.coverUrl, journalId: j.id,
+    })
+  }
+
+  for (const m of party) {
+    events.push({
+      id: `b-${m.id}`, kind: 'bond', at: m.createdAt,
+      title: `Bonded with ${m.name}`,
+      body: m.tagline ?? `Bond level ${m.bondLevel}`,
+      isSpoiler: false, moodEmoji: null, likeCount: 0, replyCount: 0,
+      comicTitle: m.seriesTitle, coverUrl: m.seriesCover, journalId: null,
+    })
+  }
+
+  const [quotesRes, listsRes] = await Promise.all([
+    (supabase as any)
+      .from('pinned_quotes')
+      .select('id, quote_text, stamp_count, created_at, recommendations(id, title, cover_url)')
+      .eq('user_id', profileId)
+      .order('created_at', { ascending: false })
+      .limit(10),
+    supabase.from('reading_lists').select('id').eq('user_id', profileId).eq('is_public', true),
+  ])
+
+  for (const q of (quotesRes?.data ?? []) as any[]) {
+    const rec = one<any>(q.recommendations)
+    events.push({
+      id: `q-${q.id}`, kind: 'quote', at: q.created_at,
+      title: 'Stamped a line', body: `\u201C${q.quote_text}\u201D`,
+      isSpoiler: false, moodEmoji: null, likeCount: q.stamp_count ?? 0, replyCount: 0,
+      comicTitle: rec?.title ?? null, coverUrl: rec?.cover_url ?? null, journalId: null,
+    })
+  }
+
+  // Finished series: public lists only, so private reading stays private.
+  const listIds = ((listsRes?.data ?? []) as any[]).map(l => l.id)
+  if (listIds.length > 0) {
+    const { data: done } = await supabase
+      .from('reading_list_items')
+      .select('id, last_read_at, updated_at, added_at, recommendations(id, title, cover_url, content_rating)')
+      .in('list_id', listIds)
+      .eq('status', 'completed')
+      .order('last_read_at', { ascending: false, nullsFirst: false })
+      .limit(8)
+
+    for (const d of (done ?? []) as any[]) {
+      const rec = one<any>(d.recommendations)
+      const at = d.last_read_at ?? d.updated_at ?? d.added_at
+      if (!rec || !at || rec.content_rating === 'adult' || rec.content_rating === 'mature') continue
+      events.push({
+        id: `f-${d.id}`, kind: 'finished', at,
+        title: `Finished ${rec.title}`, body: null,
+        isSpoiler: false, moodEmoji: null, likeCount: 0, replyCount: 0,
+        comicTitle: rec.title, coverUrl: rec.cover_url ?? null, journalId: null,
+      })
+    }
+  }
+
+  events.sort((x, y) => new Date(y.at).getTime() - new Date(x.at).getTime())
+  return events.slice(0, 40)
 }

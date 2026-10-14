@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { ReleaseRadar } from '@/components/recommendations/ReleaseRadar'
 import { isProUser } from '@/lib/access'
+import { PageShell } from '@/components/dashboard/PageHeader'
 
 export const metadata: Metadata = {
   title: 'Release Radar',
@@ -23,8 +24,8 @@ export default async function ReleaseRadarPage() {
   const isPro = profile ? isProUser(profile as any) : false
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <ReleaseRadar isPro={isPro} />
-    </div>
+    <PageShell width="narrow">
+      <ReleaseRadar isPro={isPro} backHref="/reader/dashboard" />
+    </PageShell>
   )
 }

@@ -3,11 +3,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
-import {
-  ChevronLeft, ChevronRight, Loader2, BookOpen, Crown, Download,
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { COMIC_TYPES, GENRES, STATUSES, TYPE_META } from '@/lib/utils/constants'
+import { COMIC_TYPES, GENRES, STATUSES } from '@/lib/utils/constants'
+import { PageHeader } from '@/components/dashboard/PageHeader'
 
 interface RadarItem {
   list_id:                  string
@@ -22,7 +21,8 @@ interface RadarItem {
 }
 
 interface Props {
-  isPro: boolean
+  isPro:     boolean
+  backHref?: string
 }
 
 function formatWeekLabel(startIso: string, endIso: string): string {
@@ -41,7 +41,7 @@ function dayKey(iso: string): string {
   return new Date(iso).toDateString()
 }
 
-export function ReleaseRadar({ isPro }: Props) {
+export function ReleaseRadar({ isPro, backHref = '/reader/dashboard' }: Props) {
   const [items,       setItems]       = useState<RadarItem[]>([])
   const [loading,     setLoading]     = useState(true)
   const [weekOffset,  setWeekOffset]  = useState(0)
@@ -126,20 +126,14 @@ export function ReleaseRadar({ isPro }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Header — matches the plain h1/font-serif convention used across
-          the rest of the dashboard (no icon, no small h2) */}
-      <div className="space-y-1.5">
-        <h1 className="font-serif text-3xl tracking-tight text-foreground">Release Radar</h1>
-        <div className="flex items-center gap-3 text-[11px] uppercase tracking-wide text-muted-foreground/60">
-          <span>{weekOffset === 0 ? 'This week' : weekLabel}</span>
-          {items.length > 0 && (
-            <>
-              <span className="text-border">·</span>
-              <span>{items.length} comic{items.length !== 1 ? 's' : ''}</span>
-            </>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Library"
+        title="Release Radar"
+        subtitle={[weekOffset === 0 ? 'This week' : weekLabel, items.length > 0 && `${items.length} comic${items.length !== 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
+        backHref={backHref}
+        backLabel="Dashboard"
+        isPro={isPro}
+      />
 
       {/* Week nav + filters + export — one quiet control row */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -171,13 +165,13 @@ export function ReleaseRadar({ isPro }: Props) {
               className="text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               {showFilters ? 'Hide filters' : 'Filters'}
-              {hasActiveFilters && !showFilters && <span className="ml-1 text-primary">•</span>}
+              {hasActiveFilters && !showFilters && <span className="ml-1 text-foreground">•</span>}
             </button>
-            <a href={buildExportUrl('csv')} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-              <Download size={11} /> CSV
+            <a href={buildExportUrl('csv')} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              CSV
             </a>
-            <a href={buildExportUrl('pdf')} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
-              <Download size={11} /> PDF
+            <a href={buildExportUrl('pdf')} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              PDF
             </a>
           </div>
         )}
@@ -190,8 +184,8 @@ export function ReleaseRadar({ isPro }: Props) {
             Browse past weeks, filter, and export — Pro feature.
           </p>
           <Link href="/pricing" className="shrink-0">
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-amber-500 hover:opacity-80 transition-opacity whitespace-nowrap">
-              <Crown size={11} /> Upgrade
+            <span className="text-xs text-foreground underline underline-offset-4 hover:text-muted-foreground transition-colors whitespace-nowrap">
+              Upgrade
             </span>
           </Link>
         </div>
@@ -247,8 +241,7 @@ export function ReleaseRadar({ isPro }: Props) {
         </div>
       ) : items.length === 0 ? (
         <div className="text-center py-14 space-y-1.5">
-          <BookOpen size={18} className="text-muted-foreground/30 mx-auto" />
-          <p className="text-sm text-muted-foreground/60">
+          <p className="text-sm text-muted-foreground">
             No new chapters {weekOffset === 0 ? 'this week' : 'that week'} for your tracked comics.
           </p>
         </div>
@@ -256,12 +249,11 @@ export function ReleaseRadar({ isPro }: Props) {
         <div className="space-y-6">
           {orderedDayKeys.map(key => (
             <div key={key} className="space-y-3">
-              <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/50">
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">
                 {dayLabel(groups[key][0].last_chapter_released_at)}
               </p>
               <div className="grid grid-cols-3 gap-x-3 gap-y-5">
                 {groups[key].map(item => {
-                  const typeMeta = TYPE_META[item.type as keyof typeof TYPE_META] ?? TYPE_META.other
                   const behind = item.progress_chapter != null
                     ? Math.max(0, item.chapter_count - item.progress_chapter)
                     : null
@@ -273,21 +265,16 @@ export function ReleaseRadar({ isPro }: Props) {
                       className="group space-y-1.5"
                     >
                       <div className="relative aspect-[2/3] rounded-lg overflow-hidden bg-muted">
-                        <div className={cn('absolute top-0 left-0 right-0 h-[3px]', typeMeta.bar)} />
                         {item.cover_url ? (
                           <img
                             src={`/api/image-proxy?url=${encodeURIComponent(item.cover_url)}`}
                             alt={item.title}
                             className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
                           />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <BookOpen size={16} className="text-muted-foreground opacity-40" />
-                          </div>
-                        )}
+                        ) : null}
                       </div>
                       <div className="space-y-0.5">
-                        <p className="text-xs font-medium leading-snug line-clamp-2 group-hover:opacity-70 transition-opacity">
+                        <p className="font-dashboard-serif text-sm leading-snug line-clamp-2 group-hover:opacity-70 transition-opacity">
                           {item.title}
                         </p>
                         <p className="text-[11px] text-muted-foreground/70">

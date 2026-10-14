@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { sendWelcomeEmail } from '@/lib/email/send'
 
@@ -7,7 +7,9 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://compicfy.com'
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/browse'
+  const rawNext = searchParams.get('next') ?? '/browse'
+  // Same-site relative paths only: blocks '@evil.com', '//evil.com' and '/\evil.com'
+  const next = /^\/(?![\/\\])/.test(rawNext) ? rawNext : '/browse'
 
   if (code) {
     const supabase = await createClient()

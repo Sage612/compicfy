@@ -5,12 +5,10 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
-import {
-  BookOpen, Croissant, Check, X, Loader2, ExternalLink,
-  Sparkles, ArrowRight, Search,
-} from 'lucide-react'
+import { BookOpen, Check, X, Loader2, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet'
+import { PageHeader } from '@/components/dashboard/PageHeader'
 
 interface ChapterUpdate {
   list_id:           string
@@ -30,40 +28,29 @@ interface BakeItem {
   target_chapter_count: number
   counting_mode: 'from_now' | 'from_read'
   chapter_count_at_bake_start: number
-  progress_chapter?: number | null
   status: 'active' | 'fulfilled'
+  progress_chapter?: number | null
   recommendations?: { title: string; cover_url: string | null; chapter_count: number }
 }
 
 interface Props {
   initialUpdates: ChapterUpdate[]
   initialBakes:   BakeItem[]
+  backHref?:      string
+  isPro?:         boolean
 }
 
-const THEME_GRAD: Record<number, string> = {
-  0: 'from-primary/60 via-primary/20 to-primary/5',
-  1: 'from-violet-500/60 via-violet-500/20 to-violet-500/5',
-  2: 'from-rose-500/60 via-rose-500/20 to-rose-500/5',
-  3: 'from-amber-500/60 via-amber-500/20 to-amber-500/5',
-  4: 'from-emerald-500/60 via-emerald-500/20 to-emerald-500/5',
-  5: 'from-indigo-500/60 via-indigo-500/20 to-indigo-500/5',
-}
-const THEME_BORDER: Record<number, string> = {
-  0: 'border-primary/30',     1: 'border-violet-500/30',
-  2: 'border-rose-500/30',    3: 'border-amber-500/30',
-  4: 'border-emerald-500/30', 5: 'border-indigo-500/30',
-}
-const THEME_ACCENT: Record<number, string> = {
-  0: 'text-primary',      1: 'text-violet-400',
-  2: 'text-rose-400',     3: 'text-amber-400',
-  4: 'text-emerald-400',  5: 'text-indigo-400',
+const proxy = (url: string) => `/api/image-proxy?url=${encodeURIComponent(url)}`
+
+function Cover({ url, alt }: { url: string | null | undefined; alt: string }) {
+  return (
+    <div className="w-10 h-14 rounded-md overflow-hidden bg-muted shrink-0">
+      {url && <img src={proxy(url)} alt={alt} className="w-full h-full object-cover" />}
+    </div>
+  )
 }
 
-function themeIndex(id: string): number {
-  return id.slice(-6).split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 6
-}
-
-export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
+export function UpdatesClient({ initialUpdates, initialBakes, backHref = '/reader/dashboard', isPro = false }: Props) {
   const [updates, setUpdates] = useState<ChapterUpdate[]>(initialUpdates)
   const [bakes,   setBakes]   = useState<BakeItem[]>(initialBakes)
 
@@ -75,10 +62,8 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
   const [actionSheetBake,   setActionSheetBake]   = useState<BakeItem | null>(null)
   const [busyBakeId, setBusyBakeId] = useState<number | null>(null)
 
-  // ── Tabs + search — added after a real usability issue was flagged:
-  // with hundreds of chapter updates, bakes could sit buried at the
-  // bottom of the page with no way to jump to them directly, and no way
-  // to find one specific title without scrolling through everything. ──
+  // Tabs + search: with hundreds of updates, bakes would otherwise sit buried
+  // at the bottom with no way to jump to them or find one title.
   const [activeTab, setActiveTab] = useState<'all' | 'chapters' | 'bakes'>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -94,20 +79,14 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
       const res = await fetch(`/api/reading-progress/${update.recommendation_id}`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          list_id:          update.list_id,
-          status:           update.status,
-          progress_chapter: pendingChapter,
-        }),
+        body: JSON.stringify({ list_id: update.list_id, status: update.status, progress_chapter: pendingChapter }),
       })
       if (!res.ok) throw new Error()
       if (pendingChapter >= update.chapter_count) {
         setUpdates(prev => prev.filter(u => u.recommendation_id !== update.recommendation_id))
       } else {
         setUpdates(prev => prev.map(u =>
-          u.recommendation_id === update.recommendation_id
-            ? { ...u, progress_chapter: pendingChapter }
-            : u
+          u.recommendation_id === update.recommendation_id ? { ...u, progress_chapter: pendingChapter } : u
         ))
       }
       toast.success(`Progress updated — ch. ${pendingChapter}`)
@@ -145,7 +124,7 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
 
   const buildBakeActions = (bake: BakeItem): ActionSheetAction[] => [
     ...(bake.status === 'fulfilled' ? [{
-      label: 'Read now',
+      label: 'Open comic',
       icon: <BookOpen size={15} />,
       onClick: () => { window.location.href = `/comic/${bake.recommendation_id}` },
     }] : []),
@@ -157,10 +136,7 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
     },
   ]
 
-  // Search filters by title, case-insensitive, across whichever tab is
-  // active. Tab filtering happens first (which lists to even consider),
-  // then search narrows within that - so switching to "Bakes" + typing a
-  // title searches only bakes, not chapter updates that happen to match.
+  // Tab picks which lists to consider; search then narrows within that.
   const searchLower = searchQuery.trim().toLowerCase()
 
   const filteredUpdates = useMemo(() => {
@@ -177,18 +153,16 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
 
   const readyBakes  = filteredBakes.filter(b => b.status === 'fulfilled')
   const activeBakes = filteredBakes.filter(b => b.status === 'active')
-  const updates_    = filteredUpdates
   const hasNothing  = updates.length === 0 && bakes.length === 0
   const hasNoFilteredResults = !hasNothing && filteredUpdates.length === 0 && filteredBakes.length === 0
 
-  // Real counts (unfiltered) for the tab badges, so switching tabs shows
-  // stable numbers rather than numbers that shift based on the current
-  // search query.
+  // True, unfiltered counts so tab badges stay stable while searching.
   const totalUpdatesCount = updates.length
-  const totalBakesCount   = bakes.filter(b => b.status === 'fulfilled' || b.status === 'active').length
+  const totalBakesCount   = bakes.length
+  const attention = totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
 
       <ActionSheet
         open={!!actionSheetUpdate}
@@ -203,61 +177,44 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
         actions={actionSheetBake ? buildBakeActions(actionSheetBake) : []}
       />
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-          <BookOpen size={16} className="text-primary" />
-        </div>
-          <h1 className="text-2xl font-black tracking-tight leading-none">Updates</h1>
-        </div>
-        <p className="text-muted-foreground text-sm pl-0.5">
-          {totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length === 0
-            ? "You're all caught up"
-            : `${totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length} thing${totalUpdatesCount + bakes.filter(b => b.status === 'fulfilled').length !== 1 ? 's' : ''} need your attention`}
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Library"
+        title="Updates"
+        subtitle={attention === 0 ? "You're all caught up" : `${attention} thing${attention !== 1 ? 's' : ''} need your attention`}
+        backHref={backHref}
+        backLabel="Dashboard"
+        isPro={isPro}
+      />
 
-      {/* ── Tabs + search — real fix for the "500 comics, bakes buried at
-          the bottom" problem. Tab badges show true unfiltered counts so
-          switching tabs doesn't feel like numbers are moving around. ── */}
       {!hasNothing && (
         <div className="space-y-3">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
             {([
               { key: 'all',      label: 'All',      count: totalUpdatesCount + totalBakesCount },
-              { key: 'chapters', label: 'Chapters',  count: totalUpdatesCount },
-              { key: 'bakes',    label: 'Bakes',     count: totalBakesCount },
+              { key: 'chapters', label: 'Chapters', count: totalUpdatesCount },
+              { key: 'bakes',    label: 'Bakes',    count: totalBakesCount },
             ] as const).map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
                 className={cn(
-                  'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 whitespace-nowrap',
+                  'shrink-0 px-3 py-1.5 rounded-full text-xs border transition-colors whitespace-nowrap',
                   activeTab === tab.key
-                    ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
-                    : 'bg-background/80 border-border/60 text-muted-foreground hover:text-foreground hover:border-border'
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
                 )}
               >
-                {tab.label}
-                <span className={cn(
-                  'inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[9px] font-black',
-                  activeTab === tab.key ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
-                )}>
-                  {tab.count}
-                </span>
+                {tab.label} <span className="opacity-60 tabular-nums">{tab.count}</span>
               </button>
             ))}
           </div>
 
-          <div className="relative">
-            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <Input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search by title…"
-              className="h-9 pl-8 text-sm rounded-xl"
-            />
-          </div>
+          <Input
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search by title…"
+            className="h-9 text-sm bg-card"
+          />
         </div>
       )}
 
@@ -265,10 +222,10 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-sm">
             No {activeTab === 'all' ? 'results' : activeTab} matching
-            {searchLower && <span className="font-semibold text-foreground"> "{searchQuery}"</span>}
+            {searchLower && <span className="text-foreground"> “{searchQuery}”</span>}
           </p>
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')} className="text-xs text-primary hover:underline mt-1">
+            <button onClick={() => setSearchQuery('')} className="text-xs text-foreground underline underline-offset-4 mt-1">
               Clear search
             </button>
           )}
@@ -276,133 +233,84 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
       )}
 
       {hasNothing && (
-        <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
-          <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
-          <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-primary/5 blur-2xl pointer-events-none" />
-          <div className="relative w-28 h-28 mx-auto mb-6">
-            <div className="absolute top-0 left-2 w-16 h-22 rounded-xl border-2 border-border bg-muted/60 rotate-[-8deg]" />
-            <div className="absolute top-2 left-5 w-16 h-22 rounded-xl border-2 border-border bg-muted/80 rotate-[-3deg]" />
-            <div className="absolute top-4 left-8 w-16 h-22 rounded-xl border-2 border-primary/30 bg-card flex items-center justify-center shadow-lg">
-              <BookOpen size={20} className="text-primary/50" />
-            </div>
+        <div className="flex flex-col items-center justify-center py-20 rounded-xl border border-dashed border-border space-y-3 text-center">
+          <div>
+            <p className="font-dashboard-serif text-lg text-foreground">All caught up</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
+              New chapters and ready bakes will show up here as they come in.
+            </p>
           </div>
-          <h3 className="font-black text-xl mb-2">All caught up</h3>
-          <p className="text-sm text-muted-foreground mb-6 max-w-xs mx-auto leading-relaxed">
-            New chapters and ready bakes will show up here as they come in.
-          </p>
-          <Link href="/browse">
-            <Button variant="outline" size="sm" className="gap-2 hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all duration-200">
-              <Sparkles size={14} />Browse Comics
-            </Button>
+          <Link href="/browse" className="text-xs text-foreground underline underline-offset-4 hover:text-muted-foreground transition-colors">
+            Browse comics
           </Link>
         </div>
       )}
 
       {readyBakes.length > 0 && (
         <section className="space-y-3">
-          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">
-            Ready to binge
-          </p>
+          <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Ready to binge</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {readyBakes.map(bake => {
-              const ti = themeIndex(String(bake.id))
-              return (
-                <div key={bake.id} className="group relative rounded-2xl border border-orange-500/30 bg-card overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5">
-                  <div className={cn('h-16 relative overflow-hidden bg-gradient-to-br to-transparent', THEME_GRAD[ti])}>
-                    {bake.recommendations?.cover_url && (
-                      <img
-                        src={`/api/image-proxy?url=${encodeURIComponent(bake.recommendations.cover_url)}`}
-                        alt=""
-                        className="absolute inset-0 w-full h-full object-cover opacity-60"
-                      />
-                    )}
-                    <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-card to-transparent" />
-                    <div className="absolute top-2 left-2">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-orange-500/20 text-orange-600 border border-orange-500/20 backdrop-blur-sm">
-                        <Croissant size={8} /> Ready
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-3 space-y-2">
-                    <p className="font-black text-sm line-clamp-1">{bake.recommendations?.title}</p>
-                    <p className="text-xs text-muted-foreground">{bake.target_chapter_count} chapters waiting</p>
-                    <div className="flex items-center gap-1.5">
-                      <Link href={`/comic/${bake.recommendation_id}`} className="flex-1">
-                        <Button size="sm" className="w-full h-7 text-xs gap-1.5">
-                          <BookOpen size={11} />Read now
-                        </Button>
-                      </Link>
-                      <Button
-                        variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        onClick={() => setActionSheetBake(bake)}
-                      >
-                        <X size={13} />
-                      </Button>
-                    </div>
-                  </div>
+            {readyBakes.map(bake => (
+              <div key={bake.id} className="flex items-center gap-3 p-3 rounded-xl border border-foreground/30 bg-card">
+                <Cover url={bake.recommendations?.cover_url} alt={bake.recommendations?.title ?? ''} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-dashboard-serif text-base text-foreground line-clamp-1">{bake.recommendations?.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{bake.target_chapter_count} chapters waiting</p>
                 </div>
-              )
-            })}
+                <div className="flex items-center gap-1 shrink-0">
+                  <Link href={`/comic/${bake.recommendation_id}`}>
+                    <Button size="sm" className="h-7 text-xs">Open</Button>
+                  </Link>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                    aria-label="Bake options" onClick={() => setActionSheetBake(bake)}>
+                    <X size={13} />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}
 
-      {updates_.length > 0 && (
+      {filteredUpdates.length > 0 && (
         <section className="space-y-3">
-          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">
-            New chapters
-          </p>
+          <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">New chapters</p>
           <div className="space-y-2">
-            {updates_.map(update => {
+            {filteredUpdates.map(update => {
               const isPickerOpen = pickerOpenFor === update.recommendation_id
               const isSaving     = savingId === update.recommendation_id
               const currentProgress = update.progress_chapter ?? 0
-              const ti = themeIndex(update.recommendation_id)
 
               return (
-                <div key={update.recommendation_id} className={cn('rounded-2xl border bg-card overflow-hidden transition-all duration-200', THEME_BORDER[ti])}>
+                <div key={update.recommendation_id} className="rounded-xl border border-border bg-card overflow-hidden">
                   <div className="flex items-center gap-3 p-3">
-                    <Link href={`/comic/${update.recommendation_id}`} className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
-                      {update.cover_url ? (
-                        <img
-                          src={`/api/image-proxy?url=${encodeURIComponent(update.cover_url)}`}
-                          alt={update.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <BookOpen size={14} className="text-muted-foreground/40" />
-                        </div>
-                      )}
+                    <Link href={`/comic/${update.recommendation_id}`} className="shrink-0">
+                      <Cover url={update.cover_url} alt={update.title} />
                     </Link>
                     <div className="min-w-0 flex-1">
-                      <Link href={`/comic/${update.recommendation_id}`} className="font-black text-sm hover:text-primary transition-colors line-clamp-1 block">
+                      <Link href={`/comic/${update.recommendation_id}`} className="font-dashboard-serif text-base text-foreground hover:text-muted-foreground transition-colors line-clamp-1 block">
                         {update.title}
                       </Link>
-                      <p className={cn('text-xs mt-0.5', THEME_ACCENT[ti])}>
-                        Ch. {currentProgress} → {update.chapter_count} available
+                      <p className="text-xs text-muted-foreground mt-0.5 tabular-nums">
+                        Ch. {currentProgress} of {update.chapter_count} · {update.chapter_count - currentProgress} new
                       </p>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0">
                       {!isPickerOpen && (
-                        <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 hover:border-primary/40 hover:text-primary" onClick={() => openPicker(update)}>
-                          <Check size={11} />Update
-                        </Button>
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => openPicker(update)}>Update</Button>
                       )}
-                      <Button
-                        variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                        onClick={() => setActionSheetUpdate(update)}
-                      >
-                        <ArrowRight size={13} />
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        aria-label="More" onClick={() => setActionSheetUpdate(update)}>
+                        More
                       </Button>
                     </div>
                   </div>
 
                   {isPickerOpen && (
-                    <div className="px-3 pb-3 pt-1 border-t border-border/50 space-y-2">
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="px-3 pb-3 pt-2 border-t border-border space-y-2">
+                      <div className="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
                         <span>Ch. {currentProgress}</span>
-                        <span className={cn('font-semibold', THEME_ACCENT[ti])}>Reading up to ch. {pendingChapter}</span>
+                        <span className="text-foreground">Read up to ch. {pendingChapter}</span>
                         <span>Ch. {update.chapter_count}</span>
                       </div>
                       <input
@@ -411,15 +319,12 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
                         max={update.chapter_count}
                         value={pendingChapter}
                         onChange={e => setPendingChapter(Number(e.target.value))}
-                        className="w-full accent-primary"
+                        className="w-full accent-foreground"
                       />
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="sm" className="flex-1 h-8 text-xs" onClick={() => setPickerOpenFor(null)}>
-                          Cancel
-                        </Button>
-                        <Button size="sm" className="flex-1 h-8 text-xs gap-1.5" disabled={isSaving} onClick={() => confirmChapter(update)}>
-                          {isSaving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
-                          Confirm
+                        <Button variant="ghost" size="sm" className="flex-1 h-8 text-xs" onClick={() => setPickerOpenFor(null)}>Cancel</Button>
+                        <Button size="sm" className="flex-1 h-8 text-xs" disabled={isSaving} onClick={() => confirmChapter(update)}>
+                          {isSaving ? 'Saving…' : 'Confirm'}
                         </Button>
                       </div>
                     </div>
@@ -433,47 +338,30 @@ export function UpdatesClient({ initialUpdates, initialBakes }: Props) {
 
       {activeBakes.length > 0 && (
         <section className="space-y-3">
-          <p className="text-xs font-black uppercase tracking-widest text-muted-foreground px-1">
-            Still baking
-          </p>
+          <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Still baking</p>
           <div className="space-y-2">
             {activeBakes.map(bake => {
-              const baseline = bake.chapter_count_at_bake_start
-              const currentCount = bake.counting_mode === 'from_read'
+              // counting_mode-aware, same as the repo version and the dashboard:
+              // from_read counts against the user's own progress, from_now against the comic's count.
+              const baseline      = bake.chapter_count_at_bake_start
+              const currentCount  = bake.counting_mode === 'from_read'
                 ? (bake.progress_chapter ?? baseline)
                 : (bake.recommendations?.chapter_count ?? baseline)
               const chaptersSoFar = Math.max(0, currentCount - baseline)
-              const progressPct = Math.min(100, Math.round((chaptersSoFar / bake.target_chapter_count) * 100))
-              const ti = themeIndex(String(bake.id))
+              const progressPct   = Math.min(100, Math.round((chaptersSoFar / bake.target_chapter_count) * 100))
 
               return (
-                <div key={bake.id} className={cn('flex items-center gap-3 p-3 rounded-2xl border bg-card', THEME_BORDER[ti])}>
-                  <div className="w-10 h-14 rounded-lg overflow-hidden bg-muted shrink-0">
-                    {bake.recommendations?.cover_url ? (
-                      <img
-                        src={`/api/image-proxy?url=${encodeURIComponent(bake.recommendations.cover_url)}`}
-                        alt={bake.recommendations.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Croissant size={14} className="text-muted-foreground/40" />
-                      </div>
-                    )}
-                  </div>
+                <div key={bake.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card">
+                  <Cover url={bake.recommendations?.cover_url} alt={bake.recommendations?.title ?? ''} />
                   <div className="min-w-0 flex-1 space-y-1.5">
-                    <p className="font-black text-sm line-clamp-1">{bake.recommendations?.title}</p>
-                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className={cn('h-full rounded-full transition-all bg-gradient-to-r', THEME_GRAD[ti])} style={{ width: `${progressPct}%` }} />
+                    <p className="font-dashboard-serif text-base text-foreground line-clamp-1">{bake.recommendations?.title}</p>
+                    <div className="h-1 rounded-full bg-muted overflow-hidden">
+                      <div className="h-full rounded-full bg-foreground/70 transition-all" style={{ width: `${progressPct}%` }} />
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      {chaptersSoFar}/{bake.target_chapter_count} chapters
-                    </p>
+                    <p className="text-[11px] text-muted-foreground tabular-nums">{chaptersSoFar}/{bake.target_chapter_count} chapters</p>
                   </div>
-                  <Button
-                    variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
-                    onClick={() => setActionSheetBake(bake)}
-                  >
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                    aria-label="Bake options" onClick={() => setActionSheetBake(bake)}>
                     <X size={13} />
                   </Button>
                 </div>

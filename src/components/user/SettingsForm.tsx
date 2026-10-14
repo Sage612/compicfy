@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { AvatarUpload } from './AvatarUpload'
 import { DeleteAccountSection } from '@/components/user/DeleteAccountSection'
 import { toast } from 'sonner'
-import { Loader2, X, User, Heart, Shield, Globe, Sun, Moon, Monitor, Palette, AlertTriangle } from 'lucide-react'
+import { Sun, Moon, Monitor } from 'lucide-react'
 import { GENRES } from '@/lib/utils/constants'
 import type { Profile } from '@/types/app.types'
 import { AdultContentToggle } from '@/components/user/AdultContentToggle'
@@ -28,22 +28,18 @@ const settingsSchema = z.object({
 
 type SettingsFormValues = z.infer<typeof settingsSchema>
 
-function FormSection({ icon: Icon, title, accent = 'bg-primary', children }: {
-  icon:     React.ElementType
+function FormSection({ title, danger = false, children }: {
   title:    string
-  accent?:  string
+  danger?:  boolean
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border bg-muted/30">
-        <div className={`w-7 h-7 rounded-lg ${accent} flex items-center justify-center shrink-0`}>
-          <Icon size={13} className="text-primary-foreground" />
-        </div>
-        <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{title}</h3>
+    <section className={cn('rounded-xl border bg-card overflow-hidden', danger ? 'border-destructive/30' : 'border-border')}>
+      <div className="px-5 py-3.5 border-b border-border">
+        <h3 className={cn('text-[11px] uppercase tracking-widest', danger ? 'text-destructive' : 'text-muted-foreground')}>{title}</h3>
       </div>
       <div className="p-5 space-y-5">{children}</div>
-    </div>
+    </section>
   )
 }
 
@@ -54,7 +50,7 @@ interface Props {
   defaultSection?: string
 }
 
-export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) {
+export function SettingsForm({ profile, userId, isPro }: Props) {
   const supabase     = createClient()
   const { setTheme } = useTheme()
 
@@ -129,7 +125,7 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
 
       if (error) throw error
 
-      toast.success('Profile updated!')
+      toast.success('Profile updated')
     } catch (error) {
       console.error(error)
       toast.error('Failed to save changes')
@@ -140,15 +136,14 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
 
   const themeOptions = [
     { value: 'light'  as const, label: 'Light',  icon: Sun,     desc: 'Always light'         },
-    { value: 'dark'   as const, label: 'Dark',   icon: Moon,    desc: 'Always dark'           },
+    { value: 'dark'   as const, label: 'Dark',   icon: Moon,    desc: 'Always dark'          },
     { value: 'system' as const, label: 'System', icon: Monitor, desc: 'Follows your OS theme' },
   ]
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-      {/* Profile Photo */}
-      <FormSection icon={User} title="Profile Photo">
+      <FormSection title="Profile photo">
         <div className="space-y-1.5">
           <p className="text-sm text-muted-foreground">Shown on your profile and recommendations</p>
           <AvatarUpload
@@ -160,16 +155,15 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
         </div>
       </FormSection>
 
-      {/* Basic Information */}
-      <FormSection icon={User} title="Basic Information" accent="bg-blue-500">
+      <FormSection title="Basic information">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
-            <Label htmlFor="username" className="text-sm font-semibold">Username</Label>
+            <Label htmlFor="username" className="text-sm">Username</Label>
             <Input id="username" {...register('username')} placeholder="comicfan123" className="h-10" />
             {errors.username && <p className="text-xs text-destructive">{errors.username.message}</p>}
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="display_name" className="text-sm font-semibold">Display Name</Label>
+            <Label htmlFor="display_name" className="text-sm">Display name</Label>
             <Input id="display_name" {...register('display_name')} placeholder="Comic Fan" className="h-10" />
             {errors.display_name && <p className="text-xs text-destructive">{errors.display_name.message}</p>}
           </div>
@@ -177,8 +171,8 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
 
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <Label htmlFor="bio" className="text-sm font-semibold">Bio</Label>
-            <span className="text-xs text-muted-foreground">{bioValue.length}/500</span>
+            <Label htmlFor="bio" className="text-sm">Bio</Label>
+            <span className="text-xs text-muted-foreground tabular-nums">{bioValue.length}/500</span>
           </div>
           <Textarea
             id="bio"
@@ -191,17 +185,13 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="website" className="text-sm font-semibold flex items-center gap-1.5">
-            <Globe size={13} />
-            Website
-          </Label>
+          <Label htmlFor="website" className="text-sm">Website</Label>
           <Input id="website" {...register('website')} placeholder="https://yoursite.com" type="url" className="h-10" />
           {errors.website && <p className="text-xs text-destructive">{errors.website.message}</p>}
         </div>
       </FormSection>
 
-      {/* Theme Preference — all users */}
-      <FormSection icon={Palette} title="Theme Preference" accent="bg-primary">
+      <FormSection title="Theme">
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
             {isPro
@@ -216,14 +206,14 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
                 type="button"
                 onClick={() => handleThemeChange(value)}
                 className={cn(
-                  'flex flex-col items-center gap-2 p-3 rounded-xl border text-center transition-all duration-150',
+                  'flex flex-col items-center gap-2 p-3 rounded-lg border text-center transition-colors',
                   themePreference === value
-                    ? 'border-primary/50 bg-primary/10 text-primary shadow-sm'
-                    : 'border-border bg-card text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                    ? 'border-foreground bg-muted text-foreground'
+                    : 'border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground'
                 )}
               >
-                <Icon size={18} />
-                <span className="text-xs font-bold leading-none">{label}</span>
+                <Icon size={16} />
+                <span className="text-xs font-medium leading-none">{label}</span>
                 <span className="text-[10px] leading-tight opacity-70">{desc}</span>
               </button>
             ))}
@@ -231,14 +221,10 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
         </div>
       </FormSection>
 
-      {/* Favourite Genres */}
-      <FormSection icon={Heart} title="Favourite Genres" accent="bg-rose-500">
+      <FormSection title="Favourite genres">
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Select up to 10 genres
-            <span className={cn('ml-1.5 font-semibold', selectedGenres.length >= 10 ? 'text-amber-500' : 'text-primary')}>
-              {selectedGenres.length}/10
-            </span>
+            Select up to 10 <span className="ml-1 text-foreground tabular-nums">{selectedGenres.length}/10</span>
           </p>
           <div className="flex flex-wrap gap-2">
             {GENRES.map((genre) => {
@@ -249,14 +235,13 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
                   type="button"
                   onClick={() => toggleGenre(genre)}
                   className={cn(
-                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold border transition-all',
+                    'px-3 py-1.5 rounded-full text-sm border transition-colors',
                     isSelected
-                      ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
-                      : 'bg-card border-border text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                      ? 'bg-foreground text-background border-foreground'
+                      : 'border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground'
                   )}
                 >
                   {genre}
-                  {isSelected && <X size={11} />}
                 </button>
               )
             })}
@@ -264,34 +249,20 @@ export function SettingsForm({ profile, userId, isPro, defaultSection }: Props) 
         </div>
       </FormSection>
 
-      {/* Content Preferences */}
-      <FormSection icon={Shield} title="Content Preferences" accent="bg-zinc-600">
+      <FormSection title="Content preferences">
         <AdultContentToggle userId={userId} initialEnabled={profile.adult_content_enabled ?? false} />
       </FormSection>
 
-      {/* Save row */}
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex items-center justify-between gap-4 pt-1">
         <p className="text-xs text-muted-foreground">Username changes take effect immediately across the platform</p>
-        <Button type="submit" disabled={saving} className="gap-2 min-w-32">
-          {saving
-            ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
-            : 'Save Changes'
-          }
+        <Button type="submit" disabled={saving} className="min-w-32">
+          {saving ? 'Saving…' : 'Save changes'}
         </Button>
       </div>
 
-      {/* Danger Zone */}
-      <div className="rounded-2xl border border-destructive/20 bg-card overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-destructive/15 bg-destructive/5">
-          <div className="w-7 h-7 rounded-lg bg-destructive/15 flex items-center justify-center shrink-0">
-            <AlertTriangle size={13} className="text-destructive" />
-          </div>
-          <h3 className="text-xs font-black uppercase tracking-widest text-destructive">Danger Zone</h3>
-        </div>
-        <div className="p-5">
-          <DeleteAccountSection />
-        </div>
-      </div>
+      <FormSection title="Danger zone" danger>
+        <DeleteAccountSection />
+      </FormSection>
 
     </form>
   )

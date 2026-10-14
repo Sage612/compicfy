@@ -15,9 +15,12 @@ import { MangaDNACard } from '@/components/profile/MangaDNACard'
 import { getSuggestedMatches } from '@/lib/taste/getSuggestedMatches'
 import { isProUser, isPatronUser, isAdmin as isAdminCheck } from '@/lib/access'
 import { getProfileExtras } from '@/lib/profile/getProfileExtras'
-import { getParty, getOtherShrines } from '@/lib/profile/getShrineExtras'
+import { getParty, getOtherShrines, getActivityEvents } from '@/lib/profile/getShrineExtras'
 import { ShrineTabs, type ShrineTab } from '@/components/profile/shrine/ShrineTabs'
 import { ProfileHero } from '@/components/profile/shrine/ProfileHero'
+import { LogComposer } from '@/components/profile/shrine/LogComposer'
+import { QuoteEditor } from '@/components/profile/shrine/QuoteEditor'
+import { PartyEditor } from '@/components/profile/shrine/PartyEditor'
 import {
   ActivitySection, Empty, HallOfFameSection, LibrarySection, ObsessedSection,
   OtherShrinesSection, PartySection, PinnedMomentSection, SignalsSection, TasteSection,
@@ -156,18 +159,35 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   }
 
   if (isOwner && !isGhost) {
-    const [{ data: savedRows }, { data: ownRecs }] = await Promise.all([
-      supabase.from('saves').select('recommendations(id, title, cover_url)').eq('user_id', profile.id).limit(50),
-      supabase.from('recommendations').select('id, title, cover_url').eq('user_id', profile.id).eq('is_approved', true).limit(50),
+    const [{ data: savedRows }, { data: ownRecs }, { data: ownLists }] = await Promise.all([
+      supabase.from('saves').select('recommendations(id, title, cover_url)').eq('user_id', profile.id).limit(100),
+      supabase.from('recommendations').select('id, title, cover_url').eq('user_id', profile.id).eq('is_approved', true).limit(100),
+      supabase.from('reading_lists').select('id').eq('user_id', profile.id),
     ])
+
+    // Comics in the owner's own reading lists too, so everything they read can
+    // be picked when logging a session, pinning a moment or adding a character.
+    let listedComics: any[] = []
+    const ownListIds = (ownLists ?? []).map(l => l.id)
+    if (ownListIds.length > 0) {
+      const { data: listedRows } = await supabase
+        .from('reading_list_items')
+        .select('recommendations(id, title, cover_url)')
+        .in('list_id', ownListIds)
+        .not('recommendation_id', 'is', null)
+        .limit(200)
+      listedComics = (listedRows ?? []).map((r: any) => r.recommendations).filter(Boolean)
+    }
 
     const savedComics = (savedRows ?? []).map((r: any) => r.recommendations).filter(Boolean)
     const seen = new Set<string>()
-    favoriteCandidates = [...savedComics, ...(ownRecs ?? [])].filter((c: any) => {
-      if (seen.has(c.id)) return false
-      seen.add(c.id)
-      return true
-    })
+    favoriteCandidates = [...savedComics, ...listedComics, ...(ownRecs ?? [])]
+      .filter((c: any) => {
+        if (seen.has(c.id)) return false
+        seen.add(c.id)
+        return true
+      })
+      .sort((a: any, b: any) => String(a.title).localeCompare(String(b.title)))
   }
 
   // ── Recommendations, lists, follow counts ──
@@ -257,6 +277,10 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         getParty(supabase, profile.id),
         getOtherShrines(supabase, profile.id),
       ])
+
+  const activityEvents = isGhost
+    ? []
+    : await getActivityEvents(supabase, profile.id, extras?.journal ?? [], [...party])
 
   const recommendations = (recData ?? []) as Recommendation[]
   const isFollowing     = !!isFollowingData
@@ -362,7 +386,10 @@ export default async function ProfilePage({ params, searchParams }: Props) {
               ) : null
             }
           />
-          {extras?.quote && <PinnedMomentSection quote={extras.quote} />}
+          <PinnedMomentSection
+            quote={extras?.quote ?? null}
+            editor={isOwner ? <QuoteEditor hasQuote={!!extras?.quote} candidates={favoriteCandidates} /> : null}
+          />
           {!pulseHasContent && (
             <section className="sh-section">
               <Empty title="Nothing pinned yet" hint={`@${profile.username} hasn't set up their shrine yet.`} />
@@ -408,14 +435,33 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         </>
       ),
     },
-    ...(party.length > 0
-      ? [{ id: 'party', label: 'Party', content: <PartySection members={[...party]} /> }]
+    ...(party.length > 0 || isOwner
+      ? [{
+          id: 'party',
+          label: 'Party',
+          content: (
+            <PartySection
+              members={[...party]}
+              editor={isOwner ? (
+                <PartyEditor
+                  members={[...party].map(m => ({ id: m.id, name: m.name, bondLevel: m.bondLevel }))}
+                  candidates={favoriteCandidates}
+                />
+              ) : null}
+            />
+          ),
+        }]
       : []),
     {
       id: 'activity',
       label: 'Activity',
       content: (
-        <ActivitySection items={extras?.journal ?? []} isOwner={isOwner} username={profile.username} />
+        <ActivitySection
+          events={activityEvents}
+          isOwner={isOwner}
+          username={profile.username}
+          composer={isOwner ? <LogComposer candidates={favoriteCandidates} /> : null}
+        />
       ),
     },
     { id: 'library', label: 'Library', content: library },

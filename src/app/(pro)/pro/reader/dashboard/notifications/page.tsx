@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { NotificationsClient } from '@/components/user/NotificationsClient'
-import { Bell } from 'lucide-react'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 import type { Metadata } from 'next'
 import type { Notification } from '@/components/user/NotificationsClient'
 
@@ -9,41 +9,45 @@ export const metadata: Metadata = { title: 'Notifications | Pro' }
 
 export default async function ProReaderNotificationsPage() {
   const supabase = await createClient()
-  
-  // 1. Authenticate user session
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // 2. Fetch notifications cleanly matching row constraints
+  // Derive profileBase dynamically so follow links never hardcode /reader
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, is_pro, pro_expires_at, is_patron, patron_expires_at, user_type')
+    .eq('id', user.id)
+    .single() as { data: any }
+
+  const isCreator = profile?.user_type === 'creator'
+  // profileBase is the route prefix used on public profile pages
+  const profileBase = isCreator ? '/creator' : '/reader'
+
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(50) // Reasonable layout limit window for ultra fast loadtimes
+    .limit(50)
 
-  if (error) {
-    console.error('Error fetching initial notifications on server:', error)
-  }
+  if (error) console.error('Error fetching notifications:', error)
 
-  // 3. Cast the fetched rows directly to the array structure expected by the client deck
   const initialNotifications = (data as unknown as Notification[]) ?? []
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0">
-            <Bell size={17} className="text-amber-500" />
-          </div>
-          <h1 className="text-xl font-black tracking-tight truncate">Notifications</h1>
-        </div>
-        <p className="text-xs text-muted-foreground pl-0.5">Your activity and alerts</p>
-      </div>
-
-      {/* 4. Pass the verified structure array straight down into the interactive deck */}
-      <NotificationsClient initialNotifications={initialNotifications} />
-    </div>
+    <PageShell width="narrow">
+      <PageHeader
+        eyebrow="Inbox"
+        title="Notifications"
+        subtitle="Stay up to date with your activity."
+        backHref="/pro/reader/dashboard"
+        backLabel="Dashboard"
+        isPro
+      />
+      <NotificationsClient
+        initialNotifications={initialNotifications}
+        profileBase={profileBase}
+      />
+    </PageShell>
   )
 }

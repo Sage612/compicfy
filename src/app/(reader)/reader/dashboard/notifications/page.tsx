@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { NotificationsClient } from '@/components/user/NotificationsClient'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 import type { Metadata } from 'next'
 import type { Notification } from '@/components/user/NotificationsClient'
 
@@ -20,8 +21,6 @@ export default async function ReaderNotificationsPage() {
 
   const isCreator = profile?.user_type === 'creator'
   // profileBase is the route prefix used on public profile pages
-  // readers  → /reader/:username
-  // creators → /creator/:username  (adjust if your public creator route differs)
   const profileBase = isCreator ? '/creator' : '/reader'
 
   const { data, error } = await supabase
@@ -36,15 +35,18 @@ export default async function ReaderNotificationsPage() {
   const initialNotifications = (data as unknown as Notification[]) ?? []
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">Notifications</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Stay up to date with your activity.</p>
-      </div>
+    <PageShell width="narrow">
+      <PageHeader
+        eyebrow="Inbox"
+        title="Notifications"
+        subtitle="Stay up to date with your activity."
+        backHref="/reader/dashboard"
+        backLabel="Dashboard"
+      />
       <NotificationsClient
         initialNotifications={initialNotifications}
         profileBase={profileBase}
       />
-    </div>
+    </PageShell>
   )
 }

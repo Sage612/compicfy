@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -8,14 +8,20 @@ import { toast } from 'sonner'
 import { BookMarked, Plus, Trash2, Globe, Lock,
   Loader2, BookOpen, Pencil, ArrowRight, Crown,
   Sparkles, Radar, Share2, Star, Check, X, MoreVertical,
+  Folder, FolderPlus, FolderInput, ChevronRight,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { cn } from '@/lib/utils/cn'
 import { UpgradeBanner } from '@/components/pro/UpgradeBanner'
+import { PageHeader } from '@/components/dashboard/PageHeader'
 import { createClient } from '@/lib/supabase/client'
 import { hasUnlimitedPerks } from '@/lib/access'
 import { FREE_LIMITS } from '@/lib/utils/constants'
 import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet'
+import { FolderNameModal } from '@/components/lists/FolderNameModal'
+import { FolderPickerModal } from '@/components/lists/FolderPickerModal'
+import { folderPath, isDescendantOf, canCreateFolderUnder, canMoveFolder } from '@/lib/utils/folders'
+import type { ListFolder } from '@/lib/utils/folders'
 
 interface ReadingList {
   id:          string
@@ -25,6 +31,7 @@ interface ReadingList {
   is_public:   boolean
   created_at:  string
   star_count:  number
+  folder_id?:  string | null
   _item_count?: number
   _cover_urls?: string[]
 }
@@ -93,12 +100,18 @@ function StackedCover({ covers, themeGrad }: { covers: string[]; themeGrad: stri
 
 export function ReadingListsClient({
   initialLists,
-  basePath    = '/dashboard/lists',
-  hideHeader  = false,
+  initialFolders   = [],
+  folderDepthLimit = 0,
+  basePath         = '/dashboard/lists',
+  hideHeader       = false,
 }: {
-  initialLists: ReadingList[]
-  basePath?:    string
-  hideHeader?:  boolean
+  initialLists:       ReadingList[]
+  /** Item #4 — the user's folders, fetched by the page. */
+  initialFolders?:    ListFolder[]
+  /** Item #4 — how many folder levels this user's tier allows (0 = none, 1 = Pro, more = Patron). */
+  folderDepthLimit?:  number
+  basePath?:          string
+  hideHeader?:        boolean
 }) {
   const [lists,       setLists]       = useState(initialLists)
   const [showCreate,  setShowCreate]  = useState(false)
@@ -108,7 +121,6 @@ export function ReadingListsClient({
   const [creating,    setCreating]    = useState(false)
   const [deletingId,  setDeletingId]  = useState<string | null>(null)
   const [isProUser,   setIsProUser]   = useState<boolean | null>(null)
-  const [userId,      setUserId]      = useState<string | null>(null)
 
   // ── Rename modal state — replaces the old inline card-body editing,
   // which sat too close to delete/share/toggle-public buttons on the same
@@ -123,26 +135,50 @@ export function ReadingListsClient({
   // Edit/Share/Toggle/Delete icon buttons. ──
   const [actionSheetList, setActionSheetList] = useState<ReadingList | null>(null)
 
+  // ── Folders (item #4) ──
+  const [folders,           setFolders]           = useState<ListFolder[]>(initialFolders)
+  const [currentFolderId,  setCurrentFolderId]   = useState<string | null>(null)
+  const [folderModal,      setFolderModal]       = useState<{ mode: 'create' } | { mode: 'rename'; folder: ListFolder } | null>(null)
+  const [savingFolder,     setSavingFolder]      = useState(false)
+  const [folderActionSheet, setFolderActionSheet] = useState<ListFolder | null>(null)
+  const [movingList,       setMovingList]        = useState<ReadingList | null>(null)
+  const [movingFolder,     setMovingFolder]      = useState<ListFolder | null>(null)
+  const [savingMove,       setSavingMove]        = useState(false)
+
   const supabase = createClient()
 
-  useState(() => {
+  useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setIsProUser(false); return }
-      setUserId(user.id)
-      const { data: p } = await (supabase as any)
+      const { data: p } = await supabase
         .from('profiles').select('is_pro, pro_expires_at, is_patron, patron_expires_at, role').eq('id', user.id).single()
       if (!p) { setIsProUser(false); return }
-      setIsProUser(hasUnlimitedPerks(p))
+      const profile = { ...p, role: p.role ?? '' }
+      setIsProUser(hasUnlimitedPerks(profile))
     }
     load()
-  })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const sorted    = [...lists].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
   const freeIds   = new Set(sorted.slice(0, FREE_LIMITS.lists).map(l => l.id))
   const isLocked  = (id: string) => isProUser === false && !freeIds.has(id)
   const atLimit   = isProUser === false && lists.length >= FREE_LIMITS.lists
   const nearLimit = isProUser === false && lists.length === FREE_LIMITS.lists - 1
+
+  // ── Folder view: only the folders and lists that sit directly inside
+  // the folder currently open (null = top level). Limits and locking above
+  // still look at ALL lists, not just the visible ones. ──
+  const visibleFolders = folders
+    .filter(f => f.parent_id === currentFolderId)
+    .sort((a, b) => a.name.localeCompare(b.name))
+  const visibleLists   = lists.filter(l => (l.folder_id ?? null) === currentFolderId)
+  const path           = folderPath(currentFolderId, folders)
+  const canCreateHere  = folderDepthLimit >= 1 && canCreateFolderUnder(currentFolderId, folders, folderDepthLimit)
+  const showFolderBar  = (canCreateHere && lists.length > 0) || visibleFolders.length > 0 || currentFolderId !== null
+
+  const errorText = (data: { message?: string; error?: string } | null | undefined, fallback: string): string => data?.message ?? data?.error ?? fallback
 
   const handleCreate = async () => {
     if (!newName.trim()) return
@@ -157,7 +193,19 @@ export function ReadingListsClient({
         if (res.status === 403) { toast.error('List limit reached — upgrade to Pro for unlimited lists'); return }
         throw new Error(data.error)
       }
-      setLists(prev => [{ ...data.list, _item_count: 0, _cover_urls: [] }, ...prev])
+
+      // Created while a folder is open? File it there instead of leaving it
+      // at the top level where the user can't see it from here.
+      let folderId: string | null = null
+      if (currentFolderId) {
+        const moveRes = await fetch(`/api/lists/${data.list.id}/folder`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder_id: currentFolderId }),
+        })
+        if (moveRes.ok) folderId = currentFolderId
+      }
+
+      setLists(prev => [{ ...data.list, _item_count: 0, _cover_urls: [], folder_id: folderId }, ...prev])
       setNewName(''); setNewDesc(''); setIsPublic(false); setShowCreate(false)
       toast.success('List created!')
     } catch { toast.error('Failed to create list') }
@@ -229,8 +277,108 @@ export function ReadingListsClient({
     setShowCreate(true)
   }
 
+  // ── Folder actions (item #4) ──
+  const handleCreateFolder = async (name: string) => {
+    setSavingFolder(true)
+    try {
+      const res  = await fetch('/api/list-folders', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, parent_id: currentFolderId }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(errorText(data, 'Failed to create folder')); return }
+      setFolders(prev => [...prev, data.folder])
+      setFolderModal(null)
+      toast.success('Folder created')
+    } catch { toast.error('Failed to create folder') }
+    finally  { setSavingFolder(false) }
+  }
+
+  const handleRenameFolder = async (folder: ListFolder, name: string) => {
+    setSavingFolder(true)
+    try {
+      const res  = await fetch(`/api/list-folders/${folder.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(errorText(data, 'Failed to rename folder')); return }
+      setFolders(prev => prev.map(f => f.id === folder.id ? { ...f, name: data.folder.name } : f))
+      setFolderModal(null)
+      toast.success('Folder renamed')
+    } catch { toast.error('Failed to rename folder') }
+    finally  { setSavingFolder(false) }
+  }
+
+  // Lists and subfolders inside move up one level — nothing inside is deleted.
+  const handleDeleteFolder = async (folder: ListFolder) => {
+    if (!confirm('Delete this folder? Its lists and subfolders move up one level — nothing inside is deleted.')) return
+    try {
+      const res = await fetch(`/api/list-folders/${folder.id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error()
+      setLists(prev => prev.map(l => l.folder_id === folder.id ? { ...l, folder_id: folder.parent_id } : l))
+      setFolders(prev => prev
+        .filter(f => f.id !== folder.id)
+        .map(f => f.parent_id === folder.id ? { ...f, parent_id: folder.parent_id } : f))
+      if (currentFolderId === folder.id) setCurrentFolderId(folder.parent_id)
+      setFolderActionSheet(null)
+      toast.success('Folder deleted')
+    } catch { toast.error('Failed to delete folder') }
+  }
+
+  const handleMoveList = async (list: ReadingList, folderId: string | null) => {
+    setSavingMove(true)
+    try {
+      const res  = await fetch(`/api/lists/${list.id}/folder`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folder_id: folderId }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(errorText(data, 'Failed to move list')); return }
+      setLists(prev => prev.map(l => l.id === list.id ? { ...l, folder_id: folderId } : l))
+      setMovingList(null)
+      toast.success(folderId ? 'Moved to folder' : 'Moved to top level')
+    } catch { toast.error('Failed to move list') }
+    finally  { setSavingMove(false) }
+  }
+
+  const handleMoveFolder = async (folder: ListFolder, parentId: string | null) => {
+    setSavingMove(true)
+    try {
+      const res  = await fetch(`/api/list-folders/${folder.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parent_id: parentId }),
+      })
+      const data = await res.json()
+      if (!res.ok) { toast.error(errorText(data, 'Failed to move folder')); return }
+      setFolders(prev => prev.map(f => f.id === folder.id ? { ...f, parent_id: data.folder.parent_id } : f))
+      setMovingFolder(null)
+      toast.success(parentId ? 'Folder moved' : 'Moved to top level')
+    } catch { toast.error('Failed to move folder') }
+    finally  { setSavingMove(false) }
+  }
+
+  // Which destinations the "move folder" picker should grey out. Same rules
+  // the server enforces (shared helpers in folders.ts), so the screen never
+  // offers a move the server would refuse.
+  const disabledMoveTargets = (folder: ListFolder): Set<string> => {
+    const disabled = new Set<string>([folder.id])
+    for (const f of folders) {
+      if (isDescendantOf(f.id, folder.id, folders)) disabled.add(f.id)
+      else if (!canMoveFolder(folder.id, f.id, folders, folderDepthLimit)) disabled.add(f.id)
+    }
+    return disabled
+  }
+
   const buildOwnerActions = (list: ReadingList): ActionSheetAction[] => [
     { label: 'Edit', icon: <Pencil size={15} />, onClick: () => openRenameModal(list) },
+    ...(folders.length > 0
+      ? [{
+          label: 'Move to folder',
+          icon: <FolderInput size={15} />,
+          onClick: () => { setMovingList(list); setActionSheetList(null) },
+        }]
+      : []),
     {
       label: list.is_public ? 'Make Private' : 'Make Public',
       icon: list.is_public ? <Lock size={15} /> : <Globe size={15} />,
@@ -245,6 +393,29 @@ export function ReadingListsClient({
     },
   ]
 
+  const buildFolderActions = (folder: ListFolder): ActionSheetAction[] => [
+    {
+      label: 'Rename',
+      icon: <Pencil size={15} />,
+      onClick: () => { setFolderModal({ mode: 'rename', folder }); setFolderActionSheet(null) },
+    },
+    // Moving a folder only makes sense when nesting is possible — or when
+    // it's already nested, so it can be flattened back out.
+    ...((folderDepthLimit > 1 || folder.parent_id)
+      ? [{
+          label: 'Move',
+          icon: <FolderInput size={15} />,
+          onClick: () => { setMovingFolder(folder); setFolderActionSheet(null) },
+        }]
+      : []),
+    {
+      label: 'Delete',
+      icon: <Trash2 size={15} />,
+      onClick: () => handleDeleteFolder(folder),
+      destructive: true,
+    },
+  ]
+
   return (
     <div className="space-y-6">
 
@@ -255,6 +426,55 @@ export function ReadingListsClient({
         title={actionSheetList?.name}
         actions={actionSheetList ? buildOwnerActions(actionSheetList) : []}
       />
+
+      {/* ── Folder action sheet (item #4) ── */}
+      <ActionSheet
+        open={!!folderActionSheet}
+        onClose={() => setFolderActionSheet(null)}
+        title={folderActionSheet?.name}
+        actions={folderActionSheet ? buildFolderActions(folderActionSheet) : []}
+      />
+
+      {/* ── Folder name modal (new / rename) ── */}
+      {folderModal && (
+        <FolderNameModal
+          mode={folderModal.mode}
+          initialValue={folderModal.mode === 'rename' ? folderModal.folder.name : ''}
+          saving={savingFolder}
+          onSubmit={name => folderModal.mode === 'rename'
+            ? handleRenameFolder(folderModal.folder, name)
+            : handleCreateFolder(name)}
+          onClose={() => setFolderModal(null)}
+        />
+      )}
+
+      {/* ── Move a list into a folder ── */}
+      {movingList && (
+        <FolderPickerModal
+          itemName={movingList.name}
+          folders={folders}
+          currentFolderId={movingList.folder_id ?? null}
+          disabledIds={new Set()}
+          allowTopLevel
+          saving={savingMove}
+          onPick={folderId => handleMoveList(movingList, folderId)}
+          onClose={() => setMovingList(null)}
+        />
+      )}
+
+      {/* ── Move a folder into another folder ── */}
+      {movingFolder && (
+        <FolderPickerModal
+          itemName={movingFolder.name}
+          folders={folders}
+          currentFolderId={movingFolder.parent_id}
+          disabledIds={disabledMoveTargets(movingFolder)}
+          allowTopLevel={canMoveFolder(movingFolder.id, null, folders, folderDepthLimit)}
+          saving={savingMove}
+          onPick={parentId => handleMoveFolder(movingFolder, parentId)}
+          onClose={() => setMovingFolder(null)}
+        />
+      )}
 
       {/* ── Rename modal ── */}
       {renamingList && (
@@ -304,35 +524,28 @@ export function ReadingListsClient({
       )}
 
       {/* ── Header ── */}
-      {!hideHeader && (
-  <div className="flex items-start justify-between">
-    <div className="space-y-2">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-          <BookMarked size={16} className="text-primary" />
-        </div>
-        <h1 className="text-2xl font-black tracking-tight leading-none">Reading Lists</h1>
-      </div>
-      <p className="text-muted-foreground text-sm pl-0.5">
-        {lists.length} list{lists.length !== 1 ? 's' : ''}
-        {isProUser === false && (
-          <span className="text-muted-foreground/60 ml-1">
-            · {Math.max(0, FREE_LIMITS.lists - lists.length)} free slot{FREE_LIMITS.lists - lists.length !== 1 ? 's' : ''} remaining
-          </span>
-        )}
-      </p>
-    </div>
-    {!showCreate && (
-      <Button size="sm" onClick={handleNewListClick}
-        className={cn('gap-1.5 mt-1', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}>
-        {atLimit ? <Crown size={14} /> : <Plus size={14} />}
-        {atLimit ? 'Upgrade for More' : 'New List'}
-      </Button>
-    )}
-  </div>
-)}
-
-      {hideHeader && !showCreate && (
+      {!hideHeader ? (
+        <PageHeader
+          eyebrow="Library"
+          title="Reading lists"
+          subtitle={
+            `${lists.length} list${lists.length !== 1 ? 's' : ''}` +
+            (isProUser === false ? ` · ${Math.max(0, FREE_LIMITS.lists - lists.length)} free slot${FREE_LIMITS.lists - lists.length !== 1 ? 's' : ''} remaining` : '')
+          }
+          backHref={basePath.replace(/\/lists$/, '') || '/'}
+          backLabel="Dashboard"
+          isPro={isProUser === true}
+          actions={
+            !showCreate ? (
+              <Button size="sm" onClick={handleNewListClick}
+                className={cn('gap-1.5', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}>
+                {atLimit ? <Crown size={14} /> : <Plus size={14} />}
+                {atLimit ? 'Upgrade for More' : 'New List'}
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : (!showCreate && (
         <div className="flex justify-end">
           <Button size="sm" onClick={handleNewListClick}
             className={cn('gap-1.5', atLimit && 'bg-gradient-to-r from-amber-400 to-orange-500 border-0 hover:opacity-90')}>
@@ -340,7 +553,7 @@ export function ReadingListsClient({
             {atLimit ? 'Upgrade for More' : 'New List'}
           </Button>
         </div>
-      )}
+      ))}
 
       {nearLimit && <UpgradeBanner current={lists.length} limit={FREE_LIMITS.lists} feature="reading lists" message="You're almost at your reading list limit" dismissible />}
       {atLimit && !showCreate && <UpgradeBanner current={lists.length} limit={FREE_LIMITS.lists} feature="reading lists" dismissible={false} />}
@@ -410,6 +623,89 @@ export function ReadingListsClient({
         </div>
       )}
 
+      {/* ── Folders (item #4): breadcrumb + new-folder button, then the
+          folders sitting directly inside the one that's open ── */}
+      {showFolderBar && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            {currentFolderId === null ? (
+              <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground/50">Folders</p>
+            ) : (
+              <nav className="flex items-center gap-1 text-xs text-muted-foreground min-w-0 overflow-x-auto no-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setCurrentFolderId(null)}
+                  className="shrink-0 hover:text-foreground transition-colors"
+                >
+                  All lists
+                </button>
+                {path.map((f, i) => (
+                  <span key={f.id} className="flex items-center gap-1 shrink-0">
+                    <ChevronRight size={11} className="opacity-50" />
+                    {i === path.length - 1 ? (
+                      <span className="text-foreground font-medium">{f.name}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setCurrentFolderId(f.id)}
+                        className="hover:text-foreground transition-colors"
+                      >
+                        {f.name}
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </nav>
+            )}
+
+            {canCreateHere && (
+              <button
+                type="button"
+                onClick={() => setFolderModal({ mode: 'create' })}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              >
+                <FolderPlus size={12} /> New folder
+              </button>
+            )}
+          </div>
+
+          {visibleFolders.length > 0 && (
+            <div className="divide-y divide-border/40 border-y border-border/40">
+              {visibleFolders.map(folder => {
+                const listCount   = lists.filter(l => l.folder_id === folder.id).length
+                const folderCount = folders.filter(f => f.parent_id === folder.id).length
+                const summary = [
+                  listCount   > 0 ? `${listCount} list${listCount !== 1 ? 's' : ''}` : null,
+                  folderCount > 0 ? `${folderCount} folder${folderCount !== 1 ? 's' : ''}` : null,
+                ].filter(Boolean).join(' · ') || 'Empty'
+
+                return (
+                  <div key={folder.id} className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentFolderId(folder.id)}
+                      className="group flex-1 min-w-0 flex items-center gap-3 py-3 text-left"
+                    >
+                      <Folder size={16} className="text-muted-foreground/60 shrink-0" />
+                      <span className="text-sm font-medium truncate group-hover:opacity-70 transition-opacity">{folder.name}</span>
+                      <span className="text-[11px] text-muted-foreground/50 shrink-0">{summary}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFolderActionSheet(folder)}
+                      className="shrink-0 p-2 text-muted-foreground/50 hover:text-foreground transition-colors"
+                      aria-label="Folder options"
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Empty state ── */}
       {lists.length === 0 && !showCreate ? (
         <div className="relative overflow-hidden text-center py-20 rounded-2xl border border-dashed border-border bg-card">
@@ -437,12 +733,12 @@ export function ReadingListsClient({
             </Link>
           </div>
         </div>
-      ) : lists.length > 0 && (
+      ) : visibleLists.length > 0 ? (
         <>
           {/* ── MOBILE: Pinterest two-column — kebab replaces the icon row ── */}
           <div className="sm:hidden grid grid-cols-2 gap-3 items-start">
             <div className="flex flex-col gap-3">
-              {lists.filter((_, i) => i % 2 === 0).map((list, posInCol) => {
+              {visibleLists.filter((_, i) => i % 2 === 0).map((list, posInCol) => {
                 const ti     = themeIndex(list.id)
                 const covers = getCoverPreviews(list)
                 const count  = itemCount(list)
@@ -483,7 +779,7 @@ export function ReadingListsClient({
               })}
             </div>
             <div className="flex flex-col gap-3">
-              {lists.filter((_, i) => i % 2 === 1).map((list, posInCol) => {
+              {visibleLists.filter((_, i) => i % 2 === 1).map((list, posInCol) => {
                 const ti     = themeIndex(list.id)
                 const covers = getCoverPreviews(list)
                 const count  = itemCount(list)
@@ -527,7 +823,7 @@ export function ReadingListsClient({
 
           {/* ── DESKTOP: grid — kebab replaces the icon row ── */}
           <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {lists.map((list) => {
+            {visibleLists.map((list) => {
               const ti     = themeIndex(list.id)
               const covers = getCoverPreviews(list)
               const count  = itemCount(list)
@@ -613,7 +909,11 @@ export function ReadingListsClient({
             })}
           </div>
         </>
-      )}
+      ) : currentFolderId !== null && visibleFolders.length === 0 ? (
+        <p className="text-center text-xs text-muted-foreground/60 py-10">
+          This folder is empty. Use &apos;Move to folder&apos; on a list to put it here.
+        </p>
+      ) : null}
 
       {isProUser === false && lists.length > 0 && lists.length < FREE_LIMITS.lists && (
         <div className="flex items-center justify-center pt-2">

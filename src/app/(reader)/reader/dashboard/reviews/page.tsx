@@ -1,21 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Star, BookOpen, ExternalLink } from 'lucide-react'
+import { Star, BookOpen } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'My Reviews' }
 
 function proxyCover(url: string | null | undefined): string {
-  if (!url) return "" // Returning an empty string satisfies the 'string' requirement
+  if (!url) return ''
   if (url.startsWith('data:')) return url
   if (url.startsWith('/')) return url
   if (url.includes('/api/image-proxy')) return url
-
   return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
-
 
 export default async function ReaderReviewsPage() {
   const supabase = await createClient()
@@ -28,67 +27,69 @@ export default async function ReaderReviewsPage() {
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 
-  return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">My Reviews</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">{reviews?.length ?? 0} reviews written</p>
-      </div>
+  const count = reviews?.length ?? 0
 
-      {!reviews?.length ? (
-        <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-            <Star size={24} className="text-amber-500" />
+  return (
+    <PageShell width="narrow">
+      <PageHeader
+        eyebrow="Library"
+        title="Reviews"
+        subtitle={`${count} ${count === 1 ? 'review' : 'reviews'} written`}
+        backHref="/reader/dashboard"
+        backLabel="Dashboard"
+      />
+
+      {!count ? (
+        <div className="flex flex-col items-center justify-center py-20 rounded-xl border border-dashed border-border space-y-3 text-center">
+          <Star size={20} className="text-muted-foreground" />
+          <div>
+            <p className="font-dashboard-serif text-lg text-foreground">No reviews yet</p>
+            <p className="text-sm text-muted-foreground mt-1">Leave a review on any comic you&apos;ve read.</p>
           </div>
-          <div className="text-center">
-            <p className="font-black text-sm">No reviews yet</p>
-            <p className="text-xs text-muted-foreground mt-1">Leave a review on any comic you've read.</p>
-          </div>
-          <Link href="/browse" className="text-xs text-primary font-semibold hover:underline">Browse comics →</Link>
+          <Link href="/browse" className="text-xs text-foreground underline underline-offset-4 hover:text-muted-foreground transition-colors">
+            Browse comics
+          </Link>
         </div>
       ) : (
         <div className="space-y-3">
           {(reviews as any[]).map(review => {
             const rec = Array.isArray(review.recommendations) ? review.recommendations[0] : review.recommendations
             return (
-              <div key={review.id} className="rounded-2xl border border-border bg-card p-4 space-y-3">
+              <article key={review.id} className="rounded-xl border border-border bg-card p-4 space-y-3">
                 <div className="flex items-start gap-3">
-                  <div className="w-12 h-16 rounded-lg overflow-hidden bg-muted shrink-0">
+                  <Link href={`/comic/${rec?.id}`} className="w-12 h-16 rounded-md overflow-hidden bg-muted shrink-0">
                     {rec?.cover_url
                       ? <img src={proxyCover(rec.cover_url)} alt={rec.title} className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-muted-foreground opacity-40" /></div>
+                      : <div className="w-full h-full flex items-center justify-center"><BookOpen size={14} className="text-muted-foreground/40" /></div>
                     }
-                  </div>
+                  </Link>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <Link href={`/comic/${rec?.id}`} className="font-black text-sm hover:text-primary transition-colors line-clamp-1">
-                        {rec?.title ?? 'Unknown'}
-                      </Link>
-                      <Link href={`/comic/${rec?.id}`}>
-                        <ExternalLink size={12} className="text-muted-foreground shrink-0 mt-0.5" />
-                      </Link>
-                    </div>
+                    <Link href={`/comic/${rec?.id}`} className="font-dashboard-serif text-base text-foreground hover:text-muted-foreground transition-colors line-clamp-1">
+                      {rec?.title ?? 'Unknown'}
+                    </Link>
                     {review.rating && (
                       <div className="flex items-center gap-0.5 mt-1">
                         {Array.from({ length: 5 }).map((_, i) => (
-                          <Star key={i} size={11} className={i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/30'} />
+                          <Star
+                            key={i}
+                            size={11}
+                            className={i < review.rating ? 'fill-foreground/70 text-foreground/70' : 'text-muted-foreground/30'}
+                          />
                         ))}
                       </div>
                     )}
-                    <p className="text-xs text-muted-foreground mt-0.5">{formatDate(review.created_at)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{formatDate(review.created_at)}</p>
                   </div>
                 </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">{review.content}</p>
+                <p className="text-sm text-foreground/80 leading-relaxed">{review.content}</p>
                 {review.contains_spoilers && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20">
-                    ⚠️ Contains spoilers
-                  </span>
+                  <p className="text-[11px] uppercase tracking-widest text-muted-foreground/60">Contains spoilers</p>
                 )}
-              </div>
+              </article>
             )
           })}
         </div>
       )}
-    </div>
+    </PageShell>
   )
 }

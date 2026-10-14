@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ReleaseRadar } from '@/components/recommendations/ReleaseRadar'
 import { isProUser } from '@/lib/access'
+import { PageShell } from '@/components/dashboard/PageHeader'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -27,8 +28,8 @@ export default async function ProReleaseRadarPage() {
   // in, they should see the same gated view the free route would show
   // them, not a false sense of Pro access.
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <ReleaseRadar isPro={isPro} />
-    </div>
+    <PageShell width="narrow">
+      <ReleaseRadar isPro={isPro} backHref="/pro/reader/dashboard" />
+    </PageShell>
   )
 }

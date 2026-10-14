@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { UpdatesClient } from '@/components/user/UpdatesClient'
+import { PageShell } from '@/components/dashboard/PageHeader'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Updates' }
@@ -114,11 +115,12 @@ export default async function ReaderUpdatesPage() {
   }))
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <PageShell>
       <UpdatesClient
         initialUpdates={updates}
         initialBakes={bakesWithProgress as any}
+        backHref="/reader/dashboard"
       />
-    </div>
+    </PageShell>
   )
 }

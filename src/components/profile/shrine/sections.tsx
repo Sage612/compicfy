@@ -5,9 +5,9 @@ import { RadarChart, computeArchetypeScores, type RadarPoint } from '../RadarCha
 import { JournalEntryCard } from './JournalEntryCard'
 import { proxyCover } from './util'
 import type {
-  GenreProfile, JournalItem, ObsessedData, QuoteData, SignalsData,
+  GenreProfile, ObsessedData, QuoteData, SignalsData,
 } from '@/lib/profile/getProfileExtras'
-import type { PartyMember, ShrinePerson } from '@/lib/profile/getShrineExtras'
+import type { ActivityEvent, PartyMember, ShrinePerson } from '@/lib/profile/getShrineExtras'
 
 /* ── Shared bits ───────────────────────────────────────── */
 
@@ -115,22 +115,28 @@ export function HallOfFameSection({ items, isOwner, canEdit, editor }: HallProps
 
 /* ── Pulse: pinned moment ──────────────────────────────── */
 
-export function PinnedMomentSection({ quote }: { quote: QuoteData }) {
-  const by = [quote.comicTitle, quote.chapterLabel].filter(Boolean).join(' · ')
+export function PinnedMomentSection({ quote, editor }: { quote: QuoteData | null; editor?: ReactNode }) {
+  if (!quote && !editor) return null
+  const by = quote ? [quote.comicTitle, quote.chapterLabel].filter(Boolean).join(' · ') : ''
   return (
     <section className="sh-section">
       <p className="sh-eyebrow">Pinned moment</p>
-      <figure className="sh-moment">
-        {quote.coverUrl && <img className="sh-moment-bg" src={proxyCover(quote.coverUrl)} alt="" />}
-        <div className="sh-moment-shade" />
-        <blockquote className="sh-quote sh-display">“{quote.text}”</blockquote>
-        <figcaption className="sh-quote-by">
-          {by && (quote.comicId
-            ? <Link href={`/comic/${quote.comicId}`}>{by}</Link>
-            : <span>{by}</span>)}
-          {quote.stampCount > 0 && <span className="sh-chip">{quote.stampCount.toLocaleString()} stamps</span>}
-        </figcaption>
-      </figure>
+      {quote ? (
+        <figure className="sh-moment">
+          {quote.coverUrl && <img className="sh-moment-bg" src={proxyCover(quote.coverUrl)} alt="" />}
+          <div className="sh-moment-shade" />
+          <blockquote className="sh-quote sh-display">“{quote.text}”</blockquote>
+          <figcaption className="sh-quote-by">
+            {by && (quote.comicId
+              ? <Link href={`/comic/${quote.comicId}`}>{by}</Link>
+              : <span>{by}</span>)}
+            {quote.stampCount > 0 && <span className="sh-chip">{quote.stampCount.toLocaleString()} stamps</span>}
+          </figcaption>
+        </figure>
+      ) : (
+        <Empty title="No moment pinned" hint="Pin a line that stayed with you and it shows up here." />
+      )}
+      {editor}
     </section>
   )
 }
@@ -248,14 +254,17 @@ export function SignalsSection({ signals }: { signals: SignalsData }) {
 
 /* ── Party ─────────────────────────────────────────────── */
 
-const RING_COLORS = ['#8c98ab', '#cdb79a', '#8fb1b3']
+const RING_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--pro)']
 const MAX_BOND = 20
 
-export function PartySection({ members }: { members: PartyMember[] }) {
+export function PartySection({ members, editor }: { members: PartyMember[]; editor?: ReactNode }) {
   return (
     <section className="sh-section">
       <p className="sh-eyebrow">Character shrine</p>
       <h2 className="sh-h2 sh-display">The party</h2>
+      {members.length === 0 && (
+        <Empty title="Your party is empty" hint="Add the characters you are most attached to." />
+      )}
       <div className="sh-stack">
         {members.map((m, i) => {
           const img = m.imageUrl ?? m.seriesCover
@@ -265,7 +274,7 @@ export function PartySection({ members }: { members: PartyMember[] }) {
               <div className="sh-portrait" style={{ ['--ring' as string]: RING_COLORS[i % RING_COLORS.length] }}>
                 {img
                   ? <img src={proxyCover(img)} alt={m.name} loading="lazy" />
-                  : <div className="sh-noimg sh-display" style={{ fontSize: 28 }}>{m.name.slice(0, 1)}</div>}
+                  : <div className="sh-noimg sh-display" style={{ fontSize: 24 }}>{m.name.slice(0, 1)}</div>}
               </div>
               <div className="sh-party-main">
                 <h3 className="sh-party-name">{m.name}</h3>
@@ -278,6 +287,7 @@ export function PartySection({ members }: { members: PartyMember[] }) {
           )
         })}
       </div>
+      {editor}
     </section>
   )
 }
@@ -306,59 +316,69 @@ function agoLabel(iso: string, nowMs: number): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function buildGroups(items: JournalItem[]) {
+function buildGroups(items: ActivityEvent[]) {
   const nowMs = Date.now()
-  const groups: { label: string; items: (JournalItem & { ago: string })[] }[] = []
+  const groups: { label: string; items: (ActivityEvent & { ago: string })[] }[] = []
   for (const item of items) {
-    const label = dayLabel(item.createdAt, nowMs)
+    const label = dayLabel(item.at, nowMs)
     const last = groups[groups.length - 1]
-    const row = { ...item, ago: agoLabel(item.createdAt, nowMs) }
+    const row = { ...item, ago: agoLabel(item.at, nowMs) }
     if (last && last.label === label) last.items.push(row)
     else groups.push({ label, items: [row] })
   }
   return groups
 }
 
-interface ActivityProps { items: JournalItem[]; isOwner: boolean; username: string }
+const KIND_ICON = { journal: 'pen', quote: 'quote', finished: 'check', bond: 'heart' } as const
 
-export function ActivitySection({ items, isOwner, username }: ActivityProps) {
-  if (items.length === 0) {
-    return (
-      <section className="sh-section">
-        <Empty
-          title="Nothing on the wall yet"
-          hint={isOwner ? 'Journal a chapter and your thoughts will live here.' : `@${username} hasn't written any journal entries yet.`}
-        />
-      </section>
-    )
-  }
+interface ActivityProps {
+  events:    ActivityEvent[]
+  isOwner:   boolean
+  username:  string
+  composer?: ReactNode
+}
 
+export function ActivitySection({ events, isOwner, username, composer }: ActivityProps) {
   return (
     <section className="sh-section">
-      <p className="sh-eyebrow">Memory wall</p>
-      <h2 className="sh-h2 sh-display">Recent activity</h2>
-      {buildGroups(items).map(g => (
-        <div key={g.label} className="sh-group">
-          <p className="sh-eyebrow">{g.label}</p>
-          <div className="sh-entries">
-            {g.items.map(it => (
-              <JournalEntryCard
-                key={it.id}
-                title={it.comicTitle && it.chapterLabel ? `Logged ${it.chapterLabel} of ${it.comicTitle}` : 'Journaled a session'}
-                ago={it.ago}
-                content={it.content}
-                isSpoiler={it.isSpoiler}
-                moodEmoji={it.moodEmoji}
-                icon={it.comicTitle && it.chapterLabel ? 'book' : 'pen'}
-                comicTitle={it.comicTitle}
-                coverUrl={it.coverUrl}
-                likeCount={it.likeCount}
-                replyCount={it.replyCount}
-              />
-            ))}
+      {events.length > 0 && (
+        <>
+          <p className="sh-eyebrow">Memory wall</p>
+          <h2 className="sh-h2 sh-display">Recent activity</h2>
+        </>
+      )}
+      {composer && <div style={{ marginBottom: 18 }}>{composer}</div>}
+
+      {events.length === 0 ? (
+        <Empty
+          title="Nothing on the wall yet"
+          hint={isOwner ? 'Log a session or pin a moment and it will live here.' : `@${username} hasn't shared any activity yet.`}
+        />
+      ) : (
+        buildGroups(events).map(g => (
+          <div key={g.label} className="sh-group">
+            <p className="sh-eyebrow">{g.label}</p>
+            <div className="sh-entries">
+              {g.items.map(it => (
+                <JournalEntryCard
+                  key={it.id}
+                  title={it.title}
+                  ago={it.ago}
+                  content={it.body}
+                  isSpoiler={it.isSpoiler}
+                  moodEmoji={it.moodEmoji}
+                  icon={it.kind === 'journal' && it.title.startsWith('Logged') ? 'book' : KIND_ICON[it.kind]}
+                  comicTitle={it.comicTitle}
+                  coverUrl={it.coverUrl}
+                  likeCount={it.likeCount}
+                  replyCount={it.replyCount}
+                  deleteId={isOwner ? it.journalId : null}
+                />
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </section>
   )
 }
@@ -387,7 +407,7 @@ export function LibrarySection({
           <Link href={`/comic/${pinnedRec.id}`} className="sh-card sh-pinned">
             <div className="sh-cover"><Cover url={pinnedRec.cover_url} alt={pinnedRec.title} /></div>
             <div style={{ minWidth: 0 }}>
-              <h3 className="sh-title sh-display" style={{ fontSize: 24 }}>{pinnedRec.title}</h3>
+              <h3 className="sh-title sh-display" style={{ fontSize: 18 }}>{pinnedRec.title}</h3>
               <p className="sh-rec-meta">{pinnedRec.type} · {pinnedRec.status}</p>
               {pinnedRec.description && <p className="sh-desc">{pinnedRec.description}</p>}
             </div>

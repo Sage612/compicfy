@@ -1,13 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import {
-  BellOff, Trash2, ThumbsUp, BookOpen,
-  MessageSquare, UserPlus, AlertCircle,
-  Star, Zap, CheckCircle2, Check, Trophy,
-  FolderHeart, ShieldAlert, ExternalLink, Loader2,
-  Croissant,
-} from 'lucide-react'
+import { X, Check } from 'lucide-react'
 import { timeAgo } from '@/lib/utils/format'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
@@ -17,25 +11,24 @@ import type { Notification as DbNotification } from '@/types/app.types'
 
 export type Notification = Omit<DbNotification, 'data'> & { data: Record<string, any> | null }
 
-const TYPE_META: Record<string, { icon: React.ReactNode; colorClass: string; label: string }> = {
-  vote:                 { icon: <ThumbsUp      size={13} className="text-emerald-500"      />, colorClass: 'bg-emerald-500/10 border-emerald-500/20', label: 'Vote'          },
-  vote_milestone:       { icon: <Trophy        size={13} className="text-yellow-500"       />, colorClass: 'bg-yellow-500/10 border-yellow-500/20',   label: 'Milestone'     },
-  review:               { icon: <Star          size={13} className="text-amber-500"        />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Review'        },
-  reply:                { icon: <MessageSquare size={13} className="text-blue-500"         />, colorClass: 'bg-blue-500/10 border-blue-500/20',       label: 'Reply'         },
-  follow:               { icon: <UserPlus      size={13} className="text-violet-500"       />, colorClass: 'bg-violet-500/10 border-violet-500/20',   label: 'Follow'        },
-  feature:              { icon: <Zap           size={13} className="text-amber-500"        />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'Featured'      },
-  achievement:          { icon: <CheckCircle2  size={13} className="text-teal-500"         />, colorClass: 'bg-teal-500/10 border-teal-500/20',       label: 'Achievement'   },
-  chapter_update:       { icon: <BookOpen      size={13} className="text-primary"          />, colorClass: 'bg-primary/10 border-primary/20',         label: 'New Chapter'   },
-  // item #29 "Let It Bake" - fires once when a bake's target chapter
-  // count is reached (see chapter-check cron's bake_requests check).
-  // Distinct from chapter_update: this fires once per fulfilled bake,
-  // not per new chapter, and only for comics the user explicitly baked.
-  bake_ready:           { icon: <Croissant     size={13} className="text-orange-500"       />, colorClass: 'bg-orange-500/10 border-orange-500/20',   label: 'Ready to Binge' },
-  collection_saved:     { icon: <FolderHeart   size={13} className="text-rose-500"         />, colorClass: 'bg-rose-500/10 border-rose-500/20',       label: 'Collection Saved' },
-  list_starred:         { icon: <Star          size={13} className="text-amber-500"        />, colorClass: 'bg-amber-500/10 border-amber-500/20',     label: 'List Starred'  },
-  followed_user_posted: { icon: <BookOpen      size={13} className="text-violet-500"       />, colorClass: 'bg-violet-500/10 border-violet-500/20',   label: 'New Post'      },
-  admin_new_submission: { icon: <ShieldAlert   size={13} className="text-red-500"          />, colorClass: 'bg-red-500/10 border-red-500/20',         label: 'Needs Review'  },
-  system:               { icon: <AlertCircle   size={13} className="text-muted-foreground" />, colorClass: 'bg-muted border-border/60',               label: 'System'        },
+// One neutral look for every type — the label is the only thing that varies.
+// The unread dot is the single accent.
+const TYPE_LABEL: Record<string, string> = {
+  vote:                 'Vote',
+  vote_milestone:       'Milestone',
+  review:               'Review',
+  reply:                'Reply',
+  follow:               'Follow',
+  feature:              'Featured',
+  achievement:          'Achievement',
+  chapter_update:       'New chapter',
+  // Fires once when a bake's target chapter count is reached (chapter-check cron).
+  bake_ready:           'Ready to binge',
+  collection_saved:     'Collection saved',
+  list_starred:         'List starred',
+  followed_user_posted: 'New post',
+  admin_new_submission: 'Needs review',
+  system:               'System',
 }
 
 const FILTERS = [
@@ -44,13 +37,13 @@ const FILTERS = [
   { key: 'vote_milestone',        label: 'Milestones'   },
   { key: 'follow',                label: 'Follows'      },
   { key: 'review',                label: 'Reviews'      },
-  { key: 'feature',                label: 'Featured'     },
+  { key: 'feature',               label: 'Featured'     },
   { key: 'chapter_update',        label: 'Chapters'     },
   { key: 'bake_ready',            label: 'Baked'        },
   { key: 'collection_saved',      label: 'Collections'  },
   { key: 'list_starred',          label: 'Lists'        },
   { key: 'followed_user_posted',  label: 'Following'    },
-  { key: 'admin_new_submission',  label: 'Review Queue' },
+  { key: 'admin_new_submission',  label: 'Review queue' },
   { key: 'achievement',           label: 'Achievements' },
   { key: 'system',                label: 'System'       },
 ] as const
@@ -98,9 +91,8 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
       setUsernameCache(prev => ({ ...prev, ...newEntries }))
     }
     fetchUsernames()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notifications])
-
-  const getMeta = (type: string) => TYPE_META[type] ?? TYPE_META.system
 
   const getHref = (notif: Notification): string | null => {
     const data = notif.data ?? {}
@@ -112,13 +104,10 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
       case 'reply':
       case 'feature':
       case 'chapter_update':
-        return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
-
-      // item #29 - tapping a bake_ready notification takes the user
-      // straight to the comic, same as chapter_update. There's no
-      // dedicated "bake detail" page, so this is deliberately the same
-      // destination rather than a new route.
+      // No dedicated bake page — same destination as chapter_update.
       case 'bake_ready':
+      case 'followed_user_posted':
+      case 'achievement':
         return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
 
       case 'follow': {
@@ -126,9 +115,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
           const base = data.follower_type === 'creator' ? '/creator' : '/profile'
           return `${base}/${data.follower_username}`
         }
-        if (data.username) {
-          return `${profileBase}/${data.username}`
-        }
+        if (data.username) return `${profileBase}/${data.username}`
         if (data.follower_id && usernameCache[data.follower_id]) {
           const [username, userType] = usernameCache[data.follower_id].split('|')
           const base = userType === 'creator' ? '/creator' : '/reader'
@@ -143,23 +130,13 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
       case 'list_starred':
         return data.list_id ? `/lists/${data.list_id}` : null
 
-      case 'followed_user_posted':
-        return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
-
       case 'admin_new_submission':
         return '/admin/recommendations'
 
-      case 'achievement':
-        return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
-
-      case 'system': {       
+      case 'system': {
         if (data.entity_type && data.entity_id) {
-          if (isAdminView) {         
-            return '/admin/reports'
-          }
-          if (data.entity_type === 'recommendation') {
-            return `/comic/${data.entity_id}`
-          }         
+          if (isAdminView) return '/admin/reports'
+          if (data.entity_type === 'recommendation') return `/comic/${data.entity_id}`
           return null
         }
         return data.recommendation_id ? `/comic/${data.recommendation_id}` : null
@@ -181,8 +158,7 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
 
   const markAllRead = async () => {
     if (isMarkingAll) return
-    const unread = notifications.filter(n => !n.is_read)
-    if (!unread.length) return
+    if (!notifications.some(n => !n.is_read)) return
     setIsMarkingAll(true)
     try {
       await fetch('/api/notifications', { method: 'PATCH' })
@@ -227,16 +203,12 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
       const res = await fetch(`/api/reading-progress/${recommendation_id}`, {
         method:  'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          list_id,
-          status:           status ?? 'reading',
-          progress_chapter: new_chapter_count,
-        }),
+        body: JSON.stringify({ list_id, status: status ?? 'reading', progress_chapter: new_chapter_count }),
       })
       if (!res.ok) throw new Error()
       setMarkedReadIds(prev => new Set(prev).add(notif.id))
       markOneRead(notif.id)
-      toast.success(`Marked as read â€” ch. ${new_chapter_count}`)
+      toast.success(`Marked as read — ch. ${new_chapter_count}`)
     } catch {
       toast.error('Failed to update progress')
     } finally {
@@ -251,14 +223,9 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
 
   if (!notifications.length) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-dashed border-border/60 space-y-3 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
-          <BellOff size={22} className="text-muted-foreground/50" />
-        </div>
-        <div>
-          <p className="font-black text-sm">All caught up</p>
-          <p className="text-xs text-muted-foreground mt-1">Votes, reviews, follows and chapter updates will appear here.</p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-20 rounded-xl border border-dashed border-border space-y-1 text-center">
+        <p className="font-dashboard-serif text-lg text-foreground">All caught up</p>
+        <p className="text-sm text-muted-foreground">Votes, reviews, follows and chapter updates will appear here.</p>
       </div>
     )
   }
@@ -272,25 +239,15 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
             key={f.key}
             onClick={() => setActiveFilter(f.key)}
             className={cn(
-              'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 whitespace-nowrap',
+              'shrink-0 px-3 py-1.5 rounded-full text-xs border transition-colors whitespace-nowrap',
               activeFilter === f.key
-                ? 'bg-primary text-primary-foreground border-primary shadow-sm shadow-primary/20'
-                : 'bg-background/80 border-border/60 text-muted-foreground hover:text-foreground hover:border-border'
+                ? 'bg-foreground text-background border-foreground'
+                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
             )}
           >
-            {f.key !== 'all' && (
-              <span className={cn('opacity-80', activeFilter === f.key && '[&_svg]:text-primary-foreground')}>
-                {TYPE_META[f.key]?.icon}
-              </span>
-            )}
             {f.label}
             {f.key !== 'all' && (
-              <span className={cn(
-                'inline-flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-black',
-                activeFilter === f.key ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
-              )}>
-                {notifications.filter(n => n.type === f.key).length}
-              </span>
+              <span className="ml-1.5 opacity-60 tabular-nums">{notifications.filter(n => n.type === f.key).length}</span>
             )}
           </button>
         ))}
@@ -298,124 +255,88 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
 
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground shrink-0">
-          <span className="font-black text-foreground">{unreadCount}</span> unread
-          {activeFilter !== 'all' && (
-            <span className="ml-1 text-muted-foreground/60">Â· {filtered.length} {activeFilter}</span>
-          )}
+          <span className="text-foreground tabular-nums">{unreadCount}</span> unread
+          {activeFilter !== 'all' && <span className="ml-1 text-muted-foreground/60">· {filtered.length} shown</span>}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-3">
           {unreadCount > 0 && (
-            <button
-              onClick={markAllRead}
-              disabled={isMarkingAll}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary disabled:opacity-50 transition-colors px-2 py-1 rounded-lg hover:bg-primary/5 whitespace-nowrap"
-            >
-              <Check size={11} className={isMarkingAll ? 'animate-pulse' : ''} />
-              {isMarkingAll ? 'Marking¦' : 'Mark all read'}
+            <button onClick={markAllRead} disabled={isMarkingAll}
+              className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 transition-colors whitespace-nowrap">
+              {isMarkingAll ? 'Marking…' : 'Mark all read'}
             </button>
           )}
-          <button
-            onClick={dismissAll}
-            disabled={isClearingAll}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors px-2 py-1 rounded-lg hover:bg-destructive/5 whitespace-nowrap"
-          >
-            <Trash2 size={11} className={isClearingAll ? 'animate-pulse' : ''} />
-            {isClearingAll ? 'Clearingâ€¦' : 'Clear all'}
+          <button onClick={dismissAll} disabled={isClearingAll}
+            className="text-xs text-muted-foreground hover:text-destructive disabled:opacity-50 transition-colors whitespace-nowrap">
+            {isClearingAll ? 'Clearing…' : 'Clear all'}
           </button>
         </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 rounded-2xl border border-dashed border-border/60 space-y-2 text-center">
-          <BellOff size={18} className="text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">No {activeFilter} notifications</p>
-          <button onClick={() => setActiveFilter('all')} className="text-xs text-primary hover:underline">Show all</button>
+        <div className="flex flex-col items-center justify-center py-12 rounded-xl border border-dashed border-border space-y-2 text-center">
+          <p className="text-sm text-muted-foreground">No {activeFilter.replace(/_/g, ' ')} notifications</p>
+          <button onClick={() => setActiveFilter('all')} className="text-xs text-foreground underline underline-offset-4">Show all</button>
         </div>
       ) : (
         <div className="space-y-2">
           {filtered.map(notif => {
-            const meta = getMeta(notif.type)
-            const href = getHref(notif)
+            const label = TYPE_LABEL[notif.type] ?? TYPE_LABEL.system
+            const href  = getHref(notif)
 
             const isResolvingFollow = notif.type === 'follow' && !href
-
-            const isChapterUpdate  = notif.type === 'chapter_update'
-            const canMarkRead      = isChapterUpdate && !!notif.data?.list_id
-            const isMarkingThis    = markingReadId === notif.id
-            const alreadyMarked    = markedReadIds.has(notif.id)
-            const sourceUrl        = notif.data?.source_url as string | undefined
-            const sourceLabel      = notif.data?.source_label as string | undefined
+            const isChapterUpdate   = notif.type === 'chapter_update'
+            const canMarkRead       = isChapterUpdate && !!notif.data?.list_id
+            const isMarkingThis     = markingReadId === notif.id
+            const alreadyMarked     = markedReadIds.has(notif.id)
+            const sourceUrl         = notif.data?.source_url as string | undefined
+            const sourceLabel       = notif.data?.source_label as string | undefined
 
             const inner = (
               <div className={cn(
-                'group relative flex gap-3 p-4 rounded-2xl border transition-all duration-200',
-                notif.is_read
-                  ? 'border-border bg-card hover:border-border/80'
-                  : 'border-primary/20 bg-primary/5 hover:border-primary/30',
+                'group relative flex gap-3 p-4 rounded-xl border bg-card transition-colors hover:border-foreground/30',
+                notif.is_read ? 'border-border' : 'border-foreground/20',
                 isResolvingFollow && 'opacity-70'
               )}>
-                {!notif.is_read && (
-                  <div className="absolute left-0 top-3 bottom-3 w-0.5 rounded-r-full bg-primary" />
-                )}
-
-                <div className={cn('w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border mt-0.5', meta.colorClass)}>
-                  {meta.icon}
-                </div>
+                <span className={cn('mt-1.5 w-1.5 h-1.5 rounded-full shrink-0', notif.is_read ? 'bg-transparent' : 'bg-primary')} />
 
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 space-y-0.5">
-                      <p className={cn('text-sm leading-snug', !notif.is_read ? 'font-semibold text-foreground' : 'text-foreground/80')}>
+                      <p className={cn('text-sm leading-snug', notif.is_read ? 'text-foreground/80' : 'text-foreground font-medium')}>
                         {notif.title}
                       </p>
-                      {notif.content && (
-                        <p className="text-xs text-muted-foreground leading-relaxed">{notif.content}</p>
-                      )}
+                      {notif.content && <p className="text-xs text-muted-foreground leading-relaxed">{notif.content}</p>}
                     </div>
                     <button
                       onClick={e => dismiss(e, notif.id)}
-                      className="text-muted-foreground/40 hover:text-destructive shrink-0 p-1 rounded-lg hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
+                      className="text-muted-foreground/50 hover:text-foreground shrink-0 p-1 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-opacity"
                       aria-label="Dismiss"
-                    >âœ•</button>
+                    >
+                      <X size={13} />
+                    </button>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={cn('inline-flex px-1.5 py-0.5 rounded-md text-[9px] font-black border uppercase tracking-wide', meta.colorClass)}>
-                      {meta.label}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">{notif.created_at ? timeAgo(notif.created_at) : ''}</span>
-                    {!notif.is_read && <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />}
-                    {isResolvingFollow && (
-                      <span className="text-[10px] text-muted-foreground/50 italic">loading profileâ€¦</span>
-                    )}
-                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    <span className="uppercase tracking-widest text-[10px] text-muted-foreground/70">{label}</span>
+                    {notif.created_at && <> · {timeAgo(notif.created_at)}</>}
+                    {isResolvingFollow && <span className="italic text-muted-foreground/50"> · loading profile…</span>}
+                  </p>
 
                   {isChapterUpdate && (sourceUrl || canMarkRead) && (
-                    <div className="flex items-center gap-3 pt-1.5" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-4 pt-1.5" onClick={e => e.stopPropagation()}>
                       {sourceUrl && (
-                        <a
-                          href={sourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:opacity-80 transition-opacity"
-                        >
-                          <ExternalLink size={11} />
+                        <a href={sourceUrl} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-foreground underline underline-offset-4 hover:text-muted-foreground transition-colors">
                           Read on {sourceLabel ?? 'source'}
                         </a>
                       )}
                       {canMarkRead && (
                         alreadyMarked ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                            <Check size={11} /> Marked as read
-                          </span>
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Check size={11} /> Marked as read</span>
                         ) : (
-                          <button
-                            onClick={e => handleMarkChapterRead(e, notif)}
-                            disabled={isMarkingThis}
-                            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-                          >
-                            {isMarkingThis ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                            Mark as read
+                          <button onClick={e => handleMarkChapterRead(e, notif)} disabled={isMarkingThis}
+                            className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                            {isMarkingThis ? 'Saving…' : 'Mark as read'}
                           </button>
                         )
                       )}
@@ -426,13 +347,9 @@ export function NotificationsClient({ initialNotifications, profileBase = '/read
             )
 
             return href ? (
-              <Link key={notif.id} href={href} className="block" onClick={() => markOneRead(notif.id)}>
-                {inner}
-              </Link>
+              <Link key={notif.id} href={href} className="block" onClick={() => markOneRead(notif.id)}>{inner}</Link>
             ) : (
-              <div key={notif.id} onClick={() => markOneRead(notif.id)} className={!notif.is_read ? 'cursor-pointer' : ''}>
-                {inner}
-              </div>
+              <div key={notif.id} onClick={() => markOneRead(notif.id)} className={!notif.is_read ? 'cursor-pointer' : ''}>{inner}</div>
             )
           })}
         </div>
