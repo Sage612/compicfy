@@ -9,10 +9,8 @@ import { ReportButton } from '@/components/recommendations/ReportButton'
 import { getDashboardRoutes } from '@/lib/utils/routes'
 import { isProUser } from '@/lib/access'
 import {
-  BookOpen, Calendar, Hash, User, Palette,
-  Globe, ExternalLink, ArrowLeft, ShieldAlert,
-  Star, ThumbsUp, Bookmark, MessageSquare,
-  Croissant, Layers,
+  Bookmark, Croissant, Flag, Layers, Share2, ShieldAlert,
+  Star, ThumbsUp, MessageSquare,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, timeAgo } from '@/lib/utils/format'
@@ -24,15 +22,25 @@ import type { Recommendation } from '@/types/app.types'
 import { Button } from '@/components/ui/button'
 import { Suspense } from 'react'
 import { ContextualOffers } from '@/components/affiliate/ContextualOffers'
-import { ReadingProgressButton } from '@/components/recommendations/ReadingProgressButton'
-import { ContinueReadingButton } from '@/components/comic-detail/ContinueReadingButton'
 import { BakeButton } from '@/components/recommendations/BakeButton'
-import { ComicDetailTabs } from '@/components/comic-detail/ComicDetailTabs'
 import { SubmitYourOwnButton } from '@/components/recommendations/SubmitYourOwnButton'
 import { RecommenderLink } from '@/components/recommendations/RecommenderLink'
 import { MoreInfoSection } from '@/components/comic-detail/MoreInfoSection'
 import { TagList } from '@/components/comic-detail/TagList'
-import { resolvePlatformIcon } from '@/lib/utils/platformIcons'
+import { ComicHero } from '@/components/comic-detail/ComicHero'
+import { RatingsHistogram } from '@/components/comic-detail/RatingsHistogram'
+import { TrackingProvider } from '@/components/comic-detail/TrackingProvider'
+import { TrackBar } from '@/components/comic-detail/TrackBar'
+import { MomentStrip } from '@/components/comic-detail/MomentStrip'
+import { ProgressStrip } from '@/components/comic-detail/ProgressStrip'
+import { FriendsActivity } from '@/components/comic-detail/FriendsActivity'
+import { OfficialPlatforms } from '@/components/comic-detail/OfficialPlatforms'
+import { SectionNav, type NavItem } from '@/components/comic-detail/SectionNav'
+import type { SheetRow } from '@/components/comic-detail/TrackSheet'
+import {
+  getFriendActivity, getMyMoments, getMyTracking, getRatingBreakdown,
+} from '@/lib/tracking/queries'
+import type { MyTracking } from '@/lib/tracking/types'
 import { headers } from 'next/headers'
 import { Fraunces, JetBrains_Mono } from 'next/font/google'
 import { TYPE_META, DEFAULT_TYPE_META, resolveStatusMeta } from '@/lib/utils/constants'
@@ -358,22 +366,35 @@ export default async function ComicDetailPage({ params }: Props) {
 
   const submitRoute = user ? currentUserRoutes.newRec : '/reader/dashboard/recommendations/new'
 
-  let userVote: 'up' | 'down' | null = null
-  let isSaved = false
-  let existingRating: number | null = null
-  if (user) {
-    const [voteRes, saveRes, ratingRes] = await Promise.all([
-      (supabase as any).from('votes').select('vote_type').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle(),
-      (supabase as any).from('saves').select('id').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle(),
-      (supabase as any).from('reviews').select('rating').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle(),
-    ])
-    userVote = (voteRes.data?.vote_type as 'up' | 'down') ?? null
-    isSaved  = !!saveRes.data
-    existingRating = typeof ratingRes.data?.rating === 'number' ? ratingRes.data.rating : null
-  }
+  // ── Everything that depends on who is looking, fetched together ──
+  const NOT_TRACKING: MyTracking = { listId: null, status: null, subStatus: null, chapter: null, lastReadAt: null }
 
-  const typeStyle = TYPE_META[rec.type as keyof typeof TYPE_META] ?? DEFAULT_TYPE_META
+  const [voteRes, saveRes, ratingRes, myTracking, myMoments, ratingBreakdown, friends] = await Promise.all([
+    user
+      ? (supabase as any).from('votes').select('vote_type').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    user
+      ? (supabase as any).from('saves').select('id').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    user
+      ? (supabase as any).from('reviews').select('rating').eq('user_id', user.id).eq('recommendation_id', id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    user ? getMyTracking(supabase, user.id, id) : Promise.resolve(NOT_TRACKING),
+    user ? getMyMoments(supabase, user.id, id) : Promise.resolve([]),
+    getRatingBreakdown(supabase, id),
+    user ? getFriendActivity(supabase, user.id, id) : Promise.resolve({ followsAnyone: false, events: [] }),
+  ])
+
+  const userVote: 'up' | 'down' | null = (voteRes.data?.vote_type as 'up' | 'down') ?? null
+  const isSaved = !!saveRes.data
+  const existingRating: number | null =
+    typeof ratingRes.data?.rating === 'number' ? ratingRes.data.rating : null
+
+  const typeStyle  = TYPE_META[rec.type as keyof typeof TYPE_META] ?? DEFAULT_TYPE_META
   const statusMeta = resolveStatusMeta(rec.status, (rec as any).translation_status)
+
+  const totalVotes = (rec.upvotes ?? 0) + (rec.downvotes ?? 0)
+  const upvotePct  = totalVotes > 0 ? Math.round(((rec.upvotes ?? 0) / totalVotes) * 100) : null
 
   const stats = [
     { icon: ThumbsUp,      label: 'Upvotes', value: rec.upvotes      ?? 0 },
@@ -382,303 +403,167 @@ export default async function ComicDetailPage({ params }: Props) {
     { icon: MessageSquare, label: 'Score',   value: rec.score        ?? 0 },
   ]
 
-  const metaItems = [
-    rec.author && { key: 'author', icon: User, label: rec.author },
-    rec.artist && rec.artist !== rec.author && { key: 'artist', icon: Palette, label: rec.artist },
-    rec.year_released && { key: 'year', icon: Calendar, label: String(rec.year_released) },
-    rec.chapter_count && {
-      key: 'chapters',
-      icon: Hash,
-      label: rec.last_chapter_released_at
-        ? `${rec.chapter_count} ch. ·  ${timeAgo(rec.last_chapter_released_at)}`
-        : `${rec.chapter_count} ch.`,
-    },
-  ].filter(Boolean) as { key: string; icon: typeof User; label: string }[]
-
-  // Zipped for ComicDetailTabs' Sources tab (mobile only) — same source
-  // data the desktop official-platforms row above already renders.
-  const officialPlatformsZipped = (rec.official_platforms ?? []).map((name, i) => ({
+  const officialPlatforms = (rec.official_platforms ?? []).map((name, i) => ({
     name,
     link: rec.official_links?.[i] ?? null,
   }))
+  const readAheadPlatform = officialPlatforms.find(p => p.link && p.name.toLowerCase().includes('webtoon'))
 
-  const actionDeck = (
-    <div className="rounded-xl border border-dossier-foreground/10 bg-dossier-panel/60 p-2.5 space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        <VoteButtons
-          recommendationId={id}
-          initialUpvotes={rec.upvotes ?? 0}
-          initialDownvotes={rec.downvotes ?? 0}
-          initialVote={userVote}
+  const shareUrl = `${SITE_URL}/comic/${id}`
+
+  // The "more" rows inside the track sheet. Rendered here (server) and passed through.
+  const sheetRows: SheetRow[] = [
+    ...(user ? [{
+      key: 'list',
+      label: 'Add to list',
+      icon: <Bookmark size={16} className="text-dossier-foreground/50" />,
+      content: <AddToListButton recommendationId={id} userId={user.id} />,
+    }] : []),
+    {
+      key: 'collection',
+      label: 'Add to collection',
+      icon: <Layers size={16} className="text-dossier-foreground/50" />,
+      content: <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />,
+    },
+    {
+      key: 'bake',
+      label: 'Let it bake',
+      icon: <Croissant size={16} className="text-dossier-foreground/50" />,
+      content: (
+        <BakeButton
+          comicId={id}
+          chapterCount={rec.chapter_count}
           isLoggedIn={!!user}
-          comicTitle={rec.title}
+          isPro={currentUserIsPro}
         />
-        <SaveButton
-          recommendationId={id}
-          initialSaved={isSaved}
-          isLoggedIn={!!user}
-          comicTitle={rec.title}
-        />
-      </div>
+      ),
+    },
+    {
+      key: 'share',
+      label: 'Share',
+      icon: <Share2 size={16} className="text-dossier-foreground/50" />,
+      content: <ShareButton title={rec.title} url={shareUrl} fullWidth />,
+    },
+    {
+      key: 'report',
+      label: 'Report',
+      icon: <Flag size={16} className="text-dossier-foreground/50" />,
+      content: <ReportButton entityType="recommendation" entityId={id} isLoggedIn={!!user} asButton />,
+    },
+  ]
 
-      <ReadingProgressButton
-        comicId={id}
-        chapterCount={rec.chapter_count}
-        isLoggedIn={!!user}
-      />
+  const navItems: NavItem[] = [
+    ...(user && myTracking.status ? [{ id: 'progress', label: 'Progress' }] : []),
+    { id: 'details', label: 'Details' },
+    ...(user ? [{ id: 'friends', label: 'Friends' }] : []),
+    { id: 'reviews', label: 'Reviews' },
+    { id: 'similar', label: 'Similar' },
+  ]
 
-      {/* item #29 "Let It Bake" - same actionDeck placement as
-          ReadingProgressButton since they're the same category of
-          per-comic action (a small dropdown-driven setup flow).
-          currentUserIsPro is already computed above in this file for
-          MyReadingSources - reused here rather than recomputed. */}
-      <BakeButton
-        comicId={id}
-        chapterCount={rec.chapter_count}
-        isLoggedIn={!!user}
-        isPro={currentUserIsPro}
-      />
-
-      <div className="space-y-1.5">
-        {user && <AddToListButton recommendationId={id} userId={user.id} />}
-        <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-dossier-foreground/10">
-        <ShareButton title={rec.title} url={`${SITE_URL}/comic/${id}`} fullWidth />
-        <ReportButton
-          entityType="recommendation"
-          entityId={id}
-          isLoggedIn={!!user}
-          asButton
-        />
-      </div>
-    </div>
-  )
+  const sectionHeading =
+    'font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40'
 
   return (
     <>
       <ComicJsonLd rec={rec} id={id} recommenderName={recommenderName} />
 
       <div className={`${display.variable} ${mono.variable} min-h-screen bg-dossier text-dossier-foreground`}>
+        <TrackingProvider
+          recommendationId={id}
+          title={rec.title}
+          totalChapters={rec.chapter_count}
+          comicStatus={rec.status}
+          signedIn={!!user}
+          initial={{
+            status:     myTracking.status,
+            subStatus:  myTracking.subStatus,
+            chapter:    myTracking.chapter,
+            lastReadAt: myTracking.lastReadAt,
+          }}
+          initialRating={existingRating}
+          initialMoments={myMoments}
+          sheetRows={sheetRows}
+        >
+          <ComicHero
+            title={rec.title}
+            author={rec.author}
+            artist={rec.artist}
+            year={rec.year_released}
+            typeLabel={typeStyle.label}
+            typeBadgeClass={typeStyle.badge}
+            gradientClass={typeStyle.gradient}
+            statusLabel={statusMeta.label}
+            contentRating={rec.content_rating}
+            coverUrl={rec.cover_url}
+            bannerUrl={rec.banner_url}
+            isFeatured={!!rec.is_featured}
+            chapterCount={rec.chapter_count}
+            lastChapterAgo={rec.last_chapter_released_at ? timeAgo(rec.last_chapter_released_at) : null}
+            description={rec.description}
+            officialPlatforms={officialPlatforms}
+            shareUrl={shareUrl}
+          />
 
-        <div className="relative h-20 md:h-[12vh] md:min-h-[92px] md:max-h-[132px] overflow-hidden">
-          {rec.cover_url ? (
-            <img
-              src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
-              alt=""
-              aria-hidden
-              className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-40"
-            />
-          ) : (
-            <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-10`} />
-          )}
-          <div className={`absolute inset-0 bg-gradient-to-br ${typeStyle.gradient} opacity-15 mix-blend-overlay`} />
-          <div className="absolute inset-0 bg-gradient-to-t from-dossier via-dossier/60 to-dossier/10" />
+          <div className="max-w-3xl mx-auto px-4 md:px-6 mt-6 space-y-6 pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-16">
 
-          <div className="absolute top-5 left-4 md:left-6 z-10">
-            <Link
-              href="/browse"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-dossier-panel/60 border border-dossier-foreground/10 text-xs text-dossier-foreground/70 hover:text-dossier-foreground hover:border-dossier-foreground/30 backdrop-blur-md transition-colors"
-            >
-              <ArrowLeft size={12} />
-              Browse
-            </Link>
-          </div>
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 md:px-6 -mt-4 md:-mt-7 z-20 pb-6 pb-[calc(72px+env(safe-area-inset-bottom,0px))] md:pb-6">
-
-
-          <div className="flex flex-col md:flex-row md:items-start gap-6 md:gap-8">
-
-            <div className="hidden md:block md:w-52 shrink-0 order-1">
-              <div className="mx-auto md:mx-0 w-44 md:w-52 space-y-4">
-
-                <div className="relative flex">
-                  <div
-                    className={`hidden md:flex items-center justify-center w-7 rounded-l-lg border-y border-l ${typeStyle.border} bg-dossier-panel/60 backdrop-blur-md`}
-                  >
-                    <span className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.25em] text-dossier-foreground/60 -rotate-90 whitespace-nowrap">
-                      {rec.type} · {rec.status}{rec.year_released ? ` · ${rec.year_released}` : ''}
-                    </span>
-                  </div>
-
-                  <div className="relative w-44 md:w-[180px] aspect-[3/4] rounded-r-lg md:rounded-l-none rounded-lg overflow-hidden border-y border-r border-dossier-foreground/10 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] bg-dossier-panel">
-                    <div className={`absolute -inset-4 rounded-2xl ${typeStyle.detailGlow} blur-2xl opacity-30 -z-10`} />
-                    {rec.cover_url ? (
-                      <img
-                        src={`/api/image-proxy?url=${encodeURIComponent(rec.cover_url)}`}
-                        alt={rec.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <BookOpen size={36} className="text-dossier-foreground/30" />
-                      </div>
-                    )}
-
-                    <div className="absolute top-2 left-2 z-10">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold border capitalize backdrop-blur-sm ${typeStyle.badge}`}>
-                        {rec.type}
-                      </span>
-                    </div>
-                    {rec.is_featured && (
-                      <div className="absolute top-2 right-2 z-10">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 backdrop-blur-sm">
-                          <Star size={8} className="fill-amber-400" />
-                          Featured
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="hidden md:block">
-                  {actionDeck}
-                </div>
-              </div>
+            <div className="border-t border-dossier-foreground/10 pt-5">
+              <RatingsHistogram breakdown={ratingBreakdown} upvotePct={upvotePct} voteCount={totalVotes} />
             </div>
 
-            <div className="flex-1 min-w-0 pt-1 md:pt-2 space-y-2 md:space-y-3 order-3">
+            {/* The one place you log. Big, obvious, one tap. */}
+            <div className="space-y-3">
+              <TrackBar />
+              <MomentStrip />
+            </div>
 
-              <div className="hidden md:block space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border capitalize ${statusMeta.badge}`}>
-                    {statusMeta.label}
-                  </span>
-                  <span className="px-1.5 py-0.5 rounded border border-dossier-foreground/10 text-dossier-foreground/40 text-[10px] capitalize">
-                    {rec.content_rating?.replace('_', ' ')}
-                  </span>
-                  {(recommenderIsVerified || recommenderIsPro) && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-dossier-panel/60 border border-dossier-foreground/10 text-[10px] font-[family-name:var(--font-mono)] text-dossier-foreground/50">
-                      {recommenderIsVerified && recommenderIsPro
-                        ? 'Verified · Pro rec'
-                        : recommenderIsVerified
-                        ? 'Verified'
-                        : 'Pro rec'}
-                    </span>
-                  )}
+            <div className="grid grid-cols-2 gap-2">
+              <VoteButtons
+                recommendationId={id}
+                initialUpvotes={rec.upvotes ?? 0}
+                initialDownvotes={rec.downvotes ?? 0}
+                initialVote={userVote}
+                isLoggedIn={!!user}
+                comicTitle={rec.title}
+              />
+              <SaveButton
+                recommendationId={id}
+                initialSaved={isSaved}
+                isLoggedIn={!!user}
+                comicTitle={rec.title}
+              />
+            </div>
+
+            <SectionNav items={navItems} />
+
+            <ProgressStrip />
+
+            {/* ── Details ── */}
+            <section id="details" className="scroll-mt-20 space-y-5">
+              <h2 className={sectionHeading}>Details</h2>
+
+              {rec.why_recommend && (
+                <div className={`rounded-2xl border ${typeStyle.border} bg-dossier-panel/40 p-5`}>
+                  <p className={`${sectionHeading} mb-3`}>Why read this</p>
+                  <p className="font-[family-name:var(--font-dossier-display)] italic text-lg leading-snug text-dossier-foreground/85">
+                    &ldquo;{rec.why_recommend}&rdquo;
+                  </p>
                 </div>
-                <h1 className="font-[family-name:var(--font-dossier-display)] text-4xl md:text-5xl font-black italic leading-[0.95] tracking-tight text-dossier-foreground">
-                  {rec.title}
-                </h1>
-              </div>
+              )}
 
-              {/* Desktop-only — mobile shows these as pills inside
-                  ComicDetailTabs' Overview tab (Metadata / Genres & Tags). */}
-              <div className="hidden md:block space-y-2 md:space-y-3">
-                {metaItems.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-[family-name:var(--font-mono)] text-[11px] md:text-xs text-dossier-foreground/50 md:border-y md:border-dossier-foreground/10 md:py-2.5">
-                    {metaItems.map((item, i) => (
-                      <span key={item.key} className="flex items-center gap-x-1.5">
-                        {i > 0 && <span className="text-dossier-foreground/20 mx-0.5">•</span>}
-                        <span className="flex items-center gap-1.5">
-                          <item.icon size={12} className="text-dossier-foreground/30" />
-                          {item.label}
-                        </span>
-                      </span>
-                    ))}
-                    {rec.type && (
-                      <span className="flex items-center gap-1.5">
-                        <span className="text-dossier-foreground/20 mx-0.5">•</span>
-                        <Globe size={12} className="text-dossier-foreground/30" />
-                        {rec.type}
-                      </span>
-                    )}
-                  </div>
-                )}
+              <TagList
+                recommendationId={id}
+                isLoggedIn={!!user}
+                heading="Genres & Tags"
+                leadingItems={(rec.genres ?? []).map(g => ({ label: g, href: `/browse?genre=${g}` }))}
+                collapsible
+              />
 
-                {rec.genres && rec.genres.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {rec.genres.map((genre: string) => (
-                      <Link key={genre} href={`/browse?genre=${genre}`}>
-                        <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors">
-                          {genre}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* ── DESKTOP-ONLY (unchanged single-scroll layout) ──
-                  TagList, official platforms row, MyReadingSources and
-                  MoreInfoSection now render on mobile inside
-                  ComicDetailTabs (Overview/Sources tabs) below instead. */}
-              <div className="hidden md:block space-y-2 md:space-y-3">
-                <TagList recommendationId={id} isLoggedIn={!!user} />
-
-                {rec.official_platforms && rec.official_platforms.length > 0 && (
-                  <div className="flex md:flex-wrap justify-center md:justify-start gap-2 overflow-x-auto md:overflow-visible no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
-                    {rec.official_platforms.map((platform: string, i: number) => (
-                      <div
-                        key={platform}
-                        className="flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-full border border-dossier-foreground/10 bg-dossier-panel/40 text-[11px] text-dossier-foreground/60 hover:border-dossier-foreground/25 transition-colors shrink-0 whitespace-nowrap"
-                      >
-                        {(() => {
-                          const icon = resolvePlatformIcon(platform)
-                          if (icon.kind === 'svg') {
-                            return (
-                              <svg viewBox="0 0 24 24" width={10} height={10} className="shrink-0" aria-hidden="true">
-                                <path d={icon.path} fill={icon.hex} />
-                              </svg>
-                            )
-                          }
-                          if (icon.kind === 'monogram') {
-                            return (
-                              <span
-                                className="w-3.5 h-3.5 rounded-[3px] flex items-center justify-center text-[8px] font-bold shrink-0"
-                                style={{ background: icon.bg, color: icon.fg }}
-                                aria-hidden="true"
-                              >
-                                {icon.letter}
-                              </span>
-                            )
-                          }
-                          return <Globe size={10} className="text-dossier-foreground/40 shrink-0" />
-                        })()}
-                        <span className="font-medium">{platform}</span>
-                        {rec.official_links?.[i] && (
-                          <a
-                            href={rec.official_links[i]}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            aria-label={`Open ${platform} link`}
-                          >
-                            <ExternalLink size={10} className="text-dossier-foreground/40 hover:text-dossier-foreground transition-colors" />
-                          </a>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div id="reading-sources" className="scroll-mt-24">
-                  <MyReadingSources
-                    comicId={id}
-                    isLoggedIn={!!user}
-                    isPro={currentUserIsPro}
-                  />
-                </div>
-
-                {rec.more_info_link && (
-                  <MoreInfoSection
-                    link={rec.more_info_link}
-                    source={rec.more_info_link_source}
-                    verifiedAt={rec.more_info_link_verified_at}
-                  />
-                )}
-              </div>
-
-              {/* Desktop-only — the mobile hero's rating pill + icon row +
-                  Community tab's vote-split bar cover this on mobile now. */}
-              <div className="hidden md:flex items-stretch rounded-xl border border-dossier-foreground/10 bg-dossier-panel/40 divide-x divide-dossier-foreground/10 overflow-hidden backdrop-blur-sm">
+              <div className="flex items-stretch rounded-xl border border-dossier-foreground/10 bg-dossier-panel/40 divide-x divide-dossier-foreground/10 overflow-hidden">
                 {stats.map(({ icon: Icon, label, value }) => (
-                  <div key={label} className="flex-1 px-2 md:px-5 py-2.5 text-center">
+                  <div key={label} className="flex-1 px-2 py-2.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
                       <Icon size={12} className="text-dossier-foreground/40" />
-                      <p className="font-[family-name:var(--font-mono)] text-lg md:text-xl font-bold tabular-nums leading-none text-dossier-foreground">
+                      <p className="font-[family-name:var(--font-mono)] text-lg font-bold tabular-nums leading-none text-dossier-foreground">
                         {value}
                       </p>
                     </div>
@@ -687,328 +572,97 @@ export default async function ComicDetailPage({ params }: Props) {
                 ))}
               </div>
 
-              {/* ── MOBILE-ONLY tabbed layout (hero + sticky icon row/tabs + Overview/Sources/Community) ── */}
-              <ComicDetailTabs
-                recommendationId={id}
-                title={rec.title}
-                coverUrl={rec.cover_url}
-                isFeatured={!!rec.is_featured}
-                typeLabel={typeStyle.label}
-                statusLabel={statusMeta.label}
-                yearReleased={rec.year_released}
-                ratingValue={ratioToStars(rec.upvotes ?? 0, rec.downvotes ?? 0)}
-                upvotePct={
-                  (rec.upvotes ?? 0) + (rec.downvotes ?? 0) > 0
-                    ? Math.round(((rec.upvotes ?? 0) / ((rec.upvotes ?? 0) + (rec.downvotes ?? 0))) * 100)
-                    : null
-                }
-                initialUpvotes={rec.upvotes ?? 0}
-                initialDownvotes={rec.downvotes ?? 0}
-                initialVote={userVote}
-                initialSaved={isSaved}
-                isLoggedIn={!!user}
-                shareUrl={`${SITE_URL}/comic/${id}`}
-                hasOfficialSource={officialPlatformsZipped.some(p => !!p.link)}
-                existingRating={existingRating}
-                continueSlot={
-                  <ContinueReadingButton
-                    comicId={id}
-                    isLoggedIn={!!user}
-                    officialPlatforms={officialPlatformsZipped}
-                  />
-                }
-                downvoteSlot={
-                  <VoteButtons
-                    recommendationId={id}
-                    initialUpvotes={rec.upvotes ?? 0}
-                    initialDownvotes={rec.downvotes ?? 0}
-                    initialVote={userVote}
-                    isLoggedIn={!!user}
-                    comicTitle={rec.title}
-                    variant="icon"
-                    mode="down"
-                  />
-                }
-                moreSheetRows={[
-                  {
-                    key: 'progress',
-                    icon: <BookOpen size={16} className="text-dossier-foreground/50" />,
-                    label: 'Reading progress',
-                    content: (
-                      <ReadingProgressButton
-                        comicId={id}
-                        chapterCount={rec.chapter_count}
-                        isLoggedIn={!!user}
-                      />
-                    ),
-                  },
-                  {
-                    key: 'bake',
-                    icon: <Croissant size={16} className="text-dossier-foreground/50" />,
-                    label: 'Let it bake',
-                    content: (
-                      <BakeButton
-                        comicId={id}
-                        chapterCount={rec.chapter_count}
-                        isLoggedIn={!!user}
-                        isPro={currentUserIsPro}
-                      />
-                    ),
-                  },
-                  ...(user ? [{
-                    key: 'list',
-                    icon: <Bookmark size={16} className="text-dossier-foreground/50" />,
-                    label: 'Add to list',
-                    content: <AddToListButton recommendationId={id} userId={user.id} />,
-                  }] : []),
-                  {
-                    key: 'collection',
-                    icon: <Layers size={16} className="text-dossier-foreground/50" />,
-                    label: 'Add to collection',
-                    content: <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />,
-                  },
-                ]}
-                reportButton={
-                  <ReportButton
-                    entityType="recommendation"
-                    entityId={id}
-                    isLoggedIn={!!user}
-                    asButton
-                  />
-                }
-                description={rec.description}
-                whyRecommend={rec.why_recommend}
-                officialPlatforms={officialPlatformsZipped}
-                upvotes={rec.upvotes ?? 0}
-                downvotes={rec.downvotes ?? 0}
-                metaBadges={[
-                  typeStyle.label,
-                  statusMeta.label,
-                  rec.content_rating ? rec.content_rating.replace('_', ' ') : null,
-                  rec.chapter_count
-                    ? rec.last_chapter_released_at
-                      ? `${rec.chapter_count} ch. · ${timeAgo(rec.last_chapter_released_at)}`
-                      : `${rec.chapter_count} ch.`
-                    : null,
-                  rec.year_released ? String(rec.year_released) : null,
-                  rec.author
-                    ? (rec.artist && rec.artist !== rec.author ? `${rec.author} · ${rec.artist}` : rec.author)
-                    : null,
-                ].filter((b): b is string => !!b)}
-                tagList={
-                  <TagList
-                    recommendationId={id}
-                    isLoggedIn={!!user}
-                    heading="Genres & Tags"
-                    leadingItems={(rec.genres ?? []).map(g => ({ label: g, href: `/browse?genre=${g}` }))}
-                    collapsible
-                  />
-                }
-                moreInfo={
-                  rec.more_info_link ? (
-                    <MoreInfoSection
-                      link={rec.more_info_link}
-                      source={rec.more_info_link_source}
-                      verifiedAt={rec.more_info_link_verified_at}
-                    />
-                  ) : null
-                }
-                personalSources={
-                  <MyReadingSources
-                    comicId={id}
-                    isLoggedIn={!!user}
-                    isPro={currentUserIsPro}
-                  />
-                }
-                reviewSection={
-                  <ReviewSection
-                    recommendationId={id}
-                    currentUserId={user?.id ?? null}
-                    isLoggedIn={!!user}
-                    recommenderId={rec.user_id}
-                    currentUserRole={currentUserProfile?.role ?? null}
-                  />
-                }
-                nextReads={
-                  <SimilarComics
-                    comicId={id}
-                    contentRating={rec.content_rating}
-                    showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
-                    layout="scroll"
-                    hideHeading
-                  />
-                }
-                contextualOffers={
-                  <Suspense fallback={<div className="h-40 bg-dossier-panel/30 animate-pulse rounded-2xl border border-dossier-foreground/10" />}>
-                    <ContextualOffers
-                      comicId={id}
-                      comicTitle={rec.title}
-                      genre={rec.genres?.[0] || 'Action'}
-                      maxOffers={3}
-                    />
-                  </Suspense>
-                }
-                submitOwnButton={
-                  <SubmitYourOwnButton
-                    isLoggedIn={!!user}
-                    submitRoute={submitRoute}
-                    comicId={id}
-                  />
-                }
-                recommenderCard={
-                  !isGhostRec && profile ? (
-                    <div className="rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/40 p-5">
-                      <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
-                        Recommender
-                      </p>
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                          {profile.avatar_url ? (
-                            <img
-                              src={profile.avatar_url}
-                              alt=""
-                              className="h-10 w-10 rounded-full border border-dossier-foreground/10 object-cover shrink-0"
-                            />
-                          ) : (
-                            <div className="h-10 w-10 rounded-full border border-dossier-foreground/10 bg-dossier flex items-center justify-center text-xs font-bold text-dossier-foreground/40 shrink-0">
-                              {recommenderName.slice(0, 1).toUpperCase()}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <p className="text-[13px] font-medium truncate text-dossier-foreground">{recommenderName}</p>
-                            {profile.username && (
-                              <p className="font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/40 truncate">
-                                @{profile.username}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        {(recommenderIsVerified || recommenderIsPro) && (
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {recommenderIsVerified && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-dossier-foreground/15 text-dossier-foreground/60">
-                                Verified
-                              </span>
-                            )}
-                            {recommenderIsPro && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-amber-500/30 text-amber-400">
-                                Pro
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      {profile.username && (
-                        <Link
-                          href={profile.user_type === 'creator'
-                            ? `/creator/${profile.username}`
-                            : `/profile/${profile.username}`}
-                          className="mt-3 flex items-center justify-center w-full h-8 rounded-[10px] border border-dossier-foreground/10 bg-dossier/60 font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/70"
-                        >
-                          View profile →
-                        </Link>
-                      )}
-                    </div>
-                  ) : null
-                }
-              />
+              <div id="sources" className="scroll-mt-20 space-y-5">
+                <OfficialPlatforms platforms={officialPlatforms} />
 
-              {/* ── DESKTOP-ONLY (unchanged single-scroll layout) ── */}
-              <div className="hidden md:block space-y-6 pt-4 md:pt-8">
-
-          <div className={`grid grid-cols-1 ${rec.why_recommend ? 'md:grid-cols-[1.6fr_1fr]' : ''} gap-3 md:gap-4`}>
-            <div className="relative rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/30 backdrop-blur-sm p-5 md:p-6 overflow-hidden">
-              <div className={`absolute -top-10 -right-10 w-40 h-40 rounded-full ${typeStyle.detailGlow} blur-3xl opacity-20`} />
-              <h2 className="relative font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
-                About
-              </h2>
-
-              <p className="relative text-[15px] leading-relaxed text-dossier-foreground/75 max-w-prose">{rec.description}</p>
-            </div>
-
-            {rec.why_recommend && (
-              <div className={`relative rounded-2xl border ${typeStyle.border} bg-dossier-panel/40 p-5 md:p-6 flex flex-col`}>
-                <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
-                  Why Read This
-                </h2>
-                <p className="font-[family-name:var(--font-dossier-display)] italic text-lg leading-snug text-dossier-foreground/85 flex-1">
-                  &ldquo;{rec.why_recommend}&rdquo;
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-2xl border border-dashed border-dossier-foreground/15 bg-dossier-panel/20 p-5 md:p-6">
-            <SubmitYourOwnButton
-              isLoggedIn={!!user}
-              submitRoute={submitRoute}
-              comicId={id}
-            />
-          </div>
-
-          <div className="flex items-center justify-between py-4 border-t border-dossier-foreground/10 text-xs text-dossier-foreground/40">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span>Recommended by</span>
-              <RecommenderLink
-                username={profile?.username ?? ''}
-                displayName={recommenderName}
-                isLoggedIn={!!user}
-                isGhost={isGhostRec}
-                role={profile?.role}
-                isPro={recommenderIsPro}
-                isVerified={recommenderIsVerified}
-                comicTitle={rec.title}
-                userType={profile?.user_type ?? null}
-              />
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <span className="font-[family-name:var(--font-mono)]">{rec.created_at ? formatDate(rec.created_at) : ''}</span>
-            </div>
-          </div>
-
-          <section className="pt-2 border-t border-dossier-foreground/10 space-y-4">
-            <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
-              Reviews
-            </h2>
-            <ReviewSection
-              recommendationId={id}
-              currentUserId={user?.id ?? null}
-              isLoggedIn={!!user}
-              recommenderId={rec.user_id}
-              currentUserRole={currentUserProfile?.role ?? null}
-            />
-          </section>
-
-          <Suspense fallback={<div className="h-40 bg-dossier-panel/30 animate-pulse rounded-2xl border border-dossier-foreground/10" />}>
-            <ContextualOffers
-              comicId={id}
-              comicTitle={rec.title}
-              genre={rec.genres?.[0] || 'Action'}
-              maxOffers={3}
-            />
-          </Suspense>
-
-          <section className="pt-2 border-t border-dossier-foreground/10 space-y-4">
-            <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
-              Next Reads
-            </h2>
-            <SimilarComics
-              comicId={id}
-              contentRating={rec.content_rating}
-              showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
-            />
-          </section>
-
-              </div>
-            </div>
-
-            {!isGhostRec && profile && (
-              <div className="hidden lg:block w-60 shrink-0 order-4">
-                <div className="sticky top-6 rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/40 backdrop-blur-sm p-4">
-                  <p className="font-[family-name:var(--font-mono)] text-[9px] uppercase tracking-[0.2em] text-dossier-foreground/40 mb-3">
-                    Recommender
+                <div className="space-y-2">
+                  <p className={sectionHeading}>Your reading sources</p>
+                  <p className="text-[11px] text-dossier-foreground/40 -mt-1">
+                    Personal links you&rsquo;ve saved. Prefer official platforms above when you can.
                   </p>
+                  <MyReadingSources comicId={id} isLoggedIn={!!user} isPro={currentUserIsPro} />
+                </div>
+              </div>
+
+              {readAheadPlatform && (
+                <div className="rounded-2xl border border-dashed border-dossier-foreground/15 bg-dossier-panel/20 p-5 space-y-2">
+                  <p className="font-[family-name:var(--font-dossier-display)] italic text-lg font-semibold text-dossier-foreground">
+                    Read ahead on {readAheadPlatform.name}
+                  </p>
+                  <p className="text-sm text-dossier-foreground/60">
+                    Get early access to upcoming chapters with {readAheadPlatform.name}&rsquo;s fast-pass system.
+                  </p>
+                  <a
+                    href={readAheadPlatform.link ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center px-4 h-9 rounded-xl border border-dossier-foreground/15 text-sm font-semibold text-dossier-foreground/80"
+                  >
+                    Open {readAheadPlatform.name}
+                  </a>
+                </div>
+              )}
+
+              {rec.more_info_link && (
+                <MoreInfoSection
+                  link={rec.more_info_link}
+                  source={rec.more_info_link_source}
+                  verifiedAt={rec.more_info_link_verified_at}
+                />
+              )}
+            </section>
+
+            {/* ── Friends ── */}
+            {user && (
+              <FriendsActivity
+                events={friends.events}
+                followsAnyone={friends.followsAnyone}
+                myChapter={myTracking.chapter}
+              />
+            )}
+
+            {/* ── Reviews ── */}
+            <section id="reviews" className="scroll-mt-20 pt-2 border-t border-dossier-foreground/10 space-y-4">
+              <h2 className={sectionHeading}>Reviews</h2>
+              <ReviewSection
+                recommendationId={id}
+                currentUserId={user?.id ?? null}
+                isLoggedIn={!!user}
+                recommenderId={rec.user_id}
+                currentUserRole={currentUserProfile?.role ?? null}
+              />
+            </section>
+
+            {/* ── Similar ── */}
+            <section id="similar" className="scroll-mt-20 pt-2 border-t border-dossier-foreground/10 space-y-4">
+              <h2 className={sectionHeading}>Next reads</h2>
+              <SimilarComics
+                comicId={id}
+                contentRating={rec.content_rating}
+                showAdult={rec.content_rating === 'adult' || rec.content_rating === 'mature'}
+                layout="scroll"
+                hideHeading
+              />
+            </section>
+
+            <Suspense fallback={<div className="h-40 bg-dossier-panel/30 animate-pulse rounded-2xl border border-dossier-foreground/10" />}>
+              <ContextualOffers
+                comicId={id}
+                comicTitle={rec.title}
+                genre={rec.genres?.[0] || 'Action'}
+                maxOffers={3}
+              />
+            </Suspense>
+
+            <div className="rounded-2xl border border-dashed border-dossier-foreground/15 bg-dossier-panel/20 p-5">
+              <SubmitYourOwnButton isLoggedIn={!!user} submitRoute={submitRoute} comicId={id} />
+            </div>
+
+            {/* ── Recommender ── */}
+            {!isGhostRec && profile ? (
+              <div className="rounded-2xl border border-dossier-foreground/10 bg-dossier-panel/40 p-5">
+                <p className={`${sectionHeading} mb-3`}>Recommender</p>
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     {profile.avatar_url ? (
                       <img
@@ -1017,7 +671,7 @@ export default async function ComicDetailPage({ params }: Props) {
                         className="h-10 w-10 rounded-full border border-dossier-foreground/10 object-cover shrink-0"
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-full border border-dossier-foreground/10 bg-dossier-panel flex items-center justify-center text-xs font-bold text-dossier-foreground/40 shrink-0">
+                      <div className="h-10 w-10 rounded-full border border-dossier-foreground/10 bg-dossier flex items-center justify-center text-xs font-bold text-dossier-foreground/40 shrink-0">
                         {recommenderName.slice(0, 1).toUpperCase()}
                       </div>
                     )}
@@ -1030,9 +684,8 @@ export default async function ComicDetailPage({ params }: Props) {
                       )}
                     </div>
                   </div>
-
                   {(recommenderIsVerified || recommenderIsPro) && (
-                    <div className="mt-3 flex flex-wrap gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       {recommenderIsVerified && (
                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-dossier-foreground/15 text-dossier-foreground/60">
                           Verified
@@ -1045,22 +698,40 @@ export default async function ComicDetailPage({ params }: Props) {
                       )}
                     </div>
                   )}
-
-                  {profile.username && (
-                    <Link
-                      href={profile.user_type === 'creator'
-                        ? `/creator/${profile.username}`
-                        : `/profile/${profile.username}`}
-                      className="mt-3 flex items-center justify-center w-full h-8 rounded-[10px] border border-dossier-foreground/10 bg-dossier-panel/60 font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/70 hover:text-dossier-foreground hover:border-dossier-foreground/30 transition-colors"
-                    >
-                      View profile →
-                    </Link>
-                  )}
                 </div>
+                {profile.username && (
+                  <Link
+                    href={profile.user_type === 'creator' ? `/creator/${profile.username}` : `/profile/${profile.username}`}
+                    className="mt-3 flex items-center justify-center w-full h-8 rounded-[10px] border border-dossier-foreground/10 bg-dossier/60 font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/70 hover:text-dossier-foreground hover:border-dossier-foreground/30 transition-colors"
+                  >
+                    View profile →
+                  </Link>
+                )}
+                <p className="mt-3 text-right font-[family-name:var(--font-mono)] text-[10px] text-dossier-foreground/35">
+                  {rec.created_at ? formatDate(rec.created_at) : ''}
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between py-4 border-t border-dossier-foreground/10 text-xs text-dossier-foreground/40">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span>Recommended by</span>
+                  <RecommenderLink
+                    username={profile?.username ?? ''}
+                    displayName={recommenderName}
+                    isLoggedIn={!!user}
+                    isGhost={isGhostRec}
+                    role={profile?.role}
+                    isPro={recommenderIsPro}
+                    isVerified={recommenderIsVerified}
+                    comicTitle={rec.title}
+                    userType={profile?.user_type ?? null}
+                  />
+                </div>
+                <span className="font-[family-name:var(--font-mono)]">{rec.created_at ? formatDate(rec.created_at) : ''}</span>
               </div>
             )}
           </div>
-        </div>
+        </TrackingProvider>
       </div>
     </>
   )

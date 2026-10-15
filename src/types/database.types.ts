@@ -1081,6 +1081,39 @@ export type Database = {
           },
         ]
       }
+      journal_likes: {
+        Row: {
+          created_at: string
+          journal_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          journal_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          journal_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_likes_journal_id_fkey"
+            columns: ["journal_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       list_folders: {
         Row: {
           created_at: string
@@ -3112,6 +3145,85 @@ export type Database = {
           },
         ]
       }
+      tracking_events: {
+        Row: {
+          chapter: number | null
+          created_at: string
+          event_type: string
+          from_chapter: number | null
+          from_status: string | null
+          from_sub_status: string | null
+          id: string
+          is_spoiler: boolean
+          journal_entry_id: string | null
+          mood: string | null
+          note: string | null
+          recommendation_id: string
+          status: string | null
+          sub_status: string | null
+          user_id: string
+          visibility: string
+        }
+        Insert: {
+          chapter?: number | null
+          created_at?: string
+          event_type?: string
+          from_chapter?: number | null
+          from_status?: string | null
+          from_sub_status?: string | null
+          id?: string
+          is_spoiler?: boolean
+          journal_entry_id?: string | null
+          mood?: string | null
+          note?: string | null
+          recommendation_id: string
+          status?: string | null
+          sub_status?: string | null
+          user_id: string
+          visibility?: string
+        }
+        Update: {
+          chapter?: number | null
+          created_at?: string
+          event_type?: string
+          from_chapter?: number | null
+          from_status?: string | null
+          from_sub_status?: string | null
+          id?: string
+          is_spoiler?: boolean
+          journal_entry_id?: string | null
+          mood?: string | null
+          note?: string | null
+          recommendation_id?: string
+          status?: string | null
+          sub_status?: string | null
+          user_id?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracking_events_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_events_recommendation_id_fkey"
+            columns: ["recommendation_id"]
+            isOneToOne: false
+            referencedRelation: "recommendations_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tracking_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_comic_sources: {
         Row: {
           chapter_range: string | null
@@ -3917,6 +4029,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_total_reading_hours: { Args: { p_user_id: string }; Returns: number }
       get_trending_feed: {
         Args: { p_limit?: number }
         Returns: {

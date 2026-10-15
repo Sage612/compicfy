@@ -15,6 +15,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { applyTracking } from '@/lib/tracking/core'
 
 export type ActionResult = { ok: true; notice?: string } | { ok: false; error: string }
 
@@ -90,58 +91,22 @@ export async function logSession(input: LogInput): Promise<ActionResult> {
     if (error) return fail('Could not save the session.')
   }
 
-  // 2. Reading list: the single source of truth for chapter progress. The
-  //    profile's "Currently obsessed" reads straight from here, so logging a
-  //    session and updating a list can never disagree.
-  let notice: string | undefined
+  // 2. Chapter progress, through the one shared tracking write path. It updates
+  //    the reading list (the source of truth the profile's "Currently obsessed"
+  //    reads), records a history event for the friends feed, and picks or creates
+  //    a list if the series is not tracked yet. Finishing is always the reader's
+  //    explicit choice (never inferred from a chapter number: nobody knows the
+  //    final chapter of an ongoing series).
+  //    The long-form note stays below as a journal entry; only the mood goes to
+  //    the event so nothing is saved twice.
   if (chapter !== null && recId) {
-    const now = new Date().toISOString()
-    const { data: lists } = await a.db.from('reading_lists').select('id, name').eq('user_id', a.userId)
-    const listIds: string[] = (lists ?? []).map((l: any) => l.id)
-
-    // Finishing is always the reader's explicit choice (never inferred from a
-    // chapter number: nobody knows the final chapter of an ongoing series).
-    const patch: Record<string, unknown> = { progress_chapter: chapter, last_read_at: now, updated_at: now }
-    if (input.finished) patch.status = 'completed'
-
-    let updated = 0
-    if (listIds.length > 0) {
-      const { data: rows, error } = await a.db
-        .from('reading_list_items')
-        .update(patch)
-        .in('list_id', listIds)
-        .eq('recommendation_id', recId)
-        .select('id, status')
-      if (error) return fail('Could not update your reading list.')
-      updated = rows?.length ?? 0
-
-      // Reading it now means it is "reading", same as the app's own progress
-      // button does. Leave completed / dropped / on_hold alone unless the
-      // reader said they finished.
-      if (!input.finished && updated > 0) {
-        const promote = (rows as any[]).filter(r => !r.status || r.status === 'plan_to_read').map(r => r.id)
-        if (promote.length > 0) {
-          await a.db.from('reading_list_items').update({ status: 'reading' }).in('id', promote)
-        }
-      }
-    }
-
-    if (updated === 0) {
-      // Not on any list yet: drop it into "Currently Reading" if they have one.
-      const target = (lists ?? []).find((l: any) => /currently\s*reading/i.test(l.name ?? ''))
-      if (target) {
-        const { error } = await a.db.from('reading_list_items').insert({
-          list_id: target.id,
-          recommendation_id: recId,
-          progress_chapter: chapter,
-          last_read_at: now,
-          status: input.finished ? 'completed' : 'reading',
-        })
-        if (error) return fail('Could not add it to your reading list.')
-      } else {
-        notice = 'Saved. Add this series to a reading list to track its progress there too.'
-      }
-    }
+    const res = await applyTracking(a.db, a.userId, {
+      recommendationId: recId,
+      chapter,
+      status: input.finished ? 'completed' : undefined,
+      mood,
+    })
+    if (!res.ok) return fail(res.error || 'Could not update your reading list.')
   }
 
   // 3. Journal entry (the memory wall).
@@ -159,7 +124,7 @@ export async function logSession(input: LogInput): Promise<ActionResult> {
 
   refresh(a)
   revalidatePath('/', 'layout') // reading list pages live elsewhere in the app; refresh them too
-  return { ok: true, notice }
+  return { ok: true }
 }
 
 export async function deleteJournalEntry(id: string): Promise<ActionResult> {

@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
   Globe, Lock, Loader2, Trash2, Share2,
-  X, Bookmark, Pencil, MoreVertical,
+  X, Bookmark, Pencil,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
@@ -47,11 +47,6 @@ function getCoverPreviews(c: Collection): string[] {
     .map((item) => item.recommendations?.cover_url ?? null)
     .filter(Boolean)
     .slice(0, 4) as string[]
-}
-
-function getSaveLabel(saveCount: number, isSaved: boolean): string {
-  if (isSaved) return saveCount > 0 ? `${saveCount} saved` : 'Saved'
-  return saveCount > 0 ? `${saveCount}` : 'Save'
 }
 
 function proxy(url: string) {
@@ -462,7 +457,6 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
             const count    = itemCount(col)
             const covers   = getCoverPreviews(col)
             const isSaved  = savedIds.has(col.id)
-            const saveLabel = getSaveLabel(col.save_count, isSaved)
 
             return (
               <div
@@ -479,45 +473,68 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
                     {col.description && (
                       <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{col.description}</p>
                     )}
-                    <p className="text-[11px] text-muted-foreground tabular-nums">
-                      {count} comic{count !== 1 ? 's' : ''} · {col.is_published ? 'Public' : 'Draft'}
-                      {col.save_count > 0 && ` · ${col.save_count} saved`}
+                    <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70 pt-1">
+                      {count} comic{count !== 1 ? 's' : ''}
+                      {!col.is_published && ' · Draft'}
                     </p>
                   </div>
                 </Link>
 
-                {isOwner ? (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setOpenMenuId(col.id) }}
-                    aria-label="Collection options"
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-background/90 backdrop-blur border border-border text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                  >
-                    <MoreVertical size={13} />
-                  </button>
-                ) : (
-                  <div className="flex items-center justify-between gap-2 px-3 pb-3 text-xs" onClick={e => e.stopPropagation()}>
-                    {col.profiles ? (
-                      <Link href={`/profile/${col.profiles.username}`} className="text-muted-foreground hover:text-foreground transition-colors truncate">
-                        @{col.profiles.username}
-                      </Link>
-                    ) : <span />}
-                    <div className="flex items-center gap-3 shrink-0">
+                {/* Action row: always visible, always labelled. */}
+                <div
+                  className="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2"
+                  onClick={e => e.stopPropagation()}
+                >
+                  {isOwner ? (
+                    <>
+                      <span className="text-xs text-muted-foreground truncate">
+                        Yours{col.save_count > 0 ? ` · ${col.save_count} saved` : ''}
+                      </span>
                       <button
-                        onClick={(e) => handleSave(col.id, e)}
-                        disabled={savingId === col.id}
-                        className={cn('transition-colors tabular-nums', isSaved ? 'text-foreground' : 'text-muted-foreground hover:text-foreground')}
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(col.id) }}
+                        className="h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors shrink-0"
                       >
-                        {savingId === col.id ? 'Saving…' : saveLabel}
+                        Manage
                       </button>
-                      <button
-                        onClick={(e) => handleShare(col.id, e)}
-                        className="text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        Share
-                      </button>
-                    </div>
-                  </div>
-                )}
+                    </>
+                  ) : (
+                    <>
+                      {col.profiles ? (
+                        <Link
+                          href={`/profile/${col.profiles.username}`}
+                          className="text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
+                        >
+                          @{col.profiles.username}
+                        </Link>
+                      ) : <span />}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => handleSave(col.id, e)}
+                          disabled={savingId === col.id}
+                          aria-pressed={isSaved}
+                          className={cn(
+                            'h-7 px-2.5 rounded-md border text-xs transition-colors tabular-nums inline-flex items-center gap-1.5',
+                            isSaved
+                              ? 'bg-foreground text-background border-foreground'
+                              : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                          )}
+                        >
+                          {savingId === col.id ? 'Saving…' : isSaved ? 'Saved' : 'Save'}
+                          {savingId !== col.id && col.save_count > 0 && <span className="opacity-70">{col.save_count}</span>}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleShare(col.id, e)}
+                          className="h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+                        >
+                          Share
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             )
           })}
@@ -545,7 +562,7 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
         onClose={() => setAuthPrompt(false)}
         config={{
           action: 'save collections',
-          icon:   <Bookmark size={24} className="text-primary" />,
+          icon:   <Bookmark size={24} className="text-foreground" />,
         }}
       />
 

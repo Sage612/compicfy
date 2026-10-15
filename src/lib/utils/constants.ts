@@ -173,6 +173,7 @@ export const TRACKING_STATUS_META: Record<TrackingStatusValue, {
     subStatusPresets: [
       { value: 'binging', label: 'Binging it' },
       { value: 'weekly',  label: 'Weekly, waiting on releases' },
+      { value: 'spite',   label: 'Spite read 😤' },
     ],
   },
   plan_to_read: {
@@ -214,9 +215,16 @@ export const TRACKING_STATUS_META: Record<TrackingStatusValue, {
     dot:   'bg-red-500',
     badge: 'text-red-600 bg-red-500/10 border-red-500/20',
     color: 'text-red-600',
+    // The first five are the "why did I stop?" reasons the comic page asks for
+    // when you drop something (they double as Drop Graveyard causes of death).
     subStatusPresets: [
-      { value: 'might_retry', label: 'Might retry someday' },
-      { value: 'done',        label: 'Done with it' },
+      { value: 'got_boring',   label: 'Got boring' },
+      { value: 'art_dropped',  label: 'Art took a dive' },
+      { value: 'too_slow',     label: 'Too slow / too many breaks' },
+      { value: 'lost_source',  label: 'Lost my source' },
+      { value: 'not_for_me',   label: 'Not for me' },
+      { value: 'might_retry',  label: 'Might retry someday' },
+      { value: 'done',         label: 'Done with it' },
     ],
   },
   marinating: {

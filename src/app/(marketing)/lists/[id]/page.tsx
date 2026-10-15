@@ -1,11 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import {
-  BookOpen, Globe, ArrowLeft, BookMarked, ThumbsUp, Lock,
-} from 'lucide-react'
-import { formatDate } from '@/lib/utils/format'
 import type { Metadata } from 'next'
 import { PublicListDetailClient } from '@/components/lists/PublicListDetailClient'
 import { isProUser } from '@/lib/access'
@@ -127,32 +121,24 @@ export default async function PublicListPage({ params }: Props) {
     .slice(0, 2)
     .toUpperCase()
 
+  const backHref  = isOwner ? myListsHref : (owner ? `/profile/${owner.username}` : '/lists')
+  const backLabel = isOwner ? 'Back to my lists' : owner ? `Back to @${owner.username}'s profile` : 'Back to lists'
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
-
-      {/* Back link */}
-      <Link
-        href={isOwner ? '/reader/dashboard/lists' : (owner ? `/profile/${owner.username}` : '/lists')}
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft size={14} />
-        {isOwner ? 'Back to My Lists' : owner ? `Back to @${owner.username}'s profile` : 'Back to Lists'}
-      </Link>
-
-      {/* Pass everything to client for interactive owner controls + star */}
-      <PublicListDetailClient
-        list={list}
-        owner={owner}
-        items={items}
-        statusCounts={statusCounts}
-        ownerInitials={ownerInitials}
-        isOwner={isOwner}
-        isLoggedIn={!!user}
-        initialStarred={isStarred}
-        typeColors={TYPE_COLORS}
-        statusMeta={STATUS_META}
-        myListsHref={myListsHref}
-      />
-    </div>
+    <PublicListDetailClient
+      list={list}
+      owner={owner}
+      items={items}
+      statusCounts={statusCounts}
+      ownerInitials={ownerInitials}
+      isOwner={isOwner}
+      isLoggedIn={!!user}
+      initialStarred={isStarred}
+      typeColors={TYPE_COLORS}
+      statusMeta={STATUS_META}
+      myListsHref={myListsHref}
+      backHref={backHref}
+      backLabel={backLabel}
+    />
   )
 }

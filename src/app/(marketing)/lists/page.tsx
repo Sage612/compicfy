@@ -41,14 +41,12 @@ export default async function PublicListsPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-10">
-      <ListsClient
-        userId={user?.id ?? null}
-        starredListIds={starredListIds}
-        myListsHref={myListsHref}
-        isProUser={isProUser}
-        userListCount={userListCount}
-      />
-    </div>
+    <ListsClient
+      userId={user?.id ?? null}
+      starredListIds={starredListIds}
+      myListsHref={myListsHref}
+      isProUser={isProUser}
+      userListCount={userListCount}
+    />
   )
 }

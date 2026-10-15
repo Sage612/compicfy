@@ -5,16 +5,13 @@ import Link from 'next/link'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import {
-  BookOpen, Globe, Lock, ThumbsUp,
-  Star, Share2, Pencil, Check, X, Loader2, Settings,
-  Radar,
-} from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils/format'
 import { AddToTrackerSearch } from '@/components/recommendations/AddToTrackerSearch'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
+import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
 import { cn } from '@/lib/utils'
-import { TRACKING_STATUS_META, resolveSubStatusLabel, type TrackingStatusValue } from '@/lib/utils/constants'
+import { resolveSubStatusLabel } from '@/lib/utils/constants'
 
 interface Props {
   list:           any
@@ -25,20 +22,23 @@ interface Props {
   isOwner:        boolean
   isLoggedIn:     boolean
   initialStarred: boolean
-  typeColors:     Record<string, string>
+  typeColors:     Record<string, string>   // kept for page compatibility, no longer rendered
   statusMeta:     Record<string, { label: string; emoji: string }>
   myListsHref:    string
+  backHref?:      string
+  backLabel?:     string
 }
 
-// Dot color now sourced from TRACKING_STATUS_META (constants.ts) instead of
-// a local duplicate — this was a 5th copy of the same status→color mapping
-// found across the tracker, on top of the 4 already consolidated. Kept as
-// a small local helper (rather than inlining TRACKING_STATUS_META[status].dot
-// everywhere below) so the `?? 'bg-border'` fallback for unrecognized/legacy
-// status values stays in one place.
-function statusDot(status: string): string {
-  return TRACKING_STATUS_META[status as TrackingStatusValue]?.dot ?? 'bg-border'
+function proxyCover(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (url.startsWith('data:')) return url
+  if (url.startsWith('/')) return url
+  if (url.includes('/api/image-proxy')) return url
+  return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
+
+const outlineBtn =
+  'h-8 px-3 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors inline-flex items-center gap-1.5'
 
 export function PublicListDetailClient({
   list: initialList,
@@ -49,9 +49,11 @@ export function PublicListDetailClient({
   isOwner,
   isLoggedIn,
   initialStarred,
-  typeColors: _typeColors, // no longer used for pill backgrounds — type now renders as plain italic text
+  typeColors: _typeColors,
   statusMeta,
   myListsHref,
+  backHref,
+  backLabel = 'Back',
 }: Props) {
   const [list,       setList]       = useState(initialList)
   const [starred,    setStarred]    = useState(initialStarred)
@@ -64,16 +66,11 @@ export function PublicListDetailClient({
   const [editPublic, setEditPublic] = useState(initialList.is_public)
   const [authPrompt, setAuthPrompt] = useState(false)
 
-  function proxyCover(url: string | null | undefined): string | null {
-    if (!url) return null
-    // data: URIs are self-contained — pass through untouched
-    if (url.startsWith('data:')) return url
-    // Already a relative/local URL
-    if (url.startsWith('/')) return url
-    // Already proxied
-    if (url.includes('/api/image-proxy')) return url
-    return `/api/image-proxy?url=${encodeURIComponent(url)}`
-  }
+  // Cover: up to four covers from the list's own comics, newest first.
+  const bannerCovers: string[] = items
+    .map((i: any) => proxyCover(i.recommendations?.cover_url))
+    .filter(Boolean)
+    .slice(0, 4) as string[]
 
   const handleStar = async () => {
     if (!isLoggedIn) { setAuthPrompt(true); return }
@@ -126,119 +123,79 @@ export function PublicListDetailClient({
     window.location.reload()
   }
 
-  const starLabel = starred
-    ? starCount > 0 ? `${starCount} starred` : 'Starred'
-    : starCount > 0 ? `${starCount}` : 'Star'
+  const labelClass = 'text-[11px] uppercase tracking-widest text-muted-foreground/70'
+  const subtitle = [
+    list.description || null,
+  ].filter(Boolean).join('')
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto">
-      {/* ── Header ── */}
-      <div className="space-y-4">
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-4">
-          {isOwner ? (
-            editMode ? (
-              <>
-                <button
-                  onClick={handleCancel}
-                  className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors flex items-center gap-1"
-                >
-                  <X size={11} /> Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={!editName.trim() || saving}
-                  className="text-xs font-medium text-foreground border-b border-foreground/60 hover:opacity-60 transition-opacity flex items-center gap-1 disabled:opacity-40"
-                >
-                  {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                  Save
-                </button>
-              </>
-            ) : (
-              <>
-                <button onClick={handleShare} className="text-xs text-muted-foreground/70 hover:text-foreground transition-colors flex items-center gap-1.5">
-                  <Share2 size={12} /> Share
-                </button>
-                <button onClick={() => setEditMode(true)} className="text-xs text-muted-foreground/70 hover:text-foreground transition-colors flex items-center gap-1.5">
-                  <Pencil size={12} /> Edit
-                </button>
-                <Link href={myListsHref} className="text-xs text-muted-foreground/50 hover:text-foreground transition-colors flex items-center gap-1.5">
-                  <Settings size={12} /> Manage
-                </Link>
-              </>
-            )
-          ) : (
-            <>
-              <button
-                onClick={handleStar}
-                disabled={starring}
-                className={cn(
-                  'text-xs transition-colors flex items-center gap-1.5',
-                  starred ? 'text-amber-600 font-medium' : 'text-muted-foreground/70 hover:text-foreground'
-                )}
-              >
-                {starring ? <Loader2 size={12} className="animate-spin" /> : <Star size={12} className={starred ? 'fill-amber-500 text-amber-500' : ''} />}
-                {starLabel}
-              </button>
-              <button onClick={handleShare} className="text-xs text-muted-foreground/70 hover:text-foreground transition-colors flex items-center gap-1.5">
-                <Share2 size={12} /> Share
-              </button>
-            </>
-          )}
+    <PageShell width="narrow">
+      <PageHeader
+        eyebrow={list.is_public ? 'Public list' : 'Private list'}
+        title={editMode ? 'Edit list' : list.name}
+        subtitle={editMode ? undefined : subtitle || undefined}
+        backHref={backHref}
+        backLabel={backLabel}
+      />
+
+      {/* Cover */}
+      {bannerCovers.length > 0 && (
+        <div className="aspect-[3/1] rounded-xl overflow-hidden bg-muted border border-border flex gap-px">
+          {bannerCovers.map((src, i) => (
+            <div key={i} className="flex-1 min-w-0 overflow-hidden">
+              <img src={src} alt="" aria-hidden className="w-full h-full object-cover" />
+            </div>
+          ))}
         </div>
+      )}
 
-        {/* Name + desc — editable for owner */}
-        {editMode ? (
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[11px] text-muted-foreground/60">Name <span className="text-destructive">*</span></label>
-              <input
-                value={editName}
-                onChange={e => setEditName(e.target.value)}
-                autoFocus
-                className="w-full font-serif text-2xl bg-transparent border-0 border-b border-border/50 px-0 py-1 outline-none focus:border-foreground/60 transition-colors"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] text-muted-foreground/60">Description</label>
-              <input
-                value={editDesc}
-                onChange={e => setEditDesc(e.target.value)}
-                placeholder="What's this list about?"
-                className="w-full text-sm bg-transparent border-0 border-b border-border/50 px-0 py-1 outline-none focus:border-foreground/60 transition-colors placeholder:text-muted-foreground/40"
-              />
-            </div>
-            <label className="flex items-center gap-3 cursor-pointer group">
-              <div
-                className={cn('w-4 h-4 rounded-sm border flex items-center justify-center transition-colors shrink-0',
-                  editPublic ? 'bg-foreground border-foreground' : 'border-border/60 group-hover:border-foreground/40')}
-                onClick={() => setEditPublic((p: boolean) => !p)}>
-                {editPublic && <Check size={10} className="text-background" />}
-              </div>
-              <div>
-                <span className="text-sm">Public</span>
-                <p className="text-xs text-muted-foreground/60">Others can discover and star this list</p>
-              </div>
-            </label>
-          </div>
-        ) : (
+      {/* Edit form */}
+      {editMode && (
+        <div className="rounded-xl border border-border bg-card p-5 space-y-4">
           <div className="space-y-1.5">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="font-serif text-3xl tracking-tight text-foreground">{list.name}</h1>
-              <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground/50">
-                {list.is_public ? <Globe size={10} /> : <Lock size={10} />}
-                {list.is_public ? 'Public' : 'Private'}
-              </span>
-            </div>
-            {list.description && (
-              <p className="text-sm text-muted-foreground/80 leading-relaxed">{list.description}</p>
-            )}
+            <label className={labelClass}>Name</label>
+            <input
+              value={editName}
+              onChange={e => setEditName(e.target.value)}
+              autoFocus
+              className="w-full font-dashboard-serif text-xl bg-transparent border-0 border-b border-border/60 px-0 py-1 outline-none focus:border-foreground/60 transition-colors"
+            />
           </div>
-        )}
+          <div className="space-y-1.5">
+            <label className={labelClass}>Description</label>
+            <input
+              value={editDesc}
+              onChange={e => setEditDesc(e.target.value)}
+              placeholder="What's this list about?"
+              className="w-full text-sm bg-transparent border-0 border-b border-border/60 px-0 py-1 outline-none focus:border-foreground/60 transition-colors placeholder:text-muted-foreground/40"
+            />
+          </div>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={editPublic}
+              onChange={() => setEditPublic((p: boolean) => !p)}
+              className="mt-0.5 h-4 w-4 rounded border-border accent-foreground"
+            />
+            <span>
+              <span className="text-sm text-foreground">Public</span>
+              <span className="block text-xs text-muted-foreground">Others can discover and star this list</span>
+            </span>
+          </label>
+          <div className="flex gap-2 pt-1">
+            <Button size="sm" onClick={handleSave} disabled={!editName.trim() || saving} className="gap-2">
+              {saving && <Loader2 size={13} className="animate-spin" />}
+              Save changes
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleCancel} disabled={saving}>Cancel</Button>
+          </div>
+        </div>
+      )}
 
-        {/* Owner + stats */}
-        <div className="flex items-center justify-between flex-wrap gap-3 pt-1">
-          {owner && (
+      {/* Actions + byline */}
+      {!editMode && (
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          {owner ? (
             <Link href={`/profile/${owner.username}`} className="flex items-center gap-2 group">
               <Avatar className="h-6 w-6">
                 <AvatarImage src={owner.avatar_url ? owner.avatar_url : undefined} />
@@ -246,45 +203,68 @@ export function PublicListDetailClient({
                   {ownerInitials}
                 </AvatarFallback>
               </Avatar>
-              <span className="text-sm text-muted-foreground/70 group-hover:text-foreground transition-colors">
+              <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
                 by <span className="text-foreground">@{owner.username}</span>
               </span>
             </Link>
-          )}
-          <div className="flex items-center gap-2.5 text-[11px] uppercase tracking-wide text-muted-foreground/50">
-            <span>{items.length} comic{items.length !== 1 ? 's' : ''}</span>
-            {starCount > 0 && (
+          ) : <span />}
+
+          <div className="flex items-center gap-2">
+            {isOwner ? (
               <>
-                <span className="text-border">·</span>
-                <span className="flex items-center gap-1 normal-case tracking-normal">
-                  <Star size={10} className="text-amber-500/70" />
-                  {starCount} starred
-                </span>
+                <button onClick={handleShare} className={outlineBtn}>Share</button>
+                <button onClick={() => setEditMode(true)} className={outlineBtn}>Edit</button>
+                <Link href={myListsHref} className={outlineBtn}>Manage</Link>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleStar}
+                  disabled={starring}
+                  aria-pressed={starred}
+                  className={cn(
+                    'h-8 px-3 rounded-md border text-xs transition-colors inline-flex items-center gap-1.5 tabular-nums',
+                    starred
+                      ? 'bg-foreground text-background border-foreground'
+                      : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                  )}
+                >
+                  {starring && <Loader2 size={11} className="animate-spin" />}
+                  {starred ? 'Starred' : 'Star this list'}
+                  {starCount > 0 && <span className="opacity-70">{starCount}</span>}
+                </button>
+                <button onClick={handleShare} className={outlineBtn}>Share</button>
               </>
             )}
-            <span className="text-border">·</span>
-            <span>Updated {formatDate(list.updated_at ?? list.created_at)}</span>
           </div>
         </div>
+      )}
 
-        {/* Status breakdown — plain text, dot separated */}
-        {Object.keys(statusCounts).length > 0 && (
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground/70 border-t border-border/40 pt-3">
-            {Object.entries(statusCounts).map(([status, count]) => {
-              const meta = statusMeta[status]
-              if (!meta) return null
-              return (
-                <span key={status} className="inline-flex items-center gap-1.5">
-                  <span className={cn('h-1.5 w-1.5 rounded-full', statusDot(status))} />
-                  {meta.label} · {count as number}
-                </span>
-              )
-            })}
-          </div>
-        )}
-      </div>
+      {/* Stats */}
+      {!editMode && (
+        <div className="space-y-3 border-t border-border/40 pt-4">
+          <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">
+            {items.length} comic{items.length !== 1 ? 's' : ''}
+            {isOwner && starCount > 0 ? ` · ${starCount} starred` : ''}
+            {' · Updated '}{formatDate(list.updated_at ?? list.created_at)}
+          </p>
+          {Object.keys(statusCounts).length > 0 && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              {Object.entries(statusCounts).map(([status, count]) => {
+                const meta = statusMeta[status]
+                if (!meta) return null
+                return (
+                  <span key={status}>
+                    {meta.label} <span className="tabular-nums text-foreground/70">{count as number}</span>
+                  </span>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
-      {/* ── Add comic — owner only ── */}
+      {/* Add comic, owner only */}
       {isOwner && (
         <AddToTrackerSearch
           lists={[{ id: list.id, name: list.name }]}
@@ -292,16 +272,19 @@ export function PublicListDetailClient({
         />
       )}
 
-      {/* ── Items ── */}
+      {/* Items */}
       {items.length === 0 ? (
-        <div className="text-center py-20 space-y-3">
-          <BookOpen size={22} className="text-muted-foreground/30 mx-auto" />
-          <p className="text-sm text-muted-foreground/60">
+        <div className="rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
+          <h3 className="font-dashboard-serif text-lg text-foreground">No comics yet</h3>
+          <p className="text-sm text-muted-foreground mt-1">
             {isOwner ? 'Use the search above to add comics to this list.' : 'This list has no comics yet.'}
           </p>
           {isOwner && (
-            <Link href="/browse">
-              <Button size="sm" variant="outline" className="gap-1.5 mt-1"><Radar size={13} /> Browse comics</Button>
+            <Link
+              href="/browse"
+              className="inline-block mt-4 text-sm text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors"
+            >
+              Browse comics
             </Link>
           )}
         </div>
@@ -312,53 +295,36 @@ export function PublicListDetailClient({
             if (!rec) return null
             const smeta          = statusMeta[item.status]
             const subStatusLabel = resolveSubStatusLabel(item.status, item.sub_status)
-            const coverSrc        = proxyCover(rec.cover_url)
+            const coverSrc       = proxyCover(rec.cover_url)
 
             return (
-              <Link
-                key={item.id}
-                href={`/comic/${rec.id}`}
-                className="group flex gap-4 py-5"
-              >
-                <div className="w-16 aspect-[2/3] rounded-lg overflow-hidden bg-muted shrink-0 shadow-sm group-hover:shadow-md transition-shadow">
-                  {coverSrc ? (
-                    <img
-                      src={coverSrc}
-                      alt={rec.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen size={16} className="text-muted-foreground opacity-40" />
-                    </div>
+              <Link key={item.id} href={`/comic/${rec.id}`} className="group flex gap-4 py-5">
+                <div className="w-16 aspect-[2/3] rounded-lg overflow-hidden bg-muted border border-border shrink-0">
+                  {coverSrc && (
+                    <img src={coverSrc} alt={rec.title} className="w-full h-full object-cover" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0 space-y-1.5 py-0.5">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="font-serif text-base leading-snug line-clamp-1 text-foreground group-hover:opacity-70 transition-opacity">
+                    <p className="font-dashboard-serif text-base leading-snug line-clamp-1 text-foreground group-hover:opacity-70 transition-opacity">
                       {rec.title}
                     </p>
                     {rec.upvotes > 0 && (
-                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground/60 shrink-0">
-                        <ThumbsUp size={10} /> {rec.upvotes}
+                      <span className="text-[11px] text-muted-foreground/70 shrink-0 tabular-nums">
+                        {rec.upvotes} upvotes
                       </span>
                     )}
                   </div>
-
-                  <p className="text-[11px] italic text-muted-foreground/60 lowercase">
+                  <p className="text-[11px] italic text-muted-foreground/70 lowercase">
                     {rec.type}
                     {rec.status ? ` · ${rec.status}` : ''}
                     {rec.genres?.length ? ` · ${rec.genres.slice(0, 2).join(', ')}` : ''}
                   </p>
-
                   {smeta && (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                      <span className={cn('h-1.5 w-1.5 rounded-full', statusDot(item.status))} />
+                    <p className="text-xs text-muted-foreground">
                       {smeta.label}
-                      {subStatusLabel && (
-                        <span className="text-muted-foreground/50 italic">· {subStatusLabel}</span>
-                      )}
-                    </span>
+                      {subStatusLabel && <span className="text-muted-foreground/60 italic"> · {subStatusLabel}</span>}
+                    </p>
                   )}
                 </div>
               </Link>
@@ -366,14 +332,15 @@ export function PublicListDetailClient({
           })}
         </div>
       )}
+
       <AuthPromptModal
         open={authPrompt}
         onClose={() => setAuthPrompt(false)}
         config={{
           action: 'star this list',
-          icon:   <Star size={24} className="text-amber-500" />,
+          icon:   <span className="text-lg">★</span>,
         }}
       />
-    </div>
+    </PageShell>
   )
 }
