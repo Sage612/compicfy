@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { ListsSkeleton } from '@/components/lists/ListsSkeleton'
 import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
+import { CardFooter } from '@/components/community/CardFooter'
 import { FREE_LIMITS } from '@/lib/utils/constants'
 
 interface PublicList {
@@ -277,47 +277,19 @@ export function ListsClient({
                   </div>
                 </Link>
 
-                {/* Action row: who made it, and what you can do with it */}
-                <div className="flex items-center justify-between gap-2 border-t border-border/60 px-4 py-2.5">
-                  {isOwner ? (
-                    <span className="text-xs text-muted-foreground">Your list</span>
-                  ) : list.profiles ? (
-                    <Link
-                      href={`/profile/${list.profiles.username}`}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
-                    >
-                      @{list.profiles.username}
-                    </Link>
-                  ) : <span />}
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {!isOwner && (
-                      <button
-                        type="button"
-                        onClick={e => handleStar(list.id, e)}
-                        disabled={starring}
-                        aria-pressed={isStarred}
-                        className={cn(
-                          'h-7 px-2.5 rounded-md border text-xs transition-colors inline-flex items-center gap-1.5 tabular-nums',
-                          isStarred
-                            ? 'bg-foreground text-background border-foreground'
-                            : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
-                        )}
-                      >
-                        {starring && <Loader2 size={10} className="animate-spin" />}
-                        {isStarred ? 'Starred' : 'Star'}
-                        {list.star_count > 0 && <span className="opacity-70">{list.star_count}</span>}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={e => handleShare(list.id, e)}
-                      className="h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
-                    >
-                      Share
-                    </button>
-                  </div>
-                </div>
+                <CardFooter
+                  username={list.profiles?.username}
+                  avatarUrl={list.profiles?.avatar_url}
+                  isOwner={isOwner}
+                  action={{
+                    kind: 'star',
+                    active: isStarred,
+                    count: list.star_count ?? 0,
+                    loading: starring,
+                    onClick: e => handleStar(list.id, e),
+                  }}
+                  onShare={e => handleShare(list.id, e)}
+                />
               </div>
             )
           })}

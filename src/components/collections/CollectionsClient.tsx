@@ -16,6 +16,7 @@ import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { CollectionsSkeleton } from '@/components/collections/CollectionsSkeleton'
 import { ActionSheet, type ActionSheetAction } from '@/components/ui/ActionSheet'
 import { PageHeader } from '@/components/dashboard/PageHeader'
+import { CardFooter } from '@/components/community/CardFooter'
 
 interface Collection {
   id:           string
@@ -480,61 +481,20 @@ export function CollectionsClient({ userId, isProUser, ownOnly = false,
                   </div>
                 </Link>
 
-                {/* Action row: always visible, always labelled. */}
-                <div
-                  className="flex items-center justify-between gap-2 border-t border-border/60 px-3 py-2"
-                  onClick={e => e.stopPropagation()}
-                >
-                  {isOwner ? (
-                    <>
-                      <span className="text-xs text-muted-foreground truncate">
-                        Yours{col.save_count > 0 ? ` · ${col.save_count} saved` : ''}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(col.id) }}
-                        className="h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors shrink-0"
-                      >
-                        Manage
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {col.profiles ? (
-                        <Link
-                          href={`/profile/${col.profiles.username}`}
-                          className="text-xs text-muted-foreground hover:text-foreground transition-colors truncate"
-                        >
-                          @{col.profiles.username}
-                        </Link>
-                      ) : <span />}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={(e) => handleSave(col.id, e)}
-                          disabled={savingId === col.id}
-                          aria-pressed={isSaved}
-                          className={cn(
-                            'h-7 px-2.5 rounded-md border text-xs transition-colors tabular-nums inline-flex items-center gap-1.5',
-                            isSaved
-                              ? 'bg-foreground text-background border-foreground'
-                              : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
-                          )}
-                        >
-                          {savingId === col.id ? 'Saving…' : isSaved ? 'Saved' : 'Save'}
-                          {savingId !== col.id && col.save_count > 0 && <span className="opacity-70">{col.save_count}</span>}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => handleShare(col.id, e)}
-                          className="h-7 px-2.5 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
-                        >
-                          Share
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
+                <CardFooter
+                  username={col.profiles?.username}
+                  avatarUrl={col.profiles?.avatar_url}
+                  isOwner={isOwner}
+                  action={{
+                    kind: 'save',
+                    active: isSaved,
+                    count: col.save_count ?? 0,
+                    loading: savingId === col.id,
+                    onClick: e => handleSave(col.id, e),
+                  }}
+                  onShare={e => handleShare(col.id, e)}
+                  manage={{ label: 'Manage collection', onClick: e => { e.stopPropagation(); setOpenMenuId(col.id) } }}
+                />
               </div>
             )
           })}

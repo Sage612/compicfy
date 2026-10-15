@@ -30,6 +30,7 @@ interface ReadingList {
   description: string | null
   is_public: boolean
   created_at: string
+  updated_at?: string | null
 }
 
 interface ListItem {
@@ -356,10 +357,17 @@ export function ReadingListDetail({
     [items]
   )
 
+  // "Updated" = latest of the list's own updated_at and the newest comic
+  // added. Computed from live item state, so it moves the moment a comic is
+  // added (the list row's updated_at isn't touched by item changes).
+  const lastUpdated = [list.updated_at, list.created_at, ...items.map(i => i.added_at)]
+    .filter(Boolean)
+    .reduce((a, b) => (new Date(b as string) > new Date(a as string) ? b : a)) as string
+
   const metaLine = [
     `${items.length} comic${items.length !== 1 ? 's' : ''}`,
     list.is_public ? 'Public' : 'Private',
-    `Created ${formatDate(list.created_at)}`,
+    `Updated ${formatDate(lastUpdated)}`,
   ].join(' · ')
 
   return (

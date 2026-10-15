@@ -123,6 +123,13 @@ export function PublicListDetailClient({
     window.location.reload()
   }
 
+  // "Updated" = the latest of: the list row's own updated_at, and when the
+  // newest comic was added. The list row's updated_at is not touched when
+  // items are added, so relying on it alone shows the creation date forever.
+  const lastUpdated = [list.updated_at, list.created_at, ...items.map((i: any) => i.added_at)]
+    .filter(Boolean)
+    .reduce((a: string, b: string) => (new Date(b) > new Date(a) ? b : a))
+
   const labelClass = 'text-[11px] uppercase tracking-widest text-muted-foreground/70'
   const subtitle = [
     list.description || null,
@@ -246,7 +253,7 @@ export function PublicListDetailClient({
           <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">
             {items.length} comic{items.length !== 1 ? 's' : ''}
             {isOwner && starCount > 0 ? ` · ${starCount} starred` : ''}
-            {' · Updated '}{formatDate(list.updated_at ?? list.created_at)}
+            {' · Updated '}{formatDate(lastUpdated)}
           </p>
           {Object.keys(statusCounts).length > 0 && (
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
