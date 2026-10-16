@@ -31,7 +31,7 @@ export function ScrubBar({ value, max, onCommit, disabled = false }: Props) {
 
   return (
     <div className="space-y-1.5">
-      <div className="flex items-baseline justify-between font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.18em] text-dossier-foreground/45">
+      <div className="flex items-baseline justify-between font-[family-name:var(--font-mono)] font-medium text-[11px] uppercase tracking-[0.18em] text-dossier-foreground/65">
         <span>Scrub to chapter</span>
         <span className="tabular-nums text-dossier-foreground/80 text-xs normal-case tracking-normal">
           Ch. {shown}

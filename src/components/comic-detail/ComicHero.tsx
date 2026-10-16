@@ -35,6 +35,15 @@ interface Props {
   shareUrl:          string
 }
 
+// Long titles get a smaller size so they wrap into a few tidy lines instead of
+// a tall, ragged stack next to the poster.
+function titleSize(t: string): string {
+  const n = t.length
+  if (n > 60) return 'text-xl sm:text-2xl md:text-3xl leading-snug'
+  if (n > 36) return 'text-2xl sm:text-3xl md:text-4xl leading-tight'
+  return 'text-3xl sm:text-4xl md:text-5xl leading-[1.08]'
+}
+
 const proxy = (url: string) => `/api/image-proxy?url=${encodeURIComponent(url)}`
 
 export function ComicHero({
@@ -79,15 +88,18 @@ export function ComicHero({
       <div className="relative max-w-3xl mx-auto px-4 md:px-6">
         <div className="flex items-start gap-4 md:gap-8">
           <div className="flex-1 min-w-0 pt-5 md:pt-8 space-y-3">
-            <h1 className="font-[family-name:var(--font-dossier-display)] text-3xl sm:text-4xl md:text-5xl font-black italic leading-[1.02] tracking-tight text-dossier-foreground break-words">
+            <h1
+              className={`font-[family-name:var(--font-dossier-display)] font-bold italic tracking-tight text-dossier-foreground [text-wrap:balance] [overflow-wrap:anywhere] hyphens-auto ${titleSize(title)}`}
+              lang="en"
+            >
               {title}
             </h1>
 
-            <div className="space-y-0.5 font-[family-name:var(--font-mono)] text-[11px] md:text-xs uppercase tracking-[0.12em] text-dossier-foreground/55">
+            <div className="space-y-0.5 font-[family-name:var(--font-mono)] font-medium text-[11px] md:text-xs uppercase tracking-[0.12em] text-dossier-foreground/72">
               <p>
                 {[year, typeLabel].filter(Boolean).join(' · ')}
                 {contentRating && contentRating !== 'all_ages'
-                  ? <span className="ml-2 px-1.5 py-0.5 rounded border border-dossier-foreground/15 text-[10px] normal-case tracking-normal">{contentRating.replace('_', ' ')}</span>
+                  ? <span className="ml-2 px-1.5 py-0.5 rounded border border-dossier-foreground/15 text-[11px] normal-case tracking-normal">{contentRating.replace('_', ' ')}</span>
                   : null}
               </p>
               {author && (
@@ -101,7 +113,7 @@ export function ComicHero({
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-1">
               <ReadNextButton officialPlatforms={officialPlatforms} />
               {chapterCount ? (
-                <span className="text-sm text-dossier-foreground/55 tabular-nums">{chapterCount} chapters</span>
+                <span className="text-sm text-dossier-foreground/72 tabular-nums">{chapterCount} chapters</span>
               ) : null}
             </div>
           </div>
@@ -112,14 +124,14 @@ export function ComicHero({
                 <img src={proxy(coverUrl)} alt={`${title} cover`} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <BookOpen size={36} className="text-dossier-foreground/30" />
+                  <BookOpen size={36} className="text-dossier-foreground/60" />
                 </div>
               )}
-              <span className={`absolute top-2 left-2 inline-flex px-2 py-0.5 rounded text-[10px] font-bold border capitalize backdrop-blur-sm ${typeBadgeClass}`}>
+              <span className={`absolute top-2 left-2 inline-flex px-2 py-0.5 rounded text-[11px] font-bold border capitalize backdrop-blur-sm ${typeBadgeClass}`}>
                 {typeLabel}
               </span>
               {isFeatured && (
-                <span className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 backdrop-blur-sm">
+                <span className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 backdrop-blur-sm">
                   <Star size={8} className="fill-amber-400" />
                   Featured
                 </span>
@@ -131,7 +143,7 @@ export function ComicHero({
         {/* ── Status line + synopsis ── */}
         <div className="mt-5 md:mt-6 space-y-3">
           {heartbeat && (
-            <p className="font-[family-name:var(--font-mono)] text-[11px] md:text-xs uppercase tracking-[0.14em] text-dossier-foreground/50">
+            <p className="font-[family-name:var(--font-mono)] font-medium text-[11px] md:text-xs uppercase tracking-[0.14em] text-dossier-foreground/72">
               {heartbeat}
             </p>
           )}

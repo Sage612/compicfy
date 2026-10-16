@@ -19,10 +19,10 @@ export function RatingsHistogram({ breakdown, upvotePct = null, voteCount = 0 }:
   return (
     <section aria-label="Ratings" className="space-y-3">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
+        <h2 className="font-[family-name:var(--font-mono)] font-medium text-[11px] uppercase tracking-[0.2em] text-dossier-foreground/65">
           Ratings
         </h2>
-        <span className="font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/40">
+        <span className="font-[family-name:var(--font-mono)] font-medium text-[11px] text-dossier-foreground/65">
           {total > 0 ? `${total.toLocaleString()} rating${total === 1 ? '' : 's'}` : 'No ratings yet'}
           {upvotePct !== null && voteCount > 0 ? ` · ${upvotePct}% upvoted` : ''}
         </span>

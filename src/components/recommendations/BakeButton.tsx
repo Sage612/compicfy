@@ -5,6 +5,7 @@ import { Croissant, ChevronDown, Check, Loader2, ArrowLeft, X } from 'lucide-rea
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
+import { useRouter } from 'next/navigation'
 import {
   FREE_LIMITS,
   BAKE_MIN_TARGET_CHAPTERS,
@@ -27,9 +28,12 @@ interface Props {
   chapterCount: number | null
   isLoggedIn:   boolean
   isPro:        boolean
+  /** Open in the page flow instead of floating (for use inside a sheet). */
+  inline?:      boolean
 }
 
-export function BakeButton({ comicId, chapterCount, isLoggedIn, isPro }: Props) {
+export function BakeButton({ comicId, chapterCount, isLoggedIn, isPro, inline = false }: Props) {
+  const router = useRouter()
   const [activeBake,   setActiveBake]   = useState<ActiveBake | null>(null)
   const [loading,      setLoading]      = useState(true)
   const [saving,       setSaving]       = useState(false)
@@ -115,6 +119,7 @@ export function BakeButton({ comicId, chapterCount, isLoggedIn, isPro }: Props) 
       }
       setActiveBake(data.bake)
       toast.success(`🍞 Baking — you'll be notified at +${target} chapters`)
+      router.refresh()
       setOpen(false)
       setStep('mode')
       setPendingMode(null)
@@ -133,6 +138,7 @@ export function BakeButton({ comicId, chapterCount, isLoggedIn, isPro }: Props) 
       if (!res.ok) throw new Error()
       setActiveBake(null)
       toast.success('Bake cleared')
+      router.refresh()
       setOpen(false)
     } catch {
       toast.error('Failed to clear bake')
@@ -207,7 +213,7 @@ export function BakeButton({ comicId, chapterCount, isLoggedIn, isPro }: Props) 
 
       {/* ── Dropdown ── */}
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border border-border bg-card shadow-2xl shadow-black/20 overflow-hidden">
+        <div className={`${inline ? 'relative' : 'absolute top-full left-0 right-0'} mt-2 z-50 rounded-2xl border border-border bg-card shadow-2xl shadow-black/20 overflow-hidden`}>
 
           {activeBake ? (
             /* ── Already baking this comic — show status + clear option ── */

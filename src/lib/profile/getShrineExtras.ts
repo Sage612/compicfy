@@ -97,12 +97,13 @@ export async function getOtherShrines(supabase: Supa, profileId: string): Promis
 
 /* ── Activity feed ─────────────────────────────────────────────
    One merged, newest-first timeline built from data that already exists:
-   journal entries, stamped quotes, finished series (public lists only) and
-   new party members. Nothing extra is stored. */
+   journal entries, stamped quotes, finished series (public lists only), new
+   party members, and chapters logged on the comic page (tracking_events,
+   grouped per comic per day). Nothing extra is stored. */
 
 export interface ActivityEvent {
   id:        string
-  kind:      'journal' | 'quote' | 'finished' | 'bond' | 'streak'
+  kind:      'journal' | 'quote' | 'finished' | 'bond' | 'streak' | 'progress'
   at:        string
   title:     string
   body:      string | null
@@ -222,6 +223,63 @@ export async function getActivityEvents(
         comicTitle: rec.title, coverUrl: rec.cover_url ?? null, journalId: null, likedByMe: false,
       })
     }
+  }
+
+  // Chapters logged from the comic page (one-tap +1, scrub bar, status chips).
+  // A plain log has no journal entry, so without this it never reached the
+  // wall. Several taps on the same comic in one day collapse into one line.
+  // Best effort: if the tracking_events table does not exist yet, skip it.
+  try {
+    const { data: tev, error: tevErr } = await (supabase as any)
+      .from('tracking_events')
+      .select('id, event_type, chapter, from_chapter, status, from_status, journal_entry_id, created_at, recommendations(id, title, cover_url, content_rating)')
+      .eq('user_id', profileId)
+      .eq('visibility', 'public')
+      .in('event_type', ['progress', 'status'])
+      .order('created_at', { ascending: false })
+      .limit(80)
+
+    if (!tevErr) {
+      const groups = new Map<string, { rec: any; hi: number; lo: number; at: string; n: number }>()
+      for (const e of (tev ?? []) as any[]) {
+        const rec = one<any>(e.recommendations)
+        if (!rec || rec.content_rating === 'adult' || rec.content_rating === 'mature') continue
+        // Entries that came with a one-liner already show as a journal item.
+        if (e.journal_entry_id) continue
+
+        if (e.event_type === 'progress' && typeof e.chapter === 'number') {
+          const key = `${rec.id}|${String(e.created_at).slice(0, 10)}`
+          const lo = typeof e.from_chapter === 'number' ? e.from_chapter + 1 : e.chapter
+          const g = groups.get(key)
+          if (!g) groups.set(key, { rec, hi: e.chapter, lo: Math.min(lo, e.chapter), at: e.created_at, n: 1 })
+          else {
+            g.hi = Math.max(g.hi, e.chapter)
+            g.lo = Math.min(g.lo, lo, e.chapter)
+            g.n += 1
+            if (new Date(e.created_at) > new Date(g.at)) g.at = e.created_at
+          }
+        } else if (e.event_type === 'status' && e.status === 'reading' && !e.from_status) {
+          events.push({
+            id: `t-${e.id}`, kind: 'progress', at: e.created_at,
+            title: `Started reading ${rec.title}`, body: null,
+            isSpoiler: false, moodEmoji: null, likeCount: 0, replyCount: 0,
+            comicTitle: rec.title, coverUrl: rec.cover_url ?? null, journalId: null, likedByMe: false,
+          })
+        }
+      }
+
+      for (const [key, g] of groups) {
+        events.push({
+          id: `p-${key}`, kind: 'progress', at: g.at,
+          title: g.lo < g.hi ? `Read Ch. ${g.lo}\u2013${g.hi} of ${g.rec.title}` : `Read Ch. ${g.hi} of ${g.rec.title}`,
+          body: null,
+          isSpoiler: false, moodEmoji: null, likeCount: 0, replyCount: 0,
+          comicTitle: g.rec.title, coverUrl: g.rec.cover_url ?? null, journalId: null, likedByMe: false,
+        })
+      }
+    }
+  } catch {
+    /* tracking_events not available: nothing to add */
   }
 
   events.sort((x, y) => new Date(y.at).getTime() - new Date(x.at).getTime())

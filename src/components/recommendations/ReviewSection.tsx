@@ -63,6 +63,14 @@ export function ReviewSection({
 
   useEffect(() => { fetchReviews(0) }, [fetchReviews])
 
+  // A star rating given elsewhere on the page (track sheet) creates a review
+  // row; reload the list so it shows without a page refresh.
+  useEffect(() => {
+    const reload = () => { fetchReviews(0) }
+    window.addEventListener('comic:reviews-changed', reload)
+    return () => window.removeEventListener('comic:reviews-changed', reload)
+  }, [fetchReviews])
+
   const handleLoadMore = async () => {
     setLoadingMore(true)
     await fetchReviews(offset, true)

@@ -10,7 +10,7 @@ export function OfficialPlatforms({ platforms }: { platforms: { name: string; li
 
   return (
     <div className="space-y-2">
-      <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
+      <p className="font-[family-name:var(--font-mono)] font-medium text-[11px] uppercase tracking-[0.2em] text-dossier-foreground/65">
         Official platforms
       </p>
       <div className="space-y-2">
@@ -29,19 +29,19 @@ export function OfficialPlatforms({ platforms }: { platforms: { name: string; li
                     </svg>
                   ) : icon.kind === 'monogram' ? (
                     <span
-                      className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold"
+                      className="w-5 h-5 rounded flex items-center justify-center text-[11px] font-bold"
                       style={{ background: icon.bg, color: icon.fg }}
                       aria-hidden="true"
                     >
                       {icon.letter}
                     </span>
                   ) : (
-                    <Globe size={14} className="text-dossier-foreground/40" />
+                    <Globe size={14} className="text-dossier-foreground/65" />
                   )}
                 </div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-dossier-foreground truncate">{platform.name}</p>
-                  <p className="text-[11px] text-dossier-foreground/40">Official</p>
+                  <p className="text-[11px] text-dossier-foreground/65">Official</p>
                 </div>
               </div>
               {platform.link && (

@@ -57,13 +57,13 @@ export function MomentStrip() {
         <p className="flex items-center gap-1.5 text-sm font-semibold text-dossier-foreground">
           <Check size={15} className="text-emerald-500" />
           {moment.chapter !== null ? `Ch. ${moment.chapter} logged` : 'Logged'}
-          {moment.noteSaved && <span className="font-normal text-dossier-foreground/50">· line saved</span>}
+          {moment.noteSaved && <span className="font-normal text-dossier-foreground/72">· line saved</span>}
         </p>
         {moment.eventId && (
           <button
             type="button"
             onClick={t.undo}
-            className="inline-flex items-center gap-1 text-xs font-medium text-dossier-foreground/55 hover:text-dossier-foreground"
+            className="inline-flex items-center gap-1 text-xs font-medium text-dossier-foreground/72 hover:text-dossier-foreground"
           >
             <Undo2 size={12} /> Undo
           </button>
@@ -98,7 +98,7 @@ export function MomentStrip() {
           className={`h-9 px-3 shrink-0 rounded-full border text-xs font-semibold flex items-center gap-1.5 ${
             editing
               ? 'border-dossier-foreground/40 text-dossier-foreground'
-              : 'border-dossier-foreground/15 text-dossier-foreground/60'
+              : 'border-dossier-foreground/15 text-dossier-foreground/80'
           }`}
         >
           <Pencil size={12} /> Line
@@ -114,10 +114,10 @@ export function MomentStrip() {
             onChange={e => setText(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') submit() }}
             placeholder="What just happened, in your words?"
-            className="w-full h-10 rounded-lg bg-dossier border border-dossier-foreground/15 px-3 text-sm text-dossier-foreground placeholder:text-dossier-foreground/35 outline-none focus:border-dossier-foreground/40"
+            className="w-full h-10 rounded-lg bg-dossier border border-dossier-foreground/15 px-3 text-sm text-dossier-foreground placeholder:text-dossier-foreground/60 outline-none focus:border-dossier-foreground/40"
           />
           <div className="flex items-center justify-between gap-3">
-            <label className="flex items-center gap-2 text-xs text-dossier-foreground/60">
+            <label className="flex items-center gap-2 text-xs text-dossier-foreground/80">
               <input type="checkbox" checked={spoiler} onChange={e => setSpoiler(e.target.checked)} />
               Spoiler
             </label>

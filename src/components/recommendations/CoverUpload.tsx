@@ -13,6 +13,8 @@ interface CoverUploadProps {
   value: string
   onChange: (url: string) => void
   userId: string
+  /** 'cover' (tall poster, default) or 'banner' (wide strip for the top of the comic page). */
+  variant?: 'cover' | 'banner'
 }
 
 const MAX_SIZE_MB    = 5
@@ -26,7 +28,9 @@ function proxyCover(url: string | null | undefined): string | null {
   return `/api/image-proxy?url=${encodeURIComponent(url)}`
 }
 
-export function CoverUpload({ value, onChange, userId }: CoverUploadProps) {
+export function CoverUpload({ value, onChange, userId, variant = 'cover' }: CoverUploadProps) {
+  const isBanner = variant === 'banner'
+  const noun     = isBanner ? 'banner' : 'cover'
   const [uploading,     setUploading]     = useState(false)
   const [validating,    setValidating]    = useState(false)
   const [urlInput,      setUrlInput]      = useState('')
@@ -54,7 +58,7 @@ export function CoverUpload({ value, onChange, userId }: CoverUploadProps) {
     setUploading(true)
     try {
       const fileExt = file.name.split('.').pop()
-      const fileName = `${userId}/${Date.now()}.${fileExt}`
+      const fileName = `${userId}/${isBanner ? 'banner-' : ''}${Date.now()}.${fileExt}`
 
       const { error: uploadError } = await supabase.storage
         .from('covers')
@@ -68,7 +72,7 @@ export function CoverUpload({ value, onChange, userId }: CoverUploadProps) {
 
       setPreviewBroken(false)
       onChange(publicUrl)
-      toast.success('Cover image uploaded!')
+      toast.success(isBanner ? 'Banner uploaded!' : 'Cover image uploaded!')
     } catch (error) {
       console.error(error)
       toast.error('Failed to upload image')
@@ -107,7 +111,7 @@ export function CoverUpload({ value, onChange, userId }: CoverUploadProps) {
       setPreviewBroken(false)
       onChange(urlInput.trim())
       setUrlInput('')
-      toast.success('Cover image set!')
+      toast.success(isBanner ? 'Banner set!' : 'Cover image set!')
     } catch {
       toast.error('Could not reach that image URL')
     } finally {
@@ -123,12 +127,12 @@ export function CoverUpload({ value, onChange, userId }: CoverUploadProps) {
 
   return (
     <div className="space-y-3">
-      <Label>Cover Image</Label>
+      <Label>{isBanner ? 'Banner Image (optional)' : 'Cover Image'}</Label>
 
       {/* Preview */}
       {value ? (
-        <div className="relative w-32 rounded-lg overflow-hidden border border-border group">
-          <div className="aspect-[3/4]">
+        <div className={cn('relative rounded-lg overflow-hidden border border-border group', isBanner ? 'w-full max-w-sm' : 'w-32')}>
+          <div className={isBanner ? 'aspect-[16/6]' : 'aspect-[3/4]'}>
             {previewBroken ? (
               // Proxy returned placeholder or image truly broken — show fallback UI
               <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 bg-muted">
@@ -140,7 +144,7 @@ export function CoverUpload({ value, onChange, userId }: CoverUploadProps) {
             ) : (
               <img
                 src={coverSrc!}
-                alt="Cover preview"
+                alt={`${isBanner ? 'Banner' : 'Cover'} preview`}
                 className="w-full h-full object-cover"
                 onError={() => setPreviewBroken(true)}
               />
@@ -149,8 +153,8 @@ export function CoverUpload({ value, onChange, userId }: CoverUploadProps) {
           <button
             type="button"
             onClick={handleRemove}
-            aria-label="Remove cover image"
-            title="Remove cover image"
+            aria-label={`Remove ${noun} image`}
+            title={`Remove ${noun} image`}
             className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <X size={12} className="text-white" />
@@ -160,13 +164,14 @@ export function CoverUpload({ value, onChange, userId }: CoverUploadProps) {
         <div
           onClick={() => mode === 'upload' && fileInputRef.current?.click()}
           className={cn(
-            'w-32 aspect-[3/4] rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1',
+            isBanner ? 'w-full max-w-sm aspect-[16/6]' : 'w-32 aspect-[3/4]',
+            'rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1',
             mode === 'upload' && 'cursor-pointer hover:border-primary transition-colors'
           )}
         >
           <ImageIcon size={24} className="text-muted-foreground" />
           <span className="text-xs text-muted-foreground text-center px-1">
-            {mode === 'upload' ? 'Click to upload' : 'No cover'}
+            {mode === 'upload' ? 'Click to upload' : `No ${noun}`}
           </span>
         </div>
       )}
@@ -203,8 +208,8 @@ export function CoverUpload({ value, onChange, userId }: CoverUploadProps) {
             type="file"
             accept={ACCEPTED_TYPES.join(',')}
             onChange={handleFileUpload}
-            aria-label="Upload cover image"
-            title="Upload cover image"
+            aria-label={`Upload ${noun} image`}
+            title={`Upload ${noun} image`}
             className="hidden"
           />
           <Button
@@ -222,7 +227,7 @@ export function CoverUpload({ value, onChange, userId }: CoverUploadProps) {
             )}
           </Button>
           <p className="text-xs text-muted-foreground">
-            JPG, PNG, WebP · Max {MAX_SIZE_MB}MB
+            JPG, PNG, WebP · Max {MAX_SIZE_MB}MB{isBanner ? ' · wide image, about 1600×600 works best' : ''}
           </p>
         </>
       )}
@@ -232,7 +237,7 @@ export function CoverUpload({ value, onChange, userId }: CoverUploadProps) {
         <div className="space-y-2">
           <div className="flex gap-2">
             <Input
-              placeholder="https://example.com/cover.jpg"
+              placeholder={`https://example.com/${noun}.jpg`}
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleUrlSubmit())}

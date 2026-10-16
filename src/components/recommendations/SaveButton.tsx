@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 interface Props {
   recommendationId: string
@@ -16,7 +17,9 @@ interface Props {
   /** 'default' = existing full-width pill button (unchanged).
    *  'icon'    = circular icon+label button, used by the mobile hero
    *              action row. */
-  variant?:         'default' | 'icon'
+  variant?:         'default' | 'icon' | 'tile'
+  /** tile variant: how many people have saved this comic. */
+  count?:           number
 }
 
 export function SaveButton({
@@ -25,7 +28,9 @@ export function SaveButton({
   isLoggedIn,
   comicTitle,
   variant = 'default',
+  count = 0,
 }: Props) {
+  const router = useRouter()
   const [saved,     setSaved]     = useState(initialSaved)
   const [loading,   setLoading]   = useState(false)
   const [showAuth,  setShowAuth]  = useState(false)
@@ -52,6 +57,7 @@ export function SaveButton({
         }
         setSaved(false)
         toast.success('Removed from saved')
+        router.refresh()
       } else {
         const res = await fetch('/api/saves', {
           method:  'POST',
@@ -85,12 +91,57 @@ export function SaveButton({
 
         setSaved(true)
         toast.success('Saved!')
+        router.refresh()
       }
     } catch {
       toast.error('Something went wrong')
     } finally {
       setLoading(false)
     }
+  }
+
+  // 'tile': the comic page's action row cell (sits next to the Vote tiles).
+  if (variant === 'tile') {
+    const shown = Math.max(0, count + (saved === initialSaved ? 0 : saved ? 1 : -1))
+    return (
+      <>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={loading}
+          aria-pressed={saved}
+          className="group flex flex-col items-center justify-center gap-2 px-2 py-4 transition-colors hover:bg-dossier-foreground/5 active:scale-[0.97] disabled:opacity-70"
+        >
+          <span
+            className={cn(
+              'w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all group-hover:scale-105',
+              saved
+                ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/30'
+                : 'border-dossier-foreground/30 bg-dossier-foreground/5 text-dossier-foreground group-hover:border-amber-500 group-hover:text-amber-500 group-hover:bg-amber-500/10'
+            )}
+          >
+            {loading
+              ? <Loader2 size={18} className="animate-spin" />
+              : <Bookmark size={20} className={saved ? 'fill-current' : ''} />}
+          </span>
+          <span className="text-sm font-bold text-dossier-foreground">{saved ? 'Saved' : 'Save'}</span>
+          <span className={cn(
+            'rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums transition-colors',
+            saved ? 'bg-amber-500/15 text-amber-500' : 'bg-dossier-foreground/10 text-dossier-foreground/85'
+          )}>{shown}</span>
+        </button>
+
+        <AuthPromptModal
+          open={showAuth}
+          onClose={() => setShowAuth(false)}
+          config={{
+            action: 'save this comic',
+            comicTitle,
+            icon: <Bookmark size={24} className="text-primary" />,
+          }}
+        />
+      </>
+    )
   }
 
   if (variant === 'icon') {

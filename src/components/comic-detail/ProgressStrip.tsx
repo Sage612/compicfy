@@ -38,11 +38,11 @@ export function ProgressStrip() {
   return (
     <section id="progress" className="scroll-mt-20 space-y-3">
       <div className="flex items-end justify-between gap-3">
-        <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
+        <h2 className="font-[family-name:var(--font-mono)] font-medium text-[11px] uppercase tracking-[0.2em] text-dossier-foreground/65">
           Your progress
         </h2>
         {lastReadAt && (
-          <span className="font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/40">
+          <span className="font-[family-name:var(--font-mono)] font-medium text-[11px] text-dossier-foreground/65">
             Updated {timeAgo(lastReadAt)}
           </span>
         )}
@@ -52,9 +52,9 @@ export function ProgressStrip() {
         <div className="flex items-baseline justify-between gap-3">
           <p className="font-[family-name:var(--font-dossier-display)] text-3xl font-black italic tabular-nums text-dossier-foreground leading-none">
             Ch. {ch}
-            {total ? <span className="text-base font-normal not-italic text-dossier-foreground/45"> / {total}</span> : null}
+            {total ? <span className="text-base font-normal not-italic text-dossier-foreground/65"> / {total}</span> : null}
           </p>
-          <p className="text-xs text-dossier-foreground/60 text-right">
+          <p className="text-xs text-dossier-foreground/80 text-right">
             {meta?.emoji} {meta?.label}
             {subLabel ? ` · ${subLabel}` : ''}
           </p>
@@ -85,7 +85,7 @@ export function ProgressStrip() {
         {t.moments.length > 0 && (
           <div className="flex flex-wrap gap-x-3 gap-y-1">
             {MOODS.filter(m => t.moments.some(p => p.mood === m.emoji)).map(m => (
-              <span key={m.emoji} className="flex items-center gap-1.5 text-[11px] text-dossier-foreground/55">
+              <span key={m.emoji} className="flex items-center gap-1.5 text-[11px] text-dossier-foreground/72">
                 <span className="w-2 h-2 rounded-full" style={{ background: MOOD_TINT[m.emoji] }} />
                 {m.label}
               </span>

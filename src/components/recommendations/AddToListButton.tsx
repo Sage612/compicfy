@@ -9,10 +9,14 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { isProUser, hasUnlimitedPerks } from '@/lib/access'
 import { FREE_LIMITS } from '@/lib/utils/constants'
+import { useRouter } from 'next/navigation'
 
 interface Props {
   recommendationId: string
   userId: string
+  /** Open the list in the page flow instead of floating under the button
+   *  (use inside a scrolling sheet so it is never cut off). */
+  inline?: boolean
 }
 
 interface ReadingList {
@@ -31,7 +35,8 @@ const STATUSES = [
   { value: 'dropped',      label: 'Dropped',      emoji: '🗑️' },
 ]
 
-export function AddToListButton({ recommendationId, userId }: Props) {
+export function AddToListButton({ recommendationId, userId, inline = false }: Props) {
+  const router = useRouter()
   const [open, setOpen]                       = useState(false)
   const [lists, setLists]                     = useState<ReadingList[]>([])
   const [loading, setLoading]                 = useState(false)
@@ -173,6 +178,7 @@ export function AddToListButton({ recommendationId, userId }: Props) {
       setAddedTo(prev => new Set([...prev, listId]))
       const statusLabel = STATUSES.find(s => s.value === status)
       toast.success(`Added as ${statusLabel?.emoji} ${statusLabel?.label}!`)
+      router.refresh()
     } catch {
       toast.error('Failed to add to list')
     } finally {
@@ -193,7 +199,7 @@ export function AddToListButton({ recommendationId, userId }: Props) {
       </Button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-xl border border-border bg-card shadow-xl overflow-hidden">
+        <div className={`${inline ? 'relative' : 'absolute top-full left-0 right-0'} z-20 mt-1 rounded-xl border border-border bg-card shadow-xl overflow-hidden`}>
           {loading ? (
             <div className="flex justify-center p-4">
               <Loader2 size={16} className="animate-spin text-muted-foreground" />

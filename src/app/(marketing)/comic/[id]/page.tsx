@@ -9,14 +9,13 @@ import { ReportButton } from '@/components/recommendations/ReportButton'
 import { getDashboardRoutes } from '@/lib/utils/routes'
 import { isProUser } from '@/lib/access'
 import {
-  Bookmark, Croissant, Flag, Layers, Share2, ShieldAlert,
+  Bookmark, Croissant, Flag, Layers, ShieldAlert,
   Star, ThumbsUp, MessageSquare,
 } from 'lucide-react'
 import Link from 'next/link'
 import { formatDate, timeAgo } from '@/lib/utils/format'
 import { VoteButtons } from '@/components/recommendations/VoteButtons'
 import { SaveButton } from '@/components/recommendations/SaveButton'
-import { ShareButton } from '@/components/recommendations/ShareButton'
 import type { Metadata } from 'next'
 import type { Recommendation } from '@/types/app.types'
 import { Button } from '@/components/ui/button'
@@ -29,6 +28,7 @@ import { MoreInfoSection } from '@/components/comic-detail/MoreInfoSection'
 import { TagList } from '@/components/comic-detail/TagList'
 import { ComicHero } from '@/components/comic-detail/ComicHero'
 import { RatingsHistogram } from '@/components/comic-detail/RatingsHistogram'
+import { ActionDock } from '@/components/comic-detail/ActionDock'
 import { TrackingProvider } from '@/components/comic-detail/TrackingProvider'
 import { TrackBar } from '@/components/comic-detail/TrackBar'
 import { MomentStrip } from '@/components/comic-detail/MomentStrip'
@@ -416,38 +416,37 @@ export default async function ComicDetailPage({ params }: Props) {
     ...(user ? [{
       key: 'list',
       label: 'Add to list',
-      icon: <Bookmark size={16} className="text-dossier-foreground/50" />,
-      content: <AddToListButton recommendationId={id} userId={user.id} />,
+      hint: 'Put it on one of your reading lists',
+      icon: <Bookmark size={16} className="text-dossier-foreground/72" />,
+      content: <AddToListButton recommendationId={id} userId={user.id} inline />,
     }] : []),
     {
       key: 'collection',
       label: 'Add to collection',
-      icon: <Layers size={16} className="text-dossier-foreground/50" />,
-      content: <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} />,
+      hint: 'Group it with other comics',
+      icon: <Layers size={16} className="text-dossier-foreground/72" />,
+      content: <AddToCollectionButton recommendationId={id} isLoggedIn={!!user} inline />,
     },
     {
       key: 'bake',
       label: 'Let it bake',
-      icon: <Croissant size={16} className="text-dossier-foreground/50" />,
+      hint: 'Stash chapters and get pinged later',
+      icon: <Croissant size={16} className="text-dossier-foreground/72" />,
       content: (
         <BakeButton
           comicId={id}
           chapterCount={rec.chapter_count}
           isLoggedIn={!!user}
           isPro={currentUserIsPro}
+          inline
         />
       ),
     },
     {
-      key: 'share',
-      label: 'Share',
-      icon: <Share2 size={16} className="text-dossier-foreground/50" />,
-      content: <ShareButton title={rec.title} url={shareUrl} fullWidth />,
-    },
-    {
       key: 'report',
       label: 'Report',
-      icon: <Flag size={16} className="text-dossier-foreground/50" />,
+      hint: 'Flag a problem with this page',
+      icon: <Flag size={16} className="text-dossier-foreground/72" />,
       content: <ReportButton entityType="recommendation" entityId={id} isLoggedIn={!!user} asButton />,
     },
   ]
@@ -461,7 +460,7 @@ export default async function ComicDetailPage({ params }: Props) {
   ]
 
   const sectionHeading =
-    'font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40'
+    'font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.2em] text-dossier-foreground/65'
 
   return (
     <>
@@ -504,7 +503,7 @@ export default async function ComicDetailPage({ params }: Props) {
             shareUrl={shareUrl}
           />
 
-          <div className="max-w-3xl mx-auto px-4 md:px-6 mt-6 space-y-6 pb-[calc(88px+env(safe-area-inset-bottom,0px))] md:pb-16">
+          <div className="max-w-3xl mx-auto px-4 md:px-6 mt-6 space-y-6 pb-[calc(170px+env(safe-area-inset-bottom,0px))] lg:pb-32">
 
             <div className="border-t border-dossier-foreground/10 pt-5">
               <RatingsHistogram breakdown={ratingBreakdown} upvotePct={upvotePct} voteCount={totalVotes} />
@@ -516,8 +515,10 @@ export default async function ComicDetailPage({ params }: Props) {
               <MomentStrip />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            {/* Upvote / Downvote / Save: one panel, same on every screen size */}
+            <div className="grid grid-cols-3 divide-x divide-dossier-foreground/15 overflow-hidden rounded-2xl border border-dossier-foreground/20 bg-dossier-panel/40">
               <VoteButtons
+                variant="tiles"
                 recommendationId={id}
                 initialUpvotes={rec.upvotes ?? 0}
                 initialDownvotes={rec.downvotes ?? 0}
@@ -526,10 +527,12 @@ export default async function ComicDetailPage({ params }: Props) {
                 comicTitle={rec.title}
               />
               <SaveButton
+                variant="tile"
                 recommendationId={id}
                 initialSaved={isSaved}
                 isLoggedIn={!!user}
                 comicTitle={rec.title}
+                count={rec.save_count ?? 0}
               />
             </div>
 
@@ -555,19 +558,18 @@ export default async function ComicDetailPage({ params }: Props) {
                 isLoggedIn={!!user}
                 heading="Genres & Tags"
                 leadingItems={(rec.genres ?? []).map(g => ({ label: g, href: `/browse?genre=${g}` }))}
-                collapsible
               />
 
               <div className="flex items-stretch rounded-xl border border-dossier-foreground/10 bg-dossier-panel/40 divide-x divide-dossier-foreground/10 overflow-hidden">
                 {stats.map(({ icon: Icon, label, value }) => (
                   <div key={label} className="flex-1 px-2 py-2.5 text-center">
                     <div className="flex items-center justify-center gap-1.5">
-                      <Icon size={12} className="text-dossier-foreground/40" />
+                      <Icon size={12} className="text-dossier-foreground/65" />
                       <p className="font-[family-name:var(--font-mono)] text-lg font-bold tabular-nums leading-none text-dossier-foreground">
                         {value}
                       </p>
                     </div>
-                    <p className="mt-1 text-[9px] uppercase tracking-widest text-dossier-foreground/40">{label}</p>
+                    <p className="mt-1 text-[10px] uppercase tracking-widest text-dossier-foreground/65">{label}</p>
                   </div>
                 ))}
               </div>
@@ -577,7 +579,7 @@ export default async function ComicDetailPage({ params }: Props) {
 
                 <div className="space-y-2">
                   <p className={sectionHeading}>Your reading sources</p>
-                  <p className="text-[11px] text-dossier-foreground/40 -mt-1">
+                  <p className="text-[11px] text-dossier-foreground/65 -mt-1">
                     Personal links you&rsquo;ve saved. Prefer official platforms above when you can.
                   </p>
                   <MyReadingSources comicId={id} isLoggedIn={!!user} isPro={currentUserIsPro} />
@@ -589,7 +591,7 @@ export default async function ComicDetailPage({ params }: Props) {
                   <p className="font-[family-name:var(--font-dossier-display)] italic text-lg font-semibold text-dossier-foreground">
                     Read ahead on {readAheadPlatform.name}
                   </p>
-                  <p className="text-sm text-dossier-foreground/60">
+                  <p className="text-sm text-dossier-foreground/80">
                     Get early access to upcoming chapters with {readAheadPlatform.name}&rsquo;s fast-pass system.
                   </p>
                   <a
@@ -671,14 +673,14 @@ export default async function ComicDetailPage({ params }: Props) {
                         className="h-10 w-10 rounded-full border border-dossier-foreground/10 object-cover shrink-0"
                       />
                     ) : (
-                      <div className="h-10 w-10 rounded-full border border-dossier-foreground/10 bg-dossier flex items-center justify-center text-xs font-bold text-dossier-foreground/40 shrink-0">
+                      <div className="h-10 w-10 rounded-full border border-dossier-foreground/10 bg-dossier flex items-center justify-center text-xs font-bold text-dossier-foreground/65 shrink-0">
                         {recommenderName.slice(0, 1).toUpperCase()}
                       </div>
                     )}
                     <div className="min-w-0">
                       <p className="text-[13px] font-medium truncate text-dossier-foreground">{recommenderName}</p>
                       {profile.username && (
-                        <p className="font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/40 truncate">
+                        <p className="font-[family-name:var(--font-mono)] font-medium text-[11px] text-dossier-foreground/65 truncate">
                           @{profile.username}
                         </p>
                       )}
@@ -687,12 +689,12 @@ export default async function ComicDetailPage({ params }: Props) {
                   {(recommenderIsVerified || recommenderIsPro) && (
                     <div className="flex items-center gap-1.5 shrink-0">
                       {recommenderIsVerified && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-dossier-foreground/15 text-dossier-foreground/60">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-dossier-foreground/15 text-dossier-foreground/80">
                           Verified
                         </span>
                       )}
                       {recommenderIsPro && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-amber-500/30 text-amber-400">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-amber-500/30 text-amber-400">
                           Pro
                         </span>
                       )}
@@ -702,17 +704,17 @@ export default async function ComicDetailPage({ params }: Props) {
                 {profile.username && (
                   <Link
                     href={profile.user_type === 'creator' ? `/creator/${profile.username}` : `/profile/${profile.username}`}
-                    className="mt-3 flex items-center justify-center w-full h-8 rounded-[10px] border border-dossier-foreground/10 bg-dossier/60 font-[family-name:var(--font-mono)] text-[11px] text-dossier-foreground/70 hover:text-dossier-foreground hover:border-dossier-foreground/30 transition-colors"
+                    className="mt-3 flex items-center justify-center w-full h-8 rounded-[10px] border border-dossier-foreground/10 bg-dossier/60 font-[family-name:var(--font-mono)] font-medium text-[11px] text-dossier-foreground/88 hover:text-dossier-foreground hover:border-dossier-foreground/30 transition-colors"
                   >
                     View profile →
                   </Link>
                 )}
-                <p className="mt-3 text-right font-[family-name:var(--font-mono)] text-[10px] text-dossier-foreground/35">
+                <p className="mt-3 text-right font-[family-name:var(--font-mono)] font-medium text-[11px] text-dossier-foreground/60">
                   {rec.created_at ? formatDate(rec.created_at) : ''}
                 </p>
               </div>
             ) : (
-              <div className="flex items-center justify-between py-4 border-t border-dossier-foreground/10 text-xs text-dossier-foreground/40">
+              <div className="flex items-center justify-between py-4 border-t border-dossier-foreground/10 text-xs text-dossier-foreground/65">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span>Recommended by</span>
                   <RecommenderLink
@@ -727,10 +729,11 @@ export default async function ComicDetailPage({ params }: Props) {
                     userType={profile?.user_type ?? null}
                   />
                 </div>
-                <span className="font-[family-name:var(--font-mono)]">{rec.created_at ? formatDate(rec.created_at) : ''}</span>
+                <span className="font-[family-name:var(--font-mono)] font-medium">{rec.created_at ? formatDate(rec.created_at) : ''}</span>
               </div>
             )}
           </div>
+          <ActionDock />
         </TrackingProvider>
       </div>
     </>

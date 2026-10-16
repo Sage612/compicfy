@@ -10,7 +10,7 @@ import { Loader2 } from 'lucide-react'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
 import { ListsSkeleton } from '@/components/lists/ListsSkeleton'
 import { PageShell, PageHeader } from '@/components/dashboard/PageHeader'
-import { CardFooter } from '@/components/community/CardFooter'
+import { CommunityCard } from '@/components/community/CommunityCard'
 import { FREE_LIMITS } from '@/lib/utils/constants'
 
 interface PublicList {
@@ -46,23 +46,6 @@ function itemCount(list: PublicList): number {
   const first = list.reading_list_items[0]
   if (typeof first?.count === 'number') return first.count
   return list.reading_list_items.length
-}
-
-function proxy(url: string) {
-  return `/api/image-proxy?url=${encodeURIComponent(url)}`
-}
-
-/** Neutral cover strip: up to four covers side by side on a muted ground. */
-function CoverStrip({ covers }: { covers: string[] }) {
-  return (
-    <div className="aspect-[5/2] bg-muted flex gap-px overflow-hidden">
-      {covers.map((url, i) => (
-        <div key={i} className="flex-1 min-w-0 overflow-hidden">
-          <img src={proxy(url)} alt="" aria-hidden className="w-full h-full object-cover" />
-        </div>
-      ))}
-    </div>
-  )
 }
 
 interface Props {
@@ -251,7 +234,7 @@ export function ListsClient({
       )}
 
       {!loading && lists.length > 0 && (
-        <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
           {lists.map(list => {
             const covers    = getCoverPreviews(list)
             const count     = itemCount(list)
@@ -260,37 +243,24 @@ export function ListsClient({
             const starring  = starringId === list.id
 
             return (
-              <div
+              <CommunityCard
                 key={list.id}
-                className="group relative rounded-xl border border-border bg-card overflow-hidden flex flex-col transition-colors hover:border-foreground/30"
-              >
-                <Link href={`/lists/${list.id}`} className="block flex-1">
-                  {covers.length > 0 ? <CoverStrip covers={covers} /> : <div className="aspect-[5/2] bg-muted" />}
-                  <div className="p-4 space-y-1">
-                    <p className="font-dashboard-serif text-lg leading-snug text-foreground line-clamp-1">{list.name}</p>
-                    {list.description && (
-                      <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{list.description}</p>
-                    )}
-                    <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70 pt-2">
-                      {count} comic{count !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                </Link>
-
-                <CardFooter
-                  username={list.profiles?.username}
-                  avatarUrl={list.profiles?.avatar_url}
-                  isOwner={isOwner}
-                  action={{
-                    kind: 'star',
-                    active: isStarred,
-                    count: list.star_count ?? 0,
-                    loading: starring,
-                    onClick: e => handleStar(list.id, e),
-                  }}
-                  onShare={e => handleShare(list.id, e)}
-                />
-              </div>
+                href={`/lists/${list.id}`}
+                images={covers}
+                title={list.name}
+                meta={`${count} comic${count !== 1 ? 's' : ''}`}
+                username={list.profiles?.username}
+                avatarUrl={list.profiles?.avatar_url}
+                isOwner={isOwner}
+                action={{
+                  kind: 'star',
+                  active: isStarred,
+                  count: list.star_count ?? 0,
+                  loading: starring,
+                  onClick: e => handleStar(list.id, e),
+                }}
+                onShare={e => handleShare(list.id, e)}
+              />
             )
           })}
         </div>

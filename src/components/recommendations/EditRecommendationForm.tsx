@@ -25,6 +25,7 @@ const formSchema = z.object({
   official_platforms: z.array(z.string()).min(1, 'Select at least one platform'),
   official_links:     z.array(z.string()).default([]),
   cover_url:          z.string().default(''),
+  banner_url:         z.string().default(''),
   content_rating:     z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
   why_recommend:      z.string().max(1000).default(''),
   author:             z.string().max(100).default(''),
@@ -105,6 +106,7 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
       official_platforms: rec.official_platforms ?? [],
       official_links:     rec.official_links     ?? [],
       cover_url:          rec.cover_url          ?? '',
+      banner_url:         rec.banner_url         ?? '',
       content_rating:     (rec.content_rating === 'all' ? 'all_ages' : rec.content_rating) ?? 'all_ages',
       why_recommend:      rec.why_recommend      ?? '',
       author:             rec.author             ?? '',
@@ -182,6 +184,15 @@ export function EditRecommendationForm({ recommendation: rec, userId }: Props) {
               </div>
             </div>
           </div>
+        </div>
+        <div className="pt-2">
+          <Controller
+            name="banner_url"
+            control={control}
+            render={({ field }) => (
+              <CoverUpload variant="banner" value={field.value ?? ''} onChange={field.onChange} userId={userId} />
+            )}
+          />
         </div>
       </FormSection>
 

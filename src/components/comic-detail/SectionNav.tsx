@@ -12,7 +12,7 @@ export function SectionNav({ items }: { items: NavItem[] }) {
           <li key={item.id}>
             <a
               href={`#${item.id}`}
-              className="block py-3 font-[family-name:var(--font-mono)] text-[11px] uppercase tracking-[0.18em] text-dossier-foreground/50 hover:text-dossier-foreground transition-colors"
+              className="block py-3 font-[family-name:var(--font-mono)] font-medium text-[11px] uppercase tracking-[0.18em] text-dossier-foreground/72 hover:text-dossier-foreground transition-colors"
             >
               {item.label}
             </a>

@@ -4,6 +4,7 @@
 // The two round buttons floating on the banner: Share and "⋮" (opens the track sheet).
 
 import { MoreHorizontal, Share2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useTracking } from './TrackingProvider'
 
 const round =
@@ -16,6 +17,7 @@ export function BannerShareButton({ title, url }: { title: string; url: string }
         await (navigator as any).share({ title, url })
       } else if (typeof navigator !== 'undefined') {
         await navigator.clipboard.writeText(url)
+        toast.success('Link copied')
       }
     } catch {
       /* cancelled */

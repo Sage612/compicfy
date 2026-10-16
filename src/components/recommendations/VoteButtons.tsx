@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { ThumbsUp, ThumbsDown, Loader2, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -17,7 +18,7 @@ interface Props {
   /** 'default' = existing two-button pill row (unchanged).
    *  'icon'    = single circular icon+label button, used by the mobile
    *              hero action row and the "More" sheet's Downvote row. */
-  variant?:         'default' | 'icon'
+  variant?:         'default' | 'icon' | 'tiles'
   /** icon variant only: which direction this button represents. */
   mode?:            'up' | 'down'
 }
@@ -32,6 +33,7 @@ export function VoteButtons({
   variant = 'default',
   mode = 'up',
 }: Props) {
+  const router = useRouter()
   const [upvotes,     setUpvotes]     = useState(initialUpvotes)
   const [downvotes,   setDownvotes]   = useState(initialDownvotes)
   const [userVote,    setUserVote]    = useState(initialVote)
@@ -85,6 +87,8 @@ export function VoteButtons({
         setDownvotes(prev.downvotes)
         setUserVote(prev.userVote)
         toast.error('Failed to vote')
+      } else {
+        router.refresh() // keep the ratings block and counts in step
       }
     } catch {
       setUpvotes(prev.upvotes)
@@ -94,6 +98,69 @@ export function VoteButtons({
     } finally {
       setLoadingVote(null)
     }
+  }
+
+  // 'tiles': the comic page's action row. Renders the Upvote and Downvote tiles
+  // together (one shared state, so the counts always agree) as two grid cells;
+  // the page wraps them with the Save tile in a 3-column panel. Same layout on
+  // every screen size.
+  if (variant === 'tiles') {
+    const tile = (type: 'up' | 'down') => {
+      const active = userVote === type
+      const Icon   = type === 'up' ? ThumbsUp : ThumbsDown
+      const count  = type === 'up' ? upvotes : downvotes
+      const up     = type === 'up'
+      const label  = up ? (active ? 'Upvoted' : 'Upvote') : (active ? 'Downvoted' : 'Downvote')
+
+      const circle = active
+        ? (up
+            ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+            : 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/30')
+        : (up
+            ? 'border-dossier-foreground/30 bg-dossier-foreground/5 text-dossier-foreground group-hover:border-emerald-500 group-hover:text-emerald-500 group-hover:bg-emerald-500/10'
+            : 'border-dossier-foreground/30 bg-dossier-foreground/5 text-dossier-foreground group-hover:border-rose-500 group-hover:text-rose-500 group-hover:bg-rose-500/10')
+      const countCls = active
+        ? (up ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500')
+        : 'bg-dossier-foreground/10 text-dossier-foreground/85'
+
+      return (
+        <button
+          type="button"
+          onClick={() => handleVote(type)}
+          disabled={!!loadingVote}
+          aria-pressed={active}
+          className="group flex flex-col items-center justify-center gap-2 px-2 py-4 transition-colors hover:bg-dossier-foreground/5 active:scale-[0.97] disabled:opacity-70"
+        >
+          <span className={cn('w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all group-hover:scale-105', circle)}>
+            {loadingVote === type
+              ? <Loader2 size={18} className="animate-spin" />
+              : <Icon size={20} className={active ? 'fill-current' : ''} />}
+          </span>
+          <span className="text-sm font-bold text-dossier-foreground">{label}</span>
+          <span className={cn('rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums transition-colors', countCls)}>
+            {formatNumber(count)}
+          </span>
+        </button>
+      )
+    }
+
+    return (
+      <>
+        {tile('up')}
+        {tile('down')}
+        <AuthPromptModal
+          open={showAuth}
+          onClose={() => { setShowAuth(false); setPendingVote(null) }}
+          config={{
+            action: pendingVote === 'up' ? 'upvote this comic' : 'downvote this comic',
+            comicTitle,
+            icon: pendingVote === 'up'
+              ? <ThumbsUp size={24} className="text-emerald-500" />
+              : <ThumbsDown size={24} className="text-rose-500" />,
+          }}
+        />
+      </>
+    )
   }
 
   if (variant === 'icon') {

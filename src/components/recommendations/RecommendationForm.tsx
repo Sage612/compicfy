@@ -35,6 +35,7 @@ const formSchema = z.object({
   official_platforms: z.array(z.string()).min(1, 'Select at least one platform'),
   official_links: z.array(z.string()).default([]),
   cover_url: z.string().default(''),
+  banner_url: z.string().default(''),
   content_rating: z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
   adult_content_confirmed: z.boolean().optional(),
   why_recommend: z.string().max(1000).default(''),
@@ -201,6 +202,7 @@ export function RecommendationForm({ userId }: Props) {
       type:               (prefillType as FormValues['type']) || undefined,
       status:             (prefillStatus as FormValues['status']) || undefined,
       cover_url:          prefillCover,
+      banner_url:         '',
       genres:             prefillGenres,
       official_platforms: [],
       official_links:     [],
@@ -520,6 +522,15 @@ export function RecommendationForm({ userId }: Props) {
               </div>
             </div>
           </div>
+        </div>
+        <div className="pt-2">
+          <Controller
+            name="banner_url"
+            control={control}
+            render={({ field }) => (
+              <CoverUpload variant="banner" value={field.value ?? ''} onChange={field.onChange} userId={userId} />
+            )}
+          />
         </div>
       </FormSection>
 

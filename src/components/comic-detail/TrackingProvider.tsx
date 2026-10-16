@@ -11,7 +11,7 @@
 // Several quick +1 taps are coalesced into one request and one event.
 
 import {
-  createContext, useCallback, useContext, useMemo, useRef, useState,
+  createContext, useCallback, useContext, useEffect, useMemo, useRef, useState,
   type ReactNode,
 } from 'react'
 import { BookOpen } from 'lucide-react'
@@ -120,6 +120,27 @@ export function TrackingProvider({
   const nonce          = useRef(0)
 
   const tracked = snapshot.status !== null
+
+  // Something else on the page changed this comic's tracking (add to list,
+  // collection, bake…) and the page was refreshed: pick up the new server state,
+  // as long as none of our own taps are still in flight.
+  useEffect(() => {
+    if (pending > 0) return
+    const c = confirmed.current
+    if (
+      initial.status !== c.status || initial.subStatus !== c.subStatus ||
+      initial.chapter !== c.chapter
+    ) {
+      confirmed.current = initial
+      setSnapshot(initial)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial.status, initial.subStatus, initial.chapter])
+
+  useEffect(() => {
+    if (pending === 0 && initialRating !== null) setRatingState(initialRating)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialRating])
 
   /* ── plumbing ── */
 
@@ -318,7 +339,10 @@ export function TrackingProvider({
 
   const setRating = useCallback((n: number) => {
     setRatingState(n)
-    router.refresh()   // re-draw the ratings histogram and reviews with the new rating
+    router.refresh()   // re-draw the ratings histogram with the new rating
+    // The reviews list loads itself on the client, so tell it to fetch again;
+    // that is what makes a star rating show up there without a page reload.
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('comic:reviews-changed'))
   }, [router])
 
   /* ── sheet ── */

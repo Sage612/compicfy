@@ -37,12 +37,12 @@ function describe(e: FriendEvent): string {
 export function FriendsActivity({ events, followsAnyone, myChapter }: Props) {
   return (
     <section id="friends" className="scroll-mt-20 space-y-3">
-      <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
+      <h2 className="font-[family-name:var(--font-mono)] font-medium text-[11px] uppercase tracking-[0.2em] text-dossier-foreground/65">
         Friends on this comic
       </h2>
 
       {events.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-dossier-foreground/15 bg-dossier-panel/20 p-4 text-sm text-dossier-foreground/55">
+        <p className="rounded-2xl border border-dashed border-dossier-foreground/15 bg-dossier-panel/20 p-4 text-sm text-dossier-foreground/72">
           {followsAnyone
             ? 'Nobody you follow has logged this one yet.'
             : 'Follow readers to see how they get through the comics you read.'}
@@ -56,7 +56,7 @@ export function FriendsActivity({ events, followsAnyone, myChapter }: Props) {
                 {e.avatarUrl ? (
                   <img src={e.avatarUrl} alt="" className="h-9 w-9 rounded-full border border-dossier-foreground/10 object-cover shrink-0" />
                 ) : (
-                  <div className="h-9 w-9 rounded-full border border-dossier-foreground/10 bg-dossier flex items-center justify-center text-xs font-bold text-dossier-foreground/40 shrink-0">
+                  <div className="h-9 w-9 rounded-full border border-dossier-foreground/10 bg-dossier flex items-center justify-center text-xs font-bold text-dossier-foreground/65 shrink-0">
                     {e.displayName.slice(0, 1).toUpperCase()}
                   </div>
                 )}
@@ -73,7 +73,7 @@ export function FriendsActivity({ events, followsAnyone, myChapter }: Props) {
                       <FriendNote note={e.note} hidden={e.isSpoiler || ahead} />
                     </p>
                   )}
-                  <p className="mt-1 font-[family-name:var(--font-mono)] text-[10px] text-dossier-foreground/35">
+                  <p className="mt-1 font-[family-name:var(--font-mono)] font-medium text-[11px] text-dossier-foreground/60">
                     {timeAgo(e.createdAt)}
                   </p>
                 </div>

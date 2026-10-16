@@ -17,7 +17,7 @@ export function FriendNote({ note, hidden }: { note: string; hidden: boolean }) 
     <button
       type="button"
       onClick={() => setShown(true)}
-      className="text-left text-dossier-foreground/60"
+      className="text-left text-dossier-foreground/80"
       aria-label="Reveal a note that may contain spoilers"
     >
       <span className="blur-sm select-none">&ldquo;{note}&rdquo;</span>

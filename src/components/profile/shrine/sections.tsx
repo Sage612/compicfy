@@ -330,7 +330,7 @@ function buildGroups(items: ActivityEvent[]) {
   return groups
 }
 
-const KIND_ICON = { journal: 'pen', quote: 'quote', finished: 'check', bond: 'heart', streak: 'flame' } as const
+const KIND_ICON = { journal: 'pen', quote: 'quote', finished: 'check', bond: 'heart', streak: 'flame', progress: 'book' } as const
 
 interface ActivityProps {
   events:    ActivityEvent[]

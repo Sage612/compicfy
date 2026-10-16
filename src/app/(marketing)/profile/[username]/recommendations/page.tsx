@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Layers } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import type { Recommendation } from '@/types/app.types'
 import type { Metadata } from 'next'
 import { ProAvatar } from '@/components/pro/ProAvatar'
@@ -37,12 +37,12 @@ export default async function ProfileRecsPage({ params }: Props) {
   if (!profileData) notFound()
 
   const profile     = profileData as any
-  // Fixed: was hand-rolled `is_pro && not-expired` with no admin/patron
-  // fallback. isProUser()/isAdminCheck() from @/lib/access are the SSOT.
   const isPro       = isProUser(profile)
   const isAdmin     = isAdminCheck(profile)
   const displayName = profile.display_name || profile.username
   const initials    = displayName.slice(0, 2).toUpperCase()
+  const showGold    = isPro && !isAdmin
+  const ring        = isAdmin ? 'admin' : showGold ? 'gold' : 'default'
 
   const { count: totalCount } = await supabase
     .from('recommendations')
@@ -61,67 +61,51 @@ export default async function ProfileRecsPage({ params }: Props) {
     .range(0, PAGE_SIZE - 1)
 
   const items = (recData ?? []) as Recommendation[]
-  const showGold = isPro && !isAdmin
+  const total = totalCount ?? 0
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+    <div className="sh-page">
+      <div className="sh-root" data-tier={showGold ? 'gold' : 'default'}>
+        <div className="sh-body sh-recs-head">
+          <Link href={`/profile/${profile.username}`} className="sh-back">
+            <ArrowLeft size={14} /> Back to @{profile.username}
+          </Link>
 
-      <Link
-        href={`/profile/${profile.username}`}
-        className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group w-fit"
-      >
-        <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
-        Back to @{profile.username}
-      </Link>
-
-      <div className={`relative rounded-2xl border overflow-hidden ${showGold ? 'border-amber-500/30' : 'border-border'} bg-card`}>
-        <div className={`h-16 bg-gradient-to-br ${showGold ? 'from-amber-400/20 via-orange-500/10 to-transparent' : 'from-primary/20 via-violet-500/10 to-transparent'}`} />
-        <div className="px-5 pb-5 -mt-8 flex items-end gap-4">
-          <ProAvatar
-            src={profile.avatar_url}
-            fallback={initials}
-            size="lg"
-            isPro={isPro}
-            isAdmin={isAdmin}
-            className="border-4 border-card shadow-lg shrink-0"
-          />
-          <div className="flex-1 min-w-0 pb-1 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-black truncate">{displayName}</h1>
-              <ProBadge role={profile.role} isPro={isPro} />
-              {profile.verified_recommender && <VerifiedBadge />}
+          <div className="sh-hero-top" style={{ marginTop: 18 }}>
+            <div className="sh-avatar" data-ring={ring}>
+              <ProAvatar
+                src={profile.avatar_url}
+                fallback={initials}
+                size="lg"
+                isPro={isPro}
+                isAdmin={isAdmin}
+              />
             </div>
-            <p className="text-sm text-muted-foreground">@{profile.username}</p>
-            {profile.bio && (
-              <p className="text-xs text-muted-foreground line-clamp-1 max-w-md hidden sm:block">{profile.bio}</p>
-            )}
-          </div>
-          <div className="shrink-0 pb-1">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${showGold ? 'bg-amber-500/5 border-amber-500/20' : 'bg-primary/5 border-primary/15'}`}>
-              <Layers size={14} className={showGold ? 'text-amber-500' : 'text-primary'} />
-              <div className="text-right">
-                <p className={`text-base font-black leading-none ${showGold ? 'text-amber-500' : 'text-primary'}`}>{totalCount ?? 0}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">comics</p>
+            <div className="sh-id">
+              <div className="sh-name-row">
+                <h1 className="sh-name sh-display">{displayName}</h1>
+                <ProBadge role={profile.role} isPro={isPro} />
+                {profile.verified_recommender && <VerifiedBadge />}
               </div>
+              <p className="sh-handle">@{profile.username}</p>
             </div>
           </div>
+
+          <p className="sh-eyebrow" style={{ marginTop: 26 }}>Recommendations</p>
+          <h2 className="sh-h2 sh-display" style={{ marginBottom: 4 }}>
+            {total} {total === 1 ? 'pick' : 'picks'} shared
+          </h2>
+        </div>
+
+        <div className="sh-body">
+          <ProfileRecsClient
+            username={profile.username}
+            userId={profile.id}
+            initialItems={items}
+            initialTotal={total}
+          />
         </div>
       </div>
-
-      <div className="flex items-center gap-3">
-        <div>
-          <h2 className="text-lg font-black">All Recommendations</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Everything @{profile.username} has shared</p>
-        </div>
-        <div className={`h-px flex-1 bg-gradient-to-r ${showGold ? 'from-amber-500/30' : 'from-primary/30'} to-transparent`} />
-      </div>
-
-      <ProfileRecsClient
-        username={profile.username}
-        userId={profile.id}
-        initialItems={items}
-        initialTotal={totalCount ?? 0}
-      />
     </div>
   )
 }

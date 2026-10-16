@@ -10,6 +10,8 @@ export const recommendationBaseSchema = z.object({
   official_platforms: z.array(z.string()).min(1, 'Select at least one platform'),
   official_links: z.array(z.string()).default([]),
   cover_url: z.string().default(''),
+  // Optional wide image shown at the top of the comic page. '' clears it.
+  banner_url: z.string().max(2000).optional().transform(v => (v === undefined ? undefined : (v.trim() || null))),
   content_rating: z.enum(['all_ages', 'teen', 'mature', 'adult']).default('all_ages'),
   why_recommend: z.string().max(1000).default(''),
   author: z.string().max(100).default(''),

@@ -11,7 +11,7 @@ import type { Recommendation } from '@/types/app.types'
 import { getDashboardRoutes } from '@/lib/utils/routes'
 import { ProfileBadges } from '@/components/profile/ProfileBadges'
 import { MangaDNACard } from '@/components/profile/MangaDNACard'
-import { getSuggestedMatches } from '@/lib/taste/getSuggestedMatches'
+import { getMatchWithUser } from '@/lib/taste/getMatchWithUser'
 import { isProUser, isPatronUser, isAdmin as isAdminCheck } from '@/lib/access'
 import { getProfileExtras } from '@/lib/profile/getProfileExtras'
 import { getParty, getOtherShrines, getActivityEvents } from '@/lib/profile/getShrineExtras'
@@ -256,18 +256,9 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   }
 
   // ── Taste match with the viewer ──
-  let viewerMatch: Awaited<ReturnType<typeof getSuggestedMatches>>[number] | null = null
-  if (viewer && viewer.id !== profile.id && !isGhost) {
-    const { data: viewerProfileForPro } = await supabase
-      .from('profiles')
-      .select('role, is_pro, pro_expires_at, is_patron, patron_expires_at')
-      .eq('id', viewer.id)
-      .maybeSingle()
-
-    const viewerIsPro = viewerProfileForPro ? isProUser(viewerProfileForPro as any) : false
-    const matches = await getSuggestedMatches(supabase, viewer.id, viewerIsPro)
-    viewerMatch = matches.find(m => m.userId === profile.id) ?? null
-  }
+  const viewerMatch = viewer && viewer.id !== profile.id && !isGhost
+    ? await getMatchWithUser(supabase, viewer.id, profile.id)
+    : null
 
   // ── Shrine data: everything every tab needs, fetched together ──
   const [extras, party, otherShrines] = isGhost

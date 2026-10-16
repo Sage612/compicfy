@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Layers, ChevronDown, Plus, Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AuthPromptModal } from '@/components/ui/auth-prompt-modal'
+import { useRouter } from 'next/navigation'
 
 interface Collection {
   id:    string
@@ -14,9 +15,12 @@ interface Collection {
 interface Props {
   recommendationId: string
   isLoggedIn:       boolean
+  /** Open in the page flow instead of floating (for use inside a sheet). */
+  inline?:          boolean
 }
 
-export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
+export function AddToCollectionButton({ recommendationId, isLoggedIn, inline = false }: Props) {
+  const router = useRouter()
   const [open,             setOpen]             = useState(false)
   const [collections,      setCollections]      = useState<Collection[]>([])
   const [added,            setAdded]            = useState<Set<string>>(new Set())
@@ -79,6 +83,7 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
       if (!res.ok) throw new Error(data.error)
       setAdded(prev => new Set([...prev, collectionId]))
       toast.success('Added to collection!')
+      router.refresh()
     } catch {
       toast.error('Failed to add')
     } finally {
@@ -141,7 +146,7 @@ export function AddToCollectionButton({ recommendationId, isLoggedIn }: Props) {
 
       {/* ── Dropdown ── */}
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border border-border bg-card shadow-2xl shadow-black/20 overflow-hidden">
+        <div className={`${inline ? 'relative' : 'absolute top-full left-0 right-0'} mt-2 z-50 rounded-2xl border border-border bg-card shadow-2xl shadow-black/20 overflow-hidden`}>
 
           {loading ? (
             <div className="flex items-center justify-center py-5">

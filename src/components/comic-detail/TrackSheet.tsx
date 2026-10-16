@@ -12,7 +12,7 @@
 //   More         add to list, add to collection, bake, report (passed in by the page).
 
 import { useState, type ReactNode } from 'react'
-import { ChevronDown, Loader2, Minus, Plus, Star } from 'lucide-react'
+import { Loader2, Minus, Plus, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
@@ -33,6 +33,8 @@ export interface SheetRow {
   key:     string
   label:   string
   icon:    ReactNode
+  /** One short line under the label. */
+  hint?:   string
   content: ReactNode
 }
 
@@ -52,7 +54,6 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
   const [savingLine, setSavingLine] = useState(false)
   const [hoverStar, setHoverStar]   = useState(0)
   const [ratingBusy, setRatingBusy] = useState(false)
-  const [openRow, setOpenRow]       = useState<string | null>(null)
 
   const meta       = status ? TRACKING_STATUS_META[status as TrackingStatusValue] : null
   const showReasons = dropOpen || status === 'dropped'
@@ -123,7 +124,7 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
 
         <SheetHeader className="p-0 pr-8">
           <SheetTitle className="text-xl font-black leading-tight text-dossier-foreground">{t.title}</SheetTitle>
-          <SheetDescription className="text-dossier-foreground/50 text-xs">
+          <SheetDescription className="text-dossier-foreground/72 text-xs">
             Tap to log. Nothing here is required.
           </SheetDescription>
         </SheetHeader>
@@ -144,7 +145,7 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
                   className={`${chip} ${
                     active
                       ? 'border-dossier-foreground/60 bg-dossier-foreground/10 text-dossier-foreground'
-                      : 'border-dossier-foreground/10 text-dossier-foreground/65 hover:border-dossier-foreground/30'
+                      : 'border-dossier-foreground/10 text-dossier-foreground/80 hover:border-dossier-foreground/30'
                   }`}
                 >
                   <span className="text-lg leading-none">{m.emoji}</span>
@@ -167,7 +168,7 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
                     className={`px-3 py-1.5 rounded-full border text-xs font-medium ${
                       status === 'dropped' && subStatus === p.value
                         ? 'border-dossier-foreground/60 bg-dossier-foreground/10 text-dossier-foreground'
-                        : 'border-dossier-foreground/15 text-dossier-foreground/70 hover:border-dossier-foreground/35'
+                        : 'border-dossier-foreground/15 text-dossier-foreground/88 hover:border-dossier-foreground/35'
                     }`}
                   >
                     {p.label}
@@ -181,7 +182,7 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
                   onChange={e => setCustomReason(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && customReason.trim()) pickReason(customReason.trim()) }}
                   placeholder="Or in your own words…"
-                  className="flex-1 h-9 rounded-lg bg-dossier border border-dossier-foreground/15 px-3 text-xs outline-none focus:border-dossier-foreground/40 placeholder:text-dossier-foreground/35"
+                  className="flex-1 h-9 rounded-lg bg-dossier border border-dossier-foreground/15 px-3 text-xs outline-none focus:border-dossier-foreground/40 placeholder:text-dossier-foreground/60"
                 />
                 <button
                   type="button"
@@ -193,7 +194,7 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
                 </button>
               </div>
               {status === 'dropped' && subStatus && (
-                <p className="text-[11px] text-dossier-foreground/45">
+                <p className="text-[11px] text-dossier-foreground/65">
                   Saved as: {resolveSubStatusLabel('dropped', subStatus)}. This stays private to you.
                 </p>
               )}
@@ -212,7 +213,7 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
                   className={`px-3 py-1.5 rounded-full border text-xs font-medium ${
                     subStatus === p.value
                       ? 'border-dossier-foreground/60 bg-dossier-foreground/10 text-dossier-foreground'
-                      : 'border-dossier-foreground/15 text-dossier-foreground/65 hover:border-dossier-foreground/35'
+                      : 'border-dossier-foreground/15 text-dossier-foreground/80 hover:border-dossier-foreground/35'
                   }`}
                 >
                   {p.label}
@@ -235,7 +236,7 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
         <section className="space-y-3">
           <Label>
             Chapter
-            {t.totalChapters ? <span className="ml-1 normal-case tracking-normal text-dossier-foreground/40">of {t.totalChapters}</span> : null}
+            {t.totalChapters ? <span className="ml-1 normal-case tracking-normal text-dossier-foreground/65">of {t.totalChapters}</span> : null}
           </Label>
 
           <div className="flex items-center gap-2">
@@ -300,11 +301,11 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
             onChange={e => setLine(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') saveFeeling() }}
             placeholder="One line to remember it by (optional)"
-            className="w-full h-11 rounded-xl bg-dossier border border-dossier-foreground/15 px-3 text-sm outline-none focus:border-dossier-foreground/40 placeholder:text-dossier-foreground/35"
+            className="w-full h-11 rounded-xl bg-dossier border border-dossier-foreground/15 px-3 text-sm outline-none focus:border-dossier-foreground/40 placeholder:text-dossier-foreground/60"
           />
           {(mood || line.trim()) && (
             <div className="flex items-center justify-between gap-3">
-              <label className={`flex items-center gap-2 text-xs text-dossier-foreground/60 ${line.trim() ? '' : 'invisible'}`}>
+              <label className={`flex items-center gap-2 text-xs text-dossier-foreground/80 ${line.trim() ? '' : 'invisible'}`}>
                 <input type="checkbox" checked={spoiler} onChange={e => setSpoiler(e.target.checked)} />
                 Contains spoilers
               </label>
@@ -331,7 +332,7 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
                   <Star key={n} size={26} className={t.rating! >= n ? 'fill-amber-400 text-amber-400' : 'text-dossier-foreground/25'} />
                 ))}
               </div>
-              <p className="mt-1.5 text-xs text-dossier-foreground/50">
+              <p className="mt-1.5 text-xs text-dossier-foreground/72">
                 You rated this {t.rating}★. Want to say more? Write a review further down the page.
               </p>
             </div>
@@ -350,35 +351,35 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
                   <Star size={28} className={hoverStar >= n ? 'fill-amber-400 text-amber-400' : 'text-dossier-foreground/25'} />
                 </button>
               ))}
-              {ratingBusy && <Loader2 size={15} className="animate-spin ml-2 text-dossier-foreground/40" />}
+              {ratingBusy && <Loader2 size={15} className="animate-spin ml-2 text-dossier-foreground/65" />}
             </div>
           )}
         </section>
 
-        {/* ── More ── */}
+        {/* ── More: every action is a card, always open. Nothing hides behind
+            a chevron, and pickers open inside the card (never floating off the
+            bottom of the screen). ── */}
         {rows.length > 0 && (
-          <section className="space-y-1">
+          <section className="space-y-2">
             <Label>More</Label>
-            <div className="rounded-xl border border-dossier-foreground/10 divide-y divide-dossier-foreground/10 overflow-hidden">
-              {rows.map(row => {
-                const open = openRow === row.key
-                return (
-                  <div key={row.key}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenRow(open ? null : row.key)}
-                      className="w-full flex items-center justify-between gap-3 px-3 py-3 text-left"
-                    >
-                      <span className="flex items-center gap-3 text-sm text-dossier-foreground">
-                        {row.icon}
-                        {row.label}
-                      </span>
-                      <ChevronDown size={16} className={`text-dossier-foreground/40 transition-transform ${open ? 'rotate-180' : ''}`} />
-                    </button>
-                    {open && <div className="px-3 pb-3">{row.content}</div>}
+            <div className="space-y-2.5">
+              {rows.map(row => (
+                <div
+                  key={row.key}
+                  className="rounded-2xl border border-dossier-foreground/15 bg-dossier/50 p-3.5 space-y-3"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="w-10 h-10 shrink-0 rounded-xl bg-dossier-foreground/10 flex items-center justify-center text-dossier-foreground">
+                      {row.icon}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-dossier-foreground">{row.label}</p>
+                      {row.hint && <p className="text-xs text-dossier-foreground/72">{row.hint}</p>}
+                    </div>
                   </div>
-                )
-              })}
+                  <div>{row.content}</div>
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -389,7 +390,7 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
 
 function Label({ children }: { children: ReactNode }) {
   return (
-    <p className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/45">
+    <p className="font-[family-name:var(--font-mono)] font-medium text-[11px] uppercase tracking-[0.2em] text-dossier-foreground/65">
       {children}
     </p>
   )

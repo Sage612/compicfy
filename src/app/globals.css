@@ -753,3 +753,26 @@
 .sh-like-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 0; padding: 4px 6px; margin: -4px -6px; border-radius: 999px; color: inherit; font: inherit; cursor: pointer; }
 .sh-like-btn:hover { color: var(--sh-accent); }
 .sh-like-btn[aria-pressed='true'] { color: var(--destructive); }
+
+/* Profile recommendations page */
+.sh-recs-head { padding-top: 22px; }
+.sh-back { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--sh-muted); }
+.sh-back:hover { color: var(--sh-text); }
+.sh-recs { padding-bottom: 22px; }
+.sh-fbar { display: flex; flex-direction: column; gap: 14px; margin-top: 14px; }
+.sh-search-ico { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--sh-muted); pointer-events: none; }
+.sh-search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: inline-flex; padding: 6px; background: none; border: 0; color: var(--sh-muted); cursor: pointer; }
+.sh-fgroup { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sh-fpills { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.sh-fpills::-webkit-scrollbar { display: none; }
+.sh-fpill { flex-shrink: 0; padding: 6px 13px; border-radius: 99px; border: 1px solid var(--sh-line); background: none; color: var(--sh-muted); font-size: 13px; cursor: pointer; white-space: nowrap; }
+.sh-fpill:hover { color: var(--sh-text); border-color: var(--sh-line-strong); }
+.sh-fpill[aria-pressed='true'] { background: var(--sh-accent); border-color: var(--sh-accent); color: var(--primary-foreground); }
+.sh-fmeta { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; color: var(--sh-muted); }
+.sh-flink { background: none; border: 0; padding: 0; color: var(--sh-accent); font-size: 12.5px; cursor: pointer; }
+.sh-more-btn { width: 100%; background: none; cursor: pointer; font-family: inherit; }
+.sh-more-btn:disabled { opacity: 0.6; cursor: default; }
+.sh-spin { display: inline-block; vertical-align: -2px; animation: sh-spin 0.9s linear infinite; }
+@keyframes sh-spin { to { transform: rotate(360deg); } }
+.sh-skel { background: var(--sh-card2); animation: sh-pulse 1.4s ease-in-out infinite; }
+@keyframes sh-pulse { 50% { opacity: 0.55; } }

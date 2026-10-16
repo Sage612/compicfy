@@ -131,94 +131,104 @@ export function TagList({
     }
   }
 
-  if (loading) return null
+  // Genres come from the page and can show straight away; only the community
+  // tags need to load.
+  if (loading && leadingItems.length === 0) return null
 
   // Nothing attached, no genres passed in, and the viewer can't add
-  // anything (logged out) — don't render an empty section at all.
-  if (tags.length === 0 && leadingItems.length === 0 && !isLoggedIn) return null
+  // anything (logged out): don't render an empty section at all.
+  if (!loading && tags.length === 0 && leadingItems.length === 0 && !isLoggedIn) return null
+
+  const heading2 = 'font-[family-name:var(--font-mono)] font-medium text-[11px] uppercase tracking-[0.18em] text-dossier-foreground/90'
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-3">
       <button
         type="button"
         onClick={() => collapsible && setExpanded(v => !v)}
         className="w-full flex items-center justify-between"
         disabled={!collapsible}
       >
-        <h2 className="font-[family-name:var(--font-mono)] text-[10px] uppercase tracking-[0.2em] text-dossier-foreground/40">
-          {heading}
-        </h2>
+        <h2 className={heading2}>{heading}</h2>
         {collapsible && (
           <ChevronDown
-            size={13}
-            className={`text-dossier-foreground/40 transition-transform ${expanded ? 'rotate-180' : ''}`}
+            size={14}
+            className={`text-dossier-foreground/85 transition-transform ${expanded ? 'rotate-180' : ''}`}
           />
         )}
       </button>
 
-      {expanded && (
-        <div className="flex flex-wrap justify-center md:justify-start gap-1.5 items-center">
-          {leadingItems.map(item => (
-            item.href ? (
-              <Link key={item.label} href={item.href}>
-                <span className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors">
+      {expanded && leadingItems.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold text-dossier-foreground/85">Genres</p>
+          {/* Genres: solid, filled chips */}
+          <div className="flex flex-wrap items-center gap-2">
+            {leadingItems.map(item => {
+              const cls =
+                'inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border border-dossier-foreground/25 bg-dossier-foreground/10 text-dossier-foreground transition-colors'
+              return item.href ? (
+                <Link key={item.label} href={item.href} className={`${cls} hover:bg-dossier-foreground/20`}>
                   {item.label}
-                </span>
-              </Link>
-            ) : (
-              <span
-                key={item.label}
-                className="inline-flex px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60"
+                </Link>
+              ) : (
+                <span key={item.label} className={cls}>{item.label}</span>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {expanded && (tags.length > 0 || isLoggedIn) && (
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold text-dossier-foreground/85">Tags</p>
+          {/* Tags: dotted outline with a #, so they never look like genres */}
+          <div className="flex flex-wrap items-center gap-2">
+            {tags.map(({ relationId, tag }) => (
+              <div
+                key={relationId}
+                className="group relative inline-flex items-center gap-1 pl-2.5 pr-2 py-1 rounded-full text-xs font-medium border border-dotted border-dossier-foreground/50 text-dossier-foreground/90 hover:border-dossier-foreground/80 hover:text-dossier-foreground transition-colors"
               >
-                {item.label}
-              </span>
-            )
-          ))}
+                <span className="text-dossier-foreground/72">#</span>
+                <span>{tag.name}</span>
+                {isLoggedIn && (
+                  <span className="opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <ReportButton
+                      entityType="recommendation_tag"
+                      entityId={relationId}
+                      isLoggedIn={isLoggedIn}
+                      compact
+                    />
+                  </span>
+                )}
+              </div>
+            ))}
 
-          {tags.map(({ relationId, tag }) => (
-            <div
-              key={relationId}
-              className="group relative inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors"
-            >
-              <span>{tag.name}</span>
-              {isLoggedIn && (
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ReportButton
-                    entityType="recommendation_tag"
-                    entityId={relationId}
-                    isLoggedIn={isLoggedIn}
-                    compact
-                  />
-                </span>
-              )}
-            </div>
-          ))}
-
-          {isLoggedIn && !showPicker && !showSuggestForm && (
-            <button
-              onClick={openPicker}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border border-dashed border-dossier-foreground/15 text-dossier-foreground/40 hover:border-dossier-foreground/30 hover:text-dossier-foreground/70 transition-colors"
-            >
-              <Plus size={10} />
-              Add tag
-            </button>
-          )}
+            {isLoggedIn && !showPicker && !showSuggestForm && (
+              <button
+                onClick={openPicker}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-dashed border-dossier-foreground/40 text-dossier-foreground/90 hover:border-dossier-foreground/70 hover:text-dossier-foreground transition-colors"
+              >
+                <Plus size={11} />
+                Add tag
+              </button>
+            )}
+          </div>
         </div>
       )}
 
       {expanded && showPicker && (
         <div className="w-full p-3 rounded-xl border border-dossier-foreground/10 bg-dossier-panel/40 space-y-2">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] uppercase tracking-widest text-dossier-foreground/40 font-[family-name:var(--font-mono)]">
+            <p className="text-[11px] uppercase tracking-widest text-dossier-foreground/65 font-[family-name:var(--font-mono)]">
               Add an existing tag
             </p>
-            <button onClick={() => setShowPicker(false)} className="text-dossier-foreground/40 hover:text-dossier-foreground/70">
+            <button onClick={() => setShowPicker(false)} className="text-dossier-foreground/65 hover:text-dossier-foreground/90">
               <X size={12} />
             </button>
           </div>
           <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
             {allTags.filter(t => !alreadyAttachedIds.has(t.id)).length === 0 ? (
-              <p className="text-[11px] text-dossier-foreground/40 py-1">
+              <p className="text-[11px] text-dossier-foreground/65 py-1">
                 Every existing tag is already on this comic.
               </p>
             ) : (
@@ -229,7 +239,7 @@ export function TagList({
                     key={t.id}
                     onClick={() => handleAdd(t.id)}
                     disabled={adding === t.id}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border border-dossier-foreground/10 text-dossier-foreground/60 hover:border-dossier-foreground/30 hover:text-dossier-foreground transition-colors disabled:opacity-50"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-dotted border-dossier-foreground/50 text-dossier-foreground/90 hover:border-dossier-foreground/80 hover:text-dossier-foreground transition-colors disabled:opacity-50"
                   >
                     {adding === t.id && <Loader2 size={9} className="animate-spin" />}
                     {t.name}
@@ -242,7 +252,7 @@ export function TagList({
             {!showSuggestForm ? (
               <button
                 onClick={() => setShowSuggestForm(true)}
-                className="inline-flex items-center gap-1.5 text-[11px] text-dossier-foreground/40 hover:text-dossier-foreground/70 transition-colors"
+                className="inline-flex items-center gap-1.5 text-[11px] text-dossier-foreground/65 hover:text-dossier-foreground/90 transition-colors"
               >
                 <Plus size={10} />
                 Can't find the right tag? Suggest one
@@ -254,10 +264,10 @@ export function TagList({
                     <button
                       key={cat}
                       onClick={() => setSuggestCategory(cat)}
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all capitalize ${
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all capitalize ${
                         suggestCategory === cat
                           ? 'bg-dossier-foreground text-dossier border-dossier-foreground'
-                          : 'border-dossier-foreground/15 text-dossier-foreground/50'
+                          : 'border-dossier-foreground/15 text-dossier-foreground/72'
                       }`}
                     >
                       {cat}
@@ -282,7 +292,7 @@ export function TagList({
                   </button>
                   <button
                     onClick={() => { setShowSuggestForm(false); setSuggestName('') }}
-                    className="h-8 w-8 rounded-md text-dossier-foreground/40 hover:text-dossier-foreground/70 flex items-center justify-center shrink-0"
+                    className="h-8 w-8 rounded-md text-dossier-foreground/65 hover:text-dossier-foreground/90 flex items-center justify-center shrink-0"
                   >
                     <X size={12} />
                   </button>
