@@ -59,12 +59,11 @@ export function ComicHero({
     <header>
       {/* ── Banner ── */}
       <div className="relative h-48 sm:h-60 md:h-72 overflow-hidden">
-        {/* The banner image is shown sharp, like a film backdrop. With no banner
-            of its own we crop the cover (face area first) instead of blurring it. */}
+        {/* A real banner shows sharp. With none, the cover is blurred into a soft backdrop. */}
         {bannerUrl ? (
           <img src={proxy(bannerUrl)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" />
         ) : coverUrl ? (
-          <img src={proxy(coverUrl)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover object-[50%_18%]" />
+          <img src={proxy(coverUrl)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover scale-125 blur-2xl opacity-60" />
         ) : (
           <div className={`absolute inset-0 bg-gradient-to-br ${gradientClass} opacity-20`} />
         )}

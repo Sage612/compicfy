@@ -384,18 +384,15 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
           </section>
         )}
 
-        {/* A Close button at the bottom, where a thumb is, so you never have to
-            reach for the X at the top. Stays pinned while the sheet scrolls. */}
-        <div className="sticky bottom-0 -mx-5 -mb-8 px-5 pt-3 pb-6 bg-dossier-panel border-t border-dossier-foreground/10">
-          <SheetClose asChild>
-            <button
-              type="button"
-              className="w-full h-12 rounded-xl bg-dossier-foreground text-dossier text-sm font-bold active:scale-[0.98] transition-transform"
-            >
-              Close
-            </button>
-          </SheetClose>
-        </div>
+        {/* Close sits right after the last card (Report), in the normal flow. */}
+        <SheetClose asChild>
+          <button
+            type="button"
+            className="w-full h-12 rounded-xl bg-dossier-foreground text-dossier text-sm font-bold active:scale-[0.98] transition-transform"
+          >
+            Close
+          </button>
+        </SheetClose>
       </SheetContent>
     </Sheet>
   )

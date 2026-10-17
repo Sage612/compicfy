@@ -32,26 +32,58 @@ function calculateGap(width: number) {
 /* ────────────────────────────────────────────────────────────────
    PHONE: native scroll-snap strip. One large cover is centred, the
    neighbours peek in from both sides so it's obvious you can swipe.
-   No autoplay (it fights your thumb), no tiny 3D stack.
+   Auto-advances like desktop, but backs off the moment a finger is on it
+   (and for people who prefer reduced motion).
 ──────────────────────────────────────────────────────────────── */
 function MobileFeatured({ recommendations, adminFeaturedIds }: Props) {
   const stripRef = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(0)
+  const activeRef = useRef(0)
+  const touchingRef = useRef(false)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const length = recommendations.length
+
+  const scrollToIndex = useCallback((i: number) => {
+    const el = stripRef.current
+    if (!el || !el.children.length) return
+    const first = el.children[0] as HTMLElement
+    el.scrollTo({ left: i * (first.offsetWidth + 12), behavior: 'smooth' })
+  }, [])
 
   const onScroll = useCallback(() => {
     const el = stripRef.current
     if (!el || !el.children.length) return
     const first = el.children[0] as HTMLElement
     const step  = first.offsetWidth + 12 // card + gap-3
-    setActive(Math.max(0, Math.min(recommendations.length - 1, Math.round(el.scrollLeft / step))))
-  }, [recommendations.length])
+    const idx = Math.max(0, Math.min(length - 1, Math.round(el.scrollLeft / step)))
+    activeRef.current = idx
+    setActive(idx)
+  }, [length])
 
-  const goTo = (i: number) => {
-    const el = stripRef.current
-    if (!el || !el.children.length) return
-    const first = el.children[0] as HTMLElement
-    el.scrollTo({ left: i * (first.offsetWidth + 12), behavior: 'smooth' })
-  }
+  const stopAutoplay = useCallback(() => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
+  }, [])
+
+  const startAutoplay = useCallback(() => {
+    stopAutoplay()
+    if (length <= 1) return
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    timerRef.current = setInterval(() => {
+      if (touchingRef.current || document.hidden) return
+      scrollToIndex((activeRef.current + 1) % length) // wraps back to the first card
+    }, CAROUSEL_AUTOPLAY_DELAY)
+  }, [length, scrollToIndex, stopAutoplay])
+
+  useEffect(() => {
+    startAutoplay()
+    return stopAutoplay
+  }, [startAutoplay, stopAutoplay])
+
+  // Finger down = pause; finger up = restart the full delay so it never jumps right after a swipe.
+  const onTouchStart = () => { touchingRef.current = true }
+  const onTouchEnd   = () => { touchingRef.current = false; startAutoplay() }
+
+  const goTo = (i: number) => { scrollToIndex(i); startAutoplay() }
 
   const rec    = recommendations[active]
   const status = resolveStatusMeta(rec.status, (rec as any).translation_status)
@@ -62,6 +94,9 @@ function MobileFeatured({ recommendations, adminFeaturedIds }: Props) {
       <div
         ref={stripRef}
         onScroll={onScroll}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
         className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-mandatory px-[calc((100vw_-_min(68vw,300px))/2)]"
       >
         {recommendations.map((r, i) => {
