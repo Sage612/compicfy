@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { queryLatestUpdated } from '@/lib/recommendations/browseQueries'
 import { NextResponse } from 'next/server'
 import { recommendationSchema } from '@/lib/utils/validators'
 import { resolveMoreInfoLink } from '@/lib/utils/moreInfoLink'
@@ -81,6 +82,22 @@ export async function GET(request: Request) {
     const q      = searchParams.get('q')      ?? ''
     const adult  = searchParams.get('adult')  === 'true'
     const offset = (page - 1) * limit
+
+    // "Latest update" isn't a sort the RPC knows about: answer it with a
+    // direct query ordered by last_chapter_released_at instead.
+    if (sort === 'updated') {
+      const { items, total } = await queryLatestUpdated(supabase as any, {
+        q: q || undefined, type: type || undefined, genre: genre || undefined,
+        status: status || undefined, adult, limit, offset,
+      })
+      return NextResponse.json({
+        recommendations: items,
+        total,
+        page,
+        limit,
+        hasMore: total > offset + limit,
+      })
+    }
 
     const { data, error } = await supabase.rpc('search_recommendations', {
       p_query:  q      || undefined,

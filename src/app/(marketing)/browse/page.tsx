@@ -10,12 +10,11 @@ import {
   HorizontalSectionSkeleton,
   GenreSectionsSkeleton,
 } from '@/components/recommendations/BrowseSkeletons'
-import { BookOpen, Radar } from 'lucide-react'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import { GENRES, GENRE_MOODS, genreSlug } from '@/lib/utils/constants'
 import { GenreAnchorFallback } from '@/components/recommendations/GenreAnchorFallback'
-import { ScrollingTitle } from '@/components/recommendations/ScrollingTitle'
+import { PageHeader } from '@/components/dashboard/PageHeader'
+import { queryLatestUpdated } from '@/lib/recommendations/browseQueries'
 import { isProUser } from '@/lib/access'
 import type { Recommendation } from '@/types/app.types'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -75,6 +74,11 @@ async function getFeatured(s: SupabaseClient): Promise<{ items: Recommendation[]
   return { items: [...adminPicks, ...communityPicks], adminIds }
 }
 
+async function getLatestUpdated(s: SupabaseClient) {
+  const { items } = await queryLatestUpdated(s, { adult: false, limit: 12, offset: 0 })
+  return items
+}
+
 async function getTrending(s: SupabaseClient) {
   const { data } = await s.from('recommendations').select('*').eq('is_approved', true).not('content_rating', 'in', SAFE_RATINGS).order('daily_votes', { ascending: false }).limit(12)
   return (data as Recommendation[]) ?? []
@@ -108,7 +112,7 @@ async function getCommunityFavourites(s: SupabaseClient) {
 async function getEditorialPick(
   s: SupabaseClient,
   userId: string | null
-): Promise<{ title: string; emoji: string; items: Recommendation[] }> {
+): Promise<{ title: string; slug: string; items: Recommendation[] }> {
   const dayOfYear = Math.floor(
     (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
   )
@@ -123,7 +127,7 @@ async function getEditorialPick(
       .not('content_rating', 'in', SAFE_RATINGS)
       .order('featured_at', { ascending: false })
       .limit(12)
-    return { title: 'Admin Picks', emoji: '👑', items: (data as Recommendation[]) ?? [] }
+    return { title: 'Editor’s picks', slug: 'featured', items: (data as Recommendation[]) ?? [] }
   }
 
   if (rotation === 1) {
@@ -134,7 +138,7 @@ async function getEditorialPick(
       .not('content_rating', 'in', SAFE_RATINGS)
       .order('save_count', { ascending: false })
       .limit(12)
-    return { title: 'Hidden Gems', emoji: '💎', items: (data as Recommendation[]) ?? [] }
+    return { title: 'Hidden gems', slug: 'hidden-gems', items: (data as Recommendation[]) ?? [] }
   }
 
   const { data } = await (s as any).rpc('get_personalized_recommendations', {
@@ -145,7 +149,7 @@ async function getEditorialPick(
   })
   let results = (data as Recommendation[]) ?? []
   if (userId) results = results.filter(r => r.user_id !== userId)
-  return { title: userId ? 'You Might Like' : 'Popular Picks', emoji: '🎯', items: results.slice(0, 12) }
+  return { title: userId ? 'You might like' : 'Popular picks', slug: 'for-you', items: results.slice(0, 12) }
 }
 
 async function getTopGenresWithCounts(s: SupabaseClient): Promise<string[]> {
@@ -210,6 +214,9 @@ async function getGenreItems(s: SupabaseClient, genre: string): Promise<Recommen
 }
 
 async function getInitialGrid(s: SupabaseClient, params: SearchParams) {
+  if (params.sort === 'updated') {
+    return queryLatestUpdated(s, { q: params.q, type: params.type, genre: params.genre, status: params.status, adult: false, limit: PAGE_SIZE, offset: 0 })
+  }
   const { data } = await (s as any).rpc('search_recommendations', {
     p_query:  params.q      || null,
     p_type:   params.type   || null,
@@ -247,28 +254,34 @@ async function FeaturedCarouselSection({ supabase }: { supabase: SupabaseClient 
   return <FeaturedCarousel recommendations={items} adminFeaturedIds={adminIds} />
 }
 
+async function LatestUpdatesSection({ supabase }: { supabase: SupabaseClient }) {
+  const items = await getLatestUpdated(supabase)
+  if (items.length === 0) return null
+  return <HorizontalSection title="Latest updates" eyebrow="New chapters" recommendations={items} viewAllHref="/browse/s/updated" />
+}
+
 async function TrendingSection({ supabase }: { supabase: SupabaseClient }) {
   const trending = await getTrending(supabase)
   if (trending.length === 0) return null
-  return <HorizontalSection title="Trending Today" emoji="🔥" recommendations={trending} viewAllHref="/browse?sort=trending" />
+  return <HorizontalSection title="Trending today" eyebrow="Right now" recommendations={trending} viewAllHref="/browse/s/trending" />
 }
 
 async function NewThisWeekSection({ supabase }: { supabase: SupabaseClient }) {
   const items = await getNewThisWeek(supabase)
   if (items.length === 0) return null
-  return <HorizontalSection title="New This Week" emoji="🆕" recommendations={items} viewAllHref="/browse?sort=recent" />
+  return <HorizontalSection title="New this week" eyebrow="Fresh" recommendations={items} viewAllHref="/browse/s/new" />
 }
 
 async function CommunityFavouritesSection({ supabase }: { supabase: SupabaseClient }) {
   const items = await getCommunityFavourites(supabase)
   if (items.length === 0) return null
-  return <HorizontalSection title="Community Favourites" emoji="❤️" recommendations={items} viewAllHref="/browse?sort=score" />
+  return <HorizontalSection title="Community favourites" eyebrow="All time" recommendations={items} viewAllHref="/browse/s/favourites" />
 }
 
 async function EditorialSection({ supabase, userId }: { supabase: SupabaseClient; userId: string | null }) {
   const editorial = await getEditorialPick(supabase, userId)
   if (editorial.items.length === 0) return null
-  return <HorizontalSection title={editorial.title} emoji={editorial.emoji} recommendations={editorial.items} />
+  return <HorizontalSection title={editorial.title} eyebrow="Picked for today" recommendations={editorial.items} viewAllHref={`/browse/s/${editorial.slug}`} />
 }
 
 async function GenreSections({ supabase }: { supabase: SupabaseClient }) {
@@ -281,44 +294,30 @@ async function GenreSections({ supabase }: { supabase: SupabaseClient }) {
   if (genreSections.length === 0) return null
 
   return (
-    <div className="space-y-8 pt-2">
+    <div className="space-y-10 pt-2">
       <GenreAnchorFallback availableSlugs={genreSections.map(s => genreSlug(s.genre))} />
 
-      <div className="relative flex items-center gap-4 py-2">
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-border" />
-        <div className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card shrink-0">
-          <BookOpen size={13} className="text-muted-foreground" />
-          <span className="text-xs font-black uppercase tracking-widest text-muted-foreground">Explore by Mood</span>
-        </div>
-        <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-border" />
+      <div className="border-t border-border/60 pt-8">
+        <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">Explore by mood</p>
       </div>
 
       {genreSections.map(({ genre, items: genreItems }) => {
-        const { mood, emoji } = GENRE_MOODS[genre as (typeof GENRES)[number]] ?? { mood: genre, emoji: '📚' }
+        const { mood } = GENRE_MOODS[genre as (typeof GENRES)[number]] ?? { mood: genre }
         return (
-          <div key={genre} id={`genre-${genreSlug(genre)}`} className="space-y-3 scroll-mt-20">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="text-2xl leading-none shrink-0">{emoji}</span>
-                <div className="min-w-0">
-                  <ScrollingTitle>
-                    <h3 className="text-lg font-black leading-tight tracking-tight">{mood}</h3>
-                  </ScrollingTitle>
-                  <div className="h-0.5 w-8 rounded-full bg-primary mt-1 opacity-60" />
-                </div>
+          <section key={genre} id={`genre-${genreSlug(genre)}`} className="space-y-4 scroll-mt-20">
+            <div className="flex items-end justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">{genre}</p>
+                <h3 className="font-dashboard-serif text-xl sm:text-2xl leading-tight text-foreground">{mood}</h3>
               </div>
-              <Link href={`/browse?genre=${encodeURIComponent(genre)}`} className="shrink-0">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-1 text-xs text-muted-foreground hover:text-foreground h-8 px-3"
-                >
-                  View All
-                  <span aria-hidden>→</span>
-                </Button>
+              <Link
+                href={`/browse/s/genre?genre=${encodeURIComponent(genre)}`}
+                className="shrink-0 text-xs text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors"
+              >
+                See all
               </Link>
             </div>
-            <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
+            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-3 gap-y-5">
               {genreItems.map((rec, i) => (
                 <ComicCard
                   key={rec.id}
@@ -328,7 +327,7 @@ async function GenreSections({ supabase }: { supabase: SupabaseClient }) {
                 />
               ))}
             </div>
-          </div>
+          </section>
         )
       })}
     </div>
@@ -373,27 +372,24 @@ export default async function BrowsePage({ searchParams }: Props) {
   if (params.sort)   clientParams.sort   = params.sort
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-10">
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-8 h-8 rounded bg-primary flex items-center justify-center shrink-0">
-            <Radar size={16} className="text-primary-foreground" />
-          </div>
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-3xl font-black tracking-tight leading-tight">Browse Comics</h1>
-            <p className="text-muted-foreground text-xs leading-snug mt-0.5 hidden sm:block">
-              Community recommendations · manga, manhwa, manhua &amp; webtoons
-            </p>
-          </div>
-        </div>
-        {adultEnabled && (
-          <Link href="/browse/adult">
-            <Button size="sm" variant="outline" className="gap-1.5 border-destructive/30 text-destructive hover:bg-destructive/5 h-8 px-2.5 shrink-0">🔞</Button>
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        eyebrow="Discover"
+        title="Browse"
+        subtitle="Community recommendations: manga, manhwa, manhua and webtoons"
+        actions={
+          adultEnabled ? (
+            <Link
+              href="/browse/adult"
+              className="text-xs text-muted-foreground underline underline-offset-4 decoration-border hover:text-foreground hover:decoration-foreground transition-colors"
+            >
+              18+ comics
+            </Link>
+          ) : undefined
+        }
+      />
 
       {/* Featured Carousel — streams independently */}
       {!isFiltering && (
@@ -404,7 +400,10 @@ export default async function BrowsePage({ searchParams }: Props) {
 
       {/* Horizontal sections — each streams independently, in parallel */}
       {!isFiltering && (
-        <div className="space-y-10">
+        <div className="space-y-12">
+          <Suspense fallback={<HorizontalSectionSkeleton />}>
+            <LatestUpdatesSection supabase={supabase} />
+          </Suspense>
           <Suspense fallback={<HorizontalSectionSkeleton />}>
             <TrendingSection supabase={supabase} />
           </Suspense>

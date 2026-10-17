@@ -28,7 +28,6 @@ import { MoreInfoSection } from '@/components/comic-detail/MoreInfoSection'
 import { TagList } from '@/components/comic-detail/TagList'
 import { ComicHero } from '@/components/comic-detail/ComicHero'
 import { RatingsHistogram } from '@/components/comic-detail/RatingsHistogram'
-import { ActionDock } from '@/components/comic-detail/ActionDock'
 import { TrackingProvider } from '@/components/comic-detail/TrackingProvider'
 import { TrackBar } from '@/components/comic-detail/TrackBar'
 import { MomentStrip } from '@/components/comic-detail/MomentStrip'
@@ -733,7 +732,6 @@ export default async function ComicDetailPage({ params }: Props) {
               </div>
             )}
           </div>
-          <ActionDock />
         </TrackingProvider>
       </div>
     </>

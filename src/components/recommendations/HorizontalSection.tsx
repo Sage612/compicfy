@@ -3,16 +3,17 @@
 import Link from 'next/link'
 import { useRef } from 'react'
 import { ComicCard } from './ComicCard'
-import { ScrollingTitle } from './ScrollingTitle'
-import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Recommendation } from '@/types/app.types'
 
 interface Props {
   title: string
+  /** Small label above the title, e.g. "This week". Optional. */
+  eyebrow?: string
+  /** Kept for compatibility with older callers; no longer rendered. */
   emoji?: string
   recommendations: Recommendation[]
+  /** Points at the dedicated "all" page for this section. */
   viewAllHref?: string
   className?: string
   showGenres?: boolean
@@ -20,84 +21,80 @@ interface Props {
 
 export function HorizontalSection({
   title,
-  emoji,
+  eyebrow,
   recommendations,
   viewAllHref,
   className,
-  showGenres = true,
+  showGenres = false,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   const scroll = (direction: 'left' | 'right') => {
     if (!scrollRef.current) return
-    const scrollAmount = scrollRef.current.clientWidth * 0.75
-    scrollRef.current.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
-      behavior: 'smooth',
-    })
+    const amount = scrollRef.current.clientWidth * 0.8
+    scrollRef.current.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' })
   }
 
   if (!recommendations.length) return null
 
   return (
-    <div className={cn('space-y-4', className)}>
-      {/* Section header */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          {emoji && (
-            <span className="text-2xl leading-none shrink-0">{emoji}</span>
+    <section className={cn('space-y-4', className)}>
+      <div className="flex items-end justify-between gap-4">
+        <div className="min-w-0">
+          {eyebrow && (
+            <p className="text-[11px] uppercase tracking-widest text-muted-foreground/70">{eyebrow}</p>
           )}
-          <div className="min-w-0">
-            <ScrollingTitle>
-              <h2 className="text-lg font-black leading-tight tracking-tight">{title}</h2>
-            </ScrollingTitle>
-            <div className="h-0.5 w-8 rounded-full bg-primary mt-1 opacity-60" />
-          </div>
+          <h2 className="font-dashboard-serif text-xl sm:text-2xl leading-tight text-foreground truncate">{title}</h2>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          {/* Scroll arrows */}
-          <button
-            onClick={() => scroll('left')}
-            className="w-8 h-8 rounded-full border border-border bg-card hover:bg-accent hover:border-primary/40 flex items-center justify-center transition-all"
-            aria-label="Scroll left"
-          >
-            <ChevronLeft size={14} />
-          </button>
-          <button
-            onClick={() => scroll('right')}
-            className="w-8 h-8 rounded-full border border-border bg-card hover:bg-accent hover:border-primary/40 flex items-center justify-center transition-all"
-            aria-label="Scroll right"
-          >
-            <ChevronRight size={14} />
-          </button>
-
+        <div className="flex items-center gap-4 shrink-0">
+          {/* Arrows are a mouse affordance; phones swipe. */}
+          <div className="hidden md:flex items-center gap-1.5">
+            <button
+              onClick={() => scroll('left')}
+              className="h-8 w-8 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+              aria-label="Scroll left"
+            >
+              ‹
+            </button>
+            <button
+              onClick={() => scroll('right')}
+              className="h-8 w-8 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+              aria-label="Scroll right"
+            >
+              ›
+            </button>
+          </div>
           {viewAllHref && (
-            <Link href={viewAllHref}>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1 text-xs text-muted-foreground hover:text-foreground h-8 px-3"
-              >
-                All
-                <ArrowRight size={11} />
-              </Button>
+            <Link
+              href={viewAllHref}
+              className="text-xs text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors whitespace-nowrap"
+            >
+              See all
             </Link>
           )}
         </div>
       </div>
 
-      {/* Horizontal scroll container */}
+      {/* Bleeds to the screen edge on phones so the next card always peeks. */}
       <div
         ref={scrollRef}
-        className="flex gap-3 overflow-x-auto no-scrollbar pb-2 -mx-1 px-1"
+        className="flex gap-3 overflow-x-auto no-scrollbar snap-x snap-proximity scroll-pl-4 -mx-4 px-4 pb-1"
       >
-        {recommendations.map((rec) => (
-          <div key={rec.id} className="flex-none w-36 sm:w-40">
+        {recommendations.map(rec => (
+          <div key={rec.id} className="flex-none w-32 sm:w-40 snap-start">
             <ComicCard recommendation={rec} showGenres={showGenres} />
           </div>
         ))}
+        {viewAllHref && (
+          <Link
+            href={viewAllHref}
+            className="flex-none w-32 sm:w-40 snap-start self-start aspect-[3/4] rounded-lg border border-dashed border-border flex items-center justify-center text-xs text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
+          >
+            See all →
+          </Link>
+        )}
       </div>
-    </div>
+    </section>
   )
 }

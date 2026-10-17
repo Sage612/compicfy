@@ -59,15 +59,19 @@ export function ComicHero({
     <header>
       {/* ── Banner ── */}
       <div className="relative h-48 sm:h-60 md:h-72 overflow-hidden">
+        {/* The banner image is shown sharp, like a film backdrop. With no banner
+            of its own we crop the cover (face area first) instead of blurring it. */}
         {bannerUrl ? (
-          <img src={proxy(bannerUrl)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover opacity-80" />
+          <img src={proxy(bannerUrl)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover" />
         ) : coverUrl ? (
-          <img src={proxy(coverUrl)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover scale-125 blur-2xl opacity-50" />
+          <img src={proxy(coverUrl)} alt="" aria-hidden className="absolute inset-0 w-full h-full object-cover object-[50%_18%]" />
         ) : (
           <div className={`absolute inset-0 bg-gradient-to-br ${gradientClass} opacity-20`} />
         )}
-        <div className={`absolute inset-0 bg-gradient-to-br ${gradientClass} opacity-15 mix-blend-overlay`} />
-        <div className="absolute inset-0 bg-gradient-to-t from-dossier via-dossier/55 to-black/25" />
+        {/* Dark only where it is needed: a little at the top for the buttons,
+            and a fade into the page at the bottom. The middle stays clear. */}
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/50 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-dossier via-dossier/60 to-transparent" />
 
         <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 md:px-6 pt-4 z-10">
           <Link

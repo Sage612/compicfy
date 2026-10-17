@@ -110,25 +110,22 @@ export function SaveButton({
           onClick={handleSave}
           disabled={loading}
           aria-pressed={saved}
-          className="group flex flex-col items-center justify-center gap-2 px-2 py-4 transition-colors hover:bg-dossier-foreground/5 active:scale-[0.97] disabled:opacity-70"
+          className="flex flex-col items-center justify-center gap-1.5 px-2 py-3.5 transition-colors hover:bg-dossier-foreground/5 disabled:opacity-70"
         >
           <span
             className={cn(
-              'w-12 h-12 rounded-full border-2 flex items-center justify-center transition-all group-hover:scale-105',
+              'w-10 h-10 rounded-full border flex items-center justify-center transition-colors',
               saved
-                ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/30'
-                : 'border-dossier-foreground/30 bg-dossier-foreground/5 text-dossier-foreground group-hover:border-amber-500 group-hover:text-amber-500 group-hover:bg-amber-500/10'
+                ? 'bg-amber-500/15 border-amber-500 text-amber-500'
+                : 'border-dossier-foreground/30 text-dossier-foreground/85'
             )}
           >
             {loading
-              ? <Loader2 size={18} className="animate-spin" />
-              : <Bookmark size={20} className={saved ? 'fill-current' : ''} />}
+              ? <Loader2 size={16} className="animate-spin" />
+              : <Bookmark size={17} className={saved ? 'fill-current' : ''} />}
           </span>
-          <span className="text-sm font-bold text-dossier-foreground">{saved ? 'Saved' : 'Save'}</span>
-          <span className={cn(
-            'rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums transition-colors',
-            saved ? 'bg-amber-500/15 text-amber-500' : 'bg-dossier-foreground/10 text-dossier-foreground/85'
-          )}>{shown}</span>
+          <span className="text-sm font-semibold text-dossier-foreground">{saved ? 'Saved' : 'Save'}</span>
+          <span className="text-xs font-medium tabular-nums text-dossier-foreground/70">{shown}</span>
         </button>
 
         <AuthPromptModal

@@ -15,7 +15,7 @@ import { useState, type ReactNode } from 'react'
 import { Loader2, Minus, Plus, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import {
-  Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
+  Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle,
 } from '@/components/ui/sheet'
 import {
   TRACKING_STATUSES,
@@ -383,6 +383,19 @@ export function TrackSheet({ rows }: { rows: SheetRow[] }) {
             </div>
           </section>
         )}
+
+        {/* A Close button at the bottom, where a thumb is, so you never have to
+            reach for the X at the top. Stays pinned while the sheet scrolls. */}
+        <div className="sticky bottom-0 -mx-5 -mb-8 px-5 pt-3 pb-6 bg-dossier-panel border-t border-dossier-foreground/10">
+          <SheetClose asChild>
+            <button
+              type="button"
+              className="w-full h-12 rounded-xl bg-dossier-foreground text-dossier text-sm font-bold active:scale-[0.98] transition-transform"
+            >
+              Close
+            </button>
+          </SheetClose>
+        </div>
       </SheetContent>
     </Sheet>
   )
